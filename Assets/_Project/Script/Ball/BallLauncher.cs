@@ -22,41 +22,133 @@ public sealed class BallLauncher : MonoBehaviour
     private float launchInterval = 0.08f;
 
     [Header("Aim Settings")]
-    [SerializeField, Min(0.5f)]
-    private float aimLineLength = 4f;
-
     [SerializeField, Range(0.01f, 1f)]
     private float minimumUpwardDirection = 0.15f;
 
+    [Tooltip("조준선이 마우스를 따라가는 부드러움입니다.")]
+    [SerializeField, Min(0f)]
+    private float aimSmoothSpeed = 14f;
+
+    [Tooltip(
+        "이 각도 이상 움직이면 " +
+        "조준 방향이 변경된 것으로 판단합니다."
+    )]
+    [SerializeField, Range(0.1f, 10f)]
+    private float aimMovementThresholdDegrees = 1.5f;
+
+    [Header("Short Aim Line")]
+    [Tooltip("마우스를 움직이는 동안 표시되는 짧은 조준선 길이입니다.")]
+    [SerializeField, Min(0.5f)]
+    private float shortAimLineLength = 3.5f;
+
+    [Tooltip("짧은 조준선 색상입니다.")]
+    [SerializeField]
+    private Color shortAimLineColor =
+        new Color(1f, 1f, 1f, 0.9f);
+
+    [Header("Trajectory Preview Timing")]
+    [Tooltip(
+        "조준 방향을 유지한 뒤 " +
+        "긴 예상 경로가 나타나기까지의 시간입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float stableAimDelay = 1.2f;
+
+    [Tooltip("예상 경로가 끝까지 늘어나는 데 걸리는 시간입니다.")]
+    [SerializeField, Min(0f)]
+    private float trajectoryRevealDuration = 0.45f;
+
+    [Tooltip("긴 예상 경로의 반투명 색상입니다.")]
+    [SerializeField]
+    private Color trajectoryLineColor =
+        new Color(1f, 1f, 1f, 0.28f);
+
+    [Header("Trajectory Preview")]
+    [Tooltip("예상 경로 전체 길이입니다.")]
+    [SerializeField, Min(1f)]
+    private float trajectoryDistance = 35f;
+
+    [Tooltip("예상 경로의 최대 반사 횟수입니다.")]
+    [SerializeField, Range(0, 20)]
+    private int maximumTrajectoryBounces = 8;
+
+    [Tooltip(
+        "Ball Prefab의 CircleCollider2D 크기를 " +
+        "예상 경로 계산에 사용합니다."
+    )]
+    [SerializeField]
+    private bool useBallPrefabRadius = true;
+
+    [Tooltip(
+        "Ball Prefab 반지름을 사용하지 않을 때 적용되는 " +
+        "예상 공 반지름입니다."
+    )]
+    [SerializeField, Min(0.01f)]
+    private float manualTrajectoryRadius = 0.2f;
+
+    [Tooltip(
+        "반사 직후 같은 충돌면에 다시 걸리지 않도록 " +
+        "약간 떨어뜨리는 거리입니다."
+    )]
+    [SerializeField, Min(0.001f)]
+    private float trajectorySkinWidth = 0.02f;
+
+    [Tooltip(
+        "예상 경로가 충돌을 검사할 레이어입니다. " +
+        "벽, 블록, ReturnZone 레이어가 포함돼야 합니다."
+    )]
+    [SerializeField]
+    private LayerMask trajectoryCollisionMask = ~0;
+
     [Header("Launch Position Limit")]
-    [Tooltip("다음 턴 시작 위치가 왼쪽 벽에 너무 붙지 않도록 제한합니다.")]
     [SerializeField]
     private float minimumLaunchX = -4.3f;
 
-    [Tooltip("다음 턴 시작 위치가 오른쪽 벽에 너무 붙지 않도록 제한합니다.")]
     [SerializeField]
     private float maximumLaunchX = 4.3f;
 
-    private readonly List<Ball> balls = new List<Ball>();
+    private readonly List<Ball> balls =
+        new List<Ball>();
+
+    private readonly List<Vector3> trajectoryPoints =
+        new List<Vector3>();
+
+    private readonly List<Vector3> visibleTrajectoryPoints =
+        new List<Vector3>();
 
     private Camera mainCamera;
     private Coroutine launchCoroutine;
 
-    private Vector2 currentAimDirection = Vector2.up;
+    private Vector2 currentAimDirection =
+        Vector2.up;
 
-    // 현재 턴에서 모든 공이 출발하는 위치
+    private Vector2 targetAimDirection =
+        Vector2.up;
+
+    private Vector2 stableReferenceDirection =
+        Vector2.up;
+
+    private Vector2 previewDirection =
+        Vector2.up;
+
     private Vector2 currentTurnLaunchPosition;
-
-    // 첫 번째로 복귀한 공을 기준으로 정해지는 다음 턴 시작 위치
     private Vector2 nextTurnLaunchPosition;
 
     private int launchedBallCount;
     private int returnedBallCount;
 
+    private float cachedTrajectoryRadius;
+    private float stableAimTimer;
+    private float trajectoryRevealTimer;
+    private float trajectoryTotalLength;
+
     private bool hasValidAim;
     private bool isLaunching;
     private bool hasFirstReturnedBall;
     private bool isAttackCompleted;
+    private bool isTrajectoryPreviewActive;
+    private bool hasStableReference;
+    private bool wasAimingLastFrame;
 
     private void Awake()
     {
@@ -64,16 +156,21 @@ public sealed class BallLauncher : MonoBehaviour
 
         if (turnManager == null)
         {
-            turnManager = FindFirstObjectByType<TurnManager>();
+            turnManager =
+                FindFirstObjectByType<TurnManager>();
         }
 
         if (aimLine == null)
         {
-            aimLine = GetComponentInChildren<LineRenderer>(true);
+            aimLine =
+                GetComponentInChildren<LineRenderer>(
+                    true
+                );
         }
 
         ValidateReferences();
         InitializeAimLine();
+        InitializeTrajectoryRadius();
     }
 
     private void Start()
@@ -83,39 +180,75 @@ public sealed class BallLauncher : MonoBehaviour
             return;
         }
 
-        currentTurnLaunchPosition = transform.position;
-        nextTurnLaunchPosition = transform.position;
+        currentTurnLaunchPosition =
+            transform.position;
+
+        nextTurnLaunchPosition =
+            transform.position;
 
         CreateBalls();
 
         currentAimDirection = Vector2.up;
-        hasValidAim = true;
+        targetAimDirection = Vector2.up;
+        stableReferenceDirection = Vector2.up;
 
-        ShowAimLine(currentAimDirection);
+        hasStableReference = true;
+        hasValidAim = true;
+        wasAimingLastFrame = false;
+
+        ResetAimPreview();
+        ShowShortAimLine(currentAimDirection);
     }
 
     private void Update()
     {
-        if (turnManager == null || balls.Count == 0)
+        if (turnManager == null ||
+            balls.Count == 0)
         {
             return;
         }
 
         if (!turnManager.CanAim)
         {
+            if (wasAimingLastFrame)
+            {
+                wasAimingLastFrame = false;
+                ResetAimPreview();
+            }
+
             HideAimLine();
             return;
         }
 
-        Vector3 mouseScreenPosition = Input.mousePosition;
+        if (!wasAimingLastFrame)
+        {
+            wasAimingLastFrame = true;
+
+            stableReferenceDirection =
+                currentAimDirection;
+
+            hasStableReference = true;
+
+            ResetAimPreview();
+            ShowShortAimLine(currentAimDirection);
+        }
+
+        Vector3 mouseScreenPosition =
+            Input.mousePosition;
 
         bool isPointerInsideGameView =
-            IsValidPointerPosition(mouseScreenPosition);
+            IsValidPointerPosition(
+                mouseScreenPosition
+            );
 
         if (isPointerInsideGameView)
         {
-            UpdateAim(mouseScreenPosition);
+            UpdateAimInput(
+                mouseScreenPosition
+            );
         }
+
+        UpdateAimVisual();
 
         if (isPointerInsideGameView &&
             Input.GetMouseButtonDown(0) &&
@@ -131,7 +264,7 @@ public sealed class BallLauncher : MonoBehaviour
         {
             Debug.LogError(
                 "BallLauncher: Main Camera를 찾지 못했습니다. " +
-                "카메라의 Tag가 MainCamera인지 확인하세요.",
+                "Main Camera의 Tag가 MainCamera인지 확인하세요.",
                 this
             );
         }
@@ -169,8 +302,50 @@ public sealed class BallLauncher : MonoBehaviour
         }
 
         aimLine.useWorldSpace = true;
-        aimLine.positionCount = 2;
+        aimLine.positionCount = 0;
         aimLine.enabled = false;
+    }
+
+    private void InitializeTrajectoryRadius()
+    {
+        cachedTrajectoryRadius =
+            manualTrajectoryRadius;
+
+        if (!useBallPrefabRadius ||
+            ballPrefab == null)
+        {
+            return;
+        }
+
+        CircleCollider2D circleCollider =
+            ballPrefab.GetComponent<CircleCollider2D>();
+
+        if (circleCollider == null)
+        {
+            Debug.LogWarning(
+                "BallLauncher: Ball Prefab에 " +
+                "CircleCollider2D가 없어 수동 반지름을 사용합니다.",
+                this
+            );
+
+            return;
+        }
+
+        Vector3 prefabScale =
+            ballPrefab.transform.localScale;
+
+        float largestScale =
+            Mathf.Max(
+                Mathf.Abs(prefabScale.x),
+                Mathf.Abs(prefabScale.y)
+            );
+
+        cachedTrajectoryRadius =
+            Mathf.Max(
+                0.01f,
+                circleCollider.radius *
+                largestScale
+            );
     }
 
     private void CreateBalls()
@@ -185,9 +360,15 @@ public sealed class BallLauncher : MonoBehaviour
                 Quaternion.identity
             );
 
-            newBall.name = $"Ball_{i + 1}";
-            newBall.Returned += HandleBallReturned;
-            newBall.ResetTo(transform.position);
+            newBall.name =
+                $"Ball_{i + 1}";
+
+            newBall.Returned +=
+                HandleBallReturned;
+
+            newBall.ResetTo(
+                transform.position
+            );
 
             balls.Add(newBall);
         }
@@ -202,7 +383,9 @@ public sealed class BallLauncher : MonoBehaviour
 
     private void IgnoreBallCollisions()
     {
-        for (int i = 0; i < balls.Count; i++)
+        for (int i = 0;
+             i < balls.Count;
+             i++)
         {
             Collider2D firstCollider =
                 balls[i].GetComponent<Collider2D>();
@@ -212,7 +395,9 @@ public sealed class BallLauncher : MonoBehaviour
                 continue;
             }
 
-            for (int j = i + 1; j < balls.Count; j++)
+            for (int j = i + 1;
+                 j < balls.Count;
+                 j++)
             {
                 Collider2D secondCollider =
                     balls[j].GetComponent<Collider2D>();
@@ -231,9 +416,10 @@ public sealed class BallLauncher : MonoBehaviour
         }
     }
 
-    private void UpdateAim(Vector3 mouseScreenPosition)
+    private void UpdateAimInput(
+        Vector3 mouseScreenPosition)
     {
-        if (mainCamera == null || aimLine == null)
+        if (mainCamera == null)
         {
             return;
         }
@@ -242,37 +428,401 @@ public sealed class BallLauncher : MonoBehaviour
             transform.position.z -
             mainCamera.transform.position.z;
 
-        Vector3 screenPosition = new Vector3(
-            mouseScreenPosition.x,
-            mouseScreenPosition.y,
-            distanceFromCamera
-        );
+        Vector3 screenPosition =
+            new Vector3(
+                mouseScreenPosition.x,
+                mouseScreenPosition.y,
+                distanceFromCamera
+            );
 
         Vector3 mouseWorldPosition =
-            mainCamera.ScreenToWorldPoint(screenPosition);
+            mainCamera.ScreenToWorldPoint(
+                screenPosition
+            );
 
-        mouseWorldPosition.z = transform.position.z;
+        mouseWorldPosition.z =
+            transform.position.z;
 
         Vector2 rawDirection =
             (Vector2)mouseWorldPosition -
             (Vector2)transform.position;
 
-        if (rawDirection.sqrMagnitude <= 0.001f)
+        if (rawDirection.sqrMagnitude <=
+            0.001f)
         {
             return;
         }
 
-        // 공이 아래쪽으로 발사되지 않도록
-        // 최소한 위쪽 방향을 가지도록 보정한다.
-        rawDirection.y = Mathf.Max(
-            rawDirection.y,
-            minimumUpwardDirection
-        );
+        rawDirection.y =
+            Mathf.Max(
+                rawDirection.y,
+                minimumUpwardDirection
+            );
 
-        currentAimDirection = rawDirection.normalized;
+        Vector2 newTargetDirection =
+            rawDirection.normalized;
+
+        bool hasMeaningfulChange =
+            HasMeaningfulAimChange(
+                newTargetDirection
+            );
+
+        targetAimDirection =
+            newTargetDirection;
+
         hasValidAim = true;
 
-        ShowAimLine(currentAimDirection);
+        if (!hasMeaningfulChange)
+        {
+            return;
+        }
+
+        stableReferenceDirection =
+            newTargetDirection;
+
+        hasStableReference = true;
+
+        ResetAimPreview();
+    }
+
+    private bool HasMeaningfulAimChange(
+        Vector2 newDirection)
+    {
+        if (!hasStableReference)
+        {
+            stableReferenceDirection =
+                newDirection;
+
+            hasStableReference = true;
+
+            return true;
+        }
+
+        float angleDifference =
+            Vector2.Angle(
+                stableReferenceDirection,
+                newDirection
+            );
+
+        return angleDifference >=
+               aimMovementThresholdDegrees;
+    }
+
+    private void UpdateAimVisual()
+    {
+        if (!isTrajectoryPreviewActive)
+        {
+            SmoothCurrentAimDirection();
+
+            ShowShortAimLine(
+                currentAimDirection
+            );
+
+            stableAimTimer +=
+                Time.deltaTime;
+
+            if (stableAimTimer >=
+                stableAimDelay)
+            {
+                BeginTrajectoryPreview();
+            }
+
+            return;
+        }
+
+        currentAimDirection =
+            previewDirection;
+
+        trajectoryRevealTimer +=
+            Time.deltaTime;
+
+        float revealProgress;
+
+        if (trajectoryRevealDuration <= 0f)
+        {
+            revealProgress = 1f;
+        }
+        else
+        {
+            revealProgress =
+                Mathf.Clamp01(
+                    trajectoryRevealTimer /
+                    trajectoryRevealDuration
+                );
+        }
+
+        float smoothProgress =
+            revealProgress *
+            revealProgress *
+            (3f - (2f * revealProgress));
+
+        RenderTrajectory(
+            smoothProgress
+        );
+    }
+
+    private void SmoothCurrentAimDirection()
+    {
+        if (targetAimDirection.sqrMagnitude <=
+            0.001f)
+        {
+            return;
+        }
+
+        if (aimSmoothSpeed <= 0f)
+        {
+            currentAimDirection =
+                targetAimDirection;
+
+            return;
+        }
+
+        float interpolation =
+            1f -
+            Mathf.Exp(
+                -aimSmoothSpeed *
+                Time.deltaTime
+            );
+
+        Vector2 smoothedDirection =
+            Vector2.Lerp(
+                currentAimDirection,
+                targetAimDirection,
+                interpolation
+            );
+
+        if (smoothedDirection.sqrMagnitude >
+            0.001f)
+        {
+            currentAimDirection =
+                smoothedDirection.normalized;
+        }
+    }
+
+    private void ResetAimPreview()
+    {
+        stableAimTimer = 0f;
+        trajectoryRevealTimer = 0f;
+        trajectoryTotalLength = 0f;
+
+        isTrajectoryPreviewActive = false;
+
+        trajectoryPoints.Clear();
+        visibleTrajectoryPoints.Clear();
+    }
+
+    private void BeginTrajectoryPreview()
+    {
+        previewDirection =
+            currentAimDirection.normalized;
+
+        currentAimDirection =
+            previewDirection;
+
+        CalculateTrajectoryPoints(
+            previewDirection
+        );
+
+        if (trajectoryPoints.Count < 2)
+        {
+            ResetAimPreview();
+            return;
+        }
+
+        trajectoryTotalLength =
+            CalculateTrajectoryTotalLength();
+
+        trajectoryRevealTimer = 0f;
+        isTrajectoryPreviewActive = true;
+
+        RenderTrajectory(0f);
+    }
+
+    private void ShowShortAimLine(
+        Vector2 direction)
+    {
+        if (aimLine == null ||
+            direction.sqrMagnitude <= 0.001f)
+        {
+            return;
+        }
+
+        ApplyLineColor(
+            shortAimLineColor
+        );
+
+        Vector3 startPosition =
+            transform.position;
+
+        Vector3 endPosition =
+            startPosition +
+            (Vector3)(
+                direction.normalized *
+                shortAimLineLength
+            );
+
+        aimLine.enabled = true;
+        aimLine.positionCount = 2;
+
+        aimLine.SetPosition(
+            0,
+            startPosition
+        );
+
+        aimLine.SetPosition(
+            1,
+            endPosition
+        );
+    }
+
+    private void RenderTrajectory(
+        float progress)
+    {
+        if (aimLine == null ||
+            trajectoryPoints.Count < 2)
+        {
+            return;
+        }
+
+        ApplyLineColor(
+            trajectoryLineColor
+        );
+
+        visibleTrajectoryPoints.Clear();
+
+        Vector3 firstPoint =
+            trajectoryPoints[0];
+
+        visibleTrajectoryPoints.Add(
+            firstPoint
+        );
+
+        float targetDistance =
+            trajectoryTotalLength *
+            Mathf.Clamp01(progress);
+
+        if (targetDistance <= 0f)
+        {
+            visibleTrajectoryPoints.Add(
+                firstPoint
+            );
+
+            ApplyVisibleTrajectoryPoints();
+            return;
+        }
+
+        float remainingDistance =
+            targetDistance;
+
+        for (int i = 1;
+             i < trajectoryPoints.Count;
+             i++)
+        {
+            Vector3 segmentStart =
+                trajectoryPoints[i - 1];
+
+            Vector3 segmentEnd =
+                trajectoryPoints[i];
+
+            float segmentLength =
+                Vector3.Distance(
+                    segmentStart,
+                    segmentEnd
+                );
+
+            if (segmentLength <=
+                0.0001f)
+            {
+                continue;
+            }
+
+            if (remainingDistance >=
+                segmentLength)
+            {
+                visibleTrajectoryPoints.Add(
+                    segmentEnd
+                );
+
+                remainingDistance -=
+                    segmentLength;
+
+                continue;
+            }
+
+            float segmentProgress =
+                remainingDistance /
+                segmentLength;
+
+            Vector3 partialPoint =
+                Vector3.Lerp(
+                    segmentStart,
+                    segmentEnd,
+                    segmentProgress
+                );
+
+            visibleTrajectoryPoints.Add(
+                partialPoint
+            );
+
+            break;
+        }
+
+        if (visibleTrajectoryPoints.Count == 1)
+        {
+            visibleTrajectoryPoints.Add(
+                firstPoint
+            );
+        }
+
+        ApplyVisibleTrajectoryPoints();
+    }
+
+    private void ApplyVisibleTrajectoryPoints()
+    {
+        aimLine.enabled = true;
+
+        aimLine.positionCount =
+            visibleTrajectoryPoints.Count;
+
+        for (int i = 0;
+             i < visibleTrajectoryPoints.Count;
+             i++)
+        {
+            aimLine.SetPosition(
+                i,
+                visibleTrajectoryPoints[i]
+            );
+        }
+    }
+
+    private void ApplyLineColor(
+        Color color)
+    {
+        if (aimLine == null)
+        {
+            return;
+        }
+
+        aimLine.startColor = color;
+        aimLine.endColor = color;
+    }
+
+    private float CalculateTrajectoryTotalLength()
+    {
+        float totalLength = 0f;
+
+        for (int i = 1;
+             i < trajectoryPoints.Count;
+             i++)
+        {
+            totalLength +=
+                Vector3.Distance(
+                    trajectoryPoints[i - 1],
+                    trajectoryPoints[i]
+                );
+        }
+
+        return totalLength;
     }
 
     private void TryLaunchBalls()
@@ -287,7 +837,8 @@ public sealed class BallLauncher : MonoBehaviour
         if (!turnManager.TryStartAttack())
         {
             Debug.LogWarning(
-                $"BallLauncher: 현재 턴 상태에서는 발사할 수 없습니다. " +
+                "BallLauncher: 현재 턴 상태에서는 " +
+                "발사할 수 없습니다. " +
                 $"현재 상태: {turnManager.CurrentState}",
                 this
             );
@@ -295,10 +846,11 @@ public sealed class BallLauncher : MonoBehaviour
             return;
         }
 
-        // 이번 턴의 출발 위치를 고정한다.
-        // 공이 도중에 복귀해도 남은 공은 기존 위치에서 발사된다.
-        currentTurnLaunchPosition = transform.position;
-        nextTurnLaunchPosition = currentTurnLaunchPosition;
+        currentTurnLaunchPosition =
+            transform.position;
+
+        nextTurnLaunchPosition =
+            currentTurnLaunchPosition;
 
         launchedBallCount = 0;
         returnedBallCount = 0;
@@ -307,14 +859,18 @@ public sealed class BallLauncher : MonoBehaviour
         isAttackCompleted = false;
         isLaunching = true;
 
+        ResetAimPreview();
         HideAimLine();
 
         launchCoroutine = StartCoroutine(
-            LaunchBallsRoutine(currentAimDirection)
+            LaunchBallsRoutine(
+                currentAimDirection
+            )
         );
     }
 
-    private IEnumerator LaunchBallsRoutine(Vector2 direction)
+    private IEnumerator LaunchBallsRoutine(
+        Vector2 direction)
     {
         Debug.Log(
             $"BallLauncher: 공 {balls.Count}개 순차 발사 시작",
@@ -330,12 +886,18 @@ public sealed class BallLauncher : MonoBehaviour
 
             launchedBallCount++;
 
-            ball.ResetTo(currentTurnLaunchPosition);
+            ball.ResetTo(
+                currentTurnLaunchPosition
+            );
+
             ball.Launch(direction);
 
             if (launchInterval > 0f)
             {
-                yield return new WaitForSeconds(launchInterval);
+                yield return
+                    new WaitForSeconds(
+                        launchInterval
+                    );
             }
             else
             {
@@ -349,46 +911,48 @@ public sealed class BallLauncher : MonoBehaviour
         TryCompleteAttack();
     }
 
-    private void HandleBallReturned(Ball returnedBall)
+    private void HandleBallReturned(
+        Ball returnedBall)
     {
-        if (returnedBall == null || isAttackCompleted)
+        if (returnedBall == null ||
+            isAttackCompleted)
         {
             return;
         }
 
-        // 첫 번째로 바닥에 닿은 공의 X 좌표만 저장한다.
-        // 이 시점에서는 Launcher나 다른 공을 이동시키지 않는다.
         if (!hasFirstReturnedBall)
         {
-            float nextLaunchX = Mathf.Clamp(
-                returnedBall.transform.position.x,
-                minimumLaunchX,
-                maximumLaunchX
-            );
+            float nextLaunchX =
+                Mathf.Clamp(
+                    returnedBall
+                        .transform
+                        .position
+                        .x,
+                    minimumLaunchX,
+                    maximumLaunchX
+                );
 
-            nextTurnLaunchPosition = new Vector2(
-                nextLaunchX,
-                currentTurnLaunchPosition.y
-            );
+            nextTurnLaunchPosition =
+                new Vector2(
+                    nextLaunchX,
+                    currentTurnLaunchPosition.y
+                );
 
             hasFirstReturnedBall = true;
 
             Debug.Log(
-                $"BallLauncher: 첫 번째 공 복귀 위치 저장, " +
+                "BallLauncher: 첫 번째 공 복귀 위치 저장, " +
                 $"다음 시작 X = {nextLaunchX:F2}",
                 this
             );
         }
 
-        // Ball.cs에서 공의 이동은 이미 멈춘 상태다.
-        // 여기서는 ResetTo를 호출하지 않고,
-        // 공이 실제로 떨어진 위치에 그대로 둔다.
-
         returnedBallCount++;
 
         Debug.Log(
-            $"BallLauncher: 공 복귀 " +
-            $"{returnedBallCount}/{launchedBallCount}",
+            "BallLauncher: 공 복귀 " +
+            $"{returnedBallCount}/" +
+            $"{launchedBallCount}",
             this
         );
 
@@ -402,7 +966,6 @@ public sealed class BallLauncher : MonoBehaviour
             return;
         }
 
-        // 아직 공을 순차 발사하는 중이면 기다린다.
         if (isLaunching)
         {
             return;
@@ -413,14 +976,14 @@ public sealed class BallLauncher : MonoBehaviour
             return;
         }
 
-        // 모든 공이 아직 발사되지 않았다면 기다린다.
-        if (launchedBallCount < balls.Count)
+        if (launchedBallCount <
+            balls.Count)
         {
             return;
         }
 
-        // 아직 돌아오지 않은 공이 있다면 기다린다.
-        if (returnedBallCount < launchedBallCount)
+        if (returnedBallCount <
+            launchedBallCount)
         {
             return;
         }
@@ -438,13 +1001,10 @@ public sealed class BallLauncher : MonoBehaviour
         turnManager.NotifyAllBallsReturned();
 
         hasValidAim = true;
-        ShowAimLine(currentAimDirection);
     }
 
     private void AlignBallsToNextLaunchPosition()
     {
-        // 마지막 공까지 돌아온 순간에만
-        // 모든 공을 첫 번째 공 기준 위치로 정렬한다.
         foreach (Ball ball in balls)
         {
             if (ball == null)
@@ -452,51 +1012,224 @@ public sealed class BallLauncher : MonoBehaviour
                 continue;
             }
 
-            ball.ResetTo(nextTurnLaunchPosition);
+            ball.ResetTo(
+                nextTurnLaunchPosition
+            );
         }
 
-        transform.position = nextTurnLaunchPosition;
+        transform.position =
+            new Vector3(
+                nextTurnLaunchPosition.x,
+                nextTurnLaunchPosition.y,
+                transform.position.z
+            );
     }
 
-    private void ShowAimLine(Vector2 direction)
+    private void CalculateTrajectoryPoints(
+        Vector2 initialDirection)
     {
-        if (aimLine == null ||
-            direction.sqrMagnitude <= 0.001f)
+        trajectoryPoints.Clear();
+
+        Vector2 castOrigin =
+            transform.position;
+
+        Vector2 castDirection =
+            initialDirection.normalized;
+
+        float remainingDistance =
+            trajectoryDistance;
+
+        int bounceCount = 0;
+
+        AddTrajectoryPoint(
+            castOrigin
+        );
+
+        while (remainingDistance >
+               trajectorySkinWidth)
         {
-            return;
-        }
+            bool hasHit =
+                TryGetClosestTrajectoryHit(
+                    castOrigin,
+                    castDirection,
+                    remainingDistance,
+                    out RaycastHit2D closestHit
+                );
 
-        Vector3 startPosition = transform.position;
+            if (!hasHit)
+            {
+                Vector2 finalPoint =
+                    castOrigin +
+                    (
+                        castDirection *
+                        remainingDistance
+                    );
 
-        Vector3 endPosition =
-            startPosition +
-            (Vector3)(
-                direction.normalized *
-                aimLineLength
+                AddTrajectoryPoint(
+                    finalPoint
+                );
+
+                break;
+            }
+
+            Vector2 collisionCenter =
+                closestHit.centroid;
+
+            AddTrajectoryPoint(
+                collisionCenter
             );
 
-        aimLine.enabled = true;
-        aimLine.positionCount = 2;
+            remainingDistance -=
+                closestHit.distance;
 
-        aimLine.SetPosition(0, startPosition);
-        aimLine.SetPosition(1, endPosition);
+            bool reachedReturnZone =
+                closestHit.collider != null &&
+                closestHit.collider.CompareTag(
+                    "ReturnZone"
+                );
+
+            if (reachedReturnZone)
+            {
+                break;
+            }
+
+            if (bounceCount >=
+                maximumTrajectoryBounces)
+            {
+                break;
+            }
+
+            Vector2 reflectedDirection =
+                Vector2.Reflect(
+                    castDirection,
+                    closestHit.normal
+                ).normalized;
+
+            if (reflectedDirection
+                    .sqrMagnitude <= 0.001f)
+            {
+                break;
+            }
+
+            bounceCount++;
+
+            castDirection =
+                reflectedDirection;
+
+            castOrigin =
+                collisionCenter +
+                (
+                    reflectedDirection *
+                    trajectorySkinWidth
+                );
+
+            remainingDistance -=
+                trajectorySkinWidth;
+        }
+    }
+
+    private bool TryGetClosestTrajectoryHit(
+        Vector2 origin,
+        Vector2 direction,
+        float distance,
+        out RaycastHit2D closestHit)
+    {
+        RaycastHit2D[] hits =
+            Physics2D.CircleCastAll(
+                origin,
+                cachedTrajectoryRadius,
+                direction,
+                distance,
+                trajectoryCollisionMask
+            );
+
+        closestHit = default;
+
+        float closestDistance =
+            float.MaxValue;
+
+        bool foundHit = false;
+
+        foreach (RaycastHit2D hit in hits)
+        {
+            if (hit.collider == null)
+            {
+                continue;
+            }
+
+            if (hit.distance <=
+                trajectorySkinWidth * 0.5f)
+            {
+                continue;
+            }
+
+            Ball hitBall =
+                hit.collider
+                    .GetComponentInParent<Ball>();
+
+            if (hitBall != null)
+            {
+                continue;
+            }
+
+            if (hit.collider.isTrigger &&
+                !hit.collider.CompareTag(
+                    "ReturnZone"
+                ))
+            {
+                continue;
+            }
+
+            if (hit.distance >=
+                closestDistance)
+            {
+                continue;
+            }
+
+            closestDistance =
+                hit.distance;
+
+            closestHit = hit;
+            foundHit = true;
+        }
+
+        return foundHit;
+    }
+
+    private void AddTrajectoryPoint(
+        Vector2 point)
+    {
+        trajectoryPoints.Add(
+            new Vector3(
+                point.x,
+                point.y,
+                transform.position.z
+            )
+        );
     }
 
     private void HideAimLine()
     {
-        if (aimLine != null)
+        if (aimLine == null)
         {
-            aimLine.enabled = false;
+            return;
         }
+
+        aimLine.enabled = false;
+        aimLine.positionCount = 0;
     }
 
     private static bool IsValidPointerPosition(
         Vector3 screenPosition)
     {
-        if (float.IsNaN(screenPosition.x) ||
-            float.IsNaN(screenPosition.y) ||
-            float.IsInfinity(screenPosition.x) ||
-            float.IsInfinity(screenPosition.y))
+        if (float.IsNaN(
+                screenPosition.x) ||
+            float.IsNaN(
+                screenPosition.y) ||
+            float.IsInfinity(
+                screenPosition.x) ||
+            float.IsInfinity(
+                screenPosition.y))
         {
             return false;
         }
@@ -516,14 +1249,17 @@ public sealed class BallLauncher : MonoBehaviour
     {
         if (launchCoroutine != null)
         {
-            StopCoroutine(launchCoroutine);
+            StopCoroutine(
+                launchCoroutine
+            );
         }
 
         foreach (Ball ball in balls)
         {
             if (ball != null)
             {
-                ball.Returned -= HandleBallReturned;
+                ball.Returned -=
+                    HandleBallReturned;
             }
         }
     }

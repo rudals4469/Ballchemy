@@ -54,23 +54,30 @@ public sealed class TurnManager : MonoBehaviour
             return false;
         }
 
-        ChangeState(TurnState.BallMoving);
+        ChangeState(
+            TurnState.BallMoving
+        );
 
         return true;
     }
 
     public void NotifyAllBallsReturned()
     {
-        if (CurrentState != TurnState.BallMoving)
+        if (CurrentState !=
+            TurnState.BallMoving)
         {
             return;
         }
 
-        ChangeState(TurnState.Resolving);
+        ChangeState(
+            TurnState.Resolving
+        );
 
         if (resolveCoroutine != null)
         {
-            StopCoroutine(resolveCoroutine);
+            StopCoroutine(
+                resolveCoroutine
+            );
         }
 
         resolveCoroutine = StartCoroutine(
@@ -87,17 +94,19 @@ public sealed class TurnManager : MonoBehaviour
             );
         }
 
-        // 추후 이 앞부분에 살아남은 블록의 공격이 들어간다.
-        //
-        // 1. 살아남은 블록 공격
-        // 2. 플레이어 HP 감소
-        // 3. 블록 하강
-        // 4. 새로운 줄 생성
-
         if (blockGridManager != null)
         {
             yield return
-                blockGridManager.AdvanceTurnRoutine();
+                blockGridManager
+                    .AdvanceTurnRoutine();
+        }
+        else
+        {
+            Debug.LogWarning(
+                "TurnManager: " +
+                "BlockGridManager가 연결되지 않았습니다.",
+                this
+            );
         }
 
         if (nextTurnDelay > 0f)
@@ -114,10 +123,13 @@ public sealed class TurnManager : MonoBehaviour
 
     private void CompleteTurn()
     {
-        ChangeState(TurnState.Aiming);
+        ChangeState(
+            TurnState.Aiming
+        );
     }
 
-    private void ChangeState(TurnState nextState)
+    private void ChangeState(
+        TurnState nextState)
     {
         if (CurrentState == nextState)
         {
@@ -131,14 +143,18 @@ public sealed class TurnManager : MonoBehaviour
             this
         );
 
-        StateChanged?.Invoke(nextState);
+        StateChanged?.Invoke(
+            nextState
+        );
     }
 
     private void OnDestroy()
     {
         if (resolveCoroutine != null)
         {
-            StopCoroutine(resolveCoroutine);
+            StopCoroutine(
+                resolveCoroutine
+            );
         }
     }
 }
