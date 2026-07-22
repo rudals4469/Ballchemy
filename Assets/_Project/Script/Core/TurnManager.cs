@@ -6,7 +6,8 @@ public enum TurnState
 {
     Aiming,
     BallMoving,
-    Resolving
+    Resolving,
+    GameOver
 }
 
 public sealed class TurnManager : MonoBehaviour
@@ -14,6 +15,9 @@ public sealed class TurnManager : MonoBehaviour
     [Header("References")]
     [SerializeField]
     private BlockGridManager blockGridManager;
+
+    [SerializeField]
+    private PlayerHealth playerHealth;
 
     [Header("Resolve Timing")]
     [SerializeField, Min(0f)]
@@ -29,17 +33,21 @@ public sealed class TurnManager : MonoBehaviour
     public bool CanAim =>
         CurrentState == TurnState.Aiming;
 
+    public bool IsGameOver =>
+        CurrentState == TurnState.GameOver;
+
     public event Action<TurnState> StateChanged;
+    public event Action GameOverStarted;
 
     private void Awake()
     {
-        if (blockGridManager == null)
-        {
-            blockGridManager =
-                FindFirstObjectByType<BlockGridManager>();
-        }
+        FindReferences();
+        ValidateReferences();
 
-        CurrentState = TurnState.Aiming;
+        CurrentState =
+            TurnState.Aiming;
+
+        SubscribePlayerHealth();
 
         Debug.Log(
             $"Turn State: {CurrentState}",
@@ -47,10 +55,67 @@ public sealed class TurnManager : MonoBehaviour
         );
     }
 
+    private void FindReferences()
+    {
+        if (blockGridManager == null)
+        {
+            blockGridManager =
+                FindFirstObjectByType<BlockGridManager>();
+        }
+
+        if (playerHealth == null)
+        {
+            playerHealth =
+                FindFirstObjectByType<PlayerHealth>();
+        }
+    }
+
+    private void ValidateReferences()
+    {
+        if (blockGridManager == null)
+        {
+            Debug.LogWarning(
+                "TurnManager: " +
+                "BlockGridManager가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (playerHealth == null)
+        {
+            Debug.LogWarning(
+                "TurnManager: " +
+                "PlayerHealth가 연결되지 않았습니다.",
+                this
+            );
+        }
+    }
+
+    private void SubscribePlayerHealth()
+    {
+        if (playerHealth == null)
+        {
+            return;
+        }
+
+        playerHealth.Died -=
+            HandlePlayerDied;
+
+        playerHealth.Died +=
+            HandlePlayerDied;
+    }
+
     public bool TryStartAttack()
     {
         if (!CanAim)
         {
+            return false;
+        }
+
+        if (playerHealth != null &&
+            playerHealth.IsDead)
+        {
+            StartGameOver();
             return false;
         }
 
@@ -94,6 +159,12 @@ public sealed class TurnManager : MonoBehaviour
             );
         }
 
+        if (IsGameOver)
+        {
+            resolveCoroutine = null;
+            yield break;
+        }
+
         if (blockGridManager != null)
         {
             yield return
@@ -109,11 +180,30 @@ public sealed class TurnManager : MonoBehaviour
             );
         }
 
+        // 적 공격 처리 중 체력이 0이 됐을 경우
+        // 다음 조준 턴으로 넘어가지 않는다.
+        if (IsGameOver ||
+            (
+                playerHealth != null &&
+                playerHealth.IsDead
+            ))
+        {
+            resolveCoroutine = null;
+            StartGameOver();
+            yield break;
+        }
+
         if (nextTurnDelay > 0f)
         {
             yield return new WaitForSeconds(
                 nextTurnDelay
             );
+        }
+
+        if (IsGameOver)
+        {
+            resolveCoroutine = null;
+            yield break;
         }
 
         resolveCoroutine = null;
@@ -123,9 +213,38 @@ public sealed class TurnManager : MonoBehaviour
 
     private void CompleteTurn()
     {
+        if (IsGameOver)
+        {
+            return;
+        }
+
         ChangeState(
             TurnState.Aiming
         );
+    }
+
+    private void HandlePlayerDied()
+    {
+        StartGameOver();
+    }
+
+    private void StartGameOver()
+    {
+        if (IsGameOver)
+        {
+            return;
+        }
+
+        ChangeState(
+            TurnState.GameOver
+        );
+
+        Debug.Log(
+            "TurnManager: 게임 오버",
+            this
+        );
+
+        GameOverStarted?.Invoke();
     }
 
     private void ChangeState(
@@ -136,7 +255,8 @@ public sealed class TurnManager : MonoBehaviour
             return;
         }
 
-        CurrentState = nextState;
+        CurrentState =
+            nextState;
 
         Debug.Log(
             $"Turn State: {CurrentState}",
@@ -155,6 +275,12 @@ public sealed class TurnManager : MonoBehaviour
             StopCoroutine(
                 resolveCoroutine
             );
+        }
+
+        if (playerHealth != null)
+        {
+            playerHealth.Died -=
+                HandlePlayerDied;
         }
     }
 }

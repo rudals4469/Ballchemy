@@ -6,6 +6,7 @@ using UnityEngine;
 [RequireComponent(typeof(BlockWaveGenerator))]
 [RequireComponent(typeof(BlockGridMover))]
 [RequireComponent(typeof(EnemyAttackCycle))]
+[RequireComponent(typeof(EnemyAttackSequence))]
 public sealed class BlockGridManager : MonoBehaviour
 {
     [Header("Components")]
@@ -17,6 +18,9 @@ public sealed class BlockGridManager : MonoBehaviour
 
     [SerializeField]
     private EnemyAttackCycle enemyAttackCycle;
+
+    [SerializeField]
+    private EnemyAttackSequence enemyAttackSequence;
 
     private readonly List<Block> activeBlocks =
         new List<Block>();
@@ -48,14 +52,14 @@ public sealed class BlockGridManager : MonoBehaviour
     {
         get
         {
-            if (enemyAttackCycle == null)
+            if (enemyAttackSequence == null)
             {
                 return 0;
             }
 
             RemoveDestroyedBlocks();
 
-            return enemyAttackCycle
+            return enemyAttackSequence
                 .CalculateTotalAttackPower(
                     activeBlocks
                 );
@@ -66,7 +70,10 @@ public sealed class BlockGridManager : MonoBehaviour
         activeBlocks;
 
     public event Action<int> TurnsUntilAttackChanged;
-    public event Action<int> EnemyAttackTriggered;
+
+    public event Action<Block, int>
+        EnemyAttackTriggered;
+
     public event Action<int> WaveGenerated;
 
     private void Awake()
@@ -110,6 +117,12 @@ public sealed class BlockGridManager : MonoBehaviour
             enemyAttackCycle =
                 GetComponent<EnemyAttackCycle>();
         }
+
+        if (enemyAttackSequence == null)
+        {
+            enemyAttackSequence =
+                GetComponent<EnemyAttackSequence>();
+        }
     }
 
     private void ValidateReferences()
@@ -140,13 +153,23 @@ public sealed class BlockGridManager : MonoBehaviour
                 this
             );
         }
+
+        if (enemyAttackSequence == null)
+        {
+            Debug.LogError(
+                "BlockGridManager: " +
+                "EnemyAttackSequence를 찾지 못했습니다.",
+                this
+            );
+        }
     }
 
     private bool CanInitialize()
     {
         if (waveGenerator == null ||
             gridMover == null ||
-            enemyAttackCycle == null)
+            enemyAttackCycle == null ||
+            enemyAttackSequence == null)
         {
             return false;
         }
@@ -167,16 +190,19 @@ public sealed class BlockGridManager : MonoBehaviour
 
     private void SubscribeEvents()
     {
-        if (enemyAttackCycle == null)
+        if (enemyAttackCycle != null)
         {
-            return;
+            enemyAttackCycle
+                .TurnsUntilAttackChanged +=
+                HandleTurnsUntilAttackChanged;
         }
 
-        enemyAttackCycle.TurnsUntilAttackChanged +=
-            HandleTurnsUntilAttackChanged;
-
-        enemyAttackCycle.EnemyAttackTriggered +=
-            HandleEnemyAttackTriggered;
+        if (enemyAttackSequence != null)
+        {
+            enemyAttackSequence
+                .BlockAttackTriggered +=
+                HandleBlockAttackTriggered;
+        }
     }
 
     private void GenerateInitialWave()
@@ -241,18 +267,21 @@ public sealed class BlockGridManager : MonoBehaviour
     {
         RemoveDestroyedBlocks();
 
-        // 새 웨이브가 생성되기 전에
-        // 현재 살아 있는 블록만 공격에 참여한다.
-        yield return enemyAttackCycle
+        yield return enemyAttackSequence
             .ResolveAttackRoutine(
                 activeBlocks
             );
 
+        // 공격 도중 플레이어가 사망하면
+        // 블록 하강과 다음 웨이브 생성을 진행하지 않는다.
+        if (enemyAttackSequence.IsTargetDead)
+        {
+            yield break;
+        }
+
         int newWaveRowCount =
             waveGenerator.GetRandomWaveRowCount();
 
-        // 새로운 웨이브가 들어올 공간만큼
-        // 기존 블록을 아래로 이동시킨다.
         yield return gridMover.MoveDownRoutine(
             activeBlocks,
             newWaveRowCount,
@@ -326,25 +355,30 @@ public sealed class BlockGridManager : MonoBehaviour
         );
     }
 
-    private void HandleEnemyAttackTriggered(
-        int totalDamage)
+    private void HandleBlockAttackTriggered(
+        Block attackingBlock,
+        int damage)
     {
         EnemyAttackTriggered?.Invoke(
-            totalDamage
+            attackingBlock,
+            damage
         );
     }
 
     private void OnDestroy()
     {
-        if (enemyAttackCycle == null)
+        if (enemyAttackCycle != null)
         {
-            return;
+            enemyAttackCycle
+                .TurnsUntilAttackChanged -=
+                HandleTurnsUntilAttackChanged;
         }
 
-        enemyAttackCycle.TurnsUntilAttackChanged -=
-            HandleTurnsUntilAttackChanged;
-
-        enemyAttackCycle.EnemyAttackTriggered -=
-            HandleEnemyAttackTriggered;
+        if (enemyAttackSequence != null)
+        {
+            enemyAttackSequence
+                .BlockAttackTriggered -=
+                HandleBlockAttackTriggered;
+        }
     }
 }

@@ -1,0 +1,259 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public sealed class EnemyAttackSequence : MonoBehaviour
+{
+    [Header("References")]
+    [SerializeField]
+    private EnemyAttackLineEffect attackLineEffect;
+
+    [SerializeField]
+    private PlayerHealth playerHealth;
+
+    [Header("Sequence Timing")]
+    [Tooltip(
+        "적 공격 턴이 시작된 뒤 " +
+        "첫 블록이 공격하기까지의 시간입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float firstAttackDelay = 0.15f;
+
+    [Tooltip(
+        "한 블록의 공격이 끝난 뒤 " +
+        "다음 블록이 공격하기까지의 간격입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float intervalBetweenAttacks = 0.1f;
+
+    public bool IsTargetDead =>
+        playerHealth != null &&
+        playerHealth.IsDead;
+
+    public event Action<Block, int> BlockAttackTriggered;
+
+    private void Awake()
+    {
+        FindReferences();
+        ValidateReferences();
+    }
+
+    private void FindReferences()
+    {
+        if (attackLineEffect == null)
+        {
+            attackLineEffect =
+                GetComponentInChildren<
+                    EnemyAttackLineEffect
+                >(true);
+        }
+
+        if (playerHealth == null)
+        {
+            playerHealth =
+                FindFirstObjectByType<PlayerHealth>();
+        }
+    }
+
+    private void ValidateReferences()
+    {
+        if (attackLineEffect == null)
+        {
+            Debug.LogWarning(
+                "EnemyAttackSequence: " +
+                "EnemyAttackLineEffect가 연결되지 않았습니다. " +
+                "피해는 적용되지만 레이저 효과는 나오지 않습니다.",
+                this
+            );
+        }
+
+        if (playerHealth == null)
+        {
+            Debug.LogWarning(
+                "EnemyAttackSequence: " +
+                "PlayerHealth가 연결되지 않았습니다.",
+                this
+            );
+        }
+    }
+
+    public IEnumerator ResolveAttackRoutine(
+        IReadOnlyList<Block> blocks)
+    {
+        List<Block> attackers =
+            CreateAttackSnapshot(
+                blocks
+            );
+
+        Debug.Log(
+            "EnemyAttackSequence: " +
+            $"생존 블록 {attackers.Count}개의 " +
+            "순차 공격을 시작합니다.",
+            this
+        );
+
+        if (firstAttackDelay > 0f)
+        {
+            yield return new WaitForSeconds(
+                firstAttackDelay
+            );
+        }
+
+        foreach (Block attackingBlock in attackers)
+        {
+            if (IsTargetDead)
+            {
+                Debug.Log(
+                    "EnemyAttackSequence: " +
+                    "플레이어가 사망하여 남은 공격을 중단합니다.",
+                    this
+                );
+
+                yield break;
+            }
+
+            if (attackingBlock == null ||
+                !attackingBlock.IsAlive)
+            {
+                continue;
+            }
+
+            int damage =
+                Mathf.Max(
+                    0,
+                    attackingBlock.AttackPower
+                );
+
+            if (damage <= 0)
+            {
+                continue;
+            }
+
+            bool damageApplied = false;
+
+            if (attackLineEffect != null)
+            {
+                yield return
+                    attackLineEffect.PlayAttackRoutine(
+                        attackingBlock.transform,
+                        () =>
+                        {
+                            if (damageApplied)
+                            {
+                                return;
+                            }
+
+                            damageApplied = true;
+
+                            TriggerBlockAttack(
+                                attackingBlock,
+                                damage
+                            );
+                        }
+                    );
+            }
+
+            // 레이저 효과가 없거나 효과에서
+            // 충돌 콜백이 실행되지 않은 경우를 대비한다.
+            if (!damageApplied)
+            {
+                damageApplied = true;
+
+                TriggerBlockAttack(
+                    attackingBlock,
+                    damage
+                );
+            }
+
+            if (IsTargetDead)
+            {
+                yield break;
+            }
+
+            if (intervalBetweenAttacks > 0f)
+            {
+                yield return new WaitForSeconds(
+                    intervalBetweenAttacks
+                );
+            }
+        }
+
+        Debug.Log(
+            "EnemyAttackSequence: " +
+            "모든 생존 블록의 공격이 완료됐습니다.",
+            this
+        );
+    }
+
+    public int CalculateTotalAttackPower(
+        IEnumerable<Block> blocks)
+    {
+        if (blocks == null)
+        {
+            return 0;
+        }
+
+        int totalAttackPower = 0;
+
+        foreach (Block block in blocks)
+        {
+            if (block == null ||
+                !block.IsAlive)
+            {
+                continue;
+            }
+
+            totalAttackPower +=
+                Mathf.Max(
+                    0,
+                    block.AttackPower
+                );
+        }
+
+        return totalAttackPower;
+    }
+
+    private List<Block> CreateAttackSnapshot(
+        IReadOnlyList<Block> blocks)
+    {
+        List<Block> result =
+            new List<Block>();
+
+        if (blocks == null)
+        {
+            return result;
+        }
+
+        foreach (Block block in blocks)
+        {
+            if (block == null ||
+                !block.IsAlive ||
+                block.AttackPower <= 0)
+            {
+                continue;
+            }
+
+            result.Add(block);
+        }
+
+        return result;
+    }
+
+    private void TriggerBlockAttack(
+        Block attackingBlock,
+        int damage)
+    {
+        Debug.Log(
+            "EnemyAttackSequence: " +
+            $"{attackingBlock.name} 공격, " +
+            $"피해량 {damage}",
+            attackingBlock
+        );
+
+        BlockAttackTriggered?.Invoke(
+            attackingBlock,
+            damage
+        );
+    }
+}
