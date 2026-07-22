@@ -3,6 +3,7 @@ using UnityEngine;
 [RequireComponent(typeof(Collider2D))]
 public sealed class Block : MonoBehaviour
 {
+    [Header("Health")]
     [SerializeField, Min(1)]
     private int maxHealth = 3;
 
@@ -14,6 +15,14 @@ public sealed class Block : MonoBehaviour
     private void Awake()
     {
         currentHealth = maxHealth;
+    }
+
+    public void Initialize(int health)
+    {
+        maxHealth = Mathf.Max(1, health);
+        currentHealth = maxHealth;
+
+        gameObject.SetActive(true);
     }
 
     public void TakeDamage(int damage)
@@ -29,12 +38,23 @@ public sealed class Block : MonoBehaviour
         );
 
         Debug.Log(
-            $"{name} 피격: {currentHealth}/{maxHealth}"
+            $"{name} 피격: {currentHealth}/{maxHealth}",
+            this
         );
 
         if (currentHealth == 0)
         {
-            Destroy(gameObject);
+            DestroyBlock();
         }
+    }
+
+    private void DestroyBlock()
+    {
+        Debug.Log(
+            $"{name} 파괴",
+            this
+        );
+
+        Destroy(gameObject);
     }
 }
