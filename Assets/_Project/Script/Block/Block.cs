@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 [RequireComponent(typeof(Collider2D))]
@@ -15,9 +16,9 @@ public sealed class Block : MonoBehaviour
     public int CurrentHealth => currentHealth;
     public int MaxHealth => maxHealth;
     public int AttackPower => attackPower;
+    public bool IsAlive => currentHealth > 0;
 
-    public bool IsAlive =>
-        currentHealth > 0;
+    public event Action<int, int> HealthChanged;
 
     private void Awake()
     {
@@ -30,10 +31,14 @@ public sealed class Block : MonoBehaviour
     {
         maxHealth = Mathf.Max(1, health);
         currentHealth = maxHealth;
-
         attackPower = Mathf.Max(0, attack);
 
         gameObject.SetActive(true);
+
+        HealthChanged?.Invoke(
+            currentHealth,
+            maxHealth
+        );
     }
 
     public void TakeDamage(int damage)
@@ -49,9 +54,13 @@ public sealed class Block : MonoBehaviour
         );
 
         Debug.Log(
-            $"{name} 피격: " +
-            $"HP {currentHealth}/{maxHealth}",
+            $"{name} 피격: HP {currentHealth}/{maxHealth}",
             this
+        );
+
+        HealthChanged?.Invoke(
+            currentHealth,
+            maxHealth
         );
 
         if (currentHealth <= 0)

@@ -51,6 +51,12 @@ public sealed class BallLauncher : MonoBehaviour
     public int BallCount =>
         balls.Count;
 
+    public Ball LastLaunchedBall
+    {
+        get;
+        private set;
+    }
+
     private void Awake()
     {
         if (turnManager == null)
@@ -69,8 +75,6 @@ public sealed class BallLauncher : MonoBehaviour
             return;
         }
 
-        // 게임 시작 시 Launcher의 Y 위치를
-        // 모든 턴의 고정 발사 기준선으로 사용한다.
         launchBaselineY =
             transform.position.y;
 
@@ -84,7 +88,6 @@ public sealed class BallLauncher : MonoBehaviour
             currentTurnLaunchPosition;
 
         NormalizeLauncherPosition();
-
         CreateBalls();
     }
 
@@ -233,6 +236,9 @@ public sealed class BallLauncher : MonoBehaviour
         isAttackCompleted = false;
         isLaunching = true;
 
+        LastLaunchedBall =
+            FindLastAvailableBall();
+
         launchCoroutine = StartCoroutine(
             LaunchBallsRoutine(
                 direction.normalized
@@ -240,6 +246,21 @@ public sealed class BallLauncher : MonoBehaviour
         );
 
         return true;
+    }
+
+    private Ball FindLastAvailableBall()
+    {
+        for (int i = balls.Count - 1;
+             i >= 0;
+             i--)
+        {
+            if (balls[i] != null)
+            {
+                return balls[i];
+            }
+        }
+
+        return null;
     }
 
     private IEnumerator LaunchBallsRoutine(
@@ -297,10 +318,7 @@ public sealed class BallLauncher : MonoBehaviour
 
         float normalizedReturnX =
             Mathf.Clamp(
-                returnedBall
-                    .transform
-                    .position
-                    .x,
+                returnedBall.transform.position.x,
                 minimumLaunchX,
                 maximumLaunchX
             );
@@ -311,8 +329,6 @@ public sealed class BallLauncher : MonoBehaviour
                 launchBaselineY
             );
 
-        // ReturnZone에 닿은 순간 바로 발사 기준선 Y로 이동시킨다.
-        // 따라서 복귀 위치와 다음 발사 위치의 높이가 동일하다.
         returnedBall.ResetTo(
             normalizedReturnPosition
         );
@@ -326,8 +342,7 @@ public sealed class BallLauncher : MonoBehaviour
 
             Debug.Log(
                 "BallLauncher: 첫 번째 공 복귀 위치 저장, " +
-                $"다음 시작 위치 = " +
-                $"{nextTurnLaunchPosition}",
+                $"다음 시작 위치 = {nextTurnLaunchPosition}",
                 this
             );
         }
@@ -336,8 +351,7 @@ public sealed class BallLauncher : MonoBehaviour
 
         Debug.Log(
             "BallLauncher: 공 복귀 " +
-            $"{returnedBallCount}/" +
-            $"{launchedBallCount}",
+            $"{returnedBallCount}/{launchedBallCount}",
             this
         );
 
@@ -368,12 +382,6 @@ public sealed class BallLauncher : MonoBehaviour
         }
 
         isAttackCompleted = true;
-
-        Debug.Log(
-            "BallLauncher: 마지막 공 복귀 완료, " +
-            "모든 공을 첫 번째 공 위치로 정렬합니다.",
-            this
-        );
 
         AlignBallsToNextLaunchPosition();
 

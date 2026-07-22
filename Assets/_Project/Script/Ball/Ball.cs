@@ -13,16 +13,39 @@ public sealed class Ball : MonoBehaviour
     [SerializeField, Min(1)]
     private int damage = 1;
 
+    private static int activeMovingBallCount;
+
     private Rigidbody2D rigidbody2D;
     private bool isMoving;
 
+    public static int ActiveMovingBallCount =>
+        activeMovingBallCount;
+
+    public bool IsMoving =>
+        isMoving;
+
     public event Action<Ball> Returned;
 
-    public bool IsMoving => isMoving;
+    public static event Action<Ball>
+        BlockHitOccurred;
+
+    public static event Action<int>
+        MovingBallCountChanged;
+
+    [RuntimeInitializeOnLoadMethod(
+        RuntimeInitializeLoadType.SubsystemRegistration
+    )]
+    private static void ResetStaticState()
+    {
+        activeMovingBallCount = 0;
+        BlockHitOccurred = null;
+        MovingBallCountChanged = null;
+    }
 
     private void Awake()
     {
-        rigidbody2D = GetComponent<Rigidbody2D>();
+        rigidbody2D =
+            GetComponent<Rigidbody2D>();
 
         StopMovement();
     }
@@ -34,37 +57,69 @@ public sealed class Ball : MonoBehaviour
             return;
         }
 
-        // 충돌 후에도 공 속력이 일정하게 유지되도록 보정한다.
-        Vector2 currentVelocity = rigidbody2D.linearVelocity;
+        Vector2 currentVelocity =
+            rigidbody2D.linearVelocity;
 
-        if (currentVelocity.sqrMagnitude > 0.01f)
+        if (currentVelocity.sqrMagnitude >
+            0.01f)
         {
             rigidbody2D.linearVelocity =
-                currentVelocity.normalized * moveSpeed;
+                currentVelocity.normalized *
+                moveSpeed;
         }
     }
 
     public void Launch(Vector2 direction)
     {
-        if (direction.sqrMagnitude <= 0.001f)
+        if (direction.sqrMagnitude <=
+            0.001f)
         {
             return;
         }
 
+        if (!isMoving)
+        {
+            activeMovingBallCount++;
+
+            MovingBallCountChanged?.Invoke(
+                activeMovingBallCount
+            );
+        }
+
         isMoving = true;
         rigidbody2D.simulated = true;
-        rigidbody2D.linearVelocity = direction.normalized * moveSpeed;
+
+        rigidbody2D.linearVelocity =
+            direction.normalized *
+            moveSpeed;
     }
 
     public void ResetTo(Vector2 position)
     {
         StopMovement();
-        rigidbody2D.position = position;
-        transform.position = position;
+
+        rigidbody2D.position =
+            position;
+
+        transform.position =
+            position;
     }
 
     private void StopMovement()
     {
+        if (isMoving)
+        {
+            activeMovingBallCount =
+                Mathf.Max(
+                    activeMovingBallCount - 1,
+                    0
+                );
+
+            MovingBallCountChanged?.Invoke(
+                activeMovingBallCount
+            );
+        }
+
         isMoving = false;
 
         if (rigidbody2D == null)
@@ -72,38 +127,84 @@ public sealed class Ball : MonoBehaviour
             return;
         }
 
-        rigidbody2D.linearVelocity = Vector2.zero;
-        rigidbody2D.angularVelocity = 0f;
-        rigidbody2D.simulated = false;
+        rigidbody2D.linearVelocity =
+            Vector2.zero;
+
+        rigidbody2D.angularVelocity =
+            0f;
+
+        rigidbody2D.simulated =
+            false;
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    private void OnCollisionEnter2D(
+        Collision2D collision)
     {
         if (!isMoving)
         {
             return;
         }
 
-        if (collision.gameObject.TryGetComponent(
-            out Block block))
+        if (!collision.gameObject.TryGetComponent(
+                out Block block
+            ))
         {
-            block.TakeDamage(damage);
+            return;
         }
+
+        if (!block.IsAlive)
+        {
+            return;
+        }
+
+        block.TakeDamage(
+            damage
+        );
+
+        BlockHitOccurred?.Invoke(
+            this
+        );
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+    private void OnTriggerEnter2D(
+        Collider2D other)
     {
         if (!isMoving)
         {
             return;
         }
 
-        if (!other.CompareTag("ReturnZone"))
+        if (!other.CompareTag(
+                "ReturnZone"
+            ))
         {
             return;
         }
 
         StopMovement();
-        Returned?.Invoke(this);
+
+        Returned?.Invoke(
+            this
+        );
+    }
+
+    private void OnDestroy()
+    {
+        if (!isMoving)
+        {
+            return;
+        }
+
+        activeMovingBallCount =
+            Mathf.Max(
+                activeMovingBallCount - 1,
+                0
+            );
+
+        MovingBallCountChanged?.Invoke(
+            activeMovingBallCount
+        );
+
+        isMoving = false;
     }
 }
