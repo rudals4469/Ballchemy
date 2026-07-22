@@ -33,6 +33,8 @@ public sealed class BallLauncher : MonoBehaviour
     private Vector2 currentTurnLaunchPosition;
     private Vector2 nextTurnLaunchPosition;
 
+    private float launchBaselineY;
+
     private int launchedBallCount;
     private int returnedBallCount;
 
@@ -40,9 +42,14 @@ public sealed class BallLauncher : MonoBehaviour
     private bool hasFirstReturnedBall;
     private bool isAttackCompleted;
 
-    public Ball BallPrefab => ballPrefab;
-    public bool IsLaunching => isLaunching;
-    public int BallCount => balls.Count;
+    public Ball BallPrefab =>
+        ballPrefab;
+
+    public bool IsLaunching =>
+        isLaunching;
+
+    public int BallCount =>
+        balls.Count;
 
     private void Awake()
     {
@@ -62,11 +69,21 @@ public sealed class BallLauncher : MonoBehaviour
             return;
         }
 
+        // 게임 시작 시 Launcher의 Y 위치를
+        // 모든 턴의 고정 발사 기준선으로 사용한다.
+        launchBaselineY =
+            transform.position.y;
+
         currentTurnLaunchPosition =
-            transform.position;
+            new Vector2(
+                transform.position.x,
+                launchBaselineY
+            );
 
         nextTurnLaunchPosition =
-            transform.position;
+            currentTurnLaunchPosition;
+
+        NormalizeLauncherPosition();
 
         CreateBalls();
     }
@@ -94,11 +111,13 @@ public sealed class BallLauncher : MonoBehaviour
     {
         balls.Clear();
 
-        for (int i = 0; i < ballCount; i++)
+        for (int i = 0;
+             i < ballCount;
+             i++)
         {
             Ball newBall = Instantiate(
                 ballPrefab,
-                transform.position,
+                currentTurnLaunchPosition,
                 Quaternion.identity
             );
 
@@ -109,7 +128,7 @@ public sealed class BallLauncher : MonoBehaviour
                 HandleBallReturned;
 
             newBall.ResetTo(
-                transform.position
+                currentTurnLaunchPosition
             );
 
             balls.Add(newBall);
@@ -171,7 +190,8 @@ public sealed class BallLauncher : MonoBehaviour
     public bool TryLaunch(
         Vector2 direction)
     {
-        if (direction.sqrMagnitude <= 0.001f)
+        if (direction.sqrMagnitude <=
+            0.001f)
         {
             return false;
         }
@@ -196,10 +216,15 @@ public sealed class BallLauncher : MonoBehaviour
         }
 
         currentTurnLaunchPosition =
-            transform.position;
+            new Vector2(
+                transform.position.x,
+                launchBaselineY
+            );
 
         nextTurnLaunchPosition =
             currentTurnLaunchPosition;
+
+        NormalizeLauncherPosition();
 
         launchedBallCount = 0;
         returnedBallCount = 0;
@@ -238,13 +263,16 @@ public sealed class BallLauncher : MonoBehaviour
                 currentTurnLaunchPosition
             );
 
-            ball.Launch(direction);
+            ball.Launch(
+                direction
+            );
 
             if (launchInterval > 0f)
             {
-                yield return new WaitForSeconds(
-                    launchInterval
-                );
+                yield return
+                    new WaitForSeconds(
+                        launchInterval
+                    );
             }
             else
             {
@@ -267,26 +295,39 @@ public sealed class BallLauncher : MonoBehaviour
             return;
         }
 
+        float normalizedReturnX =
+            Mathf.Clamp(
+                returnedBall
+                    .transform
+                    .position
+                    .x,
+                minimumLaunchX,
+                maximumLaunchX
+            );
+
+        Vector2 normalizedReturnPosition =
+            new Vector2(
+                normalizedReturnX,
+                launchBaselineY
+            );
+
+        // ReturnZone에 닿은 순간 바로 발사 기준선 Y로 이동시킨다.
+        // 따라서 복귀 위치와 다음 발사 위치의 높이가 동일하다.
+        returnedBall.ResetTo(
+            normalizedReturnPosition
+        );
+
         if (!hasFirstReturnedBall)
         {
-            float nextLaunchX =
-                Mathf.Clamp(
-                    returnedBall.transform.position.x,
-                    minimumLaunchX,
-                    maximumLaunchX
-                );
-
             nextTurnLaunchPosition =
-                new Vector2(
-                    nextLaunchX,
-                    currentTurnLaunchPosition.y
-                );
+                normalizedReturnPosition;
 
             hasFirstReturnedBall = true;
 
             Debug.Log(
                 "BallLauncher: 첫 번째 공 복귀 위치 저장, " +
-                $"다음 시작 X = {nextLaunchX:F2}",
+                $"다음 시작 위치 = " +
+                $"{nextTurnLaunchPosition}",
                 this
             );
         }
@@ -310,7 +351,6 @@ public sealed class BallLauncher : MonoBehaviour
             return;
         }
 
-        // 모든 공의 순차 발사가 끝날 때까지 기다린다.
         if (isLaunching)
         {
             return;
@@ -342,6 +382,12 @@ public sealed class BallLauncher : MonoBehaviour
 
     private void AlignBallsToNextLaunchPosition()
     {
+        nextTurnLaunchPosition =
+            new Vector2(
+                nextTurnLaunchPosition.x,
+                launchBaselineY
+            );
+
         foreach (Ball ball in balls)
         {
             if (ball == null)
@@ -357,7 +403,17 @@ public sealed class BallLauncher : MonoBehaviour
         transform.position =
             new Vector3(
                 nextTurnLaunchPosition.x,
-                nextTurnLaunchPosition.y,
+                launchBaselineY,
+                transform.position.z
+            );
+    }
+
+    private void NormalizeLauncherPosition()
+    {
+        transform.position =
+            new Vector3(
+                transform.position.x,
+                launchBaselineY,
                 transform.position.z
             );
     }

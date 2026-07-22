@@ -7,20 +7,32 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
 {
     [Header("References")]
     [Tooltip(
-        "레이저가 도착할 위치입니다. " +
-        "Launcher 또는 별도의 PlayerHitTarget을 연결합니다."
+        "레이저가 도착할 체력바 UI입니다. " +
+        "HealthBarBackground를 연결하는 것을 권장합니다."
     )]
     [SerializeField]
-    private Transform attackTarget;
+    private RectTransform uiAttackTarget;
+
+    [Tooltip(
+        "UI 화면 좌표를 월드 좌표로 변환할 카메라입니다."
+    )]
+    [SerializeField]
+    private Camera worldCamera;
 
     [Header("Position Offset")]
+    [Tooltip(
+        "블록에서 레이저가 시작되는 위치를 조정합니다."
+    )]
     [SerializeField]
     private Vector3 sourceOffset =
         Vector3.zero;
 
+    [Tooltip(
+        "체력바 도착 위치를 화면 픽셀 단위로 조정합니다."
+    )]
     [SerializeField]
-    private Vector3 targetOffset =
-        Vector3.zero;
+    private Vector2 uiTargetScreenOffset =
+        Vector2.zero;
 
     [Header("Appearance")]
     [SerializeField]
@@ -37,23 +49,23 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
 
     [Header("Timing")]
     [Tooltip(
-        "레이저가 블록에서 플레이어까지 " +
+        "레이저가 블록에서 체력바까지 " +
         "늘어나는 시간입니다."
     )]
     [SerializeField, Min(0f)]
-    private float growDuration = 0.15f;
+    private float growDuration = 0.06f;
 
     [Tooltip(
         "레이저가 도착한 뒤 유지되는 시간입니다."
     )]
     [SerializeField, Min(0f)]
-    private float holdDuration = 0.05f;
+    private float holdDuration = 0.02f;
 
     [Tooltip(
-        "레이저가 서서히 사라지는 시간입니다."
+        "레이저가 사라지는 시간입니다."
     )]
     [SerializeField, Min(0f)]
-    private float fadeDuration = 0.15f;
+    private float fadeDuration = 0.06f;
 
     private LineRenderer lineRenderer;
 
@@ -62,7 +74,14 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
         lineRenderer =
             GetComponent<LineRenderer>();
 
+        if (worldCamera == null)
+        {
+            worldCamera =
+                Camera.main;
+        }
+
         InitializeLineRenderer();
+        ValidateReferences();
     }
 
     private void OnValidate()
@@ -104,6 +123,27 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
         }
     }
 
+    private void ValidateReferences()
+    {
+        if (uiAttackTarget == null)
+        {
+            Debug.LogError(
+                "EnemyAttackLineEffect: " +
+                "UI Attack Target이 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (worldCamera == null)
+        {
+            Debug.LogError(
+                "EnemyAttackLineEffect: " +
+                "World Camera를 찾지 못했습니다.",
+                this
+            );
+        }
+    }
+
     private void InitializeLineRenderer()
     {
         if (lineRenderer == null)
@@ -118,9 +158,7 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
 
         lineRenderer.enabled = false;
 
-        ApplyColor(
-            0f
-        );
+        ApplyColor(0f);
     }
 
     public IEnumerator PlayAttackRoutine(
@@ -128,7 +166,8 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
         Action onImpact)
     {
         if (source == null ||
-            attackTarget == null ||
+            uiAttackTarget == null ||
+            worldCamera == null ||
             lineRenderer == null)
         {
             onImpact?.Invoke();
@@ -187,8 +226,8 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
             1f
         );
 
-        // 레이저 끝이 플레이어에게 도달하는 순간
-        // 실제 피해 이벤트를 실행한다.
+        // 레이저가 체력바에 도착한 순간
+        // 해당 블록의 피해를 적용한다.
         onImpact?.Invoke();
 
         if (holdDuration > 0f)
@@ -254,7 +293,8 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
         float progress)
     {
         if (source == null ||
-            attackTarget == null ||
+            uiAttackTarget == null ||
+            worldCamera == null ||
             lineRenderer == null)
         {
             return;
@@ -264,9 +304,16 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
             source.position +
             sourceOffset;
 
-        Vector3 targetPosition =
-            attackTarget.position +
-            targetOffset;
+        bool foundTargetPosition =
+            TryGetUITargetWorldPosition(
+                startPosition.z,
+                out Vector3 targetPosition
+            );
+
+        if (!foundTargetPosition)
+        {
+            return;
+        }
 
         Vector3 currentEndPosition =
             Vector3.Lerp(
@@ -284,6 +331,74 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
             1,
             currentEndPosition
         );
+    }
+
+    private bool TryGetUITargetWorldPosition(
+        float targetWorldZ,
+        out Vector3 targetWorldPosition)
+    {
+        targetWorldPosition =
+            Vector3.zero;
+
+        if (uiAttackTarget == null ||
+            worldCamera == null)
+        {
+            return false;
+        }
+
+        Camera uiCamera =
+            GetUICamera();
+
+        Vector2 screenPosition =
+            RectTransformUtility
+                .WorldToScreenPoint(
+                    uiCamera,
+                    uiAttackTarget.position
+                );
+
+        screenPosition +=
+            uiTargetScreenOffset;
+
+        float distanceFromCamera =
+            targetWorldZ -
+            worldCamera.transform.position.z;
+
+        Vector3 targetScreenPosition =
+            new Vector3(
+                screenPosition.x,
+                screenPosition.y,
+                distanceFromCamera
+            );
+
+        targetWorldPosition =
+            worldCamera.ScreenToWorldPoint(
+                targetScreenPosition
+            );
+
+        targetWorldPosition.z =
+            targetWorldZ;
+
+        return true;
+    }
+
+    private Camera GetUICamera()
+    {
+        Canvas parentCanvas =
+            uiAttackTarget
+                .GetComponentInParent<Canvas>();
+
+        if (parentCanvas == null)
+        {
+            return null;
+        }
+
+        if (parentCanvas.renderMode ==
+            RenderMode.ScreenSpaceOverlay)
+        {
+            return null;
+        }
+
+        return parentCanvas.worldCamera;
     }
 
     private void ApplyColor(
@@ -316,9 +431,7 @@ public sealed class EnemyAttackLineEffect : MonoBehaviour
             return;
         }
 
-        ApplyColor(
-            0f
-        );
+        ApplyColor(0f);
 
         lineRenderer.enabled = false;
     }
