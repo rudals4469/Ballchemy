@@ -9,12 +9,15 @@ public sealed class TurnFastForwardController :
 
     [Header("Fast Forward")]
     [Tooltip(
-        "마지막 공이 블록을 맞힌 뒤 " +
-        "추가 타격이 없을 때 기다리는 시간입니다."
+        "마지막 공이 하강을 시작한 뒤, " +
+        "블록 타격이 없을 때 기다리는 시간입니다."
     )]
     [SerializeField, Min(0.1f)]
     private float noBlockHitDelay = 2f;
 
+    [Tooltip(
+        "복귀 구간에 적용할 배속입니다."
+    )]
     [SerializeField, Min(1f)]
     private float fastForwardScale = 3f;
 
@@ -26,7 +29,7 @@ public sealed class TurnFastForwardController :
     private float lastBlockHitTime;
 
     private bool isAttackActive;
-    private bool lastBallHasHitBlock;
+    private bool hasEnteredReturnPhase;
     private bool isFastForwarding;
     private bool isSubscribed;
 
@@ -85,17 +88,13 @@ public sealed class TurnFastForwardController :
             BeginAttack();
         }
 
+        if (!hasEnteredReturnPhase)
+        {
+            TryEnterReturnPhase();
+            return;
+        }
+
         if (isFastForwarding)
-        {
-            return;
-        }
-
-        if (ballLauncher.IsLaunching)
-        {
-            return;
-        }
-
-        if (!lastBallHasHitBlock)
         {
             return;
         }
@@ -118,7 +117,9 @@ public sealed class TurnFastForwardController :
         if (ballLauncher == null)
         {
             ballLauncher =
-                FindFirstObjectByType<BallLauncher>();
+                FindFirstObjectByType<
+                    BallLauncher
+                >();
         }
     }
 
@@ -169,7 +170,7 @@ public sealed class TurnFastForwardController :
     private void BeginAttack()
     {
         isAttackActive = true;
-        lastBallHasHitBlock = false;
+        hasEnteredReturnPhase = false;
         isFastForwarding = false;
 
         normalTimeScale =
@@ -190,11 +191,50 @@ public sealed class TurnFastForwardController :
         }
     }
 
+    private void TryEnterReturnPhase()
+    {
+        // 모든 공이 발사되기 전에는
+        // 복귀 구간으로 판단하지 않는다.
+        if (ballLauncher.IsLaunching)
+        {
+            return;
+        }
+
+        Ball lastBall =
+            ballLauncher.LastLaunchedBall;
+
+        if (lastBall == null)
+        {
+            return;
+        }
+
+        if (!lastBall.HasStartedDescending)
+        {
+            return;
+        }
+
+        hasEnteredReturnPhase = true;
+
+        // 마지막 공이 하강을 시작한 순간부터
+        // 무타격 시간을 새로 측정한다.
+        lastBlockHitTime =
+            Time.unscaledTime;
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "TurnFastForwardController: " +
+                "마지막 공 하강 시작, " +
+                "무타격 시간 측정 시작",
+                this
+            );
+        }
+    }
+
     private void HandleBlockHit(
         Ball hitBall)
     {
-        if (hitBall == null ||
-            ballLauncher == null)
+        if (hitBall == null)
         {
             return;
         }
@@ -204,35 +244,26 @@ public sealed class TurnFastForwardController :
             BeginAttack();
         }
 
-        if (isFastForwarding)
+        if (!hasEnteredReturnPhase ||
+            isFastForwarding)
         {
             return;
         }
 
-        if (!lastBallHasHitBlock)
-        {
-            if (hitBall !=
-                ballLauncher.LastLaunchedBall)
-            {
-                return;
-            }
-
-            lastBallHasHitBlock = true;
-
-            if (showDebugLog)
-            {
-                Debug.Log(
-                    "TurnFastForwardController: " +
-                    "마지막 공이 블록을 처음 타격함",
-                    this
-                );
-            }
-        }
-
-        // 마지막 공이 한 번 타격한 이후부터는
-        // 어떤 공이든 블록을 때릴 때마다 타이머를 초기화한다.
+        // 하강 구간에 들어온 이후에는
+        // 어떤 공이 블록을 때려도 타이머를 초기화한다.
         lastBlockHitTime =
             Time.unscaledTime;
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "TurnFastForwardController: " +
+                "하강 중 블록 타격, " +
+                "배속 타이머 초기화",
+                this
+            );
+        }
     }
 
     private void HandleMovingBallCountChanged(
@@ -288,14 +319,14 @@ public sealed class TurnFastForwardController :
         RestoreTimeScale();
 
         isAttackActive = false;
-        lastBallHasHitBlock = false;
+        hasEnteredReturnPhase = false;
         isFastForwarding = false;
 
         if (showDebugLog)
         {
             Debug.Log(
                 "TurnFastForwardController: " +
-                "턴 종료, 정상 속도 복구",
+                "공 복귀 완료, 정상 속도 복구",
                 this
             );
         }
@@ -318,7 +349,7 @@ public sealed class TurnFastForwardController :
         RestoreTimeScale();
 
         isAttackActive = false;
-        lastBallHasHitBlock = false;
+        hasEnteredReturnPhase = false;
         isFastForwarding = false;
     }
 

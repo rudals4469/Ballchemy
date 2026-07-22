@@ -9,20 +9,43 @@ public sealed class Ball : MonoBehaviour
     [SerializeField, Min(0.1f)]
     private float moveSpeed = 12f;
 
+    [Tooltip(
+        "상승과 하강을 구분할 때 사용하는 " +
+        "최소 수직 속도입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float verticalDirectionThreshold = 0.05f;
+
     [Header("Combat")]
     [SerializeField, Min(1)]
     private int damage = 1;
 
     private static int activeMovingBallCount;
 
-    private Rigidbody2D rigidbody2D;
+    private Rigidbody2D body;
+
     private bool isMoving;
+    private bool hasMovedUpward;
+    private bool hasStartedDescending;
 
     public static int ActiveMovingBallCount =>
         activeMovingBallCount;
 
     public bool IsMoving =>
         isMoving;
+
+    public bool HasStartedDescending =>
+        hasStartedDescending;
+
+    public Vector2 Velocity =>
+        body != null
+            ? body.linearVelocity
+            : Vector2.zero;
+
+    public float VerticalVelocity =>
+        body != null
+            ? body.linearVelocity.y
+            : 0f;
 
     public event Action<Ball> Returned;
 
@@ -44,7 +67,7 @@ public sealed class Ball : MonoBehaviour
 
     private void Awake()
     {
-        rigidbody2D =
+        body =
             GetComponent<Rigidbody2D>();
 
         StopMovement();
@@ -58,15 +81,46 @@ public sealed class Ball : MonoBehaviour
         }
 
         Vector2 currentVelocity =
-            rigidbody2D.linearVelocity;
+            body.linearVelocity;
 
         if (currentVelocity.sqrMagnitude >
             0.01f)
         {
-            rigidbody2D.linearVelocity =
+            currentVelocity =
                 currentVelocity.normalized *
                 moveSpeed;
+
+            body.linearVelocity =
+                currentVelocity;
         }
+
+        UpdateVerticalMovementState(
+            currentVelocity.y
+        );
+    }
+
+    private void UpdateVerticalMovementState(
+        float verticalVelocity)
+    {
+        if (verticalVelocity >
+            verticalDirectionThreshold)
+        {
+            hasMovedUpward = true;
+            return;
+        }
+
+        if (!hasMovedUpward)
+        {
+            return;
+        }
+
+        if (verticalVelocity >=
+            -verticalDirectionThreshold)
+        {
+            return;
+        }
+
+        hasStartedDescending = true;
     }
 
     public void Launch(Vector2 direction)
@@ -86,10 +140,13 @@ public sealed class Ball : MonoBehaviour
             );
         }
 
-        isMoving = true;
-        rigidbody2D.simulated = true;
+        hasMovedUpward = false;
+        hasStartedDescending = false;
 
-        rigidbody2D.linearVelocity =
+        isMoving = true;
+        body.simulated = true;
+
+        body.linearVelocity =
             direction.normalized *
             moveSpeed;
     }
@@ -98,7 +155,7 @@ public sealed class Ball : MonoBehaviour
     {
         StopMovement();
 
-        rigidbody2D.position =
+        body.position =
             position;
 
         transform.position =
@@ -122,18 +179,18 @@ public sealed class Ball : MonoBehaviour
 
         isMoving = false;
 
-        if (rigidbody2D == null)
+        if (body == null)
         {
             return;
         }
 
-        rigidbody2D.linearVelocity =
+        body.linearVelocity =
             Vector2.zero;
 
-        rigidbody2D.angularVelocity =
+        body.angularVelocity =
             0f;
 
-        rigidbody2D.simulated =
+        body.simulated =
             false;
     }
 
