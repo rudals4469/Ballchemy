@@ -1,22 +1,73 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class BlockGridMover : MonoBehaviour
 {
-    [Header("Movement")]
-    [Tooltip(
-        "기존 블록들이 다음 위치까지 이동하는 데 " +
-        "걸리는 시간입니다."
-    )]
-    [SerializeField, Min(0f)]
-    private float moveDuration = 0.35f;
+    [Header("Animation")]
+    [SerializeField]
+    private BlockGridMoveAnimator moveAnimator =
+        new BlockGridMoveAnimator();
+
+    private readonly BlockGridBoundaryChecker
+        boundaryChecker =
+            new BlockGridBoundaryChecker();
+
+    public BlockGridBoundaryReport LastBoundaryReport
+    {
+        get;
+        private set;
+    } = BlockGridBoundaryReport.Empty;
+
+    public bool IsMoving
+    {
+        get;
+        private set;
+    }
+
+    public event Action<IReadOnlyList<Block>>
+        BottomRowReached;
+
+    public event Action<IReadOnlyList<Block>>
+        BottomBoundaryExceeded;
+
+    private void Awake()
+    {
+        EnsureHelpers();
+    }
+
+    private void OnValidate()
+    {
+        EnsureHelpers();
+
+        moveAnimator.Normalize();
+    }
+
+    private void EnsureHelpers()
+    {
+        if (moveAnimator == null)
+        {
+            moveAnimator =
+                new BlockGridMoveAnimator();
+        }
+    }
 
     public IEnumerator MoveDownRoutine(
         IReadOnlyList<Block> blocks,
-        int rowCount,
-        float cellSize)
+        int rowCount)
     {
+        if (IsMoving)
+        {
+            Debug.LogWarning(
+                "BlockGridMover: " +
+                "이미 블록 이동이 진행 중입니다.",
+                this
+            );
+
+            yield break;
+        }
+
         if (blocks == null ||
             blocks.Count == 0)
         {
@@ -25,166 +76,157 @@ public sealed class BlockGridMover : MonoBehaviour
 
         rowCount =
             Mathf.Max(
-                0,
-                rowCount
+                rowCount,
+                0
             );
 
-        cellSize =
-            Mathf.Max(
-                0f,
-                cellSize
-            );
-
-        if (rowCount == 0 ||
-            cellSize <= 0f)
+        if (rowCount == 0)
         {
             yield break;
         }
 
-        float movementDistance =
-            rowCount *
-            cellSize;
+        EnsureHelpers();
 
-        Vector3 movement =
-            Vector3.down *
-            movementDistance;
+        List<Block> movedBlocks =
+            new List<Block>();
 
-        if (moveDuration <= 0f)
-        {
-            MoveImmediately(
+        List<BlockGridMoveTarget> moveTargets =
+            CreateMoveTargets(
                 blocks,
-                movement
+                rowCount,
+                movedBlocks
             );
 
-            yield break;
-        }
-
-        Dictionary<Block, Vector3> startPositions =
-            CreateStartPositionMap(
-                blocks
-            );
-
-        if (startPositions.Count == 0)
+        if (moveTargets.Count == 0)
         {
             yield break;
         }
 
-        float elapsedTime = 0f;
+        IsMoving =
+            true;
 
-        while (elapsedTime <
-               moveDuration)
-        {
-            elapsedTime +=
-                Time.deltaTime;
+        yield return moveAnimator
+            .AnimateRoutine(
+                moveTargets
+            );
 
-            float progress =
-                Mathf.Clamp01(
-                    elapsedTime /
-                    moveDuration
-                );
+        IsMoving =
+            false;
 
-            float smoothProgress =
-                progress *
-                progress *
-                (
-                    3f -
-                    (2f * progress)
-                );
-
-            foreach (
-                KeyValuePair<Block, Vector3>
-                pair in startPositions)
-            {
-                Block block =
-                    pair.Key;
-
-                if (block == null)
-                {
-                    continue;
-                }
-
-                Vector3 targetPosition =
-                    pair.Value +
-                    movement;
-
-                block.transform.position =
-                    Vector3.Lerp(
-                        pair.Value,
-                        targetPosition,
-                        smoothProgress
-                    );
-            }
-
-            yield return null;
-        }
-
-        ApplyFinalPositions(
-            startPositions,
-            movement
+        EvaluateBoundaries(
+            movedBlocks
         );
     }
 
-    private void MoveImmediately(
+    /*
+     * 기존 코드를 바로 전부 수정하지 않아도 되도록
+     * 이전 호출 형식을 유지하는 호환용 메서드다.
+     *
+     * Cell Size는 이제 Block과 BoardGrid가 관리하므로
+     * 여기서는 사용하지 않는다.
+     */
+    public IEnumerator MoveDownRoutine(
         IReadOnlyList<Block> blocks,
-        Vector3 movement)
+        int rowCount,
+        float unusedCellSize)
     {
-        foreach (Block block in blocks)
-        {
-            if (block == null ||
-                !block.IsAlive)
-            {
-                continue;
-            }
-
-            block.transform.position +=
-                movement;
-        }
+        return MoveDownRoutine(
+            blocks,
+            rowCount
+        );
     }
 
-    private Dictionary<Block, Vector3>
-        CreateStartPositionMap(
-            IReadOnlyList<Block> blocks)
+    private List<BlockGridMoveTarget>
+        CreateMoveTargets(
+            IReadOnlyList<Block> blocks,
+            int rowCount,
+            List<Block> movedBlocks)
     {
-        Dictionary<Block, Vector3> result =
-            new Dictionary<Block, Vector3>();
+        List<BlockGridMoveTarget> result =
+            new List<BlockGridMoveTarget>();
 
-        foreach (Block block in blocks)
+        for (int i = 0;
+             i < blocks.Count;
+             i++)
         {
+            Block block =
+                blocks[i];
+
             if (block == null ||
                 !block.IsAlive)
             {
                 continue;
             }
 
+            if (!block.HasGridPosition)
+            {
+                Debug.LogWarning(
+                    "BlockGridMover: " +
+                    $"{block.name}에 Grid Position이 없어 " +
+                    "이동 대상에서 제외합니다.",
+                    block
+                );
+
+                continue;
+            }
+
+            Vector3 startPosition =
+                block.transform.position;
+
+            bool moved =
+                block.MoveGridRows(
+                    rowCount,
+                    false
+                );
+
+            if (!moved)
+            {
+                continue;
+            }
+
+            Vector3 targetPosition =
+                block.GetGridWorldPosition();
+
             result.Add(
-                block,
-                block.transform.position
+                new BlockGridMoveTarget(
+                    block,
+                    startPosition,
+                    targetPosition
+                )
+            );
+
+            movedBlocks.Add(
+                block
             );
         }
 
         return result;
     }
 
-    private void ApplyFinalPositions(
-        Dictionary<Block, Vector3>
-            startPositions,
-        Vector3 movement)
+    private void EvaluateBoundaries(
+        IReadOnlyList<Block> movedBlocks)
     {
-        foreach (
-            KeyValuePair<Block, Vector3>
-            pair in startPositions)
+        LastBoundaryReport =
+            boundaryChecker.Evaluate(
+                movedBlocks
+            );
+
+        if (LastBoundaryReport
+            .HasTouchingBottomBlocks)
         {
-            Block block =
-                pair.Key;
+            BottomRowReached?.Invoke(
+                LastBoundaryReport
+                    .TouchingBottomBlocks
+            );
+        }
 
-            if (block == null)
-            {
-                continue;
-            }
-
-            block.transform.position =
-                pair.Value +
-                movement;
+        if (LastBoundaryReport
+            .HasOutsideBottomBlocks)
+        {
+            BottomBoundaryExceeded?.Invoke(
+                LastBoundaryReport
+                    .OutsideBottomBlocks
+            );
         }
     }
 }

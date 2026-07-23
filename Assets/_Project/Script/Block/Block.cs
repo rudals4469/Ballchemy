@@ -8,48 +8,19 @@ public sealed class Block : MonoBehaviour
     [SerializeField]
     private BlockDefinition definition;
 
+    [Header("Presentation")]
     [SerializeField]
-    private SpriteRenderer visualRenderer;
+    private BlockLayout layout =
+        new BlockLayout();
 
+    [Header("Grid State")]
     [SerializeField]
-    private BoxCollider2D boxCollider;
+    private BlockGridState gridState =
+        new BlockGridState();
 
-    [Header("Layout")]
-    [Tooltip(
-        "블록 외형과 셀 경계 사이의 간격입니다."
-    )]
-    [SerializeField, Min(0f)]
-    private float visualPadding = 0.12f;
-
-    [Tooltip(
-        "콜라이더와 셀 경계 사이의 간격입니다."
-    )]
-    [SerializeField, Min(0f)]
-    private float colliderInset = 0.02f;
-
+    [Header("Runtime Layout")]
     [SerializeField, Min(0.1f)]
     private float runtimeCellSize = 1f;
-
-    [Header("Grid Runtime")]
-    [Tooltip(
-        "이 블록이 배치된 BoardGrid입니다. " +
-        "BlockWaveGenerator가 생성할 때 자동으로 할당합니다."
-    )]
-    [SerializeField]
-    private BoardGrid boardGrid;
-
-    [Tooltip(
-        "블록이 점유하는 영역의 왼쪽 위 시작 셀입니다."
-    )]
-    [SerializeField]
-    private Vector2Int gridPosition =
-        new Vector2Int(
-            -1,
-            -1
-        );
-
-    [SerializeField]
-    private bool hasGridPosition;
 
     [Header("Runtime Stats")]
     [SerializeField, Min(1)]
@@ -88,37 +59,60 @@ public sealed class Block : MonoBehaviour
 
     public Vector2 WorldSize =>
         new Vector2(
-            GridSize.x * runtimeCellSize,
-            GridSize.y * runtimeCellSize
+            GridSize.x *
+            runtimeCellSize,
+
+            GridSize.y *
+            runtimeCellSize
         );
 
     public BoardGrid BoardGrid =>
-        boardGrid;
+        gridState != null
+            ? gridState.BoardGrid
+            : null;
 
     public bool HasGridPosition =>
-        hasGridPosition;
+        gridState != null &&
+        gridState.HasGridPosition;
 
     public Vector2Int GridPosition =>
-        gridPosition;
+        gridState != null
+            ? gridState.GridPosition
+            : new Vector2Int(
+                -1,
+                -1
+            );
 
     public int StartColumn =>
-        gridPosition.x;
+        HasGridPosition
+            ? gridState.StartColumn
+            : -1;
 
     public int StartRow =>
-        gridPosition.y;
+        HasGridPosition
+            ? gridState.StartRow
+            : -1;
 
     public int EndColumn =>
-        StartColumn +
-        GridSize.x -
-        1;
+        HasGridPosition
+            ? gridState.GetEndColumn(
+                GridSize
+            )
+            : -1;
 
     public int EndRow =>
-        StartRow +
-        GridSize.y -
-        1;
+        HasGridPosition
+            ? gridState.GetEndRow(
+                GridSize
+            )
+            : -1;
 
     public int BottomRow =>
-        EndRow;
+        HasGridPosition
+            ? gridState.GetBottomRow(
+                GridSize
+            )
+            : -1;
 
     public int CurrentHealth =>
         currentHealth;
@@ -140,54 +134,23 @@ public sealed class Block : MonoBehaviour
         DestructionRule ==
         BlockDestructionRule.Indestructible;
 
-    public bool IsInsideBoard
-    {
-        get
-        {
-            if (boardGrid == null ||
-                !hasGridPosition)
-            {
-                return false;
-            }
+    public bool IsInsideBoard =>
+        gridState != null &&
+        gridState.IsInsideBoard(
+            GridSize
+        );
 
-            return StartColumn >= 0 &&
-                   StartRow >= 0 &&
-                   EndColumn <
-                   boardGrid.ColumnCount &&
-                   EndRow <
-                   boardGrid.RowCount;
-        }
-    }
+    public bool IsTouchingBottomRow =>
+        gridState != null &&
+        gridState.IsTouchingBottomRow(
+            GridSize
+        );
 
-    public bool IsTouchingBottomRow
-    {
-        get
-        {
-            if (boardGrid == null ||
-                !hasGridPosition)
-            {
-                return false;
-            }
-
-            return BottomRow ==
-                   boardGrid.RowCount - 1;
-        }
-    }
-
-    public bool IsOutsideBottom
-    {
-        get
-        {
-            if (boardGrid == null ||
-                !hasGridPosition)
-            {
-                return false;
-            }
-
-            return BottomRow >=
-                   boardGrid.RowCount;
-        }
-    }
+    public bool IsOutsideBottom =>
+        gridState != null &&
+        gridState.IsOutsideBottom(
+            GridSize
+        );
 
     public event Action<int, int>
         HealthChanged;
@@ -206,14 +169,12 @@ public sealed class Block : MonoBehaviour
 
     private void Awake()
     {
-        FindReferences();
+        EnsureHelperObjects();
 
         currentHealth =
             maxHealth;
 
-        ApplyDefinitionVisual();
-        ApplyLayout();
-
+        ApplyPresentation();
         RefreshGridPlacement();
     }
 
@@ -237,41 +198,25 @@ public sealed class Block : MonoBehaviour
                 0.1f
             );
 
-        visualPadding =
-            Mathf.Max(
-                visualPadding,
-                0f
-            );
+        EnsureHelperObjects();
 
-        colliderInset =
-            Mathf.Max(
-                colliderInset,
-                0f
-            );
-
-        FindReferences();
+        layout.Validate(
+            gameObject
+        );
     }
 
-    private void FindReferences()
+    private void EnsureHelperObjects()
     {
-        if (visualRenderer == null)
+        if (layout == null)
         {
-            visualRenderer =
-                GetComponent<SpriteRenderer>();
+            layout =
+                new BlockLayout();
         }
 
-        if (visualRenderer == null)
+        if (gridState == null)
         {
-            visualRenderer =
-                GetComponentInChildren<SpriteRenderer>(
-                    true
-                );
-        }
-
-        if (boxCollider == null)
-        {
-            boxCollider =
-                GetComponent<BoxCollider2D>();
+            gridState =
+                new BlockGridState();
         }
     }
 
@@ -279,23 +224,21 @@ public sealed class Block : MonoBehaviour
         int health,
         int attack)
     {
+        EnsureHelperObjects();
+
         SetRuntimeStats(
             health,
             attack
         );
 
-        ApplyDefinitionVisual();
-        ApplyLayout();
+        ApplyPresentation();
         RefreshGridPlacement();
 
         gameObject.SetActive(
             true
         );
 
-        LayoutChanged?.Invoke(
-            GridSize,
-            runtimeCellSize
-        );
+        NotifyLayoutChanged();
     }
 
     public void Initialize(
@@ -317,6 +260,8 @@ public sealed class Block : MonoBehaviour
         int attack,
         float cellSize)
     {
+        EnsureHelperObjects();
+
         definition =
             blockDefinition;
 
@@ -326,14 +271,12 @@ public sealed class Block : MonoBehaviour
                 0.1f
             );
 
-        ApplyDefinitionVisual();
-        ApplyLayout();
-
         SetRuntimeStats(
             health,
             attack
         );
 
+        ApplyPresentation();
         RefreshGridPlacement();
 
         gameObject.SetActive(
@@ -344,10 +287,7 @@ public sealed class Block : MonoBehaviour
             definition
         );
 
-        LayoutChanged?.Invoke(
-            GridSize,
-            runtimeCellSize
-        );
+        NotifyLayoutChanged();
     }
 
     public void ApplyDefinition(
@@ -374,6 +314,8 @@ public sealed class Block : MonoBehaviour
             return;
         }
 
+        EnsureHelperObjects();
+
         definition =
             blockDefinition;
 
@@ -383,18 +325,14 @@ public sealed class Block : MonoBehaviour
                 0.1f
             );
 
-        ApplyDefinitionVisual();
-        ApplyLayout();
+        ApplyPresentation();
         RefreshGridPlacement();
 
         DefinitionChanged?.Invoke(
             definition
         );
 
-        LayoutChanged?.Invoke(
-            GridSize,
-            runtimeCellSize
-        );
+        NotifyLayoutChanged();
     }
 
     public void SetGridPosition(
@@ -414,39 +352,35 @@ public sealed class Block : MonoBehaviour
             return;
         }
 
-        boardGrid =
-            targetBoardGrid;
-
-        gridPosition =
-            new Vector2Int(
-                startColumn,
-                startRow
-            );
-
-        hasGridPosition =
-            true;
+        EnsureHelperObjects();
 
         runtimeCellSize =
             Mathf.Max(
-                boardGrid.CellSize,
+                targetBoardGrid.CellSize,
                 0.1f
             );
 
-        ApplyLayout();
+        gridState.Set(
+            targetBoardGrid,
+            startColumn,
+            startRow
+        );
+
+        ApplyPresentation();
 
         if (snapToWorld)
         {
-            SnapToGridPosition();
+            gridState.Snap(
+                transform,
+                GridSize
+            );
         }
 
-        LayoutChanged?.Invoke(
-            GridSize,
-            runtimeCellSize
-        );
+        NotifyLayoutChanged();
 
         GridPositionChanged?.Invoke(
             this,
-            gridPosition
+            GridPosition
         );
     }
 
@@ -455,7 +389,7 @@ public sealed class Block : MonoBehaviour
         int startRow,
         bool snapToWorld = true)
     {
-        if (boardGrid == null)
+        if (BoardGrid == null)
         {
             Debug.LogWarning(
                 "Block: 기존 BoardGrid가 없어 " +
@@ -467,7 +401,7 @@ public sealed class Block : MonoBehaviour
         }
 
         SetGridPosition(
-            boardGrid,
+            BoardGrid,
             startColumn,
             startRow,
             snapToWorld
@@ -478,8 +412,10 @@ public sealed class Block : MonoBehaviour
         int rowAmount,
         bool snapToWorld = true)
     {
-        if (boardGrid == null ||
-            !hasGridPosition)
+        EnsureHelperObjects();
+
+        if (!gridState.MoveRows(
+                rowAmount))
         {
             Debug.LogWarning(
                 "Block: Grid Position이 없어 " +
@@ -490,11 +426,17 @@ public sealed class Block : MonoBehaviour
             return false;
         }
 
-        SetGridPosition(
-            boardGrid,
-            StartColumn,
-            StartRow + rowAmount,
-            snapToWorld
+        if (snapToWorld)
+        {
+            gridState.Snap(
+                transform,
+                GridSize
+            );
+        }
+
+        GridPositionChanged?.Invoke(
+            this,
+            GridPosition
         );
 
         return true;
@@ -502,69 +444,35 @@ public sealed class Block : MonoBehaviour
 
     public void SnapToGridPosition()
     {
-        if (boardGrid == null ||
-            !hasGridPosition)
-        {
-            return;
-        }
+        EnsureHelperObjects();
 
-        transform.position =
-            GetGridWorldPosition();
-
-        transform.rotation =
-            boardGrid.transform.rotation;
+        gridState.Snap(
+            transform,
+            GridSize
+        );
     }
 
     public Vector3 GetGridWorldPosition()
     {
-        if (boardGrid == null ||
-            !hasGridPosition)
-        {
-            return transform.position;
-        }
+        EnsureHelperObjects();
 
-        Vector3 startCellPosition =
-            boardGrid.GetCellWorldPosition(
-                StartColumn,
-                StartRow
-            );
-
-        float horizontalDistance =
-            (GridSize.x - 1) *
-            boardGrid.CellSize *
-            0.5f;
-
-        float verticalDistance =
-            (GridSize.y - 1) *
-            boardGrid.CellSize *
-            0.5f;
-
-        Vector3 horizontalOffset =
-            boardGrid.transform.right *
-            horizontalDistance;
-
-        Vector3 verticalOffset =
-            -boardGrid.transform.up *
-            verticalDistance;
-
-        return startCellPosition +
-               horizontalOffset +
-               verticalOffset;
+        return gridState.GetWorldPosition(
+            transform,
+            GridSize
+        );
     }
 
     public bool OccupiesCell(
         int column,
         int row)
     {
-        if (!hasGridPosition)
-        {
-            return false;
-        }
+        EnsureHelperObjects();
 
-        return column >= StartColumn &&
-               column <= EndColumn &&
-               row >= StartRow &&
-               row <= EndRow;
+        return gridState.OccupiesCell(
+            column,
+            row,
+            GridSize
+        );
     }
 
     public bool OccupiesCell(
@@ -578,35 +486,51 @@ public sealed class Block : MonoBehaviour
 
     public void ClearGridPosition()
     {
-        boardGrid =
-            null;
+        EnsureHelperObjects();
 
-        gridPosition =
-            new Vector2Int(
-                -1,
-                -1
-            );
-
-        hasGridPosition =
-            false;
+        gridState.Clear();
     }
 
     private void RefreshGridPlacement()
     {
-        if (boardGrid == null ||
-            !hasGridPosition)
+        if (!HasGridPosition ||
+            BoardGrid == null)
         {
             return;
         }
 
         runtimeCellSize =
             Mathf.Max(
-                boardGrid.CellSize,
+                BoardGrid.CellSize,
                 0.1f
             );
 
-        ApplyLayout();
-        SnapToGridPosition();
+        ApplyPresentation();
+
+        gridState.Snap(
+            transform,
+            GridSize
+        );
+    }
+
+    private void ApplyPresentation()
+    {
+        EnsureHelperObjects();
+
+        layout.Apply(
+            gameObject,
+            definition,
+            GridSize,
+            runtimeCellSize
+        );
+    }
+
+    private void NotifyLayoutChanged()
+    {
+        LayoutChanged?.Invoke(
+            GridSize,
+            runtimeCellSize
+        );
     }
 
     private void SetRuntimeStats(
@@ -634,164 +558,16 @@ public sealed class Block : MonoBehaviour
         );
     }
 
-    private void ApplyDefinitionVisual()
-    {
-        if (visualRenderer == null ||
-            definition == null)
-        {
-            return;
-        }
-
-        if (definition.Sprite != null)
-        {
-            visualRenderer.sprite =
-                definition.Sprite;
-        }
-
-        visualRenderer.color =
-            definition.Color;
-    }
-
-    private void ApplyLayout()
-    {
-        Vector2 desiredWorldSize =
-            WorldSize;
-
-        ApplyVisualLayout(
-            desiredWorldSize
-        );
-
-        ApplyColliderLayout(
-            desiredWorldSize
-        );
-    }
-
-    private void ApplyVisualLayout(
-        Vector2 desiredWorldSize)
-    {
-        if (visualRenderer == null)
-        {
-            return;
-        }
-
-        Vector3 definitionScale =
-            definition != null
-                ? definition.VisualScale
-                : Vector3.one;
-
-        Vector2 desiredVisualWorldSize =
-            new Vector2(
-                Mathf.Max(
-                    desiredWorldSize.x -
-                    visualPadding,
-                    0.05f
-                ) *
-                definitionScale.x,
-
-                Mathf.Max(
-                    desiredWorldSize.y -
-                    visualPadding,
-                    0.05f
-                ) *
-                definitionScale.y
-            );
-
-        Vector2 localRendererSize =
-            ConvertWorldSizeToLocalSize(
-                visualRenderer.transform,
-                desiredVisualWorldSize
-            );
-
-        visualRenderer.drawMode =
-            SpriteDrawMode.Sliced;
-
-        visualRenderer.size =
-            localRendererSize;
-
-        if (visualRenderer.transform !=
-            transform)
-        {
-            Vector3 localPosition =
-                visualRenderer.transform.localPosition;
-
-            localPosition.x = 0f;
-            localPosition.y = 0f;
-
-            visualRenderer.transform.localPosition =
-                localPosition;
-
-            visualRenderer.transform.localRotation =
-                Quaternion.identity;
-        }
-    }
-
-    private void ApplyColliderLayout(
-        Vector2 desiredWorldSize)
-    {
-        if (boxCollider == null)
-        {
-            return;
-        }
-
-        Vector2 desiredColliderWorldSize =
-            new Vector2(
-                Mathf.Max(
-                    desiredWorldSize.x -
-                    (colliderInset * 2f),
-                    0.05f
-                ),
-
-                Mathf.Max(
-                    desiredWorldSize.y -
-                    (colliderInset * 2f),
-                    0.05f
-                )
-            );
-
-        Vector2 localColliderSize =
-            ConvertWorldSizeToLocalSize(
-                boxCollider.transform,
-                desiredColliderWorldSize
-            );
-
-        boxCollider.size =
-            localColliderSize;
-
-        boxCollider.offset =
-            Vector2.zero;
-    }
-
-    private Vector2 ConvertWorldSizeToLocalSize(
-        Transform targetTransform,
-        Vector2 desiredWorldSize)
-    {
-        Vector3 lossyScale =
-            targetTransform.lossyScale;
-
-        float scaleX =
-            Mathf.Max(
-                Mathf.Abs(lossyScale.x),
-                0.0001f
-            );
-
-        float scaleY =
-            Mathf.Max(
-                Mathf.Abs(lossyScale.y),
-                0.0001f
-            );
-
-        return new Vector2(
-            desiredWorldSize.x / scaleX,
-            desiredWorldSize.y / scaleY
-        );
-    }
-
     [ContextMenu("Apply Layout Preview")]
     private void ApplyLayoutPreview()
     {
-        FindReferences();
-        ApplyDefinitionVisual();
-        ApplyLayout();
+        EnsureHelperObjects();
+
+        layout.Validate(
+            gameObject
+        );
+
+        ApplyPresentation();
         RefreshGridPlacement();
     }
 
@@ -823,7 +599,8 @@ public sealed class Block : MonoBehaviour
 
         currentHealth =
             Mathf.Max(
-                currentHealth - damage,
+                currentHealth -
+                damage,
                 0
             );
 

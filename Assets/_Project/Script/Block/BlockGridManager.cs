@@ -22,29 +22,29 @@ public sealed class BlockGridManager : MonoBehaviour
     [SerializeField]
     private EnemyAttackSequence enemyAttackSequence;
 
-    [Header("Named Wave")]
-    [SerializeField, Min(1)]
-    private int namedWaveInterval = 3;
+    [Header("Wave Progression")]
+    [SerializeField]
+    private BlockWaveDirector waveDirector =
+        new BlockWaveDirector();
 
-    [SerializeField, Min(1f)]
-    private float namedHealthMultiplier = 3f;
+    private readonly BlockRegistry blockRegistry =
+        new BlockRegistry();
 
-    [SerializeField, Min(0f)]
-    private float namedAttackMultiplier = 2f;
+    private readonly BlockGridBossMode bossMode =
+        new BlockGridBossMode();
 
-    private readonly List<Block> activeBlocks =
-        new List<Block>();
+    private BlockEnemyPhaseResolver
+        enemyPhaseResolver;
 
     private int currentTurn;
-    private int currentWaveIndex;
-
-    private bool isBossEncounterActive;
 
     public int CurrentTurn =>
         currentTurn;
 
     public int CurrentWaveNumber =>
-        currentWaveIndex + 1;
+        waveDirector != null
+            ? waveDirector.CurrentWaveNumber
+            : 1;
 
     public int TurnsUntilAttack =>
         enemyAttackCycle != null
@@ -52,43 +52,36 @@ public sealed class BlockGridManager : MonoBehaviour
             : 0;
 
     public bool IsBossEncounterActive =>
-        isBossEncounterActive;
+        bossMode.IsActive;
 
     public bool IsCurrentNamedWave =>
-        IsNamedWave(
-            CurrentWaveNumber
-        );
+        waveDirector != null &&
+        waveDirector.IsCurrentNamedWave;
 
-    public int ActiveBlockCount
-    {
-        get
-        {
-            RemoveDestroyedBlocks();
-            return activeBlocks.Count;
-        }
-    }
+    public int ActiveBlockCount =>
+        blockRegistry.Count;
+
+    public IReadOnlyList<Block> ActiveBlocks =>
+        blockRegistry.ActiveBlocks;
 
     public int CurrentTotalAttackPower
     {
         get
         {
             if (enemyAttackSequence == null ||
-                isBossEncounterActive)
+                bossMode.IsActive)
             {
                 return 0;
             }
 
-            RemoveDestroyedBlocks();
+            blockRegistry.RemoveInvalidBlocks();
 
             return enemyAttackSequence
                 .CalculateTotalAttackPower(
-                    activeBlocks
+                    blockRegistry.ActiveBlocks
                 );
         }
     }
-
-    public IReadOnlyList<Block> ActiveBlocks =>
-        activeBlocks;
 
     public event Action<int>
         TurnsUntilAttackChanged;
@@ -99,38 +92,26 @@ public sealed class BlockGridManager : MonoBehaviour
     public event Action<int>
         WaveGenerated;
 
+    public event Action<IReadOnlyList<Block>>
+        BlocksReachedBottom;
+
+    public event Action<IReadOnlyList<Block>>
+        BlocksExceededBottom;
+
     private void Awake()
     {
-        NormalizeSettings();
+        EnsureServices();
         FindComponents();
+        NormalizeSettings();
         ValidateReferences();
+        CreateEnemyPhaseResolver();
         SubscribeEvents();
     }
 
     private void OnValidate()
     {
+        EnsureServices();
         NormalizeSettings();
-    }
-
-    private void NormalizeSettings()
-    {
-        namedWaveInterval =
-            Mathf.Max(
-                namedWaveInterval,
-                1
-            );
-
-        namedHealthMultiplier =
-            Mathf.Max(
-                namedHealthMultiplier,
-                1f
-            );
-
-        namedAttackMultiplier =
-            Mathf.Max(
-                namedAttackMultiplier,
-                0f
-            );
     }
 
     private void Start()
@@ -141,12 +122,26 @@ public sealed class BlockGridManager : MonoBehaviour
         }
 
         currentTurn = 0;
-        currentWaveIndex = 0;
-        isBossEncounterActive = false;
 
+        bossMode.Reset();
+        waveDirector.Initialize();
         enemyAttackCycle.InitializeCycle();
 
         GenerateInitialWave();
+    }
+
+    private void EnsureServices()
+    {
+        if (waveDirector == null)
+        {
+            waveDirector =
+                new BlockWaveDirector();
+        }
+    }
+
+    private void NormalizeSettings()
+    {
+        waveDirector?.Normalize();
     }
 
     private void FindComponents()
@@ -215,12 +210,35 @@ public sealed class BlockGridManager : MonoBehaviour
         }
     }
 
-    private bool CanInitialize()
+    private void CreateEnemyPhaseResolver()
     {
         if (waveGenerator == null ||
             gridMover == null ||
             enemyAttackCycle == null ||
             enemyAttackSequence == null)
+        {
+            return;
+        }
+
+        enemyPhaseResolver =
+            new BlockEnemyPhaseResolver(
+                waveGenerator,
+                gridMover,
+                enemyAttackCycle,
+                enemyAttackSequence,
+                waveDirector,
+                blockRegistry,
+                () => bossMode.IsActive
+            );
+    }
+
+    private bool CanInitialize()
+    {
+        if (waveGenerator == null ||
+            gridMover == null ||
+            enemyAttackCycle == null ||
+            enemyAttackSequence == null ||
+            enemyPhaseResolver == null)
         {
             return false;
         }
@@ -229,7 +247,8 @@ public sealed class BlockGridManager : MonoBehaviour
         {
             Debug.LogError(
                 "BlockGridManager: " +
-                "BlockWaveGenerator의 설정이 완료되지 않았습니다.",
+                "BlockWaveGenerator의 설정이 " +
+                "완료되지 않았습니다.",
                 this
             );
 
@@ -254,21 +273,31 @@ public sealed class BlockGridManager : MonoBehaviour
                 .BlockAttackTriggered +=
                 HandleBlockAttackTriggered;
         }
+
+        if (gridMover != null)
+        {
+            gridMover.BottomRowReached +=
+                HandleBlocksReachedBottom;
+
+            gridMover.BottomBoundaryExceeded +=
+                HandleBlocksExceededBottom;
+        }
+
+        if (enemyPhaseResolver != null)
+        {
+            enemyPhaseResolver.WaveGenerated +=
+                HandleWaveGenerated;
+        }
     }
 
     private void GenerateInitialWave()
     {
-        int rowCount =
-            waveGenerator.GetRandomWaveRowCount();
-
         List<Block> generatedBlocks =
-            waveGenerator.GenerateWave(
-                rowCount,
-                currentWaveIndex,
-                BlockType.Normal
+            waveDirector.GenerateInitialWave(
+                waveGenerator
             );
 
-        AddGeneratedBlocks(
+        blockRegistry.AddRange(
             generatedBlocks
         );
 
@@ -284,15 +313,11 @@ public sealed class BlockGridManager : MonoBehaviour
             yield break;
         }
 
-        RemoveDestroyedBlocks();
+        blockRegistry.RemoveInvalidBlocks();
 
         currentTurn++;
 
-        /*
-         * 보스전에서는 일반 블록 공격,
-         * 하강 및 웨이브 생성을 진행하지 않는다.
-         */
-        if (isBossEncounterActive)
+        if (bossMode.IsActive)
         {
             Debug.Log(
                 "BlockGridManager: " +
@@ -311,165 +336,56 @@ public sealed class BlockGridManager : MonoBehaviour
             yield break;
         }
 
-        yield return ResolveEnemyPhaseRoutine();
-    }
-
-    private IEnumerator ResolveEnemyPhaseRoutine()
-    {
-        RemoveDestroyedBlocks();
-
-        yield return enemyAttackSequence
-            .ResolveAttackRoutine(
-                activeBlocks
-            );
-
-        if (enemyAttackSequence.IsTargetDead ||
-            isBossEncounterActive)
-        {
-            yield break;
-        }
-
-        int nextWaveIndex =
-            currentWaveIndex + 1;
-
-        int nextWaveNumber =
-            nextWaveIndex + 1;
-
-        int baseRowCount =
-            waveGenerator.GetRandomWaveRowCount();
-
-        bool isNamedWave =
-            IsNamedWave(
-                nextWaveNumber
-            );
-
-        BlockDefinition namedDefinition =
-            null;
-
-        if (isNamedWave)
-        {
-            namedDefinition =
-                waveGenerator.GetRandomDefinition(
-                    BlockType.Named
-                );
-        }
-
-        int requiredRowCount =
-            waveGenerator.GetRequiredRowCount(
-                baseRowCount,
-                namedDefinition
-            );
-
-        yield return gridMover.MoveDownRoutine(
-            activeBlocks,
-            requiredRowCount,
-            waveGenerator.CellSize
-        );
-
-        if (isBossEncounterActive)
-        {
-            yield break;
-        }
-
-        currentWaveIndex =
-            nextWaveIndex;
-
-        List<Block> generatedBlocks;
-
-        if (namedDefinition != null)
-        {
-            generatedBlocks =
-                waveGenerator.GenerateFeaturedWave(
-                    requiredRowCount,
-                    currentWaveIndex,
-                    namedDefinition,
-                    namedHealthMultiplier,
-                    namedAttackMultiplier
-                );
-        }
-        else
-        {
-            generatedBlocks =
-                waveGenerator.GenerateWave(
-                    requiredRowCount,
-                    currentWaveIndex,
-                    BlockType.Normal
-                );
-        }
-
-        AddGeneratedBlocks(
-            generatedBlocks
-        );
-
-        enemyAttackCycle.ResetCycle();
-
-        RemoveDestroyedBlocks();
-
-        WaveGenerated?.Invoke(
-            CurrentWaveNumber
-        );
-    }
-
-    private bool IsNamedWave(
-        int waveNumber)
-    {
-        if (waveNumber <= 0)
-        {
-            return false;
-        }
-
-        return waveNumber %
-            namedWaveInterval == 0;
+        yield return enemyPhaseResolver
+            .ResolveRoutine();
     }
 
     public void BeginBossEncounterMode()
     {
-        if (isBossEncounterActive)
+        if (bossMode.IsActive)
         {
             return;
         }
 
-        isBossEncounterActive = true;
-
         StopAllCoroutines();
 
-        ClearActiveBlocksImmediately();
+        bool started =
+            bossMode.Begin(
+                blockRegistry
+            );
+
+        if (!started)
+        {
+            return;
+        }
 
         Debug.Log(
             "BlockGridManager: " +
-            "일반 웨이브를 정지하고 보스전으로 전환합니다.",
+            "일반 웨이브를 정지하고 " +
+            "보스전으로 전환합니다.",
             this
         );
     }
 
     public void CompleteBossEncounterMode()
     {
-        if (!isBossEncounterActive)
+        if (!bossMode.IsActive)
         {
             return;
         }
 
-        isBossEncounterActive = false;
-
-        currentWaveIndex++;
-
-        int rowCount =
-            waveGenerator.GetRandomWaveRowCount();
-
         List<Block> generatedBlocks =
-            waveGenerator.GenerateWave(
-                rowCount,
-                currentWaveIndex,
-                BlockType.Normal
+            bossMode.Complete(
+                waveDirector,
+                waveGenerator,
+                enemyAttackCycle
             );
 
-        AddGeneratedBlocks(
+        blockRegistry.AddRange(
             generatedBlocks
         );
 
-        enemyAttackCycle.ResetCycle();
-
-        RemoveDestroyedBlocks();
+        blockRegistry.RemoveInvalidBlocks();
 
         WaveGenerated?.Invoke(
             CurrentWaveNumber
@@ -478,65 +394,9 @@ public sealed class BlockGridManager : MonoBehaviour
         Debug.Log(
             "BlockGridManager: " +
             $"보스전 종료, 웨이브 " +
-            $"{CurrentWaveNumber}부터 일반 진행 재개",
+            $"{CurrentWaveNumber}부터 " +
+            "일반 진행 재개",
             this
-        );
-    }
-
-    private void ClearActiveBlocksImmediately()
-    {
-        for (int i = 0;
-             i < activeBlocks.Count;
-             i++)
-        {
-            Block block =
-                activeBlocks[i];
-
-            if (block == null)
-            {
-                continue;
-            }
-
-            block.gameObject.SetActive(
-                false
-            );
-
-            Destroy(
-                block.gameObject
-            );
-        }
-
-        activeBlocks.Clear();
-    }
-
-    private void AddGeneratedBlocks(
-        List<Block> generatedBlocks)
-    {
-        if (generatedBlocks == null)
-        {
-            return;
-        }
-
-        foreach (Block block
-                 in generatedBlocks)
-        {
-            if (block == null)
-            {
-                continue;
-            }
-
-            activeBlocks.Add(
-                block
-            );
-        }
-    }
-
-    private void RemoveDestroyedBlocks()
-    {
-        activeBlocks.RemoveAll(
-            block =>
-                block == null ||
-                !block.IsAlive
         );
     }
 
@@ -558,6 +418,56 @@ public sealed class BlockGridManager : MonoBehaviour
         );
     }
 
+    private void HandleWaveGenerated(
+        int waveNumber)
+    {
+        WaveGenerated?.Invoke(
+            waveNumber
+        );
+    }
+
+    private void HandleBlocksReachedBottom(
+        IReadOnlyList<Block> blocks)
+    {
+        if (blocks == null ||
+            blocks.Count == 0)
+        {
+            return;
+        }
+
+        Debug.LogWarning(
+            "BlockGridManager: " +
+            $"{blocks.Count}개의 블록이 " +
+            "최하단 Row에 도달했습니다.",
+            this
+        );
+
+        BlocksReachedBottom?.Invoke(
+            blocks
+        );
+    }
+
+    private void HandleBlocksExceededBottom(
+        IReadOnlyList<Block> blocks)
+    {
+        if (blocks == null ||
+            blocks.Count == 0)
+        {
+            return;
+        }
+
+        Debug.LogError(
+            "BlockGridManager: " +
+            $"{blocks.Count}개의 블록이 " +
+            "보드 최하단을 넘어갔습니다.",
+            this
+        );
+
+        BlocksExceededBottom?.Invoke(
+            blocks
+        );
+    }
+
     private void OnDestroy()
     {
         if (enemyAttackCycle != null)
@@ -572,6 +482,21 @@ public sealed class BlockGridManager : MonoBehaviour
             enemyAttackSequence
                 .BlockAttackTriggered -=
                 HandleBlockAttackTriggered;
+        }
+
+        if (gridMover != null)
+        {
+            gridMover.BottomRowReached -=
+                HandleBlocksReachedBottom;
+
+            gridMover.BottomBoundaryExceeded -=
+                HandleBlocksExceededBottom;
+        }
+
+        if (enemyPhaseResolver != null)
+        {
+            enemyPhaseResolver.WaveGenerated -=
+                HandleWaveGenerated;
         }
     }
 }

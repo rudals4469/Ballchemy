@@ -1631,7 +1631,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac5487dcfdf6859408a4535043461878, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlockGridMover
-  moveDuration: 0.35
+  moveAnimator:
+    moveDuration: 0.35
 --- !u!114 &987058000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1645,22 +1646,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlockWaveGenerator
   boardGrid: {fileID: 1710125463}
-  blockPrefab: {fileID: 5741669861215845034, guid: 63c51ec1f2fb1cc41817829b42d6d84e, type: 3}
-  blockContainer: {fileID: 568326274}
-  blockCatalog: {fileID: 11400000, guid: c4c0d4c097d226e4ca087745d48ea6b0, type: 2}
+  blockSpawner:
+    blockPrefab: {fileID: 5741669861215845034, guid: 63c51ec1f2fb1cc41817829b42d6d84e, type: 3}
+    blockContainer: {fileID: 987057996}
+    showSpawnDebugLog: 0
+  patternBuilder:
+    blockCatalog: {fileID: 11400000, guid: c4c0d4c097d226e4ca087745d48ea6b0, type: 2}
+    minimumRowsPerWave: 2
+    maximumRowsPerWave: 3
+    minimumBlocksPerRow: 2
+    maximumBlocksPerRow: 3
+    minimumPillarColumns: 2
+    maximumPillarColumns: 2
+    extraColumnCarryChance: 0.65
   defaultWaveBlockType: 0
-  minimumRowsPerWave: 2
-  maximumRowsPerWave: 3
-  minimumBlocksPerRow: 2
-  maximumBlocksPerRow: 3
-  minimumPillarColumns: 2
-  maximumPillarColumns: 2
-  extraColumnCarryChance: 0.65
   startingBlockHealth: 8
   healthIncreasePerWave: 2
   startingBlockAttack: 1
   attackIncreasePerWave: 0
-  showSpawnDebugLog: 0
 --- !u!114 &987058001
 MonoBehaviour:
   m_ObjectHideFlags: 0
