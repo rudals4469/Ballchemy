@@ -112,6 +112,7 @@ public sealed class BlockHealthView : MonoBehaviour
 
         FindReferences();
         ApplyTextSettings();
+        Refresh();
     }
 
     private void FindReferences()
@@ -131,9 +132,9 @@ public sealed class BlockHealthView : MonoBehaviour
         if (healthText == null)
         {
             healthText =
-                GetComponentInChildren<
-                    TextMeshPro
-                >(true);
+                GetComponentInChildren<TextMeshPro>(
+                    true
+                );
         }
 
         if (blockSpriteRenderer == null)
@@ -145,9 +146,9 @@ public sealed class BlockHealthView : MonoBehaviour
         if (blockSpriteRenderer == null)
         {
             blockSpriteRenderer =
-                GetComponentInChildren<
-                    SpriteRenderer
-                >();
+                GetComponentInChildren<SpriteRenderer>(
+                    true
+                );
         }
 
         if (healthText == null)
@@ -156,14 +157,10 @@ public sealed class BlockHealthView : MonoBehaviour
         }
 
         textMeshRenderer =
-            healthText.GetComponent<
-                MeshRenderer
-            >();
+            healthText.GetComponent<MeshRenderer>();
 
         textRectTransform =
-            healthText.GetComponent<
-                RectTransform
-            >();
+            healthText.GetComponent<RectTransform>();
     }
 
     private void ApplyTextSettings()
@@ -227,7 +224,12 @@ public sealed class BlockHealthView : MonoBehaviour
                 sortingOrderOffset;
         }
 
-        healthText.ForceMeshUpdate();
+        UpdateVisibility();
+
+        if (healthText.enabled)
+        {
+            healthText.ForceMeshUpdate();
+        }
     }
 
     private Vector2 CalculateTextRectSize()
@@ -292,6 +294,9 @@ public sealed class BlockHealthView : MonoBehaviour
         block.HealthChanged +=
             HandleHealthChanged;
 
+        block.DefinitionChanged +=
+            HandleDefinitionChanged;
+
         block.LayoutChanged +=
             HandleLayoutChanged;
 
@@ -309,6 +314,9 @@ public sealed class BlockHealthView : MonoBehaviour
         block.HealthChanged -=
             HandleHealthChanged;
 
+        block.DefinitionChanged -=
+            HandleDefinitionChanged;
+
         block.LayoutChanged -=
             HandleLayoutChanged;
 
@@ -317,8 +325,19 @@ public sealed class BlockHealthView : MonoBehaviour
 
     private void Refresh()
     {
-        if (block == null)
+        if (block == null ||
+            healthText == null)
         {
+            return;
+        }
+
+        UpdateVisibility();
+
+        if (!healthText.enabled)
+        {
+            healthText.text =
+                string.Empty;
+
             return;
         }
 
@@ -328,14 +347,44 @@ public sealed class BlockHealthView : MonoBehaviour
         );
     }
 
+    private void UpdateVisibility()
+    {
+        if (healthText == null)
+        {
+            return;
+        }
+
+        bool shouldShowHealth =
+            block != null &&
+            block.IsBreakable;
+
+        healthText.enabled =
+            shouldShowHealth;
+    }
+
     private void HandleHealthChanged(
         int currentHealth,
         int maxHealth)
     {
+        UpdateVisibility();
+
+        if (healthText == null ||
+            !healthText.enabled)
+        {
+            return;
+        }
+
         UpdateText(
             currentHealth,
             maxHealth
         );
+    }
+
+    private void HandleDefinitionChanged(
+        BlockDefinition definition)
+    {
+        ApplyTextSettings();
+        Refresh();
     }
 
     private void HandleLayoutChanged(
@@ -350,7 +399,8 @@ public sealed class BlockHealthView : MonoBehaviour
         int currentHealth,
         int maxHealth)
     {
-        if (healthText == null)
+        if (healthText == null ||
+            !healthText.enabled)
         {
             return;
         }

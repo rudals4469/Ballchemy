@@ -1602,10 +1602,11 @@ MonoBehaviour:
   waveGenerator: {fileID: 987058000}
   gridMover: {fileID: 987057999}
   enemyAttackCycle: {fileID: 987057998}
-  enemyAttackSequence: {fileID: 0}
-  namedWaveInterval: 3
-  namedHealthMultiplier: 3
-  namedAttackMultiplier: 2
+  enemyAttackSequence: {fileID: 987058001}
+  waveDirector:
+    namedWaveInterval: 3
+    namedHealthMultiplier: 3
+    namedAttackMultiplier: 2
 --- !u!114 &987057998
 MonoBehaviour:
   m_ObjectHideFlags: 0
