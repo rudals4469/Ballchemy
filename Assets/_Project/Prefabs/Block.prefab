@@ -153,6 +153,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0debd842d3c5c94aa52e1b05ca211bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Block
+  definition: {fileID: 0}
+  visualRenderer: {fileID: 3393377270723199479}
   maxHealth: 3
   attackPower: 2
 --- !u!114 &7281401101237391874
@@ -168,8 +170,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlockHealthView
   block: {fileID: 5741669861215845034}
-  healthText: {fileID: 0}
+  healthText: {fileID: 3319585403658531106}
+  blockSpriteRenderer: {fileID: 0}
   showMaximumHealth: 0
+  maximumFontSize: 36
+  minimumFontSize: 12
+  textColor: {r: 1, g: 1, b: 1, a: 1}
+  textRectSize: {x: 10, y: 5}
+  textLocalScale: {x: 0.1, y: 0.1, z: 1}
+  sortingOrderOffset: 2
+  textLocalZ: -0.1
 --- !u!1 &1430352254046490565
 GameObject:
   m_ObjectHideFlags: 0
@@ -276,7 +286,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 1
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -306,9 +316,9 @@ MonoBehaviour:
   m_fontSize: 25
   m_fontSizeBase: 25
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 6
-  m_fontSizeMax: 25
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 12
+  m_fontSizeMax: 36
   m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
@@ -320,7 +330,7 @@ MonoBehaviour:
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
-  m_TextWrappingMode: 1
+  m_TextWrappingMode: 0
   m_wordWrappingRatios: 0.4
   m_overflowMode: 0
   m_linkedTextComponent: {fileID: 0}

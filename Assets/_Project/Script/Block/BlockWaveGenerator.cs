@@ -11,6 +11,20 @@ public sealed class BlockWaveGenerator : MonoBehaviour
     [SerializeField]
     private Transform blockContainer;
 
+    [Header("Block Data")]
+    [Tooltip(
+        "생성할 블록의 외형과 종류를 보관하는 카탈로그입니다."
+    )]
+    [SerializeField]
+    private BlockCatalog blockCatalog;
+
+    [Tooltip(
+        "기존 GenerateWave 호출에서 기본으로 생성할 블록 타입입니다."
+    )]
+    [SerializeField]
+    private BlockType defaultWaveBlockType =
+        BlockType.Normal;
+
     [Header("Grid Settings")]
     [SerializeField, Range(3, 15)]
     private int columnCount = 9;
@@ -68,11 +82,21 @@ public sealed class BlockWaveGenerator : MonoBehaviour
     [SerializeField, Min(0)]
     private int attackIncreasePerWave = 0;
 
+    [Header("Debug")]
+    [Tooltip(
+        "생성된 블록의 데이터 ID를 콘솔에 출력합니다."
+    )]
+    [SerializeField]
+    private bool showSpawnDebugLog;
+
     public float CellSize =>
         cellSize;
 
     public bool IsReady =>
         blockPrefab != null;
+
+    public BlockCatalog BlockCatalog =>
+        blockCatalog;
 
     private void Awake()
     {
@@ -82,6 +106,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         }
 
         NormalizeSettings();
+        ValidateReferences();
     }
 
     private void OnValidate()
@@ -168,6 +193,28 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             );
     }
 
+    private void ValidateReferences()
+    {
+        if (blockPrefab == null)
+        {
+            Debug.LogError(
+                "BlockWaveGenerator: " +
+                "Block Prefab이 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (blockCatalog == null)
+        {
+            Debug.LogWarning(
+                "BlockWaveGenerator: " +
+                "Block Catalog가 연결되지 않았습니다. " +
+                "카탈로그가 없으면 프리팹의 기본 외형으로 생성됩니다.",
+                this
+            );
+        }
+    }
+
     public int GetRandomWaveRowCount()
     {
         return Random.Range(
@@ -176,9 +223,29 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         );
     }
 
+    /// <summary>
+    /// 기존 웨이브 생성 방식입니다.
+    /// Inspector의 Default Wave Block Type을 사용합니다.
+    /// </summary>
     public List<Block> GenerateWave(
         int rowCount,
         int waveIndex)
+    {
+        return GenerateWave(
+            rowCount,
+            waveIndex,
+            defaultWaveBlockType
+        );
+    }
+
+    /// <summary>
+    /// 지정된 블록 타입으로 웨이브를 생성합니다.
+    /// 추후 네임드, 보스, 스페셜 웨이브에서 사용합니다.
+    /// </summary>
+    public List<Block> GenerateWave(
+        int rowCount,
+        int waveIndex,
+        BlockType blockType)
     {
         List<Block> generatedBlocks =
             new List<Block>();
@@ -256,6 +323,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                         column,
                         row,
                         waveIndex,
+                        blockType,
                         blockHealth,
                         blockAttack
                     );
@@ -277,6 +345,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         Debug.Log(
             "BlockWaveGenerator: " +
             $"웨이브 {waveIndex + 1} 생성 완료, " +
+            $"타입 {blockType}, " +
             $"{rowCount}줄, " +
             $"블록 {generatedBlocks.Count}개, " +
             $"HP {blockHealth}, " +
@@ -382,6 +451,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         int column,
         int rowOffset,
         int waveIndex,
+        BlockType blockType,
         int blockHealth,
         int blockAttack)
     {
@@ -389,6 +459,11 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             GetCellWorldPosition(
                 column,
                 rowOffset
+            );
+
+        BlockDefinition definition =
+            GetRandomDefinition(
+                blockType
             );
 
         Block newBlock =
@@ -404,17 +479,62 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             return null;
         }
 
+        string definitionId =
+            definition != null
+                ? definition.BlockId
+                : "prefab_default";
+
         newBlock.name =
-            $"Block_W{waveIndex + 1}" +
+            $"Block_{blockType}" +
+            $"_{definitionId}" +
+            $"_W{waveIndex + 1}" +
             $"_R{rowOffset}" +
             $"_C{column}";
 
-        newBlock.Initialize(
-            blockHealth,
-            blockAttack
-        );
+        if (definition != null)
+        {
+            newBlock.Initialize(
+                definition,
+                blockHealth,
+                blockAttack
+            );
+        }
+        else
+        {
+            // 카탈로그 또는 해당 타입의 데이터가 없으면
+            // 기존 프리팹 외형으로 정상 생성한다.
+            newBlock.Initialize(
+                blockHealth,
+                blockAttack
+            );
+        }
+
+        if (showSpawnDebugLog)
+        {
+            Debug.Log(
+                "BlockWaveGenerator: 블록 생성 " +
+                $"타입={blockType}, " +
+                $"데이터={definitionId}, " +
+                $"HP={blockHealth}, " +
+                $"공격력={blockAttack}",
+                newBlock
+            );
+        }
 
         return newBlock;
+    }
+
+    private BlockDefinition GetRandomDefinition(
+        BlockType blockType)
+    {
+        if (blockCatalog == null)
+        {
+            return null;
+        }
+
+        return blockCatalog.GetRandom(
+            blockType
+        );
     }
 
     private List<int> CreateRandomUniqueColumns(
@@ -434,7 +554,9 @@ public sealed class BlockWaveGenerator : MonoBehaviour
              i < columnCount;
              i++)
         {
-            columns.Add(i);
+            columns.Add(
+                i
+            );
         }
 
         ShuffleColumns(
