@@ -1,58 +1,121 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class BallTrajectoryPreview : MonoBehaviour
+public sealed class BallTrajectoryPreview :
+    MonoBehaviour
 {
     [Header("References")]
+    [Tooltip(
+        "Unity 기본 Circle Sprite로 만든 " +
+        "AimDot 프리팹입니다."
+    )]
     [SerializeField]
-    private LineRenderer aimLine;
+    private SpriteRenderer aimDotPrefab;
+
+    [Tooltip(
+        "생성된 점들을 담아둘 AimDots 오브젝트입니다."
+    )]
+    [SerializeField]
+    private Transform dotsRoot;
 
     [SerializeField]
     private Ball ballPrefab;
 
-    [Header("Short Aim Line")]
     [Tooltip(
-        "마우스를 움직이는 동안 표시되는 " +
-        "짧은 조준선 길이입니다."
+        "기존 LineRenderer입니다. " +
+        "연결하지 않아도 자동으로 찾아 비활성화합니다."
     )]
-    [SerializeField, Min(0.5f)]
-    private float shortAimLineLength = 3.5f;
+    [SerializeField]
+    private LineRenderer legacyAimLine;
+
+    [Header("Short Aim Dots")]
+    [Tooltip(
+        "마우스를 움직일 때 표시되는 " +
+        "짧은 조준 경로의 전체 길이입니다."
+    )]
+    [SerializeField, Min(0.1f)]
+    private float shortAimDistance = 1.75f;
+
+    [Tooltip(
+        "짧은 조준 경로의 최대 반사 횟수입니다."
+    )]
+    [SerializeField, Range(0, 3)]
+    private int shortAimMaximumBounces = 1;
+
+    [Tooltip(
+        "짧은 조준 경로 점 사이의 간격입니다."
+    )]
+    [SerializeField, Min(0.05f)]
+    private float shortDotSpacing = 0.25f;
+
+    [Tooltip(
+        "AimDot 프리팹 크기에 곱해지는 값입니다."
+    )]
+    [SerializeField, Min(0.01f)]
+    private float shortDotScaleMultiplier = 1f;
 
     [SerializeField]
-    private Color shortAimLineColor =
+    private Color shortDotColor =
         new Color(
             1f,
             1f,
             1f,
-            0.9f
+            0.95f
         );
 
-    [Header("Long Trajectory Appearance")]
+    [Header("Long Trajectory Dots")]
     [Tooltip(
-        "긴 예상 경로가 끝까지 늘어나는 데 " +
+        "긴 예상 경로가 끝까지 나타나는 데 " +
         "걸리는 시간입니다."
     )]
     [SerializeField, Min(0f)]
     private float trajectoryRevealDuration = 0.45f;
 
+    [Tooltip(
+        "긴 예상 경로 점 사이의 간격입니다."
+    )]
+    [SerializeField, Min(0.05f)]
+    private float longDotSpacing = 0.32f;
+
+    [Tooltip(
+        "AimDot 프리팹 크기에 곱해지는 값입니다."
+    )]
+    [SerializeField, Min(0.01f)]
+    private float longDotScaleMultiplier = 0.9f;
+
     [SerializeField]
-    private Color trajectoryLineColor =
+    private Color longDotColor =
         new Color(
             1f,
             1f,
             1f,
-            0.28f
+            0.6f
         );
+
+    [Header("Dot Placement")]
+    [Tooltip(
+        "발사 위치와 첫 번째 점 사이의 거리입니다. " +
+        "발사체와 점이 겹치는 것을 방지합니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float firstDotOffset = 0.15f;
+
+    [Tooltip(
+        "게임 시작 시 미리 생성해둘 점 개수입니다. " +
+        "부족하면 자동으로 추가 생성됩니다."
+    )]
+    [SerializeField, Min(0)]
+    private int prewarmDotCount = 120;
 
     [Header("Trajectory Calculation")]
     [Tooltip(
-        "예상 경로의 최대 전체 길이입니다."
+        "긴 예상 경로의 최대 전체 길이입니다."
     )]
     [SerializeField, Min(1f)]
     private float trajectoryDistance = 35f;
 
     [Tooltip(
-        "예상 경로의 최대 반사 횟수입니다."
+        "긴 예상 경로의 최대 반사 횟수입니다."
     )]
     [SerializeField, Range(0, 20)]
     private int maximumTrajectoryBounces = 8;
@@ -77,25 +140,32 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
 
     [Tooltip(
         "반사 직후 같은 충돌면에 다시 걸리지 않도록 " +
-        "약간 떨어뜨리는 거리입니다."
+        "충돌면에서 떨어뜨리는 거리입니다."
     )]
     [SerializeField, Min(0.001f)]
     private float trajectorySkinWidth = 0.02f;
 
     [Tooltip(
-        "예상 경로가 충돌을 검사할 레이어입니다. " +
-        "벽, 블록, ReturnZone 레이어가 포함돼야 합니다."
+        "벽, 블록, ReturnZone 레이어가 " +
+        "포함되어야 합니다."
     )]
     [SerializeField]
     private LayerMask trajectoryCollisionMask = ~0;
 
     private readonly List<Vector3>
-        trajectoryPoints =
+        shortTrajectoryPoints =
             new List<Vector3>();
 
     private readonly List<Vector3>
-        visibleTrajectoryPoints =
+        trajectoryPoints =
             new List<Vector3>();
+
+    private readonly List<SpriteRenderer>
+        dotPool =
+            new List<SpriteRenderer>();
+
+    private Vector3 prefabDotScale =
+        Vector3.one;
 
     private float cachedTrajectoryRadius;
     private float trajectoryRevealTimer;
@@ -108,12 +178,62 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         EnsureHelpers();
         FindReferences();
         ValidateReferences();
-        InitializeAimLine();
+
+        DisableLegacyLine();
         InitializeTrajectoryRadius();
+        InitializeDotPool();
     }
 
     private void OnValidate()
     {
+        shortAimDistance =
+            Mathf.Max(
+                shortAimDistance,
+                0.1f
+            );
+
+        shortDotSpacing =
+            Mathf.Max(
+                shortDotSpacing,
+                0.05f
+            );
+
+        longDotSpacing =
+            Mathf.Max(
+                longDotSpacing,
+                0.05f
+            );
+
+        shortDotScaleMultiplier =
+            Mathf.Max(
+                shortDotScaleMultiplier,
+                0.01f
+            );
+
+        longDotScaleMultiplier =
+            Mathf.Max(
+                longDotScaleMultiplier,
+                0.01f
+            );
+
+        firstDotOffset =
+            Mathf.Max(
+                firstDotOffset,
+                0f
+            );
+
+        prewarmDotCount =
+            Mathf.Max(
+                prewarmDotCount,
+                0
+            );
+
+        trajectoryRevealDuration =
+            Mathf.Max(
+                trajectoryRevealDuration,
+                0f
+            );
+
         trajectoryDistance =
             Mathf.Max(
                 trajectoryDistance,
@@ -132,47 +252,9 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                 0.001f
             );
 
-        trajectoryRevealDuration =
-            Mathf.Max(
-                trajectoryRevealDuration,
-                0f
-            );
-
         EnsureHelpers();
 
         bounceResolver.Normalize();
-    }
-
-    private void EnsureHelpers()
-    {
-        if (bounceResolver == null)
-        {
-            bounceResolver =
-                new BallBounceResolver();
-        }
-    }
-
-    private void FindReferences()
-    {
-        if (aimLine == null)
-        {
-            aimLine =
-                GetComponentInChildren<LineRenderer>(
-                    true
-                );
-        }
-
-        if (ballPrefab == null)
-        {
-            BallLauncher ballLauncher =
-                GetComponent<BallLauncher>();
-
-            if (ballLauncher != null)
-            {
-                ballPrefab =
-                    ballLauncher.BallPrefab;
-            }
-        }
     }
 
     private void Update()
@@ -209,18 +291,94 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                 revealProgress
             );
 
-        RenderTrajectory(
+        RenderDots(
+            trajectoryPoints,
+            trajectoryTotalLength,
+            longDotSpacing,
+            longDotColor,
+            longDotScaleMultiplier,
             smoothProgress
         );
     }
 
+    private void EnsureHelpers()
+    {
+        if (bounceResolver == null)
+        {
+            bounceResolver =
+                new BallBounceResolver();
+        }
+    }
+
+    private void FindReferences()
+    {
+        if (dotsRoot == null)
+        {
+            Transform existingDotsRoot =
+                transform.Find(
+                    "AimDots"
+                );
+
+            if (existingDotsRoot != null)
+            {
+                dotsRoot =
+                    existingDotsRoot;
+            }
+        }
+
+        if (dotsRoot == null)
+        {
+            GameObject dotsRootObject =
+                new GameObject(
+                    "AimDots"
+                );
+
+            dotsRoot =
+                dotsRootObject.transform;
+
+            dotsRoot.SetParent(
+                transform,
+                false
+            );
+        }
+
+        if (ballPrefab == null)
+        {
+            BallLauncher ballLauncher =
+                GetComponent<BallLauncher>();
+
+            if (ballLauncher != null)
+            {
+                ballPrefab =
+                    ballLauncher.BallPrefab;
+            }
+        }
+
+        if (legacyAimLine == null)
+        {
+            legacyAimLine =
+                GetComponentInChildren<
+                    LineRenderer
+                >(true);
+        }
+    }
+
     private void ValidateReferences()
     {
-        if (aimLine == null)
+        if (aimDotPrefab == null)
         {
             Debug.LogError(
                 "BallTrajectoryPreview: " +
-                "LineRenderer를 찾지 못했습니다.",
+                "Aim Dot Prefab이 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (dotsRoot == null)
+        {
+            Debug.LogError(
+                "BallTrajectoryPreview: " +
+                "AimDots Root를 찾지 못했습니다.",
                 this
             );
         }
@@ -236,16 +394,38 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         }
     }
 
-    private void InitializeAimLine()
+    private void DisableLegacyLine()
     {
-        if (aimLine == null)
+        if (legacyAimLine == null)
         {
             return;
         }
 
-        aimLine.useWorldSpace = true;
-        aimLine.positionCount = 0;
-        aimLine.enabled = false;
+        legacyAimLine.enabled =
+            false;
+
+        legacyAimLine.positionCount =
+            0;
+    }
+
+    private void InitializeDotPool()
+    {
+        if (aimDotPrefab == null ||
+            dotsRoot == null)
+        {
+            return;
+        }
+
+        prefabDotScale =
+            aimDotPrefab
+                .transform
+                .localScale;
+
+        EnsureDotPoolSize(
+            prewarmDotCount
+        );
+
+        HideAllDots();
     }
 
     private void InitializeTrajectoryRadius()
@@ -260,7 +440,9 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         }
 
         CircleCollider2D circleCollider =
-            ballPrefab.GetComponent<CircleCollider2D>();
+            ballPrefab.GetComponent<
+                CircleCollider2D
+            >();
 
         if (circleCollider == null)
         {
@@ -298,55 +480,54 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
     public void ShowShort(
         Vector2 direction)
     {
-        if (aimLine == null ||
+        if (aimDotPrefab == null ||
             direction.sqrMagnitude <=
             0.001f)
         {
+            HideAllDots();
+
             return;
         }
 
         StopLongPreview();
 
-        ApplyLineColor(
-            shortAimLineColor
+        CalculatePathPoints(
+            direction.normalized,
+            shortAimDistance,
+            shortAimMaximumBounces,
+            shortTrajectoryPoints
         );
 
-        Vector3 startPosition =
-            transform.position;
-
-        Vector3 endPosition =
-            startPosition +
-            (Vector3)(
-                direction.normalized *
-                shortAimLineLength
+        float shortPathLength =
+            CalculatePathTotalLength(
+                shortTrajectoryPoints
             );
 
-        aimLine.enabled = true;
-        aimLine.positionCount = 2;
-
-        aimLine.SetPosition(
-            0,
-            startPosition
-        );
-
-        aimLine.SetPosition(
-            1,
-            endPosition
+        RenderDots(
+            shortTrajectoryPoints,
+            shortPathLength,
+            shortDotSpacing,
+            shortDotColor,
+            shortDotScaleMultiplier,
+            1f
         );
     }
 
     public bool BeginTrajectory(
         Vector2 direction)
     {
-        if (aimLine == null ||
+        if (aimDotPrefab == null ||
             direction.sqrMagnitude <=
             0.001f)
         {
             return false;
         }
 
-        CalculateTrajectoryPoints(
-            direction.normalized
+        CalculatePathPoints(
+            direction.normalized,
+            trajectoryDistance,
+            maximumTrajectoryBounces,
+            trajectoryPoints
         );
 
         if (trajectoryPoints.Count < 2)
@@ -355,7 +536,9 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         }
 
         trajectoryTotalLength =
-            CalculateTrajectoryTotalLength();
+            CalculatePathTotalLength(
+                trajectoryPoints
+            );
 
         if (trajectoryTotalLength <=
             0.001f)
@@ -363,48 +546,53 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             return false;
         }
 
-        trajectoryRevealTimer = 0f;
-        isLongPreviewActive = true;
+        trajectoryRevealTimer =
+            0f;
 
-        ApplyLineColor(
-            trajectoryLineColor
-        );
+        isLongPreviewActive =
+            true;
 
-        RenderTrajectory(
-            0f
-        );
+        HideAllDots();
 
         return true;
     }
 
     public void StopLongPreview()
     {
-        isLongPreviewActive = false;
+        isLongPreviewActive =
+            false;
 
-        trajectoryRevealTimer = 0f;
-        trajectoryTotalLength = 0f;
+        trajectoryRevealTimer =
+            0f;
+
+        trajectoryTotalLength =
+            0f;
 
         trajectoryPoints.Clear();
-        visibleTrajectoryPoints.Clear();
     }
 
     public void Hide()
     {
         StopLongPreview();
 
-        if (aimLine == null)
+        shortTrajectoryPoints.Clear();
+
+        HideAllDots();
+    }
+
+    private void CalculatePathPoints(
+        Vector2 initialDirection,
+        float maximumDistance,
+        int maximumBounces,
+        List<Vector3> outputPoints)
+    {
+        outputPoints.Clear();
+
+        if (initialDirection.sqrMagnitude <=
+            0.001f)
         {
             return;
         }
-
-        aimLine.enabled = false;
-        aimLine.positionCount = 0;
-    }
-
-    private void CalculateTrajectoryPoints(
-        Vector2 initialDirection)
-    {
-        trajectoryPoints.Clear();
 
         Vector2 castOrigin =
             transform.position;
@@ -413,22 +601,34 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             initialDirection.normalized;
 
         float remainingDistance =
-            trajectoryDistance;
+            Mathf.Max(
+                maximumDistance,
+                0f
+            );
 
         int bounceCount = 0;
+        int safetyIteration = 0;
 
-        AddTrajectoryPoint(
+        Collider2D previousCollider =
+            null;
+
+        AddPathPoint(
+            outputPoints,
             castOrigin
         );
 
         while (remainingDistance >
-               trajectorySkinWidth)
+                   trajectorySkinWidth &&
+               safetyIteration < 64)
         {
+            safetyIteration++;
+
             bool hasHit =
                 TryGetClosestTrajectoryHit(
                     castOrigin,
                     castDirection,
                     remainingDistance,
+                    previousCollider,
                     out RaycastHit2D closestHit
                 );
 
@@ -439,7 +639,8 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                     castDirection *
                     remainingDistance;
 
-                AddTrajectoryPoint(
+                AddPathPoint(
+                    outputPoints,
                     finalPoint
                 );
 
@@ -449,12 +650,16 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             Vector2 collisionCenter =
                 closestHit.centroid;
 
-            AddTrajectoryPoint(
+            AddPathPoint(
+                outputPoints,
                 collisionCenter
             );
 
             remainingDistance -=
-                closestHit.distance;
+                Mathf.Max(
+                    closestHit.distance,
+                    0f
+                );
 
             bool reachedReturnZone =
                 closestHit.collider != null &&
@@ -468,7 +673,7 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             }
 
             if (bounceCount >=
-                maximumTrajectoryBounces)
+                maximumBounces)
             {
                 break;
             }
@@ -493,18 +698,37 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
 
             reflectedDirection.Normalize();
 
+            if (resolvedNormal.sqrMagnitude <=
+                0.001f)
+            {
+                resolvedNormal =
+                    closestHit.normal;
+            }
+
+            if (resolvedNormal.sqrMagnitude >
+                0.001f)
+            {
+                resolvedNormal.Normalize();
+            }
+
             bounceCount++;
 
             castDirection =
                 reflectedDirection;
 
+            previousCollider =
+                closestHit.collider;
+
             castOrigin =
                 collisionCenter +
+                resolvedNormal *
+                trajectorySkinWidth +
                 reflectedDirection *
                 trajectorySkinWidth;
 
             remainingDistance -=
-                trajectorySkinWidth;
+                trajectorySkinWidth *
+                2f;
         }
     }
 
@@ -512,6 +736,7 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         Vector2 origin,
         Vector2 direction,
         float distance,
+        Collider2D previousCollider,
         out RaycastHit2D closestHit)
     {
         RaycastHit2D[] hits =
@@ -544,16 +769,11 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                 continue;
             }
 
-            if (hit.distance <=
-                trajectorySkinWidth *
-                0.5f)
-            {
-                continue;
-            }
-
             Ball hitBall =
                 hit.collider
-                    .GetComponentInParent<Ball>();
+                    .GetComponentInParent<
+                        Ball
+                    >();
 
             if (hitBall != null)
             {
@@ -564,6 +784,21 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                 !hit.collider.CompareTag(
                     "ReturnZone"
                 ))
+            {
+                continue;
+            }
+
+            if (hit.collider ==
+                    previousCollider &&
+                hit.distance <=
+                    trajectorySkinWidth *
+                    1.5f)
+            {
+                continue;
+            }
+
+            if (hit.distance <=
+                0.0001f)
             {
                 continue;
             }
@@ -587,57 +822,139 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         return foundHit;
     }
 
-    private void RenderTrajectory(
+    private void RenderDots(
+        IReadOnlyList<Vector3> pathPoints,
+        float totalPathLength,
+        float spacing,
+        Color dotColor,
+        float scaleMultiplier,
         float progress)
     {
-        if (aimLine == null ||
-            trajectoryPoints.Count < 2)
+        if (pathPoints == null ||
+            pathPoints.Count < 2 ||
+            totalPathLength <= 0.001f)
         {
+            HideAllDots();
+
             return;
         }
 
-        ApplyLineColor(
-            trajectoryLineColor
-        );
-
-        visibleTrajectoryPoints.Clear();
-
-        Vector3 firstPoint =
-            trajectoryPoints[0];
-
-        visibleTrajectoryPoints.Add(
-            firstPoint
-        );
-
-        float targetDistance =
-            trajectoryTotalLength *
+        float visibleDistance =
+            totalPathLength *
             Mathf.Clamp01(
                 progress
             );
 
-        if (targetDistance <= 0f)
+        if (visibleDistance <=
+            0.001f)
         {
-            visibleTrajectoryPoints.Add(
-                firstPoint
-            );
-
-            ApplyVisibleTrajectoryPoints();
+            HideAllDots();
 
             return;
         }
 
-        float remainingDistance =
-            targetDistance;
+        spacing =
+            Mathf.Max(
+                spacing,
+                0.05f
+            );
+
+        float firstDistance =
+            Mathf.Min(
+                firstDotOffset,
+                visibleDistance
+            );
+
+        int requiredDotCount =
+            Mathf.FloorToInt(
+                (
+                    visibleDistance -
+                    firstDistance
+                ) /
+                spacing
+            ) +
+            1;
+
+        requiredDotCount =
+            Mathf.Max(
+                requiredDotCount,
+                1
+            );
+
+        EnsureDotPoolSize(
+            requiredDotCount
+        );
+
+        int renderedDotCount = 0;
+
+        for (int i = 0;
+             i < requiredDotCount;
+             i++)
+        {
+            float distanceAlongPath =
+                firstDistance +
+                spacing *
+                i;
+
+            if (distanceAlongPath >
+                visibleDistance +
+                0.0001f)
+            {
+                break;
+            }
+
+            bool foundPosition =
+                TryGetPositionAlongPath(
+                    pathPoints,
+                    distanceAlongPath,
+                    out Vector3 dotPosition
+                );
+
+            if (!foundPosition)
+            {
+                break;
+            }
+
+            SpriteRenderer dot =
+                dotPool[
+                    renderedDotCount
+                ];
+
+            ApplyDotAppearance(
+                dot,
+                dotPosition,
+                dotColor,
+                scaleMultiplier
+            );
+
+            renderedDotCount++;
+        }
+
+        SetVisibleDotCount(
+            renderedDotCount
+        );
+    }
+
+    private bool TryGetPositionAlongPath(
+        IReadOnlyList<Vector3> pathPoints,
+        float targetDistance,
+        out Vector3 position)
+    {
+        position =
+            pathPoints[0];
+
+        float accumulatedDistance =
+            0f;
 
         for (int i = 1;
-             i < trajectoryPoints.Count;
+             i < pathPoints.Count;
              i++)
         {
             Vector3 segmentStart =
-                trajectoryPoints[i - 1];
+                pathPoints[i - 1];
 
             Vector3 segmentEnd =
-                trajectoryPoints[i];
+                pathPoints[i];
 
             float segmentLength =
                 Vector3.Distance(
@@ -651,108 +968,196 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                 continue;
             }
 
-            if (remainingDistance >=
-                segmentLength)
-            {
-                visibleTrajectoryPoints.Add(
-                    segmentEnd
-                );
-
-                remainingDistance -=
-                    segmentLength;
-
-                continue;
-            }
-
-            float segmentProgress =
-                remainingDistance /
+            float segmentEndDistance =
+                accumulatedDistance +
                 segmentLength;
 
-            Vector3 partialPoint =
-                Vector3.Lerp(
-                    segmentStart,
-                    segmentEnd,
-                    segmentProgress
+            if (targetDistance <=
+                segmentEndDistance)
+            {
+                float distanceInsideSegment =
+                    targetDistance -
+                    accumulatedDistance;
+
+                float segmentProgress =
+                    Mathf.Clamp01(
+                        distanceInsideSegment /
+                        segmentLength
+                    );
+
+                position =
+                    Vector3.Lerp(
+                        segmentStart,
+                        segmentEnd,
+                        segmentProgress
+                    );
+
+                return true;
+            }
+
+            accumulatedDistance =
+                segmentEndDistance;
+        }
+
+        position =
+            pathPoints[
+                pathPoints.Count - 1
+            ];
+
+        return true;
+    }
+
+    private void ApplyDotAppearance(
+        SpriteRenderer dot,
+        Vector3 worldPosition,
+        Color dotColor,
+        float scaleMultiplier)
+    {
+        if (dot == null)
+        {
+            return;
+        }
+
+        if (!dot.gameObject.activeSelf)
+        {
+            dot.gameObject.SetActive(
+                true
+            );
+        }
+
+        Transform dotTransform =
+            dot.transform;
+
+        dotTransform.position =
+            worldPosition;
+
+        dotTransform.rotation =
+            Quaternion.identity;
+
+        dotTransform.localScale =
+            prefabDotScale *
+            scaleMultiplier;
+
+        dot.color =
+            dotColor;
+    }
+
+    private void EnsureDotPoolSize(
+        int requiredCount)
+    {
+        if (aimDotPrefab == null ||
+            dotsRoot == null)
+        {
+            return;
+        }
+
+        while (dotPool.Count <
+               requiredCount)
+        {
+            SpriteRenderer newDot =
+                Instantiate(
+                    aimDotPrefab,
+                    dotsRoot
                 );
 
-            visibleTrajectoryPoints.Add(
-                partialPoint
+            newDot.name =
+                "AimDot_" +
+                dotPool.Count;
+
+            newDot.gameObject.SetActive(
+                false
             );
 
-            break;
-        }
-
-        if (visibleTrajectoryPoints.Count ==
-            1)
-        {
-            visibleTrajectoryPoints.Add(
-                firstPoint
+            dotPool.Add(
+                newDot
             );
         }
-
-        ApplyVisibleTrajectoryPoints();
     }
 
-    private void ApplyVisibleTrajectoryPoints()
+    private void SetVisibleDotCount(
+        int visibleCount)
     {
-        aimLine.enabled = true;
-
-        aimLine.positionCount =
-            visibleTrajectoryPoints.Count;
-
         for (int i = 0;
-             i < visibleTrajectoryPoints.Count;
+             i < dotPool.Count;
              i++)
         {
-            aimLine.SetPosition(
-                i,
-                visibleTrajectoryPoints[i]
-            );
+            bool shouldBeVisible =
+                i < visibleCount;
+
+            GameObject dotObject =
+                dotPool[i].gameObject;
+
+            if (dotObject.activeSelf !=
+                shouldBeVisible)
+            {
+                dotObject.SetActive(
+                    shouldBeVisible
+                );
+            }
         }
     }
 
-    private float CalculateTrajectoryTotalLength()
+    private void HideAllDots()
     {
+        SetVisibleDotCount(
+            0
+        );
+    }
+
+    private float CalculatePathTotalLength(
+        IReadOnlyList<Vector3> points)
+    {
+        if (points == null ||
+            points.Count < 2)
+        {
+            return 0f;
+        }
+
         float totalLength = 0f;
 
         for (int i = 1;
-             i < trajectoryPoints.Count;
+             i < points.Count;
              i++)
         {
             totalLength +=
                 Vector3.Distance(
-                    trajectoryPoints[i - 1],
-                    trajectoryPoints[i]
+                    points[i - 1],
+                    points[i]
                 );
         }
 
         return totalLength;
     }
 
-    private void ApplyLineColor(
-        Color color)
-    {
-        if (aimLine == null)
-        {
-            return;
-        }
-
-        aimLine.startColor =
-            color;
-
-        aimLine.endColor =
-            color;
-    }
-
-    private void AddTrajectoryPoint(
+    private void AddPathPoint(
+        List<Vector3> points,
         Vector2 point)
     {
-        trajectoryPoints.Add(
+        Vector3 newPoint =
             new Vector3(
                 point.x,
                 point.y,
                 transform.position.z
-            )
+            );
+
+        if (points.Count > 0)
+        {
+            Vector3 previousPoint =
+                points[
+                    points.Count - 1
+                ];
+
+            if (Vector3.Distance(
+                    previousPoint,
+                    newPoint
+                ) <= 0.0001f)
+            {
+                return;
+            }
+        }
+
+        points.Add(
+            newPoint
         );
     }
 }
