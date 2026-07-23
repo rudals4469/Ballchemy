@@ -15,10 +15,13 @@ public sealed class BossEncounterController :
     private BlockGridManager blockGridManager;
 
     [SerializeField]
-    private Block blockPrefab;
+    private TurnManager turnManager;
 
     [SerializeField]
-    private Transform arenaCenter;
+    private BoardGrid boardGrid;
+
+    [SerializeField]
+    private Block blockPrefab;
 
     [SerializeField]
     private Transform bossBlockContainer;
@@ -26,9 +29,11 @@ public sealed class BossEncounterController :
     [SerializeField]
     private BossPatternDefinition testPattern;
 
-    [Header("Arena")]
-    [SerializeField, Min(0.1f)]
-    private float cellSize = 1f;
+    [Header("Entrance")]
+    [SerializeField]
+    private BossPatternEntranceAnimator
+        entranceAnimator =
+            new BossPatternEntranceAnimator();
 
     [Header("Transition")]
     [SerializeField, Min(0f)]
@@ -38,16 +43,31 @@ public sealed class BossEncounterController :
     [SerializeField]
     private bool enableBossTestKey = true;
 
-    private readonly List<Block> encounterBlocks =
-        new List<Block>();
+    private readonly List<Block>
+        encounterBlocks =
+            new List<Block>();
+
+    private readonly List<
+        BossPatternEntranceItem
+    > entranceItems =
+        new List<
+            BossPatternEntranceItem
+        >();
 
     private Block currentBossBlock;
 
+    private Coroutine startCoroutine;
+    private Coroutine completeCoroutine;
+
     private bool isEncounterActive;
     private bool isTransitioning;
+    private bool isBossDefeatPending;
 
     public bool IsEncounterActive =>
         isEncounterActive;
+
+    public bool IsTransitioning =>
+        isTransitioning;
 
     public Block CurrentBossBlock =>
         currentBossBlock;
@@ -61,7 +81,24 @@ public sealed class BossEncounterController :
     private void Awake()
     {
         FindReferences();
+        NormalizeSettings();
         ValidateReferences();
+    }
+
+    private void OnEnable()
+    {
+        SubscribeEvents();
+    }
+
+    private void OnValidate()
+    {
+        boardClearDelay =
+            Mathf.Max(
+                boardClearDelay,
+                0f
+            );
+
+        NormalizeSettings();
     }
 
     private void Update()
@@ -73,17 +110,28 @@ public sealed class BossEncounterController :
         }
 
         if (!isEncounterActive ||
-            isTransitioning)
+            isTransitioning ||
+            isBossDefeatPending)
         {
             return;
         }
 
-        if (currentBossBlock == null)
+        if (currentBossBlock != null)
         {
-            StartCoroutine(
-                CompleteBossEncounterRoutine()
-            );
+            return;
         }
+
+        isBossDefeatPending =
+            true;
+
+        Debug.Log(
+            "BossEncounterController: " +
+            "보스 처치 확인, " +
+            "현재 공격 종료를 기다립니다.",
+            this
+        );
+
+        TryCompletePendingEncounter();
     }
 
     private void FindReferences()
@@ -96,10 +144,20 @@ public sealed class BossEncounterController :
                 >();
         }
 
-        if (arenaCenter == null)
+        if (turnManager == null)
         {
-            arenaCenter =
-                transform;
+            turnManager =
+                FindFirstObjectByType<
+                    TurnManager
+                >();
+        }
+
+        if (boardGrid == null)
+        {
+            boardGrid =
+                FindFirstObjectByType<
+                    BoardGrid
+                >();
         }
 
         if (bossBlockContainer == null)
@@ -109,6 +167,17 @@ public sealed class BossEncounterController :
         }
     }
 
+    private void NormalizeSettings()
+    {
+        if (entranceAnimator == null)
+        {
+            entranceAnimator =
+                new BossPatternEntranceAnimator();
+        }
+
+        entranceAnimator.Normalize();
+    }
+
     private void ValidateReferences()
     {
         if (blockGridManager == null)
@@ -116,6 +185,24 @@ public sealed class BossEncounterController :
             Debug.LogError(
                 "BossEncounterController: " +
                 "BlockGridManager가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (turnManager == null)
+        {
+            Debug.LogError(
+                "BossEncounterController: " +
+                "TurnManager가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (boardGrid == null)
+        {
+            Debug.LogError(
+                "BossEncounterController: " +
+                "BoardGrid가 연결되지 않았습니다.",
                 this
             );
         }
@@ -137,6 +224,54 @@ public sealed class BossEncounterController :
                 this
             );
         }
+    }
+
+    private void SubscribeEvents()
+    {
+        if (blockGridManager != null)
+        {
+            blockGridManager
+                .BossEncounterRequested -=
+                HandleBossEncounterRequested;
+
+            blockGridManager
+                .BossEncounterRequested +=
+                HandleBossEncounterRequested;
+        }
+
+        if (turnManager != null)
+        {
+            turnManager.StateChanged -=
+                HandleTurnStateChanged;
+
+            turnManager.StateChanged +=
+                HandleTurnStateChanged;
+        }
+
+        Ball.MovingBallCountChanged -=
+            HandleMovingBallCountChanged;
+
+        Ball.MovingBallCountChanged +=
+            HandleMovingBallCountChanged;
+    }
+
+    private void UnsubscribeEvents()
+    {
+        if (blockGridManager != null)
+        {
+            blockGridManager
+                .BossEncounterRequested -=
+                HandleBossEncounterRequested;
+        }
+
+        if (turnManager != null)
+        {
+            turnManager.StateChanged -=
+                HandleTurnStateChanged;
+        }
+
+        Ball.MovingBallCountChanged -=
+            HandleMovingBallCountChanged;
     }
 
     private bool WasBossTestKeyPressed()
@@ -161,17 +296,61 @@ public sealed class BossEncounterController :
         return false;
     }
 
-    public void StartBossEncounter()
+    private void HandleBossEncounterRequested()
     {
-        if (isEncounterActive ||
-            isTransitioning)
+        StartBossEncounter();
+    }
+
+    private void HandleTurnStateChanged(
+        TurnState turnState)
+    {
+        if (turnState !=
+            TurnState.Aiming)
         {
             return;
         }
 
-        if (blockGridManager == null ||
-            blockPrefab == null ||
-            testPattern == null)
+        TryCompletePendingEncounter();
+    }
+
+    private void HandleMovingBallCountChanged(
+        int movingBallCount)
+    {
+        if (movingBallCount > 0)
+        {
+            return;
+        }
+
+        TryCompletePendingEncounter();
+    }
+
+    public bool StartBossEncounter()
+    {
+        if (isEncounterActive ||
+            isTransitioning)
+        {
+            return false;
+        }
+
+        if (Ball.ActiveMovingBallCount > 0)
+        {
+            Debug.LogWarning(
+                "BossEncounterController: " +
+                "공이 이동 중이어서 " +
+                "보스전을 시작할 수 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        if (turnManager != null &&
+            turnManager.IsGameOver)
+        {
+            return false;
+        }
+
+        if (!HasRequiredReferences())
         {
             Debug.LogError(
                 "BossEncounterController: " +
@@ -179,54 +358,105 @@ public sealed class BossEncounterController :
                 this
             );
 
-            return;
+            return false;
         }
 
-        StartCoroutine(
-            StartBossEncounterRoutine()
+        if (!testPattern.TryValidatePattern(
+                out string validationMessage))
+        {
+            Debug.LogError(
+                "BossEncounterController: " +
+                "보스 패턴이 올바르지 않습니다.\n" +
+                validationMessage,
+                testPattern
+            );
+
+            return false;
+        }
+
+        isTransitioning = true;
+        isBossDefeatPending = false;
+
+        turnManager?.SetInputLocked(
+            true
         );
+
+        bool bossModeStarted =
+            blockGridManager
+                .BeginBossEncounterMode();
+
+        if (!bossModeStarted)
+        {
+            isTransitioning = false;
+
+            turnManager?.SetInputLocked(
+                false
+            );
+
+            return false;
+        }
+
+        startCoroutine =
+            StartCoroutine(
+                StartBossEncounterRoutine()
+            );
+
+        return true;
     }
 
     private IEnumerator
         StartBossEncounterRoutine()
     {
-        isTransitioning = true;
-
-        blockGridManager
-            .BeginBossEncounterMode();
-
         ClearEncounterObjects();
 
         if (boardClearDelay > 0f)
         {
-            yield return new WaitForSeconds(
-                boardClearDelay
-            );
+            yield return
+                new WaitForSeconds(
+                    boardClearDelay
+                );
         }
         else
         {
             yield return null;
         }
 
-        SpawnPattern(
-            testPattern
-        );
+        bool spawnedPattern =
+            TrySpawnPattern(
+                testPattern
+            );
+
+        if (!spawnedPattern)
+        {
+            Debug.LogError(
+                "BossEncounterController: " +
+                "패턴 생성에 실패했습니다.",
+                this
+            );
+
+            RecoverFromFailedStart();
+
+            yield break;
+        }
+
+        yield return entranceAnimator
+            .PlayRoutine(
+                entranceItems
+            );
 
         isEncounterActive =
             currentBossBlock != null;
 
         isTransitioning = false;
+        startCoroutine = null;
+
+        turnManager?.SetInputLocked(
+            false
+        );
 
         if (!isEncounterActive)
         {
-            Debug.LogError(
-                "BossEncounterController: " +
-                "패턴에서 보스 블록을 생성하지 못했습니다.",
-                this
-            );
-
-            blockGridManager
-                .CompleteBossEncounterMode();
+            RecoverFromFailedStart();
 
             yield break;
         }
@@ -235,40 +465,116 @@ public sealed class BossEncounterController :
 
         Debug.Log(
             "BossEncounterController: " +
-            $"보스전 시작 - {testPattern.DisplayName}",
+            $"보스전 시작 - " +
+            $"{testPattern.DisplayName}",
             this
         );
     }
 
-    private void SpawnPattern(
+    private bool TrySpawnPattern(
         BossPatternDefinition pattern)
     {
-        int width =
-            pattern.Width;
+        if (pattern == null ||
+            boardGrid == null)
+        {
+            return false;
+        }
 
-        int height =
-            pattern.Height;
-
-        if (width <= 0 ||
-            height <= 0)
+        if (pattern.Width !=
+                boardGrid.ColumnCount ||
+            pattern.Height !=
+                boardGrid.RowCount)
         {
             Debug.LogError(
                 "BossEncounterController: " +
-                "패턴 크기가 올바르지 않습니다.",
-                this
+                $"보스 패턴 크기는 " +
+                $"{boardGrid.ColumnCount}×" +
+                $"{boardGrid.RowCount}이어야 합니다. " +
+                $"현재 패턴은 " +
+                $"{pattern.Width}×" +
+                $"{pattern.Height}입니다.",
+                pattern
             );
 
-            return;
+            return false;
         }
 
-        bool bossSpawned = false;
+        if (!TryFindBossAnchor(
+                pattern,
+                out Vector2Int bossAnchor))
+        {
+            return false;
+        }
+
+        BlockDefinition bossDefinition =
+            pattern.BossDefinition;
+
+        if (bossDefinition == null)
+        {
+            Debug.LogError(
+                "BossEncounterController: " +
+                "Boss Definition이 비어 있습니다.",
+                pattern
+            );
+
+            return false;
+        }
+
+        Vector2Int bossGridSize =
+            new Vector2Int(
+                Mathf.Max(
+                    bossDefinition.GridSize.x,
+                    1
+                ),
+                Mathf.Max(
+                    bossDefinition.GridSize.y,
+                    1
+                )
+            );
+
+        if (bossGridSize.x % 2 == 0 ||
+            bossGridSize.y % 2 == 0)
+        {
+            Debug.LogError(
+                "BossEncounterController: " +
+                "현재 B 중심 배치는 홀수 크기의 " +
+                "보스만 지원합니다. " +
+                $"현재 크기: " +
+                $"{bossGridSize.x}×" +
+                $"{bossGridSize.y}",
+                bossDefinition
+            );
+
+            return false;
+        }
+
+        Vector2Int bossStartCell =
+            new Vector2Int(
+                bossAnchor.x -
+                bossGridSize.x / 2,
+                bossAnchor.y -
+                bossGridSize.y / 2
+            );
+
+        if (!IsFootprintInsideBoard(
+                bossStartCell,
+                bossGridSize))
+        {
+            Debug.LogError(
+                "BossEncounterController: " +
+                "보스 점유 영역이 보드를 벗어납니다.",
+                pattern
+            );
+
+            return false;
+        }
 
         for (int row = 0;
-             row < height;
+             row < pattern.Height;
              row++)
         {
             for (int column = 0;
-                 column < width;
+                 column < pattern.Width;
                  column++)
             {
                 char symbol =
@@ -276,6 +582,31 @@ public sealed class BossEncounterController :
                         column,
                         row
                     );
+
+                if (symbol == '.')
+                {
+                    continue;
+                }
+
+                if (symbol != 'B' &&
+                    IsInsideFootprint(
+                        column,
+                        row,
+                        bossStartCell,
+                        bossGridSize))
+                {
+                    continue;
+                }
+
+                int startColumn =
+                    symbol == 'B'
+                        ? bossStartCell.x
+                        : column;
+
+                int startRow =
+                    symbol == 'B'
+                        ? bossStartCell.y
+                        : row;
 
                 BlockDefinition definition =
                     GetDefinitionForSymbol(
@@ -285,6 +616,13 @@ public sealed class BossEncounterController :
 
                 if (definition == null)
                 {
+                    Debug.LogWarning(
+                        "BossEncounterController: " +
+                        $"'{symbol}'에 사용할 " +
+                        "BlockDefinition이 없습니다.",
+                        pattern
+                    );
+
                     continue;
                 }
 
@@ -303,10 +641,9 @@ public sealed class BossEncounterController :
                     SpawnPatternBlock(
                         definition,
                         symbol,
-                        column,
+                        startColumn,
+                        startRow,
                         row,
-                        width,
-                        height,
                         health,
                         attackPower
                     );
@@ -322,25 +659,263 @@ public sealed class BossEncounterController :
 
                 if (symbol == 'B')
                 {
-                    if (!bossSpawned)
-                    {
-                        currentBossBlock =
-                            spawnedBlock;
-
-                        bossSpawned = true;
-                    }
-                    else
-                    {
-                        Debug.LogWarning(
-                            "BossEncounterController: " +
-                            "패턴에 B가 여러 개 있습니다. " +
-                            "첫 번째 B를 보스로 사용합니다.",
-                            this
-                        );
-                    }
+                    currentBossBlock =
+                        spawnedBlock;
                 }
             }
         }
+
+        return currentBossBlock != null;
+    }
+
+    private bool TryFindBossAnchor(
+        BossPatternDefinition pattern,
+        out Vector2Int bossAnchor)
+    {
+        bossAnchor =
+            new Vector2Int(
+                -1,
+                -1
+            );
+
+        int bossCount = 0;
+
+        for (int row = 0;
+             row < pattern.Height;
+             row++)
+        {
+            for (int column = 0;
+                 column < pattern.Width;
+                 column++)
+            {
+                if (pattern.GetSymbol(
+                        column,
+                        row) != 'B')
+                {
+                    continue;
+                }
+
+                bossAnchor =
+                    new Vector2Int(
+                        column,
+                        row
+                    );
+
+                bossCount++;
+            }
+        }
+
+        if (bossCount != 1)
+        {
+            Debug.LogError(
+                "BossEncounterController: " +
+                $"패턴에 B가 {bossCount}개 있습니다. " +
+                "정확히 1개여야 합니다.",
+                pattern
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private Block SpawnPatternBlock(
+        BlockDefinition definition,
+        char symbol,
+        int startColumn,
+        int startRow,
+        int patternRow,
+        int health,
+        int attackPower)
+    {
+        Vector2Int gridSize =
+            new Vector2Int(
+                Mathf.Max(
+                    definition.GridSize.x,
+                    1
+                ),
+                Mathf.Max(
+                    definition.GridSize.y,
+                    1
+                )
+            );
+
+        Vector3 targetPosition =
+            GetBlockCenterWorldPosition(
+                startColumn,
+                startRow,
+                gridSize
+            );
+
+        Vector3 startPosition =
+            entranceAnimator
+                .GetStartPosition(
+                    boardGrid,
+                    targetPosition
+                );
+
+        Block newBlock =
+            Instantiate(
+                blockPrefab,
+                startPosition,
+                boardGrid.transform.rotation,
+                bossBlockContainer
+            );
+
+        if (newBlock == null)
+        {
+            return null;
+        }
+
+        string symbolName =
+            GetSymbolName(
+                symbol
+            );
+
+        newBlock.name =
+            $"BossPattern_{symbolName}" +
+            $"_R{startRow}" +
+            $"_C{startColumn}";
+
+        newBlock.Initialize(
+            definition,
+            health,
+            attackPower,
+            boardGrid.CellSize
+        );
+
+        newBlock.SetGridPosition(
+            boardGrid,
+            startColumn,
+            startRow,
+            false
+        );
+
+        newBlock.transform.position =
+            startPosition;
+
+        BossPatternEntranceItem
+            entranceItem =
+                new BossPatternEntranceItem(
+                    newBlock,
+                    startPosition,
+                    targetPosition,
+                    patternRow
+                );
+
+        entranceItems.Add(
+            entranceItem
+        );
+
+        if (symbol == '#' &&
+            definition.DestructionRule !=
+            BlockDestructionRule.Indestructible)
+        {
+            Debug.LogWarning(
+                "BossEncounterController: " +
+                $"{definition.name}의 " +
+                "Destruction Rule이 " +
+                "Indestructible이 아닙니다.",
+                definition
+            );
+        }
+
+        return newBlock;
+    }
+
+    private Vector3 GetBlockCenterWorldPosition(
+        int startColumn,
+        int startRow,
+        Vector2Int gridSize)
+    {
+        Vector3 startCellPosition =
+            boardGrid.GetCellWorldPosition(
+                startColumn,
+                startRow
+            );
+
+        float horizontalDistance =
+            (
+                Mathf.Max(
+                    gridSize.x,
+                    1
+                ) -
+                1
+            ) *
+            boardGrid.CellSize *
+            0.5f;
+
+        float verticalDistance =
+            (
+                Mathf.Max(
+                    gridSize.y,
+                    1
+                ) -
+                1
+            ) *
+            boardGrid.CellSize *
+            0.5f;
+
+        Vector3 horizontalOffset =
+            boardGrid.transform.right *
+            horizontalDistance;
+
+        Vector3 verticalOffset =
+            -boardGrid.transform.up *
+            verticalDistance;
+
+        return startCellPosition +
+               horizontalOffset +
+               verticalOffset;
+    }
+
+    private bool IsFootprintInsideBoard(
+        Vector2Int startCell,
+        Vector2Int gridSize)
+    {
+        int endColumn =
+            startCell.x +
+            gridSize.x -
+            1;
+
+        int endRow =
+            startCell.y +
+            gridSize.y -
+            1;
+
+        return startCell.x >= 0 &&
+               startCell.y >= 0 &&
+               endColumn <
+               boardGrid.ColumnCount &&
+               endRow <
+               boardGrid.RowCount;
+    }
+
+    private bool IsInsideFootprint(
+        int column,
+        int row,
+        Vector2Int startCell,
+        Vector2Int gridSize)
+    {
+        int endColumn =
+            startCell.x +
+            gridSize.x -
+            1;
+
+        int endRow =
+            startCell.y +
+            gridSize.y -
+            1;
+
+        return column >=
+                   startCell.x &&
+               column <=
+                   endColumn &&
+               row >=
+                   startCell.y &&
+               row <=
+                   endRow;
     }
 
     private BlockDefinition
@@ -389,111 +964,6 @@ public sealed class BossEncounterController :
         }
     }
 
-    private Block SpawnPatternBlock(
-        BlockDefinition definition,
-        char symbol,
-        int column,
-        int row,
-        int width,
-        int height,
-        int health,
-        int attackPower)
-    {
-        if (definition == null)
-        {
-            return null;
-        }
-
-        Vector3 spawnPosition =
-            GetCellWorldPosition(
-                column,
-                row,
-                width,
-                height
-            );
-
-        Block newBlock =
-            Instantiate(
-                blockPrefab,
-                spawnPosition,
-                Quaternion.identity,
-                bossBlockContainer
-            );
-
-        if (newBlock == null)
-        {
-            return null;
-        }
-
-        string symbolName =
-            GetSymbolName(
-                symbol
-            );
-
-        newBlock.name =
-            $"BossPattern_{symbolName}" +
-            $"_R{row}_C{column}";
-
-        newBlock.Initialize(
-            definition,
-            health,
-            attackPower,
-            cellSize
-        );
-
-        if (symbol == '#' &&
-            definition.DestructionRule !=
-            BlockDestructionRule.Indestructible)
-        {
-            Debug.LogWarning(
-                "BossEncounterController: " +
-                $"{definition.name}의 " +
-                "Destruction Rule이 " +
-                "Indestructible이 아닙니다.",
-                definition
-            );
-        }
-
-        return newBlock;
-    }
-
-    private Vector3 GetCellWorldPosition(
-        int column,
-        int row,
-        int width,
-        int height)
-    {
-        float horizontalCenter =
-            (width - 1) *
-            0.5f;
-
-        float verticalCenter =
-            (height - 1) *
-            0.5f;
-
-        float xPosition =
-            arenaCenter.position.x +
-            (
-                column -
-                horizontalCenter
-            ) *
-            cellSize;
-
-        float yPosition =
-            arenaCenter.position.y +
-            (
-                verticalCenter -
-                row
-            ) *
-            cellSize;
-
-        return new Vector3(
-            xPosition,
-            yPosition,
-            arenaCenter.position.z
-        );
-    }
-
     private string GetSymbolName(
         char symbol)
     {
@@ -513,19 +983,46 @@ public sealed class BossEncounterController :
         }
     }
 
+    private void TryCompletePendingEncounter()
+    {
+        if (!isBossDefeatPending ||
+            isTransitioning ||
+            completeCoroutine != null)
+        {
+            return;
+        }
+
+        if (Ball.ActiveMovingBallCount > 0)
+        {
+            return;
+        }
+
+        if (turnManager != null &&
+            turnManager.CurrentState !=
+            TurnState.Aiming)
+        {
+            return;
+        }
+
+        completeCoroutine =
+            StartCoroutine(
+                CompleteBossEncounterRoutine()
+            );
+    }
+
     private IEnumerator
         CompleteBossEncounterRoutine()
     {
-        if (isTransitioning)
-        {
-            yield break;
-        }
-
         isTransitioning = true;
         isEncounterActive = false;
 
+        turnManager?.SetInputLocked(
+            true
+        );
+
         Debug.Log(
-            "BossEncounterController: 보스 처치",
+            "BossEncounterController: " +
+            "보스전 종료 처리",
             this
         );
 
@@ -536,9 +1033,49 @@ public sealed class BossEncounterController :
         blockGridManager
             .CompleteBossEncounterMode();
 
+        isBossDefeatPending = false;
         isTransitioning = false;
 
+        completeCoroutine = null;
+
+        turnManager?.SetInputLocked(
+            false
+        );
+
         BossEncounterCompleted?.Invoke();
+
+        Debug.Log(
+            "BossEncounterController: " +
+            "보스전 종료 및 일반 웨이브 재개",
+            this
+        );
+    }
+
+    private void RecoverFromFailedStart()
+    {
+        ClearEncounterObjects();
+
+        isEncounterActive = false;
+        isTransitioning = false;
+        isBossDefeatPending = false;
+
+        startCoroutine = null;
+
+        blockGridManager
+            .CompleteBossEncounterMode();
+
+        turnManager?.SetInputLocked(
+            false
+        );
+    }
+
+    private bool HasRequiredReferences()
+    {
+        return blockGridManager != null &&
+               turnManager != null &&
+               boardGrid != null &&
+               blockPrefab != null &&
+               testPattern != null;
     }
 
     private void ClearEncounterObjects()
@@ -565,8 +1102,37 @@ public sealed class BossEncounterController :
         }
 
         encounterBlocks.Clear();
+        entranceItems.Clear();
 
         currentBossBlock =
             null;
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeEvents();
+    }
+
+    private void OnDestroy()
+    {
+        UnsubscribeEvents();
+
+        if (startCoroutine != null)
+        {
+            StopCoroutine(
+                startCoroutine
+            );
+        }
+
+        if (completeCoroutine != null)
+        {
+            StopCoroutine(
+                completeCoroutine
+            );
+        }
+
+        turnManager?.SetInputLocked(
+            false
+        );
     }
 }

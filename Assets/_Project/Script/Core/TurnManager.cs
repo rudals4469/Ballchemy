@@ -10,7 +10,8 @@ public enum TurnState
     GameOver
 }
 
-public sealed class TurnManager : MonoBehaviour
+public sealed class TurnManager :
+    MonoBehaviour
 {
     [Header("References")]
     [SerializeField]
@@ -28,16 +29,34 @@ public sealed class TurnManager : MonoBehaviour
 
     private Coroutine resolveCoroutine;
 
-    public TurnState CurrentState { get; private set; }
+    private bool isInputLocked;
+
+    public TurnState CurrentState
+    {
+        get;
+        private set;
+    }
 
     public bool CanAim =>
-        CurrentState == TurnState.Aiming;
+        CurrentState ==
+        TurnState.Aiming &&
+        !isInputLocked;
 
     public bool IsGameOver =>
-        CurrentState == TurnState.GameOver;
+        CurrentState ==
+        TurnState.GameOver;
 
-    public event Action<TurnState> StateChanged;
-    public event Action GameOverStarted;
+    public bool IsInputLocked =>
+        isInputLocked;
+
+    public event Action<TurnState>
+        StateChanged;
+
+    public event Action<bool>
+        InputLockChanged;
+
+    public event Action
+        GameOverStarted;
 
     private void Awake()
     {
@@ -46,6 +65,9 @@ public sealed class TurnManager : MonoBehaviour
 
         CurrentState =
             TurnState.Aiming;
+
+        isInputLocked =
+            false;
 
         SubscribePlayerHealth();
 
@@ -60,13 +82,17 @@ public sealed class TurnManager : MonoBehaviour
         if (blockGridManager == null)
         {
             blockGridManager =
-                FindFirstObjectByType<BlockGridManager>();
+                FindFirstObjectByType<
+                    BlockGridManager
+                >();
         }
 
         if (playerHealth == null)
         {
             playerHealth =
-                FindFirstObjectByType<PlayerHealth>();
+                FindFirstObjectByType<
+                    PlayerHealth
+                >();
         }
     }
 
@@ -105,6 +131,33 @@ public sealed class TurnManager : MonoBehaviour
             HandlePlayerDied;
     }
 
+    public void SetInputLocked(
+        bool shouldLock)
+    {
+        if (isInputLocked ==
+            shouldLock)
+        {
+            return;
+        }
+
+        isInputLocked =
+            shouldLock;
+
+        Debug.Log(
+            "TurnManager: 입력 잠금 " +
+            (
+                isInputLocked
+                    ? "활성화"
+                    : "해제"
+            ),
+            this
+        );
+
+        InputLockChanged?.Invoke(
+            isInputLocked
+        );
+    }
+
     public bool TryStartAttack()
     {
         if (!CanAim)
@@ -116,6 +169,7 @@ public sealed class TurnManager : MonoBehaviour
             playerHealth.IsDead)
         {
             StartGameOver();
+
             return false;
         }
 
@@ -145,23 +199,26 @@ public sealed class TurnManager : MonoBehaviour
             );
         }
 
-        resolveCoroutine = StartCoroutine(
-            ResolveTurnRoutine()
-        );
+        resolveCoroutine =
+            StartCoroutine(
+                ResolveTurnRoutine()
+            );
     }
 
     private IEnumerator ResolveTurnRoutine()
     {
         if (resolveStartDelay > 0f)
         {
-            yield return new WaitForSeconds(
-                resolveStartDelay
-            );
+            yield return
+                new WaitForSeconds(
+                    resolveStartDelay
+                );
         }
 
         if (IsGameOver)
         {
             resolveCoroutine = null;
+
             yield break;
         }
 
@@ -180,8 +237,6 @@ public sealed class TurnManager : MonoBehaviour
             );
         }
 
-        // 적 공격 처리 중 체력이 0이 됐을 경우
-        // 다음 조준 턴으로 넘어가지 않는다.
         if (IsGameOver ||
             (
                 playerHealth != null &&
@@ -189,20 +244,24 @@ public sealed class TurnManager : MonoBehaviour
             ))
         {
             resolveCoroutine = null;
+
             StartGameOver();
+
             yield break;
         }
 
         if (nextTurnDelay > 0f)
         {
-            yield return new WaitForSeconds(
-                nextTurnDelay
-            );
+            yield return
+                new WaitForSeconds(
+                    nextTurnDelay
+                );
         }
 
         if (IsGameOver)
         {
             resolveCoroutine = null;
+
             yield break;
         }
 
@@ -250,7 +309,8 @@ public sealed class TurnManager : MonoBehaviour
     private void ChangeState(
         TurnState nextState)
     {
-        if (CurrentState == nextState)
+        if (CurrentState ==
+            nextState)
         {
             return;
         }

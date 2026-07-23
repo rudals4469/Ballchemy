@@ -15,6 +15,24 @@ public sealed class BlockWaveDirector
     [SerializeField, Min(0f)]
     private float namedAttackMultiplier = 2f;
 
+    [Header("Boss Encounter")]
+    [SerializeField]
+    private bool enableBossEncounters = true;
+
+    [Tooltip(
+        "해당 일반 웨이브가 끝난 뒤 " +
+        "첫 번째 보스전이 시작됩니다."
+    )]
+    [SerializeField, Min(1)]
+    private int firstBossAfterWave = 5;
+
+    [Tooltip(
+        "첫 보스 이후 몇 개의 일반 웨이브마다 " +
+        "다음 보스전을 시작할지 설정합니다."
+    )]
+    [SerializeField, Min(1)]
+    private int bossWaveInterval = 5;
+
     private int currentWaveIndex;
 
     public int CurrentWaveIndex =>
@@ -47,6 +65,18 @@ public sealed class BlockWaveDirector
                 namedAttackMultiplier,
                 0f
             );
+
+        firstBossAfterWave =
+            Mathf.Max(
+                firstBossAfterWave,
+                1
+            );
+
+        bossWaveInterval =
+            Mathf.Max(
+                bossWaveInterval,
+                1
+            );
     }
 
     public void Initialize()
@@ -69,6 +99,33 @@ public sealed class BlockWaveDirector
                0;
     }
 
+    public bool ShouldStartBossAfterCurrentWave()
+    {
+        Normalize();
+
+        if (!enableBossEncounters)
+        {
+            return false;
+        }
+
+        int currentWaveNumber =
+            CurrentWaveNumber;
+
+        if (currentWaveNumber <
+            firstBossAfterWave)
+        {
+            return false;
+        }
+
+        int completedBossInterval =
+            currentWaveNumber -
+            firstBossAfterWave;
+
+        return completedBossInterval %
+               bossWaveInterval ==
+               0;
+    }
+
     public List<Block> GenerateInitialWave(
         BlockWaveGenerator waveGenerator)
     {
@@ -80,7 +137,8 @@ public sealed class BlockWaveDirector
         currentWaveIndex = 0;
 
         int rowCount =
-            waveGenerator.GetRandomWaveRowCount();
+            waveGenerator
+                .GetRandomWaveRowCount();
 
         return waveGenerator.GenerateWave(
             rowCount,
@@ -104,7 +162,8 @@ public sealed class BlockWaveDirector
             nextWaveIndex + 1;
 
         int baseRowCount =
-            waveGenerator.GetRandomWaveRowCount();
+            waveGenerator
+                .GetRandomWaveRowCount();
 
         bool isNamedWave =
             IsNamedWave(
@@ -117,16 +176,18 @@ public sealed class BlockWaveDirector
         if (isNamedWave)
         {
             namedDefinition =
-                waveGenerator.GetRandomDefinition(
-                    BlockType.Named
-                );
+                waveGenerator
+                    .GetRandomDefinition(
+                        BlockType.Named
+                    );
         }
 
         int requiredRowCount =
-            waveGenerator.GetRequiredRowCount(
-                baseRowCount,
-                namedDefinition
-            );
+            waveGenerator
+                .GetRequiredRowCount(
+                    baseRowCount,
+                    namedDefinition
+                );
 
         return new BlockWavePlan(
             nextWaveIndex,
@@ -179,7 +240,8 @@ public sealed class BlockWaveDirector
         currentWaveIndex++;
 
         int rowCount =
-            waveGenerator.GetRandomWaveRowCount();
+            waveGenerator
+                .GetRandomWaveRowCount();
 
         return waveGenerator.GenerateWave(
             rowCount,

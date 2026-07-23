@@ -25,6 +25,9 @@ public sealed class BlockEnemyPhaseResolver
     private readonly Func<bool>
         isBossEncounterActive;
 
+    private readonly Func<bool>
+        tryStartBossEncounter;
+
     public event Action<int>
         WaveGenerated;
 
@@ -35,7 +38,8 @@ public sealed class BlockEnemyPhaseResolver
         EnemyAttackSequence enemyAttackSequence,
         BlockWaveDirector waveDirector,
         BlockRegistry blockRegistry,
-        Func<bool> isBossEncounterActive)
+        Func<bool> isBossEncounterActive,
+        Func<bool> tryStartBossEncounter)
     {
         this.waveGenerator =
             waveGenerator;
@@ -57,6 +61,9 @@ public sealed class BlockEnemyPhaseResolver
 
         this.isBossEncounterActive =
             isBossEncounterActive;
+
+        this.tryStartBossEncounter =
+            tryStartBossEncounter;
     }
 
     public IEnumerator ResolveRoutine()
@@ -77,6 +84,13 @@ public sealed class BlockEnemyPhaseResolver
 
         if (enemyAttackSequence.IsTargetDead ||
             IsBossEncounterActive())
+        {
+            yield break;
+        }
+
+        if (waveDirector
+                .ShouldStartBossAfterCurrentWave() &&
+            TryStartBossEncounter())
         {
             yield break;
         }
@@ -118,6 +132,12 @@ public sealed class BlockEnemyPhaseResolver
         WaveGenerated?.Invoke(
             waveDirector.CurrentWaveNumber
         );
+    }
+
+    private bool TryStartBossEncounter()
+    {
+        return tryStartBossEncounter != null &&
+               tryStartBossEncounter.Invoke();
     }
 
     private bool HasRequiredReferences()

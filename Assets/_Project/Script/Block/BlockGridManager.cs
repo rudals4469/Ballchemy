@@ -7,7 +7,8 @@ using UnityEngine;
 [RequireComponent(typeof(BlockGridMover))]
 [RequireComponent(typeof(EnemyAttackCycle))]
 [RequireComponent(typeof(EnemyAttackSequence))]
-public sealed class BlockGridManager : MonoBehaviour
+public sealed class BlockGridManager :
+    MonoBehaviour
 {
     [Header("Components")]
     [SerializeField]
@@ -91,6 +92,9 @@ public sealed class BlockGridManager : MonoBehaviour
 
     public event Action<int>
         WaveGenerated;
+
+    public event Action
+        BossEncounterRequested;
 
     public event Action<IReadOnlyList<Block>>
         BlocksReachedBottom;
@@ -228,7 +232,8 @@ public sealed class BlockGridManager : MonoBehaviour
                 enemyAttackSequence,
                 waveDirector,
                 blockRegistry,
-                () => bossMode.IsActive
+                () => bossMode.IsActive,
+                TryRequestBossEncounter
             );
     }
 
@@ -340,14 +345,12 @@ public sealed class BlockGridManager : MonoBehaviour
             .ResolveRoutine();
     }
 
-    public void BeginBossEncounterMode()
+    public bool BeginBossEncounterMode()
     {
         if (bossMode.IsActive)
         {
-            return;
+            return false;
         }
-
-        StopAllCoroutines();
 
         bool started =
             bossMode.Begin(
@@ -356,7 +359,7 @@ public sealed class BlockGridManager : MonoBehaviour
 
         if (!started)
         {
-            return;
+            return false;
         }
 
         Debug.Log(
@@ -365,6 +368,8 @@ public sealed class BlockGridManager : MonoBehaviour
             "보스전으로 전환합니다.",
             this
         );
+
+        return true;
     }
 
     public void CompleteBossEncounterMode()
@@ -398,6 +403,19 @@ public sealed class BlockGridManager : MonoBehaviour
             "일반 진행 재개",
             this
         );
+    }
+
+    private bool TryRequestBossEncounter()
+    {
+        if (bossMode.IsActive ||
+            BossEncounterRequested == null)
+        {
+            return false;
+        }
+
+        BossEncounterRequested.Invoke();
+
+        return bossMode.IsActive;
     }
 
     private void HandleTurnsUntilAttackChanged(
