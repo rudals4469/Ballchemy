@@ -25,6 +25,69 @@ public sealed class BallLauncher : MonoBehaviour
     [SerializeField]
     private float maximumLaunchX = 4.3f;
 
+    [Header("Automatic Speed Up")]
+    [Tooltip(
+        "턴 후반에 남아 있는 공들의 속도를 " +
+        "자동으로 증가시킵니다."
+    )]
+    [SerializeField]
+    private bool enableAutomaticSpeedUp = true;
+
+    [Tooltip(
+        "남은 공의 비율이 이 값 이하가 되면 " +
+        "배속을 시작합니다. " +
+        "0.5는 전체 공의 50%를 의미합니다."
+    )]
+    [SerializeField, Range(0f, 1f)]
+    private float speedUpStartRemainingRatio = 0.5f;
+
+    [Tooltip(
+        "배속 시작 직후 적용되는 첫 번째 배속입니다."
+    )]
+    [SerializeField, Min(1f)]
+    private float firstSpeedMultiplier = 1.25f;
+
+    [Tooltip(
+        "배속이 시작된 뒤 두 번째 배속까지의 시간입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float secondSpeedUpDelay = 4f;
+
+    [Tooltip(
+        "두 번째 단계에서 적용되는 배속입니다."
+    )]
+    [SerializeField, Min(1f)]
+    private float secondSpeedMultiplier = 1.5f;
+
+    [Tooltip(
+        "현재 배속에서 목표 배속까지 " +
+        "부드럽게 전환되는 시간입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float speedTransitionDuration = 0.3f;
+
+    [Header("Automatic Recall")]
+    [Tooltip(
+        "남은 공이 적어지면 자동 회수 타이머를 시작합니다."
+    )]
+    [SerializeField]
+    private bool enableAutomaticRecall = true;
+
+    [Tooltip(
+        "남은 공의 비율이 이 값 이하가 되면 " +
+        "자동 회수 타이머를 시작합니다. " +
+        "0.2는 전체 공의 20%를 의미합니다."
+    )]
+    [SerializeField, Range(0f, 1f)]
+    private float recallStartRemainingRatio = 0.2f;
+
+    [Tooltip(
+        "회수 조건을 만족한 순간부터 " +
+        "남은 공이 자동 회수되기까지의 시간입니다."
+    )]
+    [SerializeField, Min(0.1f)]
+    private float automaticRecallDelay = 15f;
+
     private readonly List<Ball> balls =
         new List<Ball>();
 
@@ -35,12 +98,24 @@ public sealed class BallLauncher : MonoBehaviour
 
     private float launchBaselineY;
 
+    private float attackElapsedTime;
+    private float speedUpElapsedTime;
+    private float recallElapsedTime;
+
+    private float currentSpeedMultiplier = 1f;
+    private float speedMultiplierVelocity;
+
     private int launchedBallCount;
     private int returnedBallCount;
 
     private bool isLaunching;
     private bool hasFirstReturnedBall;
     private bool isAttackCompleted;
+
+    private bool isAttackTempoActive;
+    private bool isSpeedUpPhaseActive;
+    private bool isRecallCountdownActive;
+    private bool hasAutomaticRecallTriggered;
 
     public Ball BallPrefab =>
         ballPrefab;
@@ -50,6 +125,30 @@ public sealed class BallLauncher : MonoBehaviour
 
     public int BallCount =>
         balls.Count;
+
+    public float AttackElapsedTime =>
+        attackElapsedTime;
+
+    public float CurrentSpeedMultiplier =>
+        currentSpeedMultiplier;
+
+    public bool IsSpeedUpPhaseActive =>
+        isSpeedUpPhaseActive;
+
+    public bool IsRecallCountdownActive =>
+        isRecallCountdownActive;
+
+    public float RecallElapsedTime =>
+        recallElapsedTime;
+
+    public float RecallRemainingTime =>
+        isRecallCountdownActive
+            ? Mathf.Max(
+                automaticRecallDelay -
+                recallElapsedTime,
+                0f
+            )
+            : automaticRecallDelay;
 
     public Ball LastLaunchedBall
     {
@@ -65,7 +164,13 @@ public sealed class BallLauncher : MonoBehaviour
                 FindFirstObjectByType<TurnManager>();
         }
 
+        NormalizeSettings();
         ValidateReferences();
+    }
+
+    private void OnValidate()
+    {
+        NormalizeSettings();
     }
 
     private void Start()
@@ -89,6 +194,79 @@ public sealed class BallLauncher : MonoBehaviour
 
         NormalizeLauncherPosition();
         CreateBalls();
+    }
+
+    private void Update()
+    {
+        UpdateAttackTempo();
+    }
+
+    private void NormalizeSettings()
+    {
+        ballCount =
+            Mathf.Max(
+                ballCount,
+                1
+            );
+
+        launchInterval =
+            Mathf.Max(
+                launchInterval,
+                0f
+            );
+
+        if (minimumLaunchX >
+            maximumLaunchX)
+        {
+            float previousMinimum =
+                minimumLaunchX;
+
+            minimumLaunchX =
+                maximumLaunchX;
+
+            maximumLaunchX =
+                previousMinimum;
+        }
+
+        speedUpStartRemainingRatio =
+            Mathf.Clamp01(
+                speedUpStartRemainingRatio
+            );
+
+        firstSpeedMultiplier =
+            Mathf.Max(
+                firstSpeedMultiplier,
+                1f
+            );
+
+        secondSpeedUpDelay =
+            Mathf.Max(
+                secondSpeedUpDelay,
+                0f
+            );
+
+        secondSpeedMultiplier =
+            Mathf.Max(
+                secondSpeedMultiplier,
+                firstSpeedMultiplier
+            );
+
+        speedTransitionDuration =
+            Mathf.Max(
+                speedTransitionDuration,
+                0f
+            );
+
+        recallStartRemainingRatio =
+            Mathf.Clamp01(
+                recallStartRemainingRatio
+            );
+
+        automaticRecallDelay =
+            Mathf.Max(
+                automaticRecallDelay,
+                0.1f
+            );
     }
 
     private void ValidateReferences()
@@ -118,11 +296,12 @@ public sealed class BallLauncher : MonoBehaviour
              i < ballCount;
              i++)
         {
-            Ball newBall = Instantiate(
-                ballPrefab,
-                currentTurnLaunchPosition,
-                Quaternion.identity
-            );
+            Ball newBall =
+                Instantiate(
+                    ballPrefab,
+                    currentTurnLaunchPosition,
+                    Quaternion.identity
+                );
 
             newBall.name =
                 $"Ball_{i + 1}";
@@ -134,7 +313,9 @@ public sealed class BallLauncher : MonoBehaviour
                 currentTurnLaunchPosition
             );
 
-            balls.Add(newBall);
+            balls.Add(
+                newBall
+            );
         }
 
         IgnoreBallCollisions();
@@ -157,7 +338,8 @@ public sealed class BallLauncher : MonoBehaviour
             }
 
             Collider2D firstCollider =
-                balls[i].GetComponent<Collider2D>();
+                balls[i]
+                    .GetComponent<Collider2D>();
 
             if (firstCollider == null)
             {
@@ -174,7 +356,8 @@ public sealed class BallLauncher : MonoBehaviour
                 }
 
                 Collider2D secondCollider =
-                    balls[j].GetComponent<Collider2D>();
+                    balls[j]
+                        .GetComponent<Collider2D>();
 
                 if (secondCollider == null)
                 {
@@ -239,13 +422,318 @@ public sealed class BallLauncher : MonoBehaviour
         LastLaunchedBall =
             FindLastAvailableBall();
 
-        launchCoroutine = StartCoroutine(
-            LaunchBallsRoutine(
-                direction.normalized
-            )
-        );
+        BeginAttackTempo();
+
+        launchCoroutine =
+            StartCoroutine(
+                LaunchBallsRoutine(
+                    direction.normalized
+                )
+            );
 
         return true;
+    }
+
+    private void BeginAttackTempo()
+    {
+        attackElapsedTime = 0f;
+        speedUpElapsedTime = 0f;
+        recallElapsedTime = 0f;
+
+        currentSpeedMultiplier = 1f;
+        speedMultiplierVelocity = 0f;
+
+        isSpeedUpPhaseActive = false;
+        isRecallCountdownActive = false;
+        hasAutomaticRecallTriggered = false;
+
+        isAttackTempoActive =
+            enableAutomaticSpeedUp ||
+            enableAutomaticRecall;
+
+        ApplySpeedMultiplierToBalls(
+            1f
+        );
+    }
+
+    private void UpdateAttackTempo()
+    {
+        if (!isAttackTempoActive ||
+            isAttackCompleted)
+        {
+            return;
+        }
+
+        attackElapsedTime +=
+            Time.deltaTime;
+
+        /*
+         * 모든 공이 발사된 이후부터
+         * 남은 공 비율을 기준으로 템포를 조절한다.
+         */
+        if (isLaunching)
+        {
+            return;
+        }
+
+        UpdateSpeedUpPhase();
+        UpdateAutomaticSpeed();
+        UpdateRecallCountdown();
+    }
+
+    private void UpdateSpeedUpPhase()
+    {
+        if (!enableAutomaticSpeedUp)
+        {
+            isSpeedUpPhaseActive = false;
+
+            return;
+        }
+
+        if (!isSpeedUpPhaseActive)
+        {
+            bool reachedSpeedUpCondition =
+                IsRemainingRatioAtOrBelow(
+                    speedUpStartRemainingRatio
+                );
+
+            if (!reachedSpeedUpCondition)
+            {
+                return;
+            }
+
+            isSpeedUpPhaseActive = true;
+            speedUpElapsedTime = 0f;
+
+            Debug.Log(
+                "BallLauncher: 남은 공이 " +
+                $"{speedUpStartRemainingRatio * 100f:0}% 이하가 되어 " +
+                "자동 배속을 시작합니다.",
+                this
+            );
+        }
+
+        speedUpElapsedTime +=
+            Time.deltaTime;
+    }
+
+    private void UpdateAutomaticSpeed()
+    {
+        float targetMultiplier =
+            GetTargetSpeedMultiplier();
+
+        float nextMultiplier;
+
+        if (speedTransitionDuration <= 0f)
+        {
+            nextMultiplier =
+                targetMultiplier;
+        }
+        else
+        {
+            nextMultiplier =
+                Mathf.SmoothDamp(
+                    currentSpeedMultiplier,
+                    targetMultiplier,
+                    ref speedMultiplierVelocity,
+                    speedTransitionDuration
+                );
+        }
+
+        if (Mathf.Abs(
+                currentSpeedMultiplier -
+                nextMultiplier
+            ) <= 0.0001f)
+        {
+            return;
+        }
+
+        currentSpeedMultiplier =
+            nextMultiplier;
+
+        ApplySpeedMultiplierToMovingBalls(
+            currentSpeedMultiplier
+        );
+    }
+
+    private float GetTargetSpeedMultiplier()
+    {
+        if (!enableAutomaticSpeedUp ||
+            !isSpeedUpPhaseActive)
+        {
+            return 1f;
+        }
+
+        if (speedUpElapsedTime >=
+            secondSpeedUpDelay)
+        {
+            return secondSpeedMultiplier;
+        }
+
+        return firstSpeedMultiplier;
+    }
+
+    private void UpdateRecallCountdown()
+    {
+        if (!enableAutomaticRecall ||
+            hasAutomaticRecallTriggered)
+        {
+            return;
+        }
+
+        if (!isRecallCountdownActive)
+        {
+            bool reachedRecallCondition =
+                IsRemainingRatioAtOrBelow(
+                    recallStartRemainingRatio
+                );
+
+            if (!reachedRecallCondition)
+            {
+                return;
+            }
+
+            isRecallCountdownActive = true;
+            recallElapsedTime = 0f;
+
+            Debug.Log(
+                "BallLauncher: 남은 공이 " +
+                $"{recallStartRemainingRatio * 100f:0}% 이하가 되어 " +
+                $"{automaticRecallDelay:0.##}초 자동 회수 타이머를 시작합니다.",
+                this
+            );
+
+            return;
+        }
+
+        recallElapsedTime +=
+            Time.deltaTime;
+
+        if (recallElapsedTime <
+            automaticRecallDelay)
+        {
+            return;
+        }
+
+        ForceRecallRemainingBalls();
+    }
+
+    private bool IsRemainingRatioAtOrBelow(
+        float targetRatio)
+    {
+        if (launchedBallCount <= 0)
+        {
+            return false;
+        }
+
+        int remainingBallCount =
+            GetRemainingBallCount();
+
+        if (remainingBallCount <= 0)
+        {
+            return false;
+        }
+
+        float remainingRatio =
+            (float)remainingBallCount /
+            launchedBallCount;
+
+        return remainingRatio <=
+               targetRatio;
+    }
+
+    private int GetRemainingBallCount()
+    {
+        return Mathf.Max(
+            launchedBallCount -
+            returnedBallCount,
+            0
+        );
+    }
+
+    private void ApplySpeedMultiplierToMovingBalls(
+        float multiplier)
+    {
+        for (int i = 0;
+             i < balls.Count;
+             i++)
+        {
+            Ball ball =
+                balls[i];
+
+            if (ball == null ||
+                !ball.IsMoving)
+            {
+                continue;
+            }
+
+            ball.SetRuntimeSpeedMultiplier(
+                multiplier
+            );
+        }
+    }
+
+    private void ApplySpeedMultiplierToBalls(
+        float multiplier)
+    {
+        for (int i = 0;
+             i < balls.Count;
+             i++)
+        {
+            Ball ball =
+                balls[i];
+
+            if (ball == null)
+            {
+                continue;
+            }
+
+            ball.SetRuntimeSpeedMultiplier(
+                multiplier
+            );
+        }
+    }
+
+    private void ForceRecallRemainingBalls()
+    {
+        if (hasAutomaticRecallTriggered)
+        {
+            return;
+        }
+
+        hasAutomaticRecallTriggered = true;
+        isAttackTempoActive = false;
+
+        currentSpeedMultiplier = 1f;
+        speedMultiplierVelocity = 0f;
+
+        Debug.Log(
+            "BallLauncher: 자동 회수 타이머 종료, " +
+            "남은 공을 회수합니다.",
+            this
+        );
+
+        for (int i = 0;
+             i < balls.Count;
+             i++)
+        {
+            Ball ball =
+                balls[i];
+
+            if (ball == null ||
+                !ball.IsMoving)
+            {
+                continue;
+            }
+
+            ball.SetRuntimeSpeedMultiplier(
+                1f
+            );
+
+            ball.ForceReturn();
+        }
+
+        TryCompleteAttack();
     }
 
     private Ball FindLastAvailableBall()
@@ -282,6 +770,10 @@ public sealed class BallLauncher : MonoBehaviour
 
             ball.ResetTo(
                 currentTurnLaunchPosition
+            );
+
+            ball.SetRuntimeSpeedMultiplier(
+                currentSpeedMultiplier
             );
 
             ball.Launch(
@@ -383,9 +875,30 @@ public sealed class BallLauncher : MonoBehaviour
 
         isAttackCompleted = true;
 
+        StopAttackTempo();
         AlignBallsToNextLaunchPosition();
 
         turnManager.NotifyAllBallsReturned();
+    }
+
+    private void StopAttackTempo()
+    {
+        isAttackTempoActive = false;
+
+        attackElapsedTime = 0f;
+        speedUpElapsedTime = 0f;
+        recallElapsedTime = 0f;
+
+        currentSpeedMultiplier = 1f;
+        speedMultiplierVelocity = 0f;
+
+        isSpeedUpPhaseActive = false;
+        isRecallCountdownActive = false;
+        hasAutomaticRecallTriggered = false;
+
+        ApplySpeedMultiplierToBalls(
+            1f
+        );
     }
 
     private void AlignBallsToNextLaunchPosition()

@@ -25,6 +25,13 @@ public sealed class Ball : MonoBehaviour
     private BallLoopEscape loopEscape =
         new BallLoopEscape();
 
+    [Tooltip(
+        "충돌 직후 공을 충돌면 바깥으로 밀어내는 거리입니다. " +
+        "모서리에서 같은 충돌이 반복되는 현상을 방지합니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float bounceSeparationDistance = 0.02f;
+
     [Header("Combat")]
     [SerializeField, Min(1)]
     private int damage = 1;
@@ -35,6 +42,8 @@ public sealed class Ball : MonoBehaviour
     private CircleCollider2D circleCollider;
 
     private Vector2 lastPhysicsVelocity;
+
+    private float runtimeSpeedMultiplier = 1f;
 
     private bool isMoving;
     private bool hasMovedUpward;
@@ -48,6 +57,13 @@ public sealed class Ball : MonoBehaviour
 
     public bool HasStartedDescending =>
         hasStartedDescending;
+
+    public float RuntimeSpeedMultiplier =>
+        runtimeSpeedMultiplier;
+
+    public float CurrentMoveSpeed =>
+        moveSpeed *
+        runtimeSpeedMultiplier;
 
     public Vector2 Velocity =>
         body != null
@@ -73,6 +89,7 @@ public sealed class Ball : MonoBehaviour
     private static void ResetStaticState()
     {
         activeMovingBallCount = 0;
+
         BlockHitOccurred = null;
         MovingBallCountChanged = null;
     }
@@ -106,6 +123,12 @@ public sealed class Ball : MonoBehaviour
         verticalDirectionThreshold =
             Mathf.Max(
                 verticalDirectionThreshold,
+                0f
+            );
+
+        bounceSeparationDistance =
+            Mathf.Max(
+                bounceSeparationDistance,
                 0f
             );
 
@@ -144,7 +167,6 @@ public sealed class Ball : MonoBehaviour
         }
 
         body.gravityScale = 0f;
-
         body.freezeRotation = true;
 
         body.collisionDetectionMode =
@@ -156,7 +178,8 @@ public sealed class Ball : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (!isMoving)
+        if (!isMoving ||
+            body == null)
         {
             return;
         }
@@ -169,7 +192,7 @@ public sealed class Ball : MonoBehaviour
         {
             currentVelocity =
                 currentVelocity.normalized *
-                moveSpeed;
+                CurrentMoveSpeed;
 
             body.linearVelocity =
                 currentVelocity;
@@ -236,7 +259,7 @@ public sealed class Ball : MonoBehaviour
 
         Vector2 launchVelocity =
             direction.normalized *
-            moveSpeed;
+            CurrentMoveSpeed;
 
         body.linearVelocity =
             launchVelocity;
@@ -250,11 +273,75 @@ public sealed class Ball : MonoBehaviour
     {
         StopMovement();
 
+        runtimeSpeedMultiplier = 1f;
+
         body.position =
             position;
 
         transform.position =
             position;
+    }
+
+    public void SetRuntimeSpeedMultiplier(
+        float multiplier)
+    {
+        multiplier =
+            Mathf.Max(
+                multiplier,
+                0.1f
+            );
+
+        if (Mathf.Approximately(
+                runtimeSpeedMultiplier,
+                multiplier
+            ))
+        {
+            return;
+        }
+
+        runtimeSpeedMultiplier =
+            multiplier;
+
+        if (!isMoving ||
+            body == null)
+        {
+            return;
+        }
+
+        Vector2 currentVelocity =
+            body.linearVelocity;
+
+        if (currentVelocity.sqrMagnitude <=
+            0.0001f)
+        {
+            return;
+        }
+
+        Vector2 adjustedVelocity =
+            currentVelocity.normalized *
+            CurrentMoveSpeed;
+
+        body.linearVelocity =
+            adjustedVelocity;
+
+        lastPhysicsVelocity =
+            adjustedVelocity;
+    }
+
+    public bool ForceReturn()
+    {
+        if (!isMoving)
+        {
+            return false;
+        }
+
+        StopMovement();
+
+        Returned?.Invoke(
+            this
+        );
+
+        return true;
     }
 
     private void StopMovement()
@@ -263,8 +350,7 @@ public sealed class Ball : MonoBehaviour
         {
             activeMovingBallCount =
                 Mathf.Max(
-                    activeMovingBallCount -
-                    1,
+                    activeMovingBallCount - 1,
                     0
                 );
 
@@ -327,7 +413,7 @@ public sealed class Ball : MonoBehaviour
                 collision,
                 circleCollider,
                 incomingVelocity,
-                moveSpeed,
+                CurrentMoveSpeed,
                 out Vector2 outgoingVelocity,
                 out Vector2 resolvedNormal,
                 out Collider2D hitCollider
@@ -349,22 +435,48 @@ public sealed class Ball : MonoBehaviour
                     resolvedNormal,
                     outgoingVelocity,
                     body.position,
-                    moveSpeed,
+                    CurrentMoveSpeed,
                     out Vector2 escapedVelocity
                 );
 
-            body.linearVelocity =
+            Vector2 finalVelocity =
                 escapedLoop
                     ? escapedVelocity
                     : outgoingVelocity;
 
+            SeparateFromSurface(
+                resolvedNormal
+            );
+
+            body.linearVelocity =
+                finalVelocity;
+
             lastPhysicsVelocity =
-                body.linearVelocity;
+                finalVelocity;
         }
 
         HandleBlockHit(
             hitBlock
         );
+    }
+
+    private void SeparateFromSurface(
+        Vector2 surfaceNormal)
+    {
+        if (body == null ||
+            bounceSeparationDistance <= 0f ||
+            surfaceNormal.sqrMagnitude <=
+            0.0001f)
+        {
+            return;
+        }
+
+        Vector2 separationDirection =
+            surfaceNormal.normalized;
+
+        body.position +=
+            separationDirection *
+            bounceSeparationDistance;
     }
 
     private Block FindHitBlock(
@@ -437,8 +549,7 @@ public sealed class Ball : MonoBehaviour
 
         activeMovingBallCount =
             Mathf.Max(
-                activeMovingBallCount -
-                1,
+                activeMovingBallCount - 1,
                 0
             );
 

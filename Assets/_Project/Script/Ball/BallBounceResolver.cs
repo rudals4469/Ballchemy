@@ -6,8 +6,9 @@ public sealed class BallBounceResolver
 {
     [Header("Box Collider Bounce")]
     [Tooltip(
-        "BoxCollider2D 충돌 노멀을 " +
-        "가로 또는 세로 축으로 보정합니다."
+        "BoxCollider2D의 평평한 면에서는 충돌 노멀을 " +
+        "가로 또는 세로 축으로 보정합니다. " +
+        "모서리에서는 실제 물리 노멀을 사용합니다."
     )]
     [SerializeField]
     private bool snapBoxNormalToAxis = true;
@@ -69,7 +70,8 @@ public sealed class BallBounceResolver
                 ownCollider,
                 incomingVelocity,
                 out ContactPoint2D bestContact,
-                out hitCollider))
+                out hitCollider
+            ))
         {
             return false;
         }
@@ -196,7 +198,8 @@ public sealed class BallBounceResolver
 
             if (Vector2.Dot(
                     incomingDirection,
-                    normal) > 0f)
+                    normal
+                ) > 0f)
             {
                 normal =
                     -normal;
@@ -365,38 +368,29 @@ public sealed class BallBounceResolver
                 )
             );
 
-        bool useHorizontalNormal;
-
         float edgeDifference =
             Mathf.Abs(
                 normalizedX -
                 normalizedY
             );
 
+        /*
+         * 모서리에서는 X 또는 Y축 중 하나를 강제로
+         * 선택하지 않고 Unity 물리엔진이 계산한
+         * 실제 충돌 노멀을 사용한다.
+         *
+         * 축 하나만 반전시켜 공이 모서리에 계속
+         * 겹치는 현상을 방지한다.
+         */
         if (edgeDifference <=
             cornerTieTolerance)
         {
-            /*
-             * 정확한 모서리에서는 물리 노멀을 그대로
-             * 사용하지 않고 진입 속도의 주축을 반전한다.
-             *
-             * X 이동량이 크면 좌우 면,
-             * Y 이동량이 크면 상하 면으로 처리한다.
-             */
-            useHorizontalNormal =
-                Mathf.Abs(
-                    localIncoming.x
-                ) >=
-                Mathf.Abs(
-                    localIncoming.y
-                );
+            return physicsNormal;
         }
-        else
-        {
-            useHorizontalNormal =
-                normalizedX >
-                normalizedY;
-        }
+
+        bool useHorizontalNormal =
+            normalizedX >
+            normalizedY;
 
         Vector2 localAxisNormal;
 
@@ -455,7 +449,8 @@ public sealed class BallBounceResolver
 
         if (Vector2.Dot(
                 incomingVelocity,
-                worldNormal) > 0f)
+                worldNormal
+            ) > 0f)
         {
             worldNormal =
                 -worldNormal;
@@ -485,7 +480,8 @@ public sealed class BallBounceResolver
 
         if (Vector2.Dot(
                 incomingVelocity,
-                normal) > 0f)
+                normal
+            ) > 0f)
         {
             normal =
                 -normal;
@@ -500,7 +496,8 @@ public sealed class BallBounceResolver
         float incomingComponent)
     {
         if (Mathf.Abs(
-                physicsNormalComponent) >
+                physicsNormalComponent
+            ) >
             minimumNormalMagnitude)
         {
             return Mathf.Sign(
@@ -509,7 +506,8 @@ public sealed class BallBounceResolver
         }
 
         if (Mathf.Abs(
-                contactOffset) >
+                contactOffset
+            ) >
             minimumNormalMagnitude)
         {
             return Mathf.Sign(
@@ -518,7 +516,8 @@ public sealed class BallBounceResolver
         }
 
         if (Mathf.Abs(
-                incomingComponent) >
+                incomingComponent
+            ) >
             minimumNormalMagnitude)
         {
             return -Mathf.Sign(
