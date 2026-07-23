@@ -501,8 +501,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 0b69bc59627262648882771d03ffbaff, type: 2}
+  m_sharedMaterial: {fileID: -4484042841100329347, guid: 0b69bc59627262648882771d03ffbaff, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -1312,8 +1312,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 0b69bc59627262648882771d03ffbaff, type: 2}
+  m_sharedMaterial: {fileID: -4484042841100329347, guid: 0b69bc59627262648882771d03ffbaff, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -1524,6 +1524,10 @@ MonoBehaviour:
   trajectoryLineColor: {r: 1, g: 1, b: 1, a: 0.28}
   trajectoryDistance: 50
   maximumTrajectoryBounces: 6
+  bounceResolver:
+    snapBoxNormalToAxis: 1
+    cornerTieTolerance: 0.12
+    minimumNormalMagnitude: 0.001
   useBallPrefabRadius: 1
   manualTrajectoryRadius: 0.2
   trajectorySkinWidth: 0.02
@@ -1607,6 +1611,9 @@ MonoBehaviour:
     namedWaveInterval: 3
     namedHealthMultiplier: 3
     namedAttackMultiplier: 2
+    enableBossEncounters: 1
+    firstBossAfterWave: 5
+    bossWaveInterval: 5
 --- !u!114 &987057998
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1728,11 +1735,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BossEncounterController
   blockGridManager: {fileID: 987057997}
+  turnManager: {fileID: 1520316753}
+  boardGrid: {fileID: 1710125463}
   blockPrefab: {fileID: 5741669861215845034, guid: 63c51ec1f2fb1cc41817829b42d6d84e, type: 3}
-  arenaCenter: {fileID: 1867927456}
   bossBlockContainer: {fileID: 137645039}
   testPattern: {fileID: 11400000, guid: 857ddb12d0c98184696e4c48bc4a068f, type: 2}
-  cellSize: 1
+  entranceAnimator:
+    entranceDuration: 2.5
+    rowDelay: 0.025
+    spawnHeightOffsetCells: 3
+    lowerRowsFirst: 1
+    impactOvershootCells: 0.2
+    impactPause: 0.025
+    settleDuration: 0.12
   boardClearDelay: 0.15
   enableBossTestKey: 1
 --- !u!1 &1312074105

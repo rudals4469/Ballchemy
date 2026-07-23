@@ -26,7 +26,7 @@ public sealed class BlockHealthView : MonoBehaviour
 
     [SerializeField]
     private Color textColor =
-        Color.white;
+        Color.black;
 
     [Header("Text Layout")]
     [Tooltip(
