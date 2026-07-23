@@ -15,7 +15,8 @@ MonoBehaviour:
   blockId: normal_01
   displayName: Normal Block 02
   blockType: 0
+  gridSize: {x: 1, y: 1}
   sprite: {fileID: 0}
   color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
-  selectionWeight: 1
+  selectionWeight: 3

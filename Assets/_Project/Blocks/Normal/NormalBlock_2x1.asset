@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 886c36495a3475f4f8ab51277a3e8675, type: 3}
-  m_Name: NormalBlock_03
+  m_Name: NormalBlock_2x1
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
-  blockId: normal_01
-  displayName: Normal Block 03
+  blockId: normal_2x1
+  displayName: Normal Block 2x1
   blockType: 0
-  gridSize: {x: 1, y: 1}
+  gridSize: {x: 2, y: 1}
   sprite: {fileID: 0}
   color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
-  selectionWeight: 3
+  selectionWeight: 2

@@ -205,9 +205,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         {
             Debug.LogWarning(
                 "BlockWaveGenerator: " +
-                "Block Catalog가 연결되지 않았습니다. " +
-                "노멀 블록은 프리팹 기본 외형으로 생성되지만, " +
-                "네임드 블록은 생성할 수 없습니다.",
+                "Block Catalog가 연결되지 않았습니다.",
                 this
             );
         }
@@ -218,6 +216,40 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         return Random.Range(
             minimumRowsPerWave,
             maximumRowsPerWave + 1
+        );
+    }
+
+    public BlockDefinition GetRandomDefinition(
+        BlockType blockType)
+    {
+        if (blockCatalog == null)
+        {
+            return null;
+        }
+
+        return blockCatalog.GetRandom(
+            blockType
+        );
+    }
+
+    public int GetRequiredRowCount(
+        int baseRowCount,
+        BlockDefinition featuredDefinition)
+    {
+        baseRowCount =
+            Mathf.Max(
+                baseRowCount,
+                1
+            );
+
+        if (featuredDefinition == null)
+        {
+            return baseRowCount;
+        }
+
+        return Mathf.Max(
+            baseRowCount,
+            featuredDefinition.GridSize.y
         );
     }
 
@@ -236,6 +268,67 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         int rowCount,
         int waveIndex,
         BlockType blockType)
+    {
+        return GenerateWaveInternal(
+            rowCount,
+            waveIndex,
+            blockType,
+            null,
+            1f,
+            1f
+        );
+    }
+
+    /// <summary>
+    /// 네임드나 보스 하나를 먼저 배치하고,
+    /// 남은 공간에 일반 블록을 채웁니다.
+    /// </summary>
+    public List<Block> GenerateFeaturedWave(
+        int rowCount,
+        int waveIndex,
+        BlockDefinition featuredDefinition,
+        float featuredHealthMultiplier,
+        float featuredAttackMultiplier)
+    {
+        if (featuredDefinition == null)
+        {
+            Debug.LogWarning(
+                "BlockWaveGenerator: " +
+                "Featured Definition이 없어 " +
+                "일반 웨이브로 생성합니다.",
+                this
+            );
+
+            return GenerateWave(
+                rowCount,
+                waveIndex,
+                BlockType.Normal
+            );
+        }
+
+        rowCount =
+            GetRequiredRowCount(
+                rowCount,
+                featuredDefinition
+            );
+
+        return GenerateWaveInternal(
+            rowCount,
+            waveIndex,
+            BlockType.Normal,
+            featuredDefinition,
+            featuredHealthMultiplier,
+            featuredAttackMultiplier
+        );
+    }
+
+    private List<Block> GenerateWaveInternal(
+        int rowCount,
+        int waveIndex,
+        BlockType fillBlockType,
+        BlockDefinition featuredDefinition,
+        float featuredHealthMultiplier,
+        float featuredAttackMultiplier)
     {
         List<Block> generatedBlocks =
             new List<Block>();
@@ -269,15 +362,37 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                 rowCount
             ];
 
-        int blockHealth =
+        int baseHealth =
             CalculateWaveHealth(
                 waveIndex
             );
 
-        int blockAttack =
+        int baseAttack =
             CalculateWaveAttack(
                 waveIndex
             );
+
+        if (featuredDefinition != null)
+        {
+            Block featuredBlock =
+                SpawnFeaturedBlock(
+                    featuredDefinition,
+                    rowCount,
+                    waveIndex,
+                    baseHealth,
+                    baseAttack,
+                    featuredHealthMultiplier,
+                    featuredAttackMultiplier,
+                    occupiedCells
+                );
+
+            if (featuredBlock != null)
+            {
+                generatedBlocks.Add(
+                    featuredBlock
+                );
+            }
+        }
 
         int pillarCount =
             Random.Range(
@@ -305,203 +420,328 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                     maximumBlocksPerRow + 1
                 );
 
-            List<int> rowColumns =
+            List<int> preferredColumns =
                 CreateWaveRowColumns(
                     targetBlockCount,
                     pillarColumns,
                     previousRowColumns
                 );
 
-            int spawnedInCurrentRow = 0;
-
-            for (int i = 0;
-                 i < rowColumns.Count;
-                 i++)
-            {
-                int column =
-                    rowColumns[i];
-
-                BlockDefinition definition =
-                    GetRandomFittingDefinition(
-                        blockType,
-                        column,
-                        row,
-                        rowCount,
-                        occupiedCells
-                    );
-
-                Vector2Int gridSize =
-                    definition != null
-                        ? definition.GridSize
-                        : Vector2Int.one;
-
-                if (definition == null)
-                {
-                    if (blockType !=
-                        BlockType.Normal)
-                    {
-                        continue;
-                    }
-
-                    if (!CanOccupyCells(
-                            column,
-                            row,
-                            gridSize,
-                            rowCount,
-                            occupiedCells))
-                    {
-                        continue;
-                    }
-                }
-
-                Block newBlock =
-                    SpawnBlock(
-                        column,
-                        row,
-                        waveIndex,
-                        definition,
-                        blockType,
-                        gridSize,
-                        blockHealth,
-                        blockAttack
-                    );
-
-                if (newBlock == null)
-                {
-                    continue;
-                }
-
-                OccupyCells(
-                    column,
+            List<int> spawnedColumns =
+                FillRow(
                     row,
-                    gridSize,
-                    occupiedCells
+                    rowCount,
+                    waveIndex,
+                    targetBlockCount,
+                    preferredColumns,
+                    fillBlockType,
+                    baseHealth,
+                    baseAttack,
+                    occupiedCells,
+                    generatedBlocks
                 );
-
-                generatedBlocks.Add(
-                    newBlock
-                );
-
-                spawnedInCurrentRow++;
-
-                if (spawnedInCurrentRow >=
-                    targetBlockCount)
-                {
-                    break;
-                }
-            }
 
             previousRowColumns =
-                new List<int>(
-                    rowColumns
-                );
+                spawnedColumns.Count > 0
+                    ? spawnedColumns
+                    : preferredColumns;
         }
+
+        string featuredTypeText =
+            featuredDefinition != null
+                ? featuredDefinition.BlockType.ToString()
+                : "None";
 
         Debug.Log(
             "BlockWaveGenerator: " +
             $"웨이브 {waveIndex + 1} 생성 완료, " +
-            $"타입 {blockType}, " +
+            $"주요 블록 {featuredTypeText}, " +
             $"{rowCount}줄, " +
             $"블록 {generatedBlocks.Count}개, " +
-            $"HP {blockHealth}, " +
-            $"공격력 {blockAttack}",
+            $"기본 HP {baseHealth}, " +
+            $"기본 공격력 {baseAttack}",
             this
         );
 
         return generatedBlocks;
     }
 
-    private List<int> CreateWaveRowColumns(
-        int targetBlockCount,
-        List<int> pillarColumns,
-        List<int> previousRowColumns)
+    private Block SpawnFeaturedBlock(
+        BlockDefinition definition,
+        int rowCount,
+        int waveIndex,
+        int baseHealth,
+        int baseAttack,
+        float healthMultiplier,
+        float attackMultiplier,
+        bool[,] occupiedCells)
     {
-        List<int> result =
-            new List<int>();
+        Vector2Int gridSize =
+            definition.GridSize;
 
-        foreach (int pillarColumn
-                 in pillarColumns)
+        if (gridSize.x > columnCount ||
+            gridSize.y > rowCount)
         {
-            AddColumnIfAvailable(
-                result,
-                pillarColumn,
-                targetBlockCount
+            Debug.LogWarning(
+                "BlockWaveGenerator: " +
+                $"{definition.name}의 크기 " +
+                $"{gridSize.x}x{gridSize.y}가 " +
+                "현재 생성 영역보다 큽니다.",
+                this
             );
+
+            return null;
         }
 
-        foreach (int previousColumn
-                 in previousRowColumns)
+        int maximumStartColumn =
+            columnCount -
+            gridSize.x;
+
+        int startColumn =
+            Random.Range(
+                0,
+                maximumStartColumn + 1
+            );
+
+        int startRow = 0;
+
+        int featuredHealth =
+            Mathf.Max(
+                1,
+                Mathf.RoundToInt(
+                    baseHealth *
+                    Mathf.Max(
+                        healthMultiplier,
+                        1f
+                    )
+                )
+            );
+
+        int featuredAttack =
+            Mathf.Max(
+                0,
+                Mathf.RoundToInt(
+                    baseAttack *
+                    Mathf.Max(
+                        attackMultiplier,
+                        0f
+                    )
+                )
+            );
+
+        Block featuredBlock =
+            SpawnBlock(
+                startColumn,
+                startRow,
+                waveIndex,
+                definition,
+                definition.BlockType,
+                gridSize,
+                featuredHealth,
+                featuredAttack
+            );
+
+        if (featuredBlock == null)
         {
-            if (result.Count >=
+            return null;
+        }
+
+        OccupyCells(
+            startColumn,
+            startRow,
+            gridSize,
+            occupiedCells
+        );
+
+        return featuredBlock;
+    }
+
+    private List<int> FillRow(
+        int row,
+        int rowCount,
+        int waveIndex,
+        int targetBlockCount,
+        List<int> preferredColumns,
+        BlockType blockType,
+        int blockHealth,
+        int blockAttack,
+        bool[,] occupiedCells,
+        List<Block> generatedBlocks)
+    {
+        List<int> spawnedColumns =
+            new List<int>();
+
+        HashSet<int> attemptedColumns =
+            new HashSet<int>();
+
+        for (int i = 0;
+             i < preferredColumns.Count;
+             i++)
+        {
+            if (spawnedColumns.Count >=
                 targetBlockCount)
             {
                 break;
             }
 
-            if (result.Contains(
-                    previousColumn))
+            int column =
+                preferredColumns[i];
+
+            attemptedColumns.Add(
+                column
+            );
+
+            if (!TrySpawnTypeBlock(
+                    column,
+                    row,
+                    rowCount,
+                    waveIndex,
+                    blockType,
+                    blockHealth,
+                    blockAttack,
+                    occupiedCells,
+                    out Block spawnedBlock))
             {
                 continue;
             }
 
-            if (Random.value >
-                extraColumnCarryChance)
-            {
-                continue;
-            }
+            generatedBlocks.Add(
+                spawnedBlock
+            );
 
-            result.Add(
-                previousColumn
+            spawnedColumns.Add(
+                column
             );
         }
 
-        while (result.Count <
-               targetBlockCount)
-        {
-            int randomColumn =
-                Random.Range(
-                    0,
-                    columnCount
-                );
-
-            if (result.Contains(
-                    randomColumn))
-            {
-                continue;
-            }
-
-            result.Add(
-                randomColumn
-            );
-        }
+        List<int> remainingColumns =
+            CreateAllColumns();
 
         ShuffleColumns(
-            result
+            remainingColumns
         );
 
-        return result;
+        for (int i = 0;
+             i < remainingColumns.Count;
+             i++)
+        {
+            if (spawnedColumns.Count >=
+                targetBlockCount)
+            {
+                break;
+            }
+
+            int column =
+                remainingColumns[i];
+
+            if (!attemptedColumns.Add(
+                    column))
+            {
+                continue;
+            }
+
+            if (!TrySpawnTypeBlock(
+                    column,
+                    row,
+                    rowCount,
+                    waveIndex,
+                    blockType,
+                    blockHealth,
+                    blockAttack,
+                    occupiedCells,
+                    out Block spawnedBlock))
+            {
+                continue;
+            }
+
+            generatedBlocks.Add(
+                spawnedBlock
+            );
+
+            spawnedColumns.Add(
+                column
+            );
+        }
+
+        return spawnedColumns;
     }
 
-    private void AddColumnIfAvailable(
-        List<int> columns,
-        int column,
-        int maximumCount)
+    private bool TrySpawnTypeBlock(
+        int startColumn,
+        int startRow,
+        int rowCount,
+        int waveIndex,
+        BlockType blockType,
+        int blockHealth,
+        int blockAttack,
+        bool[,] occupiedCells,
+        out Block spawnedBlock)
     {
-        if (columns.Count >=
-            maximumCount)
+        spawnedBlock = null;
+
+        BlockDefinition definition =
+            GetRandomFittingDefinition(
+                blockType,
+                startColumn,
+                startRow,
+                rowCount,
+                occupiedCells
+            );
+
+        Vector2Int gridSize;
+
+        if (definition != null)
         {
-            return;
+            gridSize =
+                definition.GridSize;
+        }
+        else
+        {
+            if (blockType !=
+                BlockType.Normal)
+            {
+                return false;
+            }
+
+            gridSize =
+                Vector2Int.one;
+
+            if (!CanOccupyCells(
+                    startColumn,
+                    startRow,
+                    gridSize,
+                    rowCount,
+                    occupiedCells))
+            {
+                return false;
+            }
         }
 
-        if (columns.Contains(
-                column))
+        spawnedBlock =
+            SpawnBlock(
+                startColumn,
+                startRow,
+                waveIndex,
+                definition,
+                blockType,
+                gridSize,
+                blockHealth,
+                blockAttack
+            );
+
+        if (spawnedBlock == null)
         {
-            return;
+            return false;
         }
 
-        columns.Add(
-            column
+        OccupyCells(
+            startColumn,
+            startRow,
+            gridSize,
+            occupiedCells
         );
+
+        return true;
     }
 
     private BlockDefinition GetRandomFittingDefinition(
@@ -516,7 +756,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             return null;
         }
 
-        List<BlockDefinition> typeDefinitions =
+        List<BlockDefinition> definitions =
             blockCatalog.GetAll(
                 blockType
             );
@@ -527,18 +767,14 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         int totalWeight = 0;
 
         for (int i = 0;
-             i < typeDefinitions.Count;
+             i < definitions.Count;
              i++)
         {
             BlockDefinition definition =
-                typeDefinitions[i];
+                definitions[i];
 
-            if (definition == null)
-            {
-                continue;
-            }
-
-            if (definition.SelectionWeight <= 0)
+            if (definition == null ||
+                definition.SelectionWeight <= 0)
             {
                 continue;
             }
@@ -561,7 +797,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                 definition.SelectionWeight;
         }
 
-        if (fittingDefinitions.Count <= 0 ||
+        if (fittingDefinitions.Count == 0 ||
             totalWeight <= 0)
         {
             return null;
@@ -618,14 +854,8 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             startRow +
             gridSize.y;
 
-        if (endColumn >
-            columnCount)
-        {
-            return false;
-        }
-
-        if (endRow >
-            rowCount)
+        if (endColumn > columnCount ||
+            endRow > rowCount)
         {
             return false;
         }
@@ -769,16 +999,12 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             );
 
         float horizontalOffset =
-            (
-                gridSize.x - 1
-            ) *
+            (gridSize.x - 1) *
             cellSize *
             0.5f;
 
         float verticalOffset =
-            (
-                gridSize.y - 1
-            ) *
+            (gridSize.y - 1) *
             cellSize *
             0.5f;
 
@@ -793,6 +1019,97 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         );
     }
 
+    private List<int> CreateWaveRowColumns(
+        int targetBlockCount,
+        List<int> pillarColumns,
+        List<int> previousRowColumns)
+    {
+        List<int> result =
+            new List<int>();
+
+        foreach (int pillarColumn
+                 in pillarColumns)
+        {
+            AddColumnIfAvailable(
+                result,
+                pillarColumn,
+                targetBlockCount
+            );
+        }
+
+        foreach (int previousColumn
+                 in previousRowColumns)
+        {
+            if (result.Count >=
+                targetBlockCount)
+            {
+                break;
+            }
+
+            if (result.Contains(
+                    previousColumn))
+            {
+                continue;
+            }
+
+            if (Random.value >
+                extraColumnCarryChance)
+            {
+                continue;
+            }
+
+            result.Add(
+                previousColumn
+            );
+        }
+
+        while (result.Count <
+               targetBlockCount)
+        {
+            int randomColumn =
+                Random.Range(
+                    0,
+                    columnCount
+                );
+
+            if (!result.Contains(
+                    randomColumn))
+            {
+                result.Add(
+                    randomColumn
+                );
+            }
+        }
+
+        ShuffleColumns(
+            result
+        );
+
+        return result;
+    }
+
+    private void AddColumnIfAvailable(
+        List<int> columns,
+        int column,
+        int maximumCount)
+    {
+        if (columns.Count >=
+            maximumCount)
+        {
+            return;
+        }
+
+        if (columns.Contains(
+                column))
+        {
+            return;
+        }
+
+        columns.Add(
+            column
+        );
+    }
+
     private List<int> CreateRandomUniqueColumns(
         int count)
     {
@@ -804,16 +1121,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             );
 
         List<int> columns =
-            new List<int>();
-
-        for (int i = 0;
-             i < columnCount;
-             i++)
-        {
-            columns.Add(
-                i
-            );
-        }
+            CreateAllColumns();
 
         ShuffleColumns(
             columns
@@ -825,6 +1133,21 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                 count,
                 columns.Count - count
             );
+        }
+
+        return columns;
+    }
+
+    private List<int> CreateAllColumns()
+    {
+        List<int> columns =
+            new List<int>();
+
+        for (int i = 0;
+             i < columnCount;
+             i++)
+        {
+            columns.Add(i);
         }
 
         return columns;
