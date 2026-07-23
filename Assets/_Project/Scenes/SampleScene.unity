@@ -829,8 +829,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
-  m_Type: 1
+  m_Sprite: {fileID: 0}
+  m_Type: 3
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 0
@@ -1612,6 +1612,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlockWaveGenerator
   blockPrefab: {fileID: 5741669861215845034, guid: 63c51ec1f2fb1cc41817829b42d6d84e, type: 3}
   blockContainer: {fileID: 568326274}
+  blockCatalog: {fileID: 11400000, guid: c4c0d4c097d226e4ca087745d48ea6b0, type: 2}
+  defaultWaveBlockType: 0
   columnCount: 9
   cellSize: 1
   minimumRowsPerWave: 2
@@ -1625,6 +1627,7 @@ MonoBehaviour:
   healthIncreasePerWave: 2
   startingBlockAttack: 1
   attackIncreasePerWave: 0
+  showSpawnDebugLog: 0
 --- !u!114 &987058001
 MonoBehaviour:
   m_ObjectHideFlags: 0

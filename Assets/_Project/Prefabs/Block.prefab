@@ -89,7 +89,7 @@ SpriteRenderer:
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
-  m_DrawMode: 0
+  m_DrawMode: 1
   m_Size: {x: 1, y: 1}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
@@ -136,10 +136,10 @@ BoxCollider2D:
     oldSize: {x: 1, y: 1}
     newSize: {x: 1, y: 1}
     adaptiveTilingThreshold: 0.5
-    drawMode: 0
+    drawMode: 1
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1, y: 1}
+  m_Size: {x: 0.96, y: 0.96}
   m_EdgeRadius: 0
 --- !u!114 &5741669861215845034
 MonoBehaviour:
@@ -155,6 +155,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Block
   definition: {fileID: 0}
   visualRenderer: {fileID: 3393377270723199479}
+  boxCollider: {fileID: 8902717914776242626}
+  colliderInset: 0.02
+  runtimeCellSize: 1
   maxHealth: 3
   attackPower: 2
 --- !u!114 &7281401101237391874
@@ -171,12 +174,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlockHealthView
   block: {fileID: 5741669861215845034}
   healthText: {fileID: 3319585403658531106}
-  blockSpriteRenderer: {fileID: 0}
+  blockSpriteRenderer: {fileID: 3393377270723199479}
   showMaximumHealth: 0
   maximumFontSize: 36
   minimumFontSize: 12
   textColor: {r: 1, g: 1, b: 1, a: 1}
-  textRectSize: {x: 10, y: 5}
+  baseTextRectSize: {x: 10, y: 5}
+  fitTextAreaToGridSize: 1
   textLocalScale: {x: 0.1, y: 0.1, z: 1}
   sortingOrderOffset: 2
   textLocalZ: -0.1
@@ -207,7 +211,7 @@ RectTransform:
   m_GameObject: {fileID: 1430352254046490565}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -0.1}
-  m_LocalScale: {x: 0.2, y: 0.2, z: 1}
+  m_LocalScale: {x: 0.1, y: 0.1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2542385676850369577}
@@ -215,7 +219,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 2, y: 1}
+  m_SizeDelta: {x: 10, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &7601024668134070692
 MeshRenderer:

@@ -17,29 +17,32 @@ public sealed class BlockDefinition : ScriptableObject
     private BlockType blockType =
         BlockType.Normal;
 
+    [Header("Grid Size")]
+    [Tooltip(
+        "블록이 그리드에서 차지하는 크기입니다. " +
+        "X는 가로 칸 수, Y는 세로 칸 수입니다."
+    )]
+    [SerializeField]
+    private Vector2Int gridSize =
+        Vector2Int.one;
+
     [Header("Visual")]
     [SerializeField]
     private Sprite sprite;
 
-    [Tooltip(
-        "스프라이트에 적용할 색상입니다. " +
-        "기본값은 흰색입니다."
-    )]
     [SerializeField]
-    private Color color = Color.white;
+    private Color color =
+        Color.white;
 
     [Tooltip(
-        "블록 이미지의 로컬 크기 배율입니다."
+        "계산된 블록 크기에 추가로 적용할 " +
+        "외형 배율입니다."
     )]
     [SerializeField]
     private Vector3 visualScale =
         Vector3.one;
 
     [Header("Random Selection")]
-    [Tooltip(
-        "같은 종류의 블록 중 랜덤으로 선택될 확률의 가중치입니다. " +
-        "세 블록을 동일하게 뽑으려면 전부 1로 설정합니다."
-    )]
     [SerializeField, Min(0)]
     private int selectionWeight = 1;
 
@@ -51,6 +54,12 @@ public sealed class BlockDefinition : ScriptableObject
 
     public BlockType BlockType =>
         blockType;
+
+    public Vector2Int GridSize =>
+        new Vector2Int(
+            Mathf.Max(1, gridSize.x),
+            Mathf.Max(1, gridSize.y)
+        );
 
     public Sprite Sprite =>
         sprite;
@@ -66,15 +75,22 @@ public sealed class BlockDefinition : ScriptableObject
 
     private void OnValidate()
     {
-        if (string.IsNullOrWhiteSpace(blockId))
+        if (string.IsNullOrWhiteSpace(
+                blockId))
         {
             blockId = name;
         }
 
-        selectionWeight =
+        gridSize.x =
             Mathf.Max(
-                selectionWeight,
-                0
+                gridSize.x,
+                1
+            );
+
+        gridSize.y =
+            Mathf.Max(
+                gridSize.y,
+                1
             );
 
         visualScale.x =
@@ -93,6 +109,12 @@ public sealed class BlockDefinition : ScriptableObject
             Mathf.Max(
                 visualScale.z,
                 0.01f
+            );
+
+        selectionWeight =
+            Mathf.Max(
+                selectionWeight,
+                0
             );
     }
 }

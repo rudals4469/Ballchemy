@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-[RequireComponent(typeof(Collider2D))]
+[RequireComponent(typeof(BoxCollider2D))]
 public sealed class Block : MonoBehaviour
 {
     [Header("Definition")]
@@ -10,6 +10,20 @@ public sealed class Block : MonoBehaviour
 
     [SerializeField]
     private SpriteRenderer visualRenderer;
+
+    [SerializeField]
+    private BoxCollider2D boxCollider;
+
+    [Header("Layout")]
+    [Tooltip(
+        "블록 콜라이더 가장자리에서 " +
+        "안쪽으로 줄일 크기입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float colliderInset = 0.02f;
+
+    [SerializeField, Min(0.1f)]
+    private float runtimeCellSize = 1f;
 
     [Header("Runtime Stats")]
     [SerializeField, Min(1)]
@@ -33,6 +47,20 @@ public sealed class Block : MonoBehaviour
             ? definition.BlockType
             : BlockType.Normal;
 
+    public Vector2Int GridSize =>
+        definition != null
+            ? definition.GridSize
+            : Vector2Int.one;
+
+    public float CellSize =>
+        runtimeCellSize;
+
+    public Vector2 WorldSize =>
+        new Vector2(
+            GridSize.x * runtimeCellSize,
+            GridSize.y * runtimeCellSize
+        );
+
     public int CurrentHealth =>
         currentHealth;
 
@@ -51,6 +79,9 @@ public sealed class Block : MonoBehaviour
     public event Action<BlockDefinition>
         DefinitionChanged;
 
+    public event Action<Vector2Int, float>
+        LayoutChanged;
+
     private void Awake()
     {
         FindReferences();
@@ -59,6 +90,7 @@ public sealed class Block : MonoBehaviour
             maxHealth;
 
         ApplyDefinitionVisual();
+        ApplyLayout();
     }
 
     private void OnValidate()
@@ -75,8 +107,21 @@ public sealed class Block : MonoBehaviour
                 0
             );
 
+        runtimeCellSize =
+            Mathf.Max(
+                runtimeCellSize,
+                0.1f
+            );
+
+        colliderInset =
+            Mathf.Max(
+                colliderInset,
+                0f
+            );
+
         FindReferences();
         ApplyDefinitionVisual();
+        ApplyLayout();
     }
 
     private void FindReferences()
@@ -94,6 +139,12 @@ public sealed class Block : MonoBehaviour
                     SpriteRenderer
                 >();
         }
+
+        if (boxCollider == null)
+        {
+            boxCollider =
+                GetComponent<BoxCollider2D>();
+        }
     }
 
     public void Initialize(
@@ -106,6 +157,7 @@ public sealed class Block : MonoBehaviour
         );
 
         ApplyDefinitionVisual();
+        ApplyLayout();
 
         gameObject.SetActive(
             true
@@ -117,9 +169,31 @@ public sealed class Block : MonoBehaviour
         int health,
         int attack)
     {
-        ApplyDefinition(
-            blockDefinition
+        Initialize(
+            blockDefinition,
+            health,
+            attack,
+            runtimeCellSize
         );
+    }
+
+    public void Initialize(
+        BlockDefinition blockDefinition,
+        int health,
+        int attack,
+        float cellSize)
+    {
+        definition =
+            blockDefinition;
+
+        runtimeCellSize =
+            Mathf.Max(
+                cellSize,
+                0.1f
+            );
+
+        ApplyDefinitionVisual();
+        ApplyLayout();
 
         SetRuntimeStats(
             health,
@@ -129,10 +203,29 @@ public sealed class Block : MonoBehaviour
         gameObject.SetActive(
             true
         );
+
+        DefinitionChanged?.Invoke(
+            definition
+        );
+
+        LayoutChanged?.Invoke(
+            GridSize,
+            runtimeCellSize
+        );
     }
 
     public void ApplyDefinition(
         BlockDefinition blockDefinition)
+    {
+        ApplyDefinition(
+            blockDefinition,
+            runtimeCellSize
+        );
+    }
+
+    public void ApplyDefinition(
+        BlockDefinition blockDefinition,
+        float cellSize)
     {
         if (blockDefinition == null)
         {
@@ -148,10 +241,22 @@ public sealed class Block : MonoBehaviour
         definition =
             blockDefinition;
 
+        runtimeCellSize =
+            Mathf.Max(
+                cellSize,
+                0.1f
+            );
+
         ApplyDefinitionVisual();
+        ApplyLayout();
 
         DefinitionChanged?.Invoke(
             definition
+        );
+
+        LayoutChanged?.Invoke(
+            GridSize,
+            runtimeCellSize
         );
     }
 
@@ -182,23 +287,74 @@ public sealed class Block : MonoBehaviour
 
     private void ApplyDefinitionVisual()
     {
-        if (definition == null ||
-            visualRenderer == null)
+        if (visualRenderer == null)
         {
             return;
         }
 
-        if (definition.Sprite != null)
+        if (definition != null)
         {
-            visualRenderer.sprite =
-                definition.Sprite;
+            if (definition.Sprite != null)
+            {
+                visualRenderer.sprite =
+                    definition.Sprite;
+            }
+
+            visualRenderer.color =
+                definition.Color;
+        }
+    }
+
+    private void ApplyLayout()
+    {
+        Vector2 calculatedWorldSize =
+            WorldSize;
+
+        Vector3 visualScale =
+            definition != null
+                ? definition.VisualScale
+                : Vector3.one;
+
+        if (visualRenderer != null)
+        {
+            visualRenderer.drawMode =
+                SpriteDrawMode.Sliced;
+
+            visualRenderer.size =
+                new Vector2(
+                    calculatedWorldSize.x *
+                    visualScale.x,
+
+                    calculatedWorldSize.y *
+                    visualScale.y
+                );
         }
 
-        visualRenderer.color =
-            definition.Color;
+        if (boxCollider != null)
+        {
+            float colliderWidth =
+                Mathf.Max(
+                    calculatedWorldSize.x -
+                    (colliderInset * 2f),
+                    0.05f
+                );
 
-        visualRenderer.transform.localScale =
-            definition.VisualScale;
+            float colliderHeight =
+                Mathf.Max(
+                    calculatedWorldSize.y -
+                    (colliderInset * 2f),
+                    0.05f
+                );
+
+            boxCollider.size =
+                new Vector2(
+                    colliderWidth,
+                    colliderHeight
+                );
+
+            boxCollider.offset =
+                Vector2.zero;
+        }
     }
 
     public void TakeDamage(

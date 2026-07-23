@@ -18,47 +18,49 @@ public sealed class BlockHealthView : MonoBehaviour
     private bool showMaximumHealth;
 
     [Header("Auto Size")]
-    [Tooltip(
-        "숫자가 짧을 때 사용할 최대 글자 크기입니다."
-    )]
     [SerializeField, Min(1f)]
     private float maximumFontSize = 36f;
 
-    [Tooltip(
-        "숫자가 길어질 때 줄어들 수 있는 최소 글자 크기입니다."
-    )]
     [SerializeField, Min(1f)]
     private float minimumFontSize = 12f;
 
     [SerializeField]
-    private Color textColor = Color.white;
+    private Color textColor =
+        Color.white;
 
+    [Header("Text Layout")]
     [Tooltip(
-        "TextMeshPro가 사용할 영역 크기입니다."
+        "1×1 블록을 기준으로 한 " +
+        "TextMeshPro 영역 크기입니다."
     )]
     [SerializeField]
-    private Vector2 textRectSize =
+    private Vector2 baseTextRectSize =
         new Vector2(10f, 5f);
+
+    [Tooltip(
+        "블록 크기에 맞춰 텍스트 영역을 " +
+        "자동으로 확장합니다."
+    )]
+    [SerializeField]
+    private bool fitTextAreaToGridSize = true;
 
     [SerializeField]
     private Vector3 textLocalScale =
-        new Vector3(0.1f, 0.1f, 1f);
+        new Vector3(
+            0.1f,
+            0.1f,
+            1f
+        );
 
-    [Tooltip(
-        "블록의 Order in Layer보다 " +
-        "얼마나 높게 표시할지 결정합니다."
-    )]
     [SerializeField]
     private int sortingOrderOffset = 2;
 
-    [Tooltip(
-        "카메라 방향으로 텍스트를 조금 앞에 배치합니다."
-    )]
     [SerializeField]
     private float textLocalZ = -0.1f;
 
     private MeshRenderer textMeshRenderer;
     private RectTransform textRectTransform;
+
     private bool isSubscribed;
 
     private void Awake()
@@ -71,6 +73,7 @@ public sealed class BlockHealthView : MonoBehaviour
     private void OnEnable()
     {
         Subscribe();
+        ApplyTextSettings();
         Refresh();
     }
 
@@ -95,17 +98,20 @@ public sealed class BlockHealthView : MonoBehaviour
                 maximumFontSize
             );
 
-        textRectSize.x =
+        baseTextRectSize.x =
             Mathf.Max(
-                textRectSize.x,
+                baseTextRectSize.x,
                 0.1f
             );
 
-        textRectSize.y =
+        baseTextRectSize.y =
             Mathf.Max(
-                textRectSize.y,
+                baseTextRectSize.y,
                 0.1f
             );
+
+        FindReferences();
+        ApplyTextSettings();
     }
 
     private void FindReferences()
@@ -125,9 +131,9 @@ public sealed class BlockHealthView : MonoBehaviour
         if (healthText == null)
         {
             healthText =
-                GetComponentInChildren<TextMeshPro>(
-                    true
-                );
+                GetComponentInChildren<
+                    TextMeshPro
+                >(true);
         }
 
         if (blockSpriteRenderer == null)
@@ -139,7 +145,9 @@ public sealed class BlockHealthView : MonoBehaviour
         if (blockSpriteRenderer == null)
         {
             blockSpriteRenderer =
-                GetComponentInChildren<SpriteRenderer>();
+                GetComponentInChildren<
+                    SpriteRenderer
+                >();
         }
 
         if (healthText == null)
@@ -148,10 +156,14 @@ public sealed class BlockHealthView : MonoBehaviour
         }
 
         textMeshRenderer =
-            healthText.GetComponent<MeshRenderer>();
+            healthText.GetComponent<
+                MeshRenderer
+            >();
 
         textRectTransform =
-            healthText.GetComponent<RectTransform>();
+            healthText.GetComponent<
+                RectTransform
+            >();
     }
 
     private void ApplyTextSettings()
@@ -180,7 +192,7 @@ public sealed class BlockHealthView : MonoBehaviour
         if (textRectTransform != null)
         {
             textRectTransform.sizeDelta =
-                textRectSize;
+                CalculateTextRectSize();
         }
 
         healthText.color =
@@ -189,7 +201,6 @@ public sealed class BlockHealthView : MonoBehaviour
         healthText.alignment =
             TextAlignmentOptions.Center;
 
-        // 숫자가 길어지면 자동으로 글자 크기를 줄인다.
         healthText.enableAutoSizing =
             true;
 
@@ -199,7 +210,6 @@ public sealed class BlockHealthView : MonoBehaviour
         healthText.fontSizeMin =
             minimumFontSize;
 
-        // 숫자가 두 줄로 나뉘지 않게 한다.
         healthText.enableWordWrapping =
             false;
 
@@ -218,6 +228,26 @@ public sealed class BlockHealthView : MonoBehaviour
         }
 
         healthText.ForceMeshUpdate();
+    }
+
+    private Vector2 CalculateTextRectSize()
+    {
+        if (!fitTextAreaToGridSize ||
+            block == null)
+        {
+            return baseTextRectSize;
+        }
+
+        Vector2Int gridSize =
+            block.GridSize;
+
+        return new Vector2(
+            baseTextRectSize.x *
+            gridSize.x,
+
+            baseTextRectSize.y *
+            gridSize.y
+        );
     }
 
     private void ValidateReferences()
@@ -245,8 +275,7 @@ public sealed class BlockHealthView : MonoBehaviour
         {
             Debug.LogError(
                 "BlockHealthView: " +
-                "블록 SpriteRenderer를 " +
-                "찾지 못했습니다.",
+                "SpriteRenderer를 찾지 못했습니다.",
                 this
             );
         }
@@ -263,6 +292,9 @@ public sealed class BlockHealthView : MonoBehaviour
         block.HealthChanged +=
             HandleHealthChanged;
 
+        block.LayoutChanged +=
+            HandleLayoutChanged;
+
         isSubscribed = true;
     }
 
@@ -276,6 +308,9 @@ public sealed class BlockHealthView : MonoBehaviour
 
         block.HealthChanged -=
             HandleHealthChanged;
+
+        block.LayoutChanged -=
+            HandleLayoutChanged;
 
         isSubscribed = false;
     }
@@ -301,6 +336,14 @@ public sealed class BlockHealthView : MonoBehaviour
             currentHealth,
             maxHealth
         );
+    }
+
+    private void HandleLayoutChanged(
+        Vector2Int gridSize,
+        float cellSize)
+    {
+        ApplyTextSettings();
+        Refresh();
     }
 
     private void UpdateText(
