@@ -16,6 +16,15 @@ public sealed class Ball : MonoBehaviour
     [SerializeField, Min(0f)]
     private float verticalDirectionThreshold = 0.05f;
 
+    [Header("Bounce")]
+    [SerializeField]
+    private BallBounceResolver bounceResolver =
+        new BallBounceResolver();
+
+    [SerializeField]
+    private BallLoopEscape loopEscape =
+        new BallLoopEscape();
+
     [Header("Combat")]
     [SerializeField, Min(1)]
     private int damage = 1;
@@ -23,6 +32,9 @@ public sealed class Ball : MonoBehaviour
     private static int activeMovingBallCount;
 
     private Rigidbody2D body;
+    private CircleCollider2D circleCollider;
+
+    private Vector2 lastPhysicsVelocity;
 
     private bool isMoving;
     private bool hasMovedUpward;
@@ -70,7 +82,76 @@ public sealed class Ball : MonoBehaviour
         body =
             GetComponent<Rigidbody2D>();
 
+        circleCollider =
+            GetComponent<CircleCollider2D>();
+
+        EnsureHelpers();
+        ConfigureRigidbody();
+
+        loopEscape.Initialize(
+            GetInstanceID()
+        );
+
         StopMovement();
+    }
+
+    private void OnValidate()
+    {
+        moveSpeed =
+            Mathf.Max(
+                moveSpeed,
+                0.1f
+            );
+
+        verticalDirectionThreshold =
+            Mathf.Max(
+                verticalDirectionThreshold,
+                0f
+            );
+
+        damage =
+            Mathf.Max(
+                damage,
+                1
+            );
+
+        EnsureHelpers();
+
+        bounceResolver.Normalize();
+        loopEscape.Normalize();
+    }
+
+    private void EnsureHelpers()
+    {
+        if (bounceResolver == null)
+        {
+            bounceResolver =
+                new BallBounceResolver();
+        }
+
+        if (loopEscape == null)
+        {
+            loopEscape =
+                new BallLoopEscape();
+        }
+    }
+
+    private void ConfigureRigidbody()
+    {
+        if (body == null)
+        {
+            return;
+        }
+
+        body.gravityScale = 0f;
+
+        body.freezeRotation = true;
+
+        body.collisionDetectionMode =
+            CollisionDetectionMode2D.Continuous;
+
+        body.interpolation =
+            RigidbodyInterpolation2D.Interpolate;
     }
 
     private void FixedUpdate()
@@ -92,6 +173,9 @@ public sealed class Ball : MonoBehaviour
 
             body.linearVelocity =
                 currentVelocity;
+
+            lastPhysicsVelocity =
+                currentVelocity;
         }
 
         UpdateVerticalMovementState(
@@ -106,6 +190,7 @@ public sealed class Ball : MonoBehaviour
             verticalDirectionThreshold)
         {
             hasMovedUpward = true;
+
             return;
         }
 
@@ -123,7 +208,8 @@ public sealed class Ball : MonoBehaviour
         hasStartedDescending = true;
     }
 
-    public void Launch(Vector2 direction)
+    public void Launch(
+        Vector2 direction)
     {
         if (direction.sqrMagnitude <=
             0.001f)
@@ -143,15 +229,24 @@ public sealed class Ball : MonoBehaviour
         hasMovedUpward = false;
         hasStartedDescending = false;
 
+        loopEscape.ResetRuntime();
+
         isMoving = true;
         body.simulated = true;
 
-        body.linearVelocity =
+        Vector2 launchVelocity =
             direction.normalized *
             moveSpeed;
+
+        body.linearVelocity =
+            launchVelocity;
+
+        lastPhysicsVelocity =
+            launchVelocity;
     }
 
-    public void ResetTo(Vector2 position)
+    public void ResetTo(
+        Vector2 position)
     {
         StopMovement();
 
@@ -168,7 +263,8 @@ public sealed class Ball : MonoBehaviour
         {
             activeMovingBallCount =
                 Mathf.Max(
-                    activeMovingBallCount - 1,
+                    activeMovingBallCount -
+                    1,
                     0
                 );
 
@@ -178,6 +274,14 @@ public sealed class Ball : MonoBehaviour
         }
 
         isMoving = false;
+
+        hasMovedUpward = false;
+        hasStartedDescending = false;
+
+        lastPhysicsVelocity =
+            Vector2.zero;
+
+        loopEscape?.ResetRuntime();
 
         if (body == null)
         {
@@ -197,19 +301,98 @@ public sealed class Ball : MonoBehaviour
     private void OnCollisionEnter2D(
         Collision2D collision)
     {
-        if (!isMoving)
+        if (!isMoving ||
+            body == null)
         {
             return;
         }
 
-        if (!collision.gameObject.TryGetComponent(
-                out Block block
-            ))
+        Vector2 incomingVelocity =
+            lastPhysicsVelocity;
+
+        if (incomingVelocity.sqrMagnitude <=
+            0.0001f)
         {
-            return;
+            incomingVelocity =
+                body.linearVelocity;
         }
 
-        if (!block.IsAlive)
+        Block hitBlock =
+            FindHitBlock(
+                collision
+            );
+
+        bool resolvedBounce =
+            bounceResolver.TryResolve(
+                collision,
+                circleCollider,
+                incomingVelocity,
+                moveSpeed,
+                out Vector2 outgoingVelocity,
+                out Vector2 resolvedNormal,
+                out Collider2D hitCollider
+            );
+
+        if (resolvedBounce)
+        {
+            if (hitBlock == null &&
+                hitCollider != null)
+            {
+                hitBlock =
+                    hitCollider
+                        .GetComponentInParent<Block>();
+            }
+
+            bool escapedLoop =
+                loopEscape.TryEscape(
+                    hitBlock,
+                    resolvedNormal,
+                    outgoingVelocity,
+                    body.position,
+                    moveSpeed,
+                    out Vector2 escapedVelocity
+                );
+
+            body.linearVelocity =
+                escapedLoop
+                    ? escapedVelocity
+                    : outgoingVelocity;
+
+            lastPhysicsVelocity =
+                body.linearVelocity;
+        }
+
+        HandleBlockHit(
+            hitBlock
+        );
+    }
+
+    private Block FindHitBlock(
+        Collision2D collision)
+    {
+        if (collision == null)
+        {
+            return null;
+        }
+
+        Block hitBlock =
+            collision.gameObject
+                .GetComponent<Block>();
+
+        if (hitBlock != null)
+        {
+            return hitBlock;
+        }
+
+        return collision.gameObject
+            .GetComponentInParent<Block>();
+    }
+
+    private void HandleBlockHit(
+        Block block)
+    {
+        if (block == null ||
+            !block.IsAlive)
         {
             return;
         }
@@ -254,7 +437,8 @@ public sealed class Ball : MonoBehaviour
 
         activeMovingBallCount =
             Mathf.Max(
-                activeMovingBallCount - 1,
+                activeMovingBallCount -
+                1,
                 0
             );
 

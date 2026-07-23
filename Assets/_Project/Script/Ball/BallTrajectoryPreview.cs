@@ -20,7 +20,12 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
 
     [SerializeField]
     private Color shortAimLineColor =
-        new Color(1f, 1f, 1f, 0.9f);
+        new Color(
+            1f,
+            1f,
+            1f,
+            0.9f
+        );
 
     [Header("Long Trajectory Appearance")]
     [Tooltip(
@@ -32,16 +37,29 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
 
     [SerializeField]
     private Color trajectoryLineColor =
-        new Color(1f, 1f, 1f, 0.28f);
+        new Color(
+            1f,
+            1f,
+            1f,
+            0.28f
+        );
 
     [Header("Trajectory Calculation")]
-    [Tooltip("예상 경로의 최대 전체 길이입니다.")]
+    [Tooltip(
+        "예상 경로의 최대 전체 길이입니다."
+    )]
     [SerializeField, Min(1f)]
     private float trajectoryDistance = 35f;
 
-    [Tooltip("예상 경로의 최대 반사 횟수입니다.")]
+    [Tooltip(
+        "예상 경로의 최대 반사 횟수입니다."
+    )]
     [SerializeField, Range(0, 20)]
     private int maximumTrajectoryBounces = 8;
+
+    [SerializeField]
+    private BallBounceResolver bounceResolver =
+        new BallBounceResolver();
 
     [Tooltip(
         "Ball Prefab의 CircleCollider2D 크기를 " +
@@ -71,11 +89,13 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
     [SerializeField]
     private LayerMask trajectoryCollisionMask = ~0;
 
-    private readonly List<Vector3> trajectoryPoints =
-        new List<Vector3>();
+    private readonly List<Vector3>
+        trajectoryPoints =
+            new List<Vector3>();
 
-    private readonly List<Vector3> visibleTrajectoryPoints =
-        new List<Vector3>();
+    private readonly List<Vector3>
+        visibleTrajectoryPoints =
+            new List<Vector3>();
 
     private float cachedTrajectoryRadius;
     private float trajectoryRevealTimer;
@@ -84,6 +104,55 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
     private bool isLongPreviewActive;
 
     private void Awake()
+    {
+        EnsureHelpers();
+        FindReferences();
+        ValidateReferences();
+        InitializeAimLine();
+        InitializeTrajectoryRadius();
+    }
+
+    private void OnValidate()
+    {
+        trajectoryDistance =
+            Mathf.Max(
+                trajectoryDistance,
+                1f
+            );
+
+        manualTrajectoryRadius =
+            Mathf.Max(
+                manualTrajectoryRadius,
+                0.01f
+            );
+
+        trajectorySkinWidth =
+            Mathf.Max(
+                trajectorySkinWidth,
+                0.001f
+            );
+
+        trajectoryRevealDuration =
+            Mathf.Max(
+                trajectoryRevealDuration,
+                0f
+            );
+
+        EnsureHelpers();
+
+        bounceResolver.Normalize();
+    }
+
+    private void EnsureHelpers()
+    {
+        if (bounceResolver == null)
+        {
+            bounceResolver =
+                new BallBounceResolver();
+        }
+    }
+
+    private void FindReferences()
     {
         if (aimLine == null)
         {
@@ -104,10 +173,6 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                     ballLauncher.BallPrefab;
             }
         }
-
-        ValidateReferences();
-        InitializeAimLine();
-        InitializeTrajectoryRadius();
     }
 
     private void Update()
@@ -138,7 +203,11 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         float smoothProgress =
             revealProgress *
             revealProgress *
-            (3f - (2f * revealProgress));
+            (
+                3f -
+                2f *
+                revealProgress
+            );
 
         RenderTrajectory(
             smoothProgress
@@ -210,8 +279,12 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
 
         float largestScale =
             Mathf.Max(
-                Mathf.Abs(prefabScale.x),
-                Mathf.Abs(prefabScale.y)
+                Mathf.Abs(
+                    prefabScale.x
+                ),
+                Mathf.Abs(
+                    prefabScale.y
+                )
             );
 
         cachedTrajectoryRadius =
@@ -226,7 +299,8 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         Vector2 direction)
     {
         if (aimLine == null ||
-            direction.sqrMagnitude <= 0.001f)
+            direction.sqrMagnitude <=
+            0.001f)
         {
             return;
         }
@@ -265,7 +339,8 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         Vector2 direction)
     {
         if (aimLine == null ||
-            direction.sqrMagnitude <= 0.001f)
+            direction.sqrMagnitude <=
+            0.001f)
         {
             return false;
         }
@@ -282,7 +357,8 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
         trajectoryTotalLength =
             CalculateTrajectoryTotalLength();
 
-        if (trajectoryTotalLength <= 0.001f)
+        if (trajectoryTotalLength <=
+            0.001f)
         {
             return false;
         }
@@ -294,7 +370,9 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             trajectoryLineColor
         );
 
-        RenderTrajectory(0f);
+        RenderTrajectory(
+            0f
+        );
 
         return true;
     }
@@ -358,10 +436,8 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             {
                 Vector2 finalPoint =
                     castOrigin +
-                    (
-                        castDirection *
-                        remainingDistance
-                    );
+                    castDirection *
+                    remainingDistance;
 
                 AddTrajectoryPoint(
                     finalPoint
@@ -397,17 +473,25 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                 break;
             }
 
-            Vector2 reflectedDirection =
-                Vector2.Reflect(
+            bool resolvedBounce =
+                bounceResolver.TryResolve(
+                    closestHit.collider,
+                    closestHit.point,
+                    closestHit.normal,
                     castDirection,
-                    closestHit.normal
-                ).normalized;
+                    1f,
+                    out Vector2 reflectedDirection,
+                    out Vector2 resolvedNormal
+                );
 
-            if (reflectedDirection.sqrMagnitude <=
+            if (!resolvedBounce ||
+                reflectedDirection.sqrMagnitude <=
                 0.001f)
             {
                 break;
             }
+
+            reflectedDirection.Normalize();
 
             bounceCount++;
 
@@ -416,10 +500,8 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
 
             castOrigin =
                 collisionCenter +
-                (
-                    reflectedDirection *
-                    trajectorySkinWidth
-                );
+                reflectedDirection *
+                trajectorySkinWidth;
 
             remainingDistance -=
                 trajectorySkinWidth;
@@ -441,28 +523,37 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                 trajectoryCollisionMask
             );
 
-        closestHit = default;
+        closestHit =
+            default;
 
         float closestDistance =
             float.MaxValue;
 
-        bool foundHit = false;
+        bool foundHit =
+            false;
 
-        foreach (RaycastHit2D hit in hits)
+        for (int i = 0;
+             i < hits.Length;
+             i++)
         {
+            RaycastHit2D hit =
+                hits[i];
+
             if (hit.collider == null)
             {
                 continue;
             }
 
             if (hit.distance <=
-                trajectorySkinWidth * 0.5f)
+                trajectorySkinWidth *
+                0.5f)
             {
                 continue;
             }
 
             Ball hitBall =
-                hit.collider.GetComponentInParent<Ball>();
+                hit.collider
+                    .GetComponentInParent<Ball>();
 
             if (hitBall != null)
             {
@@ -486,8 +577,11 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             closestDistance =
                 hit.distance;
 
-            closestHit = hit;
-            foundHit = true;
+            closestHit =
+                hit;
+
+            foundHit =
+                true;
         }
 
         return foundHit;
@@ -517,7 +611,9 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
 
         float targetDistance =
             trajectoryTotalLength *
-            Mathf.Clamp01(progress);
+            Mathf.Clamp01(
+                progress
+            );
 
         if (targetDistance <= 0f)
         {
@@ -526,6 +622,7 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             );
 
             ApplyVisibleTrajectoryPoints();
+
             return;
         }
 
@@ -548,7 +645,8 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
                     segmentEnd
                 );
 
-            if (segmentLength <= 0.0001f)
+            if (segmentLength <=
+                0.0001f)
             {
                 continue;
             }
@@ -584,7 +682,8 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             break;
         }
 
-        if (visibleTrajectoryPoints.Count == 1)
+        if (visibleTrajectoryPoints.Count ==
+            1)
         {
             visibleTrajectoryPoints.Add(
                 firstPoint
@@ -638,8 +737,11 @@ public sealed class BallTrajectoryPreview : MonoBehaviour
             return;
         }
 
-        aimLine.startColor = color;
-        aimLine.endColor = color;
+        aimLine.startColor =
+            color;
+
+        aimLine.endColor =
+            color;
     }
 
     private void AddTrajectoryPoint(

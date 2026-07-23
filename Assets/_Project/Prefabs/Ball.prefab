@@ -170,4 +170,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ball
   moveSpeed: 12
+  verticalDirectionThreshold: 0.05
   damage: 1
