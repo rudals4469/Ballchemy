@@ -6,6 +6,9 @@ public sealed class BlockWaveGenerator : MonoBehaviour
 {
     [Header("References")]
     [SerializeField]
+    private BoardGrid boardGrid;
+
+    [SerializeField]
     private Block blockPrefab;
 
     [SerializeField]
@@ -21,13 +24,6 @@ public sealed class BlockWaveGenerator : MonoBehaviour
     [SerializeField]
     private BlockType defaultWaveBlockType =
         BlockType.Normal;
-
-    [Header("Grid Settings")]
-    [SerializeField, Range(3, 15)]
-    private int columnCount = 9;
-
-    [SerializeField, Min(0.1f)]
-    private float cellSize = 1f;
 
     [Header("Wave Row Settings")]
     [SerializeField, Min(1)]
@@ -83,13 +79,26 @@ public sealed class BlockWaveGenerator : MonoBehaviour
     [SerializeField]
     private bool showSpawnDebugLog;
 
+    public BoardGrid BoardGrid =>
+        boardGrid;
+
     public float CellSize =>
-        cellSize;
+        boardGrid != null
+            ? boardGrid.CellSize
+            : 1f;
 
     public int ColumnCount =>
-        columnCount;
+        boardGrid != null
+            ? boardGrid.ColumnCount
+            : 0;
+
+    public int RowCount =>
+        boardGrid != null
+            ? boardGrid.RowCount
+            : 0;
 
     public bool IsReady =>
+        boardGrid != null &&
         blockPrefab != null;
 
     public BlockCatalog BlockCatalog =>
@@ -97,11 +106,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
 
     private void Awake()
     {
-        if (blockContainer == null)
-        {
-            blockContainer = transform;
-        }
-
+        FindReferences();
         NormalizeSettings();
         ValidateReferences();
     }
@@ -111,44 +116,65 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         NormalizeSettings();
     }
 
+    private void FindReferences()
+    {
+        if (boardGrid == null)
+        {
+            boardGrid =
+                FindFirstObjectByType<BoardGrid>();
+        }
+
+        if (blockContainer == null)
+        {
+            blockContainer =
+                transform;
+        }
+    }
+
     private void NormalizeSettings()
     {
-        columnCount =
-            Mathf.Max(
-                columnCount,
-                1
-            );
+        int availableColumns =
+            boardGrid != null
+                ? Mathf.Max(
+                    boardGrid.ColumnCount,
+                    1
+                )
+                : 15;
 
-        cellSize =
-            Mathf.Max(
-                cellSize,
-                0.1f
-            );
+        int availableRows =
+            boardGrid != null
+                ? Mathf.Max(
+                    boardGrid.RowCount,
+                    1
+                )
+                : 100;
 
         minimumRowsPerWave =
-            Mathf.Max(
+            Mathf.Clamp(
                 minimumRowsPerWave,
-                1
+                1,
+                availableRows
             );
 
         maximumRowsPerWave =
-            Mathf.Max(
+            Mathf.Clamp(
                 maximumRowsPerWave,
-                minimumRowsPerWave
+                minimumRowsPerWave,
+                availableRows
             );
 
         minimumBlocksPerRow =
             Mathf.Clamp(
                 minimumBlocksPerRow,
                 1,
-                columnCount
+                availableColumns
             );
 
         maximumBlocksPerRow =
             Mathf.Clamp(
                 maximumBlocksPerRow,
                 minimumBlocksPerRow,
-                columnCount
+                availableColumns
             );
 
         minimumPillarColumns =
@@ -192,6 +218,15 @@ public sealed class BlockWaveGenerator : MonoBehaviour
 
     private void ValidateReferences()
     {
+        if (boardGrid == null)
+        {
+            Debug.LogError(
+                "BlockWaveGenerator: " +
+                "BoardGrid가 연결되지 않았습니다.",
+                this
+            );
+        }
+
         if (blockPrefab == null)
         {
             Debug.LogError(
@@ -213,9 +248,94 @@ public sealed class BlockWaveGenerator : MonoBehaviour
 
     public int GetRandomWaveRowCount()
     {
+        if (boardGrid == null)
+        {
+            return Mathf.Max(
+                minimumRowsPerWave,
+                1
+            );
+        }
+
+        int minimumRowCount =
+            Mathf.Clamp(
+                minimumRowsPerWave,
+                1,
+                boardGrid.RowCount
+            );
+
+        int maximumRowCount =
+            Mathf.Clamp(
+                maximumRowsPerWave,
+                minimumRowCount,
+                boardGrid.RowCount
+            );
+
         return Random.Range(
-            minimumRowsPerWave,
-            maximumRowsPerWave + 1
+            minimumRowCount,
+            maximumRowCount + 1
+        );
+    }
+
+    private int GetRandomBlockCountPerRow()
+    {
+        int availableColumns =
+            Mathf.Max(
+                ColumnCount,
+                1
+            );
+
+        int minimumBlockCount =
+            Mathf.Clamp(
+                minimumBlocksPerRow,
+                1,
+                availableColumns
+            );
+
+        int maximumBlockCount =
+            Mathf.Clamp(
+                maximumBlocksPerRow,
+                minimumBlockCount,
+                availableColumns
+            );
+
+        return Random.Range(
+            minimumBlockCount,
+            maximumBlockCount + 1
+        );
+    }
+
+    private int GetRandomPillarCount()
+    {
+        int availableColumns =
+            Mathf.Max(
+                ColumnCount,
+                1
+            );
+
+        int maximumAllowedPillars =
+            Mathf.Clamp(
+                minimumBlocksPerRow,
+                1,
+                availableColumns
+            );
+
+        int minimumPillars =
+            Mathf.Clamp(
+                minimumPillarColumns,
+                1,
+                maximumAllowedPillars
+            );
+
+        int maximumPillars =
+            Mathf.Clamp(
+                maximumPillarColumns,
+                minimumPillars,
+                maximumAllowedPillars
+            );
+
+        return Random.Range(
+            minimumPillars,
+            maximumPillars + 1
         );
     }
 
@@ -236,10 +356,19 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         int baseRowCount,
         BlockDefinition featuredDefinition)
     {
+        int maximumRows =
+            boardGrid != null
+                ? Mathf.Max(
+                    boardGrid.RowCount,
+                    1
+                )
+                : int.MaxValue;
+
         baseRowCount =
-            Mathf.Max(
+            Mathf.Clamp(
                 baseRowCount,
-                1
+                1,
+                maximumRows
             );
 
         if (featuredDefinition == null)
@@ -247,9 +376,16 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             return baseRowCount;
         }
 
-        return Mathf.Max(
-            baseRowCount,
-            featuredDefinition.GridSize.y
+        int requiredRowCount =
+            Mathf.Max(
+                baseRowCount,
+                featuredDefinition.GridSize.y
+            );
+
+        return Mathf.Clamp(
+            requiredRowCount,
+            1,
+            maximumRows
         );
     }
 
@@ -279,10 +415,6 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         );
     }
 
-    /// <summary>
-    /// 네임드나 보스 하나를 먼저 배치하고,
-    /// 남은 공간에 일반 블록을 채웁니다.
-    /// </summary>
     public List<Block> GenerateFeaturedWave(
         int rowCount,
         int waveIndex,
@@ -333,6 +465,18 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         List<Block> generatedBlocks =
             new List<Block>();
 
+        if (boardGrid == null)
+        {
+            Debug.LogError(
+                "BlockWaveGenerator: " +
+                "BoardGrid가 연결되지 않아 " +
+                "웨이브를 생성할 수 없습니다.",
+                this
+            );
+
+            return generatedBlocks;
+        }
+
         if (blockPrefab == null)
         {
             Debug.LogError(
@@ -345,9 +489,10 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         }
 
         rowCount =
-            Mathf.Max(
+            Mathf.Clamp(
                 rowCount,
-                1
+                1,
+                boardGrid.RowCount
             );
 
         waveIndex =
@@ -358,7 +503,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
 
         bool[,] occupiedCells =
             new bool[
-                columnCount,
+                boardGrid.ColumnCount,
                 rowCount
             ];
 
@@ -395,10 +540,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         }
 
         int pillarCount =
-            Random.Range(
-                minimumPillarColumns,
-                maximumPillarColumns + 1
-            );
+            GetRandomPillarCount();
 
         List<int> pillarColumns =
             CreateRandomUniqueColumns(
@@ -415,10 +557,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
              row++)
         {
             int targetBlockCount =
-                Random.Range(
-                    minimumBlocksPerRow,
-                    maximumBlocksPerRow + 1
-                );
+                GetRandomBlockCountPerRow();
 
             List<int> preferredColumns =
                 CreateWaveRowColumns(
@@ -449,12 +588,16 @@ public sealed class BlockWaveGenerator : MonoBehaviour
 
         string featuredTypeText =
             featuredDefinition != null
-                ? featuredDefinition.BlockType.ToString()
+                ? featuredDefinition
+                    .BlockType
+                    .ToString()
                 : "None";
 
         Debug.Log(
             "BlockWaveGenerator: " +
             $"웨이브 {waveIndex + 1} 생성 완료, " +
+            $"보드 {boardGrid.ColumnCount}x" +
+            $"{boardGrid.RowCount}, " +
             $"주요 블록 {featuredTypeText}, " +
             $"{rowCount}줄, " +
             $"블록 {generatedBlocks.Count}개, " +
@@ -479,14 +622,15 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         Vector2Int gridSize =
             definition.GridSize;
 
-        if (gridSize.x > columnCount ||
+        if (gridSize.x > ColumnCount ||
             gridSize.y > rowCount)
         {
             Debug.LogWarning(
                 "BlockWaveGenerator: " +
                 $"{definition.name}의 크기 " +
                 $"{gridSize.x}x{gridSize.y}가 " +
-                "현재 생성 영역보다 큽니다.",
+                $"현재 생성 영역 " +
+                $"{ColumnCount}x{rowCount}보다 큽니다.",
                 this
             );
 
@@ -494,7 +638,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         }
 
         int maximumStartColumn =
-            columnCount -
+            ColumnCount -
             gridSize.x;
 
         int startColumn =
@@ -854,7 +998,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             startRow +
             gridSize.y;
 
-        if (endColumn > columnCount ||
+        if (endColumn > ColumnCount ||
             endRow > rowCount)
         {
             return false;
@@ -927,11 +1071,18 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                 gridSize
             );
 
+        Quaternion spawnRotation =
+            boardGrid != null
+                ? boardGrid
+                    .transform
+                    .rotation
+                : Quaternion.identity;
+
         Block newBlock =
             Instantiate(
                 blockPrefab,
                 spawnPosition,
-                Quaternion.identity,
+                spawnRotation,
                 blockContainer
             );
 
@@ -959,7 +1110,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                 definition,
                 blockHealth,
                 blockAttack,
-                cellSize
+                CellSize
             );
         }
         else
@@ -970,6 +1121,13 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             );
         }
 
+        newBlock.SetGridPosition(
+            boardGrid,
+            startColumn,
+            startRow,
+            true
+        );
+
         if (showSpawnDebugLog)
         {
             Debug.Log(
@@ -977,7 +1135,10 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                 $"타입={requestedBlockType}, " +
                 $"데이터={definitionId}, " +
                 $"크기={gridSize.x}x{gridSize.y}, " +
-                $"시작 칸=({startColumn}, {startRow}), " +
+                $"시작 셀=({startColumn}, {startRow}), " +
+                $"끝 셀=({newBlock.EndColumn}, " +
+                $"{newBlock.EndRow}), " +
+                $"월드 위치={newBlock.transform.position}, " +
                 $"HP={blockHealth}, " +
                 $"공격력={blockAttack}",
                 newBlock
@@ -992,31 +1153,38 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         int startRow,
         Vector2Int gridSize)
     {
+        if (boardGrid == null)
+        {
+            return transform.position;
+        }
+
         Vector3 startCellPosition =
-            GetCellWorldPosition(
+            boardGrid.GetCellWorldPosition(
                 startColumn,
                 startRow
             );
 
-        float horizontalOffset =
+        float horizontalDistance =
             (gridSize.x - 1) *
-            cellSize *
+            CellSize *
             0.5f;
 
-        float verticalOffset =
+        float verticalDistance =
             (gridSize.y - 1) *
-            cellSize *
+            CellSize *
             0.5f;
 
-        return new Vector3(
-            startCellPosition.x +
-            horizontalOffset,
+        Vector3 horizontalOffset =
+            boardGrid.transform.right *
+            horizontalDistance;
 
-            startCellPosition.y -
-            verticalOffset,
+        Vector3 verticalOffset =
+            -boardGrid.transform.up *
+            verticalDistance;
 
-            startCellPosition.z
-        );
+        return startCellPosition +
+               horizontalOffset +
+               verticalOffset;
     }
 
     private List<int> CreateWaveRowColumns(
@@ -1024,6 +1192,16 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         List<int> pillarColumns,
         List<int> previousRowColumns)
     {
+        targetBlockCount =
+            Mathf.Clamp(
+                targetBlockCount,
+                1,
+                Mathf.Max(
+                    ColumnCount,
+                    1
+                )
+            );
+
         List<int> result =
             new List<int>();
 
@@ -1069,7 +1247,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             int randomColumn =
                 Random.Range(
                     0,
-                    columnCount
+                    ColumnCount
                 );
 
             if (!result.Contains(
@@ -1113,11 +1291,17 @@ public sealed class BlockWaveGenerator : MonoBehaviour
     private List<int> CreateRandomUniqueColumns(
         int count)
     {
+        int availableColumns =
+            Mathf.Max(
+                ColumnCount,
+                1
+            );
+
         count =
             Mathf.Clamp(
                 count,
                 1,
-                columnCount
+                availableColumns
             );
 
         List<int> columns =
@@ -1144,7 +1328,7 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             new List<int>();
 
         for (int i = 0;
-             i < columnCount;
+             i < ColumnCount;
              i++)
         {
             columns.Add(i);
@@ -1175,33 +1359,6 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             columns[randomIndex] =
                 temporary;
         }
-    }
-
-    private Vector3 GetCellWorldPosition(
-        int column,
-        int rowOffset)
-    {
-        float totalWidth =
-            (columnCount - 1) *
-            cellSize;
-
-        float leftPosition =
-            transform.position.x -
-            (totalWidth * 0.5f);
-
-        float xPosition =
-            leftPosition +
-            (column * cellSize);
-
-        float yPosition =
-            transform.position.y -
-            (rowOffset * cellSize);
-
-        return new Vector3(
-            xPosition,
-            yPosition,
-            transform.position.z
-        );
     }
 
     private int CalculateWaveHealth(

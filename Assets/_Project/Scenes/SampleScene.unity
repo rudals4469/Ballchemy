@@ -283,6 +283,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 987057996}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &137645038
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 137645039}
+  m_Layer: 0
+  m_Name: BossBlockContainer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &137645039
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 137645038}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1004609279}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &246011120
 GameObject:
   m_ObjectHideFlags: 0
@@ -308,7 +339,7 @@ Transform:
   m_GameObject: {fileID: 246011120}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0.21, y: 0.73, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -342,7 +373,7 @@ Transform:
   m_GameObject: {fileID: 324512908}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 8.3, z: 0}
+  m_LocalPosition: {x: 0, y: 9.03, z: 0}
   m_LocalScale: {x: 9.5, y: 3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -429,7 +460,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: -100}
+  m_AnchoredPosition: {x: 0, y: -35}
   m_SizeDelta: {x: 500, y: 60}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &333104272
@@ -574,8 +605,8 @@ Transform:
   m_GameObject: {fileID: 358299589}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.0273, y: -0.3142, z: 0}
-  m_LocalScale: {x: 9.273619, y: 14.221439, z: 1}
+  m_LocalPosition: {x: -0.197, y: -0.7057, z: 0}
+  m_LocalScale: {x: 9.043535, y: 15.00504, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 246011121}
@@ -1613,12 +1644,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3aba22297c1d174ca238437fb4a46ba, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlockWaveGenerator
+  boardGrid: {fileID: 1710125463}
   blockPrefab: {fileID: 5741669861215845034, guid: 63c51ec1f2fb1cc41817829b42d6d84e, type: 3}
   blockContainer: {fileID: 568326274}
   blockCatalog: {fileID: 11400000, guid: c4c0d4c097d226e4ca087745d48ea6b0, type: 2}
   defaultWaveBlockType: 0
-  columnCount: 9
-  cellSize: 1
   minimumRowsPerWave: 2
   maximumRowsPerWave: 3
   minimumBlocksPerRow: 2
@@ -1647,6 +1677,60 @@ MonoBehaviour:
   playerHealth: {fileID: 858936749}
   firstAttackDelay: 0.05
   intervalBetweenAttacks: 0.02
+--- !u!1 &1004609278
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1004609279}
+  - component: {fileID: 1004609280}
+  m_Layer: 0
+  m_Name: BossEncounterSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1004609279
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1004609278}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1867927456}
+  - {fileID: 137645039}
+  m_Father: {fileID: 1312074106}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1004609280
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1004609278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5f779dbb16689d4eae93aaf2d4d3a2d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossEncounterController
+  blockGridManager: {fileID: 987057997}
+  blockPrefab: {fileID: 5741669861215845034, guid: 63c51ec1f2fb1cc41817829b42d6d84e, type: 3}
+  arenaCenter: {fileID: 1867927456}
+  bossBlockContainer: {fileID: 137645039}
+  testPattern: {fileID: 11400000, guid: 857ddb12d0c98184696e4c48bc4a068f, type: 2}
+  cellSize: 1
+  boardClearDelay: 0.15
+  enableBossTestKey: 1
 --- !u!1 &1312074105
 GameObject:
   m_ObjectHideFlags: 0
@@ -1682,6 +1766,8 @@ Transform:
   - {fileID: 987057996}
   - {fileID: 858936747}
   - {fileID: 738864588}
+  - {fileID: 1004609279}
+  - {fileID: 1710125462}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1347390794
@@ -2053,7 +2139,7 @@ Transform:
   m_GameObject: {fileID: 1399726856}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -7.8, z: 0}
+  m_LocalPosition: {x: 0, y: -7.75, z: 0}
   m_LocalScale: {x: 9.5, y: 0.5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2255,7 +2341,7 @@ Transform:
   m_GameObject: {fileID: 1552311083}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -4.89, y: 0, z: 0}
+  m_LocalPosition: {x: -4.76, y: 0, z: 0}
   m_LocalScale: {x: 0.3, y: 18, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2386,6 +2472,53 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1710125461
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1710125462}
+  - component: {fileID: 1710125463}
+  m_Layer: 0
+  m_Name: BoardGrid
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1710125462
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1710125461}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1312074106}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1710125463
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1710125461}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66ce05b7dea616d43bf2a59679a6fa84, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BoardGrid
+  settings: {fileID: 11400000, guid: 1313e4eb7417f664b88a2bf1c4a3ae53, type: 2}
+  drawGridAlways: 1
+  centerMarkerSize: 0.2
 --- !u!1 &1845288315
 GameObject:
   m_ObjectHideFlags: 0
@@ -2423,6 +2556,37 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1867927455
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1867927456}
+  m_Layer: 0
+  m_Name: BossArenaCenter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1867927456
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1867927455}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1004609279}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2026090750
 GameObject:
   m_ObjectHideFlags: 0
@@ -2449,7 +2613,7 @@ Transform:
   m_GameObject: {fileID: 2026090750}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 4.84, y: 0, z: 0}
+  m_LocalPosition: {x: 4.73, y: 0, z: 0}
   m_LocalScale: {x: 0.3, y: 18, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2527,8 +2691,8 @@ Transform:
   m_GameObject: {fileID: 2054675645}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.0273, y: -0.3657, z: 0}
-  m_LocalScale: {x: 9.511096, y: 14.353842, z: 1}
+  m_LocalPosition: {x: -0.2112, y: -0.7442, z: 0}
+  m_LocalScale: {x: 9.152664, y: 15.116868, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 246011121}

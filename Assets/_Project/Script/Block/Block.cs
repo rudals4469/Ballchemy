@@ -16,8 +16,7 @@ public sealed class Block : MonoBehaviour
 
     [Header("Layout")]
     [Tooltip(
-        "블록 외형과 셀 경계 사이의 간격입니다. " +
-        "값이 클수록 블록 사이가 넓게 보입니다."
+        "블록 외형과 셀 경계 사이의 간격입니다."
     )]
     [SerializeField, Min(0f)]
     private float visualPadding = 0.12f;
@@ -30,6 +29,27 @@ public sealed class Block : MonoBehaviour
 
     [SerializeField, Min(0.1f)]
     private float runtimeCellSize = 1f;
+
+    [Header("Grid Runtime")]
+    [Tooltip(
+        "이 블록이 배치된 BoardGrid입니다. " +
+        "BlockWaveGenerator가 생성할 때 자동으로 할당합니다."
+    )]
+    [SerializeField]
+    private BoardGrid boardGrid;
+
+    [Tooltip(
+        "블록이 점유하는 영역의 왼쪽 위 시작 셀입니다."
+    )]
+    [SerializeField]
+    private Vector2Int gridPosition =
+        new Vector2Int(
+            -1,
+            -1
+        );
+
+    [SerializeField]
+    private bool hasGridPosition;
 
     [Header("Runtime Stats")]
     [SerializeField, Min(1)]
@@ -53,6 +73,11 @@ public sealed class Block : MonoBehaviour
             ? definition.BlockType
             : BlockType.Normal;
 
+    public BlockDestructionRule DestructionRule =>
+        definition != null
+            ? definition.DestructionRule
+            : BlockDestructionRule.Breakable;
+
     public Vector2Int GridSize =>
         definition != null
             ? definition.GridSize
@@ -67,6 +92,34 @@ public sealed class Block : MonoBehaviour
             GridSize.y * runtimeCellSize
         );
 
+    public BoardGrid BoardGrid =>
+        boardGrid;
+
+    public bool HasGridPosition =>
+        hasGridPosition;
+
+    public Vector2Int GridPosition =>
+        gridPosition;
+
+    public int StartColumn =>
+        gridPosition.x;
+
+    public int StartRow =>
+        gridPosition.y;
+
+    public int EndColumn =>
+        StartColumn +
+        GridSize.x -
+        1;
+
+    public int EndRow =>
+        StartRow +
+        GridSize.y -
+        1;
+
+    public int BottomRow =>
+        EndRow;
+
     public int CurrentHealth =>
         currentHealth;
 
@@ -79,6 +132,63 @@ public sealed class Block : MonoBehaviour
     public bool IsAlive =>
         currentHealth > 0;
 
+    public bool IsBreakable =>
+        DestructionRule ==
+        BlockDestructionRule.Breakable;
+
+    public bool IsIndestructible =>
+        DestructionRule ==
+        BlockDestructionRule.Indestructible;
+
+    public bool IsInsideBoard
+    {
+        get
+        {
+            if (boardGrid == null ||
+                !hasGridPosition)
+            {
+                return false;
+            }
+
+            return StartColumn >= 0 &&
+                   StartRow >= 0 &&
+                   EndColumn <
+                   boardGrid.ColumnCount &&
+                   EndRow <
+                   boardGrid.RowCount;
+        }
+    }
+
+    public bool IsTouchingBottomRow
+    {
+        get
+        {
+            if (boardGrid == null ||
+                !hasGridPosition)
+            {
+                return false;
+            }
+
+            return BottomRow ==
+                   boardGrid.RowCount - 1;
+        }
+    }
+
+    public bool IsOutsideBottom
+    {
+        get
+        {
+            if (boardGrid == null ||
+                !hasGridPosition)
+            {
+                return false;
+            }
+
+            return BottomRow >=
+                   boardGrid.RowCount;
+        }
+    }
+
     public event Action<int, int>
         HealthChanged;
 
@@ -87,6 +197,12 @@ public sealed class Block : MonoBehaviour
 
     public event Action<Vector2Int, float>
         LayoutChanged;
+
+    public event Action<Block, int>
+        HitReceived;
+
+    public event Action<Block, Vector2Int>
+        GridPositionChanged;
 
     private void Awake()
     {
@@ -97,6 +213,8 @@ public sealed class Block : MonoBehaviour
 
         ApplyDefinitionVisual();
         ApplyLayout();
+
+        RefreshGridPlacement();
     }
 
     private void OnValidate()
@@ -168,6 +286,7 @@ public sealed class Block : MonoBehaviour
 
         ApplyDefinitionVisual();
         ApplyLayout();
+        RefreshGridPlacement();
 
         gameObject.SetActive(
             true
@@ -214,6 +333,8 @@ public sealed class Block : MonoBehaviour
             health,
             attack
         );
+
+        RefreshGridPlacement();
 
         gameObject.SetActive(
             true
@@ -264,6 +385,7 @@ public sealed class Block : MonoBehaviour
 
         ApplyDefinitionVisual();
         ApplyLayout();
+        RefreshGridPlacement();
 
         DefinitionChanged?.Invoke(
             definition
@@ -273,6 +395,218 @@ public sealed class Block : MonoBehaviour
             GridSize,
             runtimeCellSize
         );
+    }
+
+    public void SetGridPosition(
+        BoardGrid targetBoardGrid,
+        int startColumn,
+        int startRow,
+        bool snapToWorld = true)
+    {
+        if (targetBoardGrid == null)
+        {
+            Debug.LogWarning(
+                "Block: Grid Position을 설정하려 했지만 " +
+                "BoardGrid가 비어 있습니다.",
+                this
+            );
+
+            return;
+        }
+
+        boardGrid =
+            targetBoardGrid;
+
+        gridPosition =
+            new Vector2Int(
+                startColumn,
+                startRow
+            );
+
+        hasGridPosition =
+            true;
+
+        runtimeCellSize =
+            Mathf.Max(
+                boardGrid.CellSize,
+                0.1f
+            );
+
+        ApplyLayout();
+
+        if (snapToWorld)
+        {
+            SnapToGridPosition();
+        }
+
+        LayoutChanged?.Invoke(
+            GridSize,
+            runtimeCellSize
+        );
+
+        GridPositionChanged?.Invoke(
+            this,
+            gridPosition
+        );
+    }
+
+    public void SetGridPosition(
+        int startColumn,
+        int startRow,
+        bool snapToWorld = true)
+    {
+        if (boardGrid == null)
+        {
+            Debug.LogWarning(
+                "Block: 기존 BoardGrid가 없어 " +
+                "Grid Position을 변경할 수 없습니다.",
+                this
+            );
+
+            return;
+        }
+
+        SetGridPosition(
+            boardGrid,
+            startColumn,
+            startRow,
+            snapToWorld
+        );
+    }
+
+    public bool MoveGridRows(
+        int rowAmount,
+        bool snapToWorld = true)
+    {
+        if (boardGrid == null ||
+            !hasGridPosition)
+        {
+            Debug.LogWarning(
+                "Block: Grid Position이 없어 " +
+                "행을 이동할 수 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        SetGridPosition(
+            boardGrid,
+            StartColumn,
+            StartRow + rowAmount,
+            snapToWorld
+        );
+
+        return true;
+    }
+
+    public void SnapToGridPosition()
+    {
+        if (boardGrid == null ||
+            !hasGridPosition)
+        {
+            return;
+        }
+
+        transform.position =
+            GetGridWorldPosition();
+
+        transform.rotation =
+            boardGrid.transform.rotation;
+    }
+
+    public Vector3 GetGridWorldPosition()
+    {
+        if (boardGrid == null ||
+            !hasGridPosition)
+        {
+            return transform.position;
+        }
+
+        Vector3 startCellPosition =
+            boardGrid.GetCellWorldPosition(
+                StartColumn,
+                StartRow
+            );
+
+        float horizontalDistance =
+            (GridSize.x - 1) *
+            boardGrid.CellSize *
+            0.5f;
+
+        float verticalDistance =
+            (GridSize.y - 1) *
+            boardGrid.CellSize *
+            0.5f;
+
+        Vector3 horizontalOffset =
+            boardGrid.transform.right *
+            horizontalDistance;
+
+        Vector3 verticalOffset =
+            -boardGrid.transform.up *
+            verticalDistance;
+
+        return startCellPosition +
+               horizontalOffset +
+               verticalOffset;
+    }
+
+    public bool OccupiesCell(
+        int column,
+        int row)
+    {
+        if (!hasGridPosition)
+        {
+            return false;
+        }
+
+        return column >= StartColumn &&
+               column <= EndColumn &&
+               row >= StartRow &&
+               row <= EndRow;
+    }
+
+    public bool OccupiesCell(
+        Vector2Int cell)
+    {
+        return OccupiesCell(
+            cell.x,
+            cell.y
+        );
+    }
+
+    public void ClearGridPosition()
+    {
+        boardGrid =
+            null;
+
+        gridPosition =
+            new Vector2Int(
+                -1,
+                -1
+            );
+
+        hasGridPosition =
+            false;
+    }
+
+    private void RefreshGridPlacement()
+    {
+        if (boardGrid == null ||
+            !hasGridPosition)
+        {
+            return;
+        }
+
+        runtimeCellSize =
+            Mathf.Max(
+                boardGrid.CellSize,
+                0.1f
+            );
+
+        ApplyLayout();
+        SnapToGridPosition();
     }
 
     private void SetRuntimeStats(
@@ -374,15 +708,8 @@ public sealed class Block : MonoBehaviour
         visualRenderer.size =
             localRendererSize;
 
-        /*
-         * SpriteRenderer가 별도의 자식 오브젝트일 때만
-         * 자식을 블록 중심으로 정렬한다.
-         *
-         * 루트 Block에 SpriteRenderer가 붙어 있을 경우
-         * 루트 위치를 변경하면 모든 블록이 부모 원점으로
-         * 이동하므로 절대 위치를 건드리지 않는다.
-         */
-        if (visualRenderer.transform != transform)
+        if (visualRenderer.transform !=
+            transform)
         {
             Vector3 localPosition =
                 visualRenderer.transform.localPosition;
@@ -465,6 +792,7 @@ public sealed class Block : MonoBehaviour
         FindReferences();
         ApplyDefinitionVisual();
         ApplyLayout();
+        RefreshGridPlacement();
     }
 
     public void TakeDamage(
@@ -472,6 +800,23 @@ public sealed class Block : MonoBehaviour
     {
         if (damage <= 0 ||
             !IsAlive)
+        {
+            return;
+        }
+
+        HitReceived?.Invoke(
+            this,
+            damage
+        );
+
+        if (DestructionRule ==
+            BlockDestructionRule.Indestructible)
+        {
+            return;
+        }
+
+        if (DestructionRule ==
+            BlockDestructionRule.TriggerOnly)
         {
             return;
         }

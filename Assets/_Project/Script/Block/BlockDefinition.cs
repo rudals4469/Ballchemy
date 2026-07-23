@@ -1,27 +1,28 @@
 using UnityEngine;
 
 [CreateAssetMenu(
-    fileName = "BlockDefinition_New",
+    fileName = "BlockDefinition",
     menuName = "Ballchemy/Blocks/Block Definition"
 )]
 public sealed class BlockDefinition : ScriptableObject
 {
     [Header("Identity")]
     [SerializeField]
-    private string blockId = "normal_01";
+    private string blockId;
 
     [SerializeField]
-    private string displayName = "Normal Block";
+    private string displayName;
 
     [SerializeField]
     private BlockType blockType =
         BlockType.Normal;
 
-    [Header("Grid Size")]
-    [Tooltip(
-        "블록이 그리드에서 차지하는 크기입니다. " +
-        "X는 가로 칸 수, Y는 세로 칸 수입니다."
-    )]
+    [Header("Behaviour")]
+    [SerializeField]
+    private BlockDestructionRule destructionRule =
+        BlockDestructionRule.Breakable;
+
+    [Header("Grid")]
     [SerializeField]
     private Vector2Int gridSize =
         Vector2Int.one;
@@ -34,15 +35,11 @@ public sealed class BlockDefinition : ScriptableObject
     private Color color =
         Color.white;
 
-    [Tooltip(
-        "계산된 블록 크기에 추가로 적용할 " +
-        "외형 배율입니다."
-    )]
     [SerializeField]
     private Vector3 visualScale =
         Vector3.one;
 
-    [Header("Random Selection")]
+    [Header("Selection")]
     [SerializeField, Min(0)]
     private int selectionWeight = 1;
 
@@ -55,11 +52,11 @@ public sealed class BlockDefinition : ScriptableObject
     public BlockType BlockType =>
         blockType;
 
+    public BlockDestructionRule DestructionRule =>
+        destructionRule;
+
     public Vector2Int GridSize =>
-        new Vector2Int(
-            Mathf.Max(1, gridSize.x),
-            Mathf.Max(1, gridSize.y)
-        );
+        gridSize;
 
     public Sprite Sprite =>
         sprite;
@@ -75,12 +72,6 @@ public sealed class BlockDefinition : ScriptableObject
 
     private void OnValidate()
     {
-        if (string.IsNullOrWhiteSpace(
-                blockId))
-        {
-            blockId = name;
-        }
-
         gridSize.x =
             Mathf.Max(
                 gridSize.x,

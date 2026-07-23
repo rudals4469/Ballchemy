@@ -23,21 +23,12 @@ public sealed class BlockGridManager : MonoBehaviour
     private EnemyAttackSequence enemyAttackSequence;
 
     [Header("Named Wave")]
-    [Tooltip(
-        "몇 웨이브마다 네임드 블록을 등장시킬지 결정합니다."
-    )]
     [SerializeField, Min(1)]
     private int namedWaveInterval = 3;
 
-    [Tooltip(
-        "네임드 블록 체력에 적용되는 배율입니다."
-    )]
     [SerializeField, Min(1f)]
     private float namedHealthMultiplier = 3f;
 
-    [Tooltip(
-        "네임드 블록 공격력에 적용되는 배율입니다."
-    )]
     [SerializeField, Min(0f)]
     private float namedAttackMultiplier = 2f;
 
@@ -46,6 +37,8 @@ public sealed class BlockGridManager : MonoBehaviour
 
     private int currentTurn;
     private int currentWaveIndex;
+
+    private bool isBossEncounterActive;
 
     public int CurrentTurn =>
         currentTurn;
@@ -57,6 +50,9 @@ public sealed class BlockGridManager : MonoBehaviour
         enemyAttackCycle != null
             ? enemyAttackCycle.TurnsUntilAttack
             : 0;
+
+    public bool IsBossEncounterActive =>
+        isBossEncounterActive;
 
     public bool IsCurrentNamedWave =>
         IsNamedWave(
@@ -76,7 +72,8 @@ public sealed class BlockGridManager : MonoBehaviour
     {
         get
         {
-            if (enemyAttackSequence == null)
+            if (enemyAttackSequence == null ||
+                isBossEncounterActive)
             {
                 return 0;
             }
@@ -145,6 +142,7 @@ public sealed class BlockGridManager : MonoBehaviour
 
         currentTurn = 0;
         currentWaveIndex = 0;
+        isBossEncounterActive = false;
 
         enemyAttackCycle.InitializeCycle();
 
@@ -277,14 +275,6 @@ public sealed class BlockGridManager : MonoBehaviour
         WaveGenerated?.Invoke(
             CurrentWaveNumber
         );
-
-        Debug.Log(
-            "BlockGridManager: " +
-            $"초기 일반 웨이브 {rowCount}줄 생성, " +
-            $"블록 {generatedBlocks.Count}개, " +
-            $"적 공격까지 {TurnsUntilAttack}턴",
-            this
-        );
     }
 
     public IEnumerator AdvanceTurnRoutine()
@@ -298,19 +288,26 @@ public sealed class BlockGridManager : MonoBehaviour
 
         currentTurn++;
 
+        /*
+         * 보스전에서는 일반 블록 공격,
+         * 하강 및 웨이브 생성을 진행하지 않는다.
+         */
+        if (isBossEncounterActive)
+        {
+            Debug.Log(
+                "BlockGridManager: " +
+                $"보스전 턴 {currentTurn} 종료",
+                this
+            );
+
+            yield break;
+        }
+
         bool shouldAttack =
             enemyAttackCycle.AdvanceTurn();
 
         if (!shouldAttack)
         {
-            Debug.Log(
-                "BlockGridManager: " +
-                $"턴 {currentTurn} 종료, " +
-                $"적 공격까지 {TurnsUntilAttack}턴, " +
-                $"현재 블록 {activeBlocks.Count}개",
-                this
-            );
-
             yield break;
         }
 
@@ -326,7 +323,8 @@ public sealed class BlockGridManager : MonoBehaviour
                 activeBlocks
             );
 
-        if (enemyAttackSequence.IsTargetDead)
+        if (enemyAttackSequence.IsTargetDead ||
+            isBossEncounterActive)
         {
             yield break;
         }
@@ -354,17 +352,6 @@ public sealed class BlockGridManager : MonoBehaviour
                 waveGenerator.GetRandomDefinition(
                     BlockType.Named
                 );
-
-            if (namedDefinition == null)
-            {
-                Debug.LogWarning(
-                    "BlockGridManager: " +
-                    $"웨이브 {nextWaveNumber}은 " +
-                    "네임드 웨이브지만 Named 데이터가 없습니다. " +
-                    "일반 웨이브로 진행합니다.",
-                    this
-                );
-            }
         }
 
         int requiredRowCount =
@@ -373,15 +360,16 @@ public sealed class BlockGridManager : MonoBehaviour
                 namedDefinition
             );
 
-        int extraPushRows =
-            requiredRowCount -
-            baseRowCount;
-
         yield return gridMover.MoveDownRoutine(
             activeBlocks,
             requiredRowCount,
             waveGenerator.CellSize
         );
+
+        if (isBossEncounterActive)
+        {
+            yield break;
+        }
 
         currentWaveIndex =
             nextWaveIndex;
@@ -420,24 +408,6 @@ public sealed class BlockGridManager : MonoBehaviour
         WaveGenerated?.Invoke(
             CurrentWaveNumber
         );
-
-        string waveTypeText =
-            namedDefinition != null
-                ? "네임드"
-                : "일반";
-
-        Debug.Log(
-            "BlockGridManager: " +
-            $"웨이브 {CurrentWaveNumber} 생성, " +
-            $"종류 {waveTypeText}, " +
-            $"기본 생성 줄 {baseRowCount}, " +
-            $"추가 하강 {extraPushRows}줄, " +
-            $"총 하강 {requiredRowCount}줄, " +
-            $"신규 블록 {generatedBlocks.Count}개, " +
-            $"전체 블록 {activeBlocks.Count}개, " +
-            $"다음 공격까지 {TurnsUntilAttack}턴",
-            this
-        );
     }
 
     private bool IsNamedWave(
@@ -450,6 +420,93 @@ public sealed class BlockGridManager : MonoBehaviour
 
         return waveNumber %
             namedWaveInterval == 0;
+    }
+
+    public void BeginBossEncounterMode()
+    {
+        if (isBossEncounterActive)
+        {
+            return;
+        }
+
+        isBossEncounterActive = true;
+
+        StopAllCoroutines();
+
+        ClearActiveBlocksImmediately();
+
+        Debug.Log(
+            "BlockGridManager: " +
+            "일반 웨이브를 정지하고 보스전으로 전환합니다.",
+            this
+        );
+    }
+
+    public void CompleteBossEncounterMode()
+    {
+        if (!isBossEncounterActive)
+        {
+            return;
+        }
+
+        isBossEncounterActive = false;
+
+        currentWaveIndex++;
+
+        int rowCount =
+            waveGenerator.GetRandomWaveRowCount();
+
+        List<Block> generatedBlocks =
+            waveGenerator.GenerateWave(
+                rowCount,
+                currentWaveIndex,
+                BlockType.Normal
+            );
+
+        AddGeneratedBlocks(
+            generatedBlocks
+        );
+
+        enemyAttackCycle.ResetCycle();
+
+        RemoveDestroyedBlocks();
+
+        WaveGenerated?.Invoke(
+            CurrentWaveNumber
+        );
+
+        Debug.Log(
+            "BlockGridManager: " +
+            $"보스전 종료, 웨이브 " +
+            $"{CurrentWaveNumber}부터 일반 진행 재개",
+            this
+        );
+    }
+
+    private void ClearActiveBlocksImmediately()
+    {
+        for (int i = 0;
+             i < activeBlocks.Count;
+             i++)
+        {
+            Block block =
+                activeBlocks[i];
+
+            if (block == null)
+            {
+                continue;
+            }
+
+            block.gameObject.SetActive(
+                false
+            );
+
+            Destroy(
+                block.gameObject
+            );
+        }
+
+        activeBlocks.Clear();
     }
 
     private void AddGeneratedBlocks(
