@@ -12,14 +12,11 @@ public sealed class BlockWaveGenerator : MonoBehaviour
     private Transform blockContainer;
 
     [Header("Block Data")]
-    [Tooltip(
-        "생성할 블록의 외형과 종류를 보관하는 카탈로그입니다."
-    )]
     [SerializeField]
     private BlockCatalog blockCatalog;
 
     [Tooltip(
-        "기존 GenerateWave 호출에서 기본으로 생성할 블록 타입입니다."
+        "기존 GenerateWave 호출에서 생성할 기본 블록 타입입니다."
     )]
     [SerializeField]
     private BlockType defaultWaveBlockType =
@@ -83,14 +80,14 @@ public sealed class BlockWaveGenerator : MonoBehaviour
     private int attackIncreasePerWave = 0;
 
     [Header("Debug")]
-    [Tooltip(
-        "생성된 블록의 데이터 ID를 콘솔에 출력합니다."
-    )]
     [SerializeField]
     private bool showSpawnDebugLog;
 
     public float CellSize =>
         cellSize;
+
+    public int ColumnCount =>
+        columnCount;
 
     public bool IsReady =>
         blockPrefab != null;
@@ -118,26 +115,26 @@ public sealed class BlockWaveGenerator : MonoBehaviour
     {
         columnCount =
             Mathf.Max(
-                1,
-                columnCount
+                columnCount,
+                1
             );
 
         cellSize =
             Mathf.Max(
-                0.1f,
-                cellSize
+                cellSize,
+                0.1f
             );
 
         minimumRowsPerWave =
             Mathf.Max(
-                1,
-                minimumRowsPerWave
+                minimumRowsPerWave,
+                1
             );
 
         maximumRowsPerWave =
             Mathf.Max(
-                minimumRowsPerWave,
-                maximumRowsPerWave
+                maximumRowsPerWave,
+                minimumRowsPerWave
             );
 
         minimumBlocksPerRow =
@@ -170,26 +167,26 @@ public sealed class BlockWaveGenerator : MonoBehaviour
 
         startingBlockHealth =
             Mathf.Max(
-                1,
-                startingBlockHealth
+                startingBlockHealth,
+                1
             );
 
         healthIncreasePerWave =
             Mathf.Max(
-                0,
-                healthIncreasePerWave
+                healthIncreasePerWave,
+                0
             );
 
         startingBlockAttack =
             Mathf.Max(
-                0,
-                startingBlockAttack
+                startingBlockAttack,
+                0
             );
 
         attackIncreasePerWave =
             Mathf.Max(
-                0,
-                attackIncreasePerWave
+                attackIncreasePerWave,
+                0
             );
     }
 
@@ -209,7 +206,8 @@ public sealed class BlockWaveGenerator : MonoBehaviour
             Debug.LogWarning(
                 "BlockWaveGenerator: " +
                 "Block Catalog가 연결되지 않았습니다. " +
-                "카탈로그가 없으면 프리팹의 기본 외형으로 생성됩니다.",
+                "노멀 블록은 프리팹 기본 외형으로 생성되지만, " +
+                "네임드 블록은 생성할 수 없습니다.",
                 this
             );
         }
@@ -223,10 +221,6 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         );
     }
 
-    /// <summary>
-    /// 기존 웨이브 생성 방식입니다.
-    /// Inspector의 Default Wave Block Type을 사용합니다.
-    /// </summary>
     public List<Block> GenerateWave(
         int rowCount,
         int waveIndex)
@@ -238,10 +232,6 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         );
     }
 
-    /// <summary>
-    /// 지정된 블록 타입으로 웨이브를 생성합니다.
-    /// 추후 네임드, 보스, 스페셜 웨이브에서 사용합니다.
-    /// </summary>
     public List<Block> GenerateWave(
         int rowCount,
         int waveIndex,
@@ -263,15 +253,21 @@ public sealed class BlockWaveGenerator : MonoBehaviour
 
         rowCount =
             Mathf.Max(
-                1,
-                rowCount
+                rowCount,
+                1
             );
 
         waveIndex =
             Mathf.Max(
-                0,
-                waveIndex
+                waveIndex,
+                0
             );
+
+        bool[,] occupiedCells =
+            new bool[
+                columnCount,
+                rowCount
+            ];
 
         int blockHealth =
             CalculateWaveHealth(
@@ -316,23 +312,82 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                     previousRowColumns
                 );
 
-            foreach (int column in rowColumns)
+            int spawnedInCurrentRow = 0;
+
+            for (int i = 0;
+                 i < rowColumns.Count;
+                 i++)
             {
+                int column =
+                    rowColumns[i];
+
+                BlockDefinition definition =
+                    GetRandomFittingDefinition(
+                        blockType,
+                        column,
+                        row,
+                        rowCount,
+                        occupiedCells
+                    );
+
+                Vector2Int gridSize =
+                    definition != null
+                        ? definition.GridSize
+                        : Vector2Int.one;
+
+                if (definition == null)
+                {
+                    if (blockType !=
+                        BlockType.Normal)
+                    {
+                        continue;
+                    }
+
+                    if (!CanOccupyCells(
+                            column,
+                            row,
+                            gridSize,
+                            rowCount,
+                            occupiedCells))
+                    {
+                        continue;
+                    }
+                }
+
                 Block newBlock =
                     SpawnBlock(
                         column,
                         row,
                         waveIndex,
+                        definition,
                         blockType,
+                        gridSize,
                         blockHealth,
                         blockAttack
                     );
 
-                if (newBlock != null)
+                if (newBlock == null)
                 {
-                    generatedBlocks.Add(
-                        newBlock
-                    );
+                    continue;
+                }
+
+                OccupyCells(
+                    column,
+                    row,
+                    gridSize,
+                    occupiedCells
+                );
+
+                generatedBlocks.Add(
+                    newBlock
+                );
+
+                spawnedInCurrentRow++;
+
+                if (spawnedInCurrentRow >=
+                    targetBlockCount)
+                {
+                    break;
                 }
             }
 
@@ -409,13 +464,15 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                     columnCount
                 );
 
-            if (!result.Contains(
+            if (result.Contains(
                     randomColumn))
             {
-                result.Add(
-                    randomColumn
-                );
+                continue;
             }
+
+            result.Add(
+                randomColumn
+            );
         }
 
         ShuffleColumns(
@@ -447,23 +504,197 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         );
     }
 
-    private Block SpawnBlock(
-        int column,
-        int rowOffset,
-        int waveIndex,
+    private BlockDefinition GetRandomFittingDefinition(
         BlockType blockType,
+        int startColumn,
+        int startRow,
+        int rowCount,
+        bool[,] occupiedCells)
+    {
+        if (blockCatalog == null)
+        {
+            return null;
+        }
+
+        List<BlockDefinition> typeDefinitions =
+            blockCatalog.GetAll(
+                blockType
+            );
+
+        List<BlockDefinition> fittingDefinitions =
+            new List<BlockDefinition>();
+
+        int totalWeight = 0;
+
+        for (int i = 0;
+             i < typeDefinitions.Count;
+             i++)
+        {
+            BlockDefinition definition =
+                typeDefinitions[i];
+
+            if (definition == null)
+            {
+                continue;
+            }
+
+            if (definition.SelectionWeight <= 0)
+            {
+                continue;
+            }
+
+            if (!CanOccupyCells(
+                    startColumn,
+                    startRow,
+                    definition.GridSize,
+                    rowCount,
+                    occupiedCells))
+            {
+                continue;
+            }
+
+            fittingDefinitions.Add(
+                definition
+            );
+
+            totalWeight +=
+                definition.SelectionWeight;
+        }
+
+        if (fittingDefinitions.Count <= 0 ||
+            totalWeight <= 0)
+        {
+            return null;
+        }
+
+        int randomWeight =
+            Random.Range(
+                0,
+                totalWeight
+            );
+
+        int accumulatedWeight = 0;
+
+        for (int i = 0;
+             i < fittingDefinitions.Count;
+             i++)
+        {
+            BlockDefinition definition =
+                fittingDefinitions[i];
+
+            accumulatedWeight +=
+                definition.SelectionWeight;
+
+            if (randomWeight <
+                accumulatedWeight)
+            {
+                return definition;
+            }
+        }
+
+        return fittingDefinitions[
+            fittingDefinitions.Count - 1
+        ];
+    }
+
+    private bool CanOccupyCells(
+        int startColumn,
+        int startRow,
+        Vector2Int gridSize,
+        int rowCount,
+        bool[,] occupiedCells)
+    {
+        if (startColumn < 0 ||
+            startRow < 0)
+        {
+            return false;
+        }
+
+        int endColumn =
+            startColumn +
+            gridSize.x;
+
+        int endRow =
+            startRow +
+            gridSize.y;
+
+        if (endColumn >
+            columnCount)
+        {
+            return false;
+        }
+
+        if (endRow >
+            rowCount)
+        {
+            return false;
+        }
+
+        for (int row = startRow;
+             row < endRow;
+             row++)
+        {
+            for (int column = startColumn;
+                 column < endColumn;
+                 column++)
+            {
+                if (occupiedCells[
+                        column,
+                        row])
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private void OccupyCells(
+        int startColumn,
+        int startRow,
+        Vector2Int gridSize,
+        bool[,] occupiedCells)
+    {
+        int endColumn =
+            startColumn +
+            gridSize.x;
+
+        int endRow =
+            startRow +
+            gridSize.y;
+
+        for (int row = startRow;
+             row < endRow;
+             row++)
+        {
+            for (int column = startColumn;
+                 column < endColumn;
+                 column++)
+            {
+                occupiedCells[
+                    column,
+                    row
+                ] = true;
+            }
+        }
+    }
+
+    private Block SpawnBlock(
+        int startColumn,
+        int startRow,
+        int waveIndex,
+        BlockDefinition definition,
+        BlockType requestedBlockType,
+        Vector2Int gridSize,
         int blockHealth,
         int blockAttack)
     {
         Vector3 spawnPosition =
-            GetCellWorldPosition(
-                column,
-                rowOffset
-            );
-
-        BlockDefinition definition =
-            GetRandomDefinition(
-                blockType
+            GetBlockCenterWorldPosition(
+                startColumn,
+                startRow,
+                gridSize
             );
 
         Block newBlock =
@@ -485,24 +716,24 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                 : "prefab_default";
 
         newBlock.name =
-            $"Block_{blockType}" +
+            $"Block_{requestedBlockType}" +
             $"_{definitionId}" +
+            $"_{gridSize.x}x{gridSize.y}" +
             $"_W{waveIndex + 1}" +
-            $"_R{rowOffset}" +
-            $"_C{column}";
+            $"_R{startRow}" +
+            $"_C{startColumn}";
 
         if (definition != null)
         {
             newBlock.Initialize(
                 definition,
                 blockHealth,
-                blockAttack
+                blockAttack,
+                cellSize
             );
         }
         else
         {
-            // 카탈로그 또는 해당 타입의 데이터가 없으면
-            // 기존 프리팹 외형으로 정상 생성한다.
             newBlock.Initialize(
                 blockHealth,
                 blockAttack
@@ -512,9 +743,11 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         if (showSpawnDebugLog)
         {
             Debug.Log(
-                "BlockWaveGenerator: 블록 생성 " +
-                $"타입={blockType}, " +
+                "BlockWaveGenerator: 블록 생성, " +
+                $"타입={requestedBlockType}, " +
                 $"데이터={definitionId}, " +
+                $"크기={gridSize.x}x{gridSize.y}, " +
+                $"시작 칸=({startColumn}, {startRow}), " +
                 $"HP={blockHealth}, " +
                 $"공격력={blockAttack}",
                 newBlock
@@ -524,16 +757,39 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         return newBlock;
     }
 
-    private BlockDefinition GetRandomDefinition(
-        BlockType blockType)
+    private Vector3 GetBlockCenterWorldPosition(
+        int startColumn,
+        int startRow,
+        Vector2Int gridSize)
     {
-        if (blockCatalog == null)
-        {
-            return null;
-        }
+        Vector3 startCellPosition =
+            GetCellWorldPosition(
+                startColumn,
+                startRow
+            );
 
-        return blockCatalog.GetRandom(
-            blockType
+        float horizontalOffset =
+            (
+                gridSize.x - 1
+            ) *
+            cellSize *
+            0.5f;
+
+        float verticalOffset =
+            (
+                gridSize.y - 1
+            ) *
+            cellSize *
+            0.5f;
+
+        return new Vector3(
+            startCellPosition.x +
+            horizontalOffset,
+
+            startCellPosition.y -
+            verticalOffset,
+
+            startCellPosition.z
         );
     }
 

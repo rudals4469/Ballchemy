@@ -16,8 +16,14 @@ public sealed class Block : MonoBehaviour
 
     [Header("Layout")]
     [Tooltip(
-        "블록 콜라이더 가장자리에서 " +
-        "안쪽으로 줄일 크기입니다."
+        "블록 외형과 셀 경계 사이의 간격입니다. " +
+        "값이 클수록 블록 사이가 넓게 보입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float visualPadding = 0.12f;
+
+    [Tooltip(
+        "콜라이더와 셀 경계 사이의 간격입니다."
     )]
     [SerializeField, Min(0f)]
     private float colliderInset = 0.02f;
@@ -113,6 +119,12 @@ public sealed class Block : MonoBehaviour
                 0.1f
             );
 
+        visualPadding =
+            Mathf.Max(
+                visualPadding,
+                0f
+            );
+
         colliderInset =
             Mathf.Max(
                 colliderInset,
@@ -120,8 +132,6 @@ public sealed class Block : MonoBehaviour
             );
 
         FindReferences();
-        ApplyDefinitionVisual();
-        ApplyLayout();
     }
 
     private void FindReferences()
@@ -135,9 +145,9 @@ public sealed class Block : MonoBehaviour
         if (visualRenderer == null)
         {
             visualRenderer =
-                GetComponentInChildren<
-                    SpriteRenderer
-                >();
+                GetComponentInChildren<SpriteRenderer>(
+                    true
+                );
         }
 
         if (boxCollider == null)
@@ -161,6 +171,11 @@ public sealed class Block : MonoBehaviour
 
         gameObject.SetActive(
             true
+        );
+
+        LayoutChanged?.Invoke(
+            GridSize,
+            runtimeCellSize
         );
     }
 
@@ -287,74 +302,169 @@ public sealed class Block : MonoBehaviour
 
     private void ApplyDefinitionVisual()
     {
+        if (visualRenderer == null ||
+            definition == null)
+        {
+            return;
+        }
+
+        if (definition.Sprite != null)
+        {
+            visualRenderer.sprite =
+                definition.Sprite;
+        }
+
+        visualRenderer.color =
+            definition.Color;
+    }
+
+    private void ApplyLayout()
+    {
+        Vector2 desiredWorldSize =
+            WorldSize;
+
+        ApplyVisualLayout(
+            desiredWorldSize
+        );
+
+        ApplyColliderLayout(
+            desiredWorldSize
+        );
+    }
+
+    private void ApplyVisualLayout(
+        Vector2 desiredWorldSize)
+    {
         if (visualRenderer == null)
         {
             return;
         }
 
-        if (definition != null)
-        {
-            if (definition.Sprite != null)
-            {
-                visualRenderer.sprite =
-                    definition.Sprite;
-            }
-
-            visualRenderer.color =
-                definition.Color;
-        }
-    }
-
-    private void ApplyLayout()
-    {
-        Vector2 calculatedWorldSize =
-            WorldSize;
-
-        Vector3 visualScale =
+        Vector3 definitionScale =
             definition != null
                 ? definition.VisualScale
                 : Vector3.one;
 
-        if (visualRenderer != null)
+        Vector2 desiredVisualWorldSize =
+            new Vector2(
+                Mathf.Max(
+                    desiredWorldSize.x -
+                    visualPadding,
+                    0.05f
+                ) *
+                definitionScale.x,
+
+                Mathf.Max(
+                    desiredWorldSize.y -
+                    visualPadding,
+                    0.05f
+                ) *
+                definitionScale.y
+            );
+
+        Vector2 localRendererSize =
+            ConvertWorldSizeToLocalSize(
+                visualRenderer.transform,
+                desiredVisualWorldSize
+            );
+
+        visualRenderer.drawMode =
+            SpriteDrawMode.Sliced;
+
+        visualRenderer.size =
+            localRendererSize;
+
+        /*
+         * SpriteRenderer가 별도의 자식 오브젝트일 때만
+         * 자식을 블록 중심으로 정렬한다.
+         *
+         * 루트 Block에 SpriteRenderer가 붙어 있을 경우
+         * 루트 위치를 변경하면 모든 블록이 부모 원점으로
+         * 이동하므로 절대 위치를 건드리지 않는다.
+         */
+        if (visualRenderer.transform != transform)
         {
-            visualRenderer.drawMode =
-                SpriteDrawMode.Sliced;
+            Vector3 localPosition =
+                visualRenderer.transform.localPosition;
 
-            visualRenderer.size =
-                new Vector2(
-                    calculatedWorldSize.x *
-                    visualScale.x,
+            localPosition.x = 0f;
+            localPosition.y = 0f;
 
-                    calculatedWorldSize.y *
-                    visualScale.y
-                );
+            visualRenderer.transform.localPosition =
+                localPosition;
+
+            visualRenderer.transform.localRotation =
+                Quaternion.identity;
+        }
+    }
+
+    private void ApplyColliderLayout(
+        Vector2 desiredWorldSize)
+    {
+        if (boxCollider == null)
+        {
+            return;
         }
 
-        if (boxCollider != null)
-        {
-            float colliderWidth =
+        Vector2 desiredColliderWorldSize =
+            new Vector2(
                 Mathf.Max(
-                    calculatedWorldSize.x -
+                    desiredWorldSize.x -
                     (colliderInset * 2f),
                     0.05f
-                );
+                ),
 
-            float colliderHeight =
                 Mathf.Max(
-                    calculatedWorldSize.y -
+                    desiredWorldSize.y -
                     (colliderInset * 2f),
                     0.05f
-                );
+                )
+            );
 
-            boxCollider.size =
-                new Vector2(
-                    colliderWidth,
-                    colliderHeight
-                );
+        Vector2 localColliderSize =
+            ConvertWorldSizeToLocalSize(
+                boxCollider.transform,
+                desiredColliderWorldSize
+            );
 
-            boxCollider.offset =
-                Vector2.zero;
-        }
+        boxCollider.size =
+            localColliderSize;
+
+        boxCollider.offset =
+            Vector2.zero;
+    }
+
+    private Vector2 ConvertWorldSizeToLocalSize(
+        Transform targetTransform,
+        Vector2 desiredWorldSize)
+    {
+        Vector3 lossyScale =
+            targetTransform.lossyScale;
+
+        float scaleX =
+            Mathf.Max(
+                Mathf.Abs(lossyScale.x),
+                0.0001f
+            );
+
+        float scaleY =
+            Mathf.Max(
+                Mathf.Abs(lossyScale.y),
+                0.0001f
+            );
+
+        return new Vector2(
+            desiredWorldSize.x / scaleX,
+            desiredWorldSize.y / scaleY
+        );
+    }
+
+    [ContextMenu("Apply Layout Preview")]
+    private void ApplyLayoutPreview()
+    {
+        FindReferences();
+        ApplyDefinitionVisual();
+        ApplyLayout();
     }
 
     public void TakeDamage(
