@@ -23,6 +23,10 @@ public sealed class BallLauncher :
     [SerializeField, Min(0f)]
     private float launchInterval = 0.08f;
 
+    [Header("Attack Completion")]
+    [SerializeField, Min(0f)]
+    private float allBallsReturnedDelay = 0.7f;
+
     [Header("Launch Position Limit")]
     [SerializeField]
     private float minimumLaunchX = -4.3f;
@@ -35,6 +39,7 @@ public sealed class BallLauncher :
             new List<Ball>();
 
     private Coroutine launchCoroutine;
+    private Coroutine completeAttackCoroutine;
 
     private Vector2 currentTurnLaunchPosition;
     private Vector2 nextTurnLaunchPosition;
@@ -138,13 +143,17 @@ public sealed class BallLauncher :
         if (turnManager == null)
         {
             turnManager =
-                FindFirstObjectByType<TurnManager>();
+                FindFirstObjectByType<
+                    TurnManager
+                >();
         }
 
         if (ballCollection == null)
         {
             ballCollection =
-                GetComponent<BallCollection>();
+                GetComponent<
+                    BallCollection
+                >();
         }
 
         if (tempoController == null)
@@ -161,6 +170,12 @@ public sealed class BallLauncher :
         launchInterval =
             Mathf.Max(
                 launchInterval,
+                0f
+            );
+
+        allBallsReturnedDelay =
+            Mathf.Max(
+                allBallsReturnedDelay,
                 0f
             );
 
@@ -516,6 +531,11 @@ public sealed class BallLauncher :
             return;
         }
 
+        if (completeAttackCoroutine != null)
+        {
+            return;
+        }
+
         if (isLaunching)
         {
             return;
@@ -532,17 +552,70 @@ public sealed class BallLauncher :
             return;
         }
 
-        isAttackCompleted = true;
-
+        /*
+         * 모든 공이 하단에 도착한 시점에
+         * 공을 정렬하고 배속 처리를 종료한다.
+         *
+         * 다만 TurnManager에는 아직 공격 종료를
+         * 통보하지 않으므로 대기 시간 동안에는
+         * 다시 조준하거나 발사할 수 없다.
+         */
         tempoController?.EndAttack();
 
         AlignBallsToNextLaunchPosition();
+
+        if (allBallsReturnedDelay <= 0f)
+        {
+            CompleteAttack();
+
+            return;
+        }
+
+        completeAttackCoroutine =
+            StartCoroutine(
+                CompleteAttackAfterDelayRoutine()
+            );
+    }
+
+    private IEnumerator
+        CompleteAttackAfterDelayRoutine()
+    {
+        Debug.Log(
+            "BallLauncher: 모든 공 복귀 완료, " +
+            $"{allBallsReturnedDelay:0.00}초 대기",
+            this
+        );
+
+        yield return
+            new WaitForSeconds(
+                allBallsReturnedDelay
+            );
+
+        completeAttackCoroutine = null;
+
+        CompleteAttack();
+    }
+
+    private void CompleteAttack()
+    {
+        if (isAttackCompleted)
+        {
+            return;
+        }
+
+        isAttackCompleted = true;
 
         currentLaunchSnapshot.Clear();
 
         LaunchCycleCompleted?.Invoke();
 
-        turnManager.NotifyAllBallsReturned();
+        turnManager?.NotifyAllBallsReturned();
+
+        Debug.Log(
+            "BallLauncher: 복귀 대기 종료, " +
+            "다음 턴 처리를 시작합니다.",
+            this
+        );
     }
 
     private void AlignBallsToNextLaunchPosition()
@@ -645,6 +718,13 @@ public sealed class BallLauncher :
         {
             StopCoroutine(
                 launchCoroutine
+            );
+        }
+
+        if (completeAttackCoroutine != null)
+        {
+            StopCoroutine(
+                completeAttackCoroutine
             );
         }
 

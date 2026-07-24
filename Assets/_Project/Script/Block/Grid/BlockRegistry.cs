@@ -58,6 +58,56 @@ public sealed class BlockRegistry
         );
     }
 
+    public int ExpireSpecialBlocksWithoutReward()
+    {
+        int expiredBlockCount = 0;
+
+        for (int i =
+                 activeBlocks.Count - 1;
+             i >= 0;
+             i--)
+        {
+            Block block =
+                activeBlocks[i];
+
+            if (block == null ||
+                !block.IsAlive)
+            {
+                activeBlocks.RemoveAt(
+                    i
+                );
+
+                continue;
+            }
+
+            if (block.BlockType !=
+                BlockType.Special)
+            {
+                continue;
+            }
+
+            /*
+             * 먼저 Registry에서 제거한다.
+             * Destroy는 프레임 종료 시 처리되므로,
+             * 참조가 다음 이동 및 웨이브 생성 과정에
+             * 남지 않도록 즉시 목록에서 제외한다.
+             */
+            activeBlocks.RemoveAt(
+                i
+            );
+
+            bool expired =
+                block.ExpireWithoutReward();
+
+            if (expired)
+            {
+                expiredBlockCount++;
+            }
+        }
+
+        return expiredBlockCount;
+    }
+
     public void ClearAndDestroy()
     {
         for (int i = 0;

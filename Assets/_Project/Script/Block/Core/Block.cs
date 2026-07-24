@@ -637,6 +637,40 @@ public sealed class Block : MonoBehaviour
         }
     }
 
+    public bool ExpireWithoutReward()
+    {
+        if (isDestructionStarted ||
+            !gameObject.activeSelf)
+        {
+            return false;
+        }
+
+        isDestructionStarted = true;
+        currentHealth = 0;
+
+        ClearGridPosition();
+
+        Debug.Log(
+            $"{name} 특수 블록 시간 만료",
+            this
+        );
+
+        /*
+         * Destroyed 이벤트를 호출하지 않는다.
+         * 따라서 공 추가, 회복 등의
+         * 파괴 보상이 실행되지 않는다.
+         */
+        gameObject.SetActive(
+            false
+        );
+
+        Destroy(
+            gameObject
+        );
+
+        return true;
+    }
+
     private void DestroyBlock()
     {
         if (isDestructionStarted)

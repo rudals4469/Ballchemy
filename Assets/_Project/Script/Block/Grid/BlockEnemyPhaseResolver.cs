@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 public sealed class BlockEnemyPhaseResolver
 {
@@ -75,10 +76,34 @@ public sealed class BlockEnemyPhaseResolver
 
         blockRegistry.RemoveInvalidBlocks();
 
+        /*
+         * 먼저 일반 적 블록의 공격을 모두 처리한다.
+         */
         yield return enemyAttackSequence
             .ResolveAttackRoutine(
                 blockRegistry.ActiveBlocks
             );
+
+        /*
+         * 공격 주기가 실행된 직후
+         * 기존의 모든 Special 블록을 제거한다.
+         *
+         * Block.Destroyed 이벤트를 발생시키지 않으므로
+         * 공 추가, 회복 등의 보상은 지급되지 않는다.
+         */
+        int expiredSpecialBlockCount =
+            blockRegistry
+                .ExpireSpecialBlocksWithoutReward();
+
+        if (expiredSpecialBlockCount > 0)
+        {
+            Debug.Log(
+                "BlockEnemyPhaseResolver: " +
+                $"특수 블록 " +
+                $"{expiredSpecialBlockCount}개가 " +
+                "적 공격 후 사라졌습니다."
+            );
+        }
 
         blockRegistry.RemoveInvalidBlocks();
 
@@ -115,6 +140,11 @@ public sealed class BlockEnemyPhaseResolver
             yield break;
         }
 
+        /*
+         * 특수 블록 제거 이후 새 웨이브를 생성하므로,
+         * 여기서 새로 등장한 특수 블록은
+         * 이번 공격 주기에 제거되지 않는다.
+         */
         List<Block> generatedBlocks =
             waveDirector.GeneratePlannedWave(
                 waveGenerator,
