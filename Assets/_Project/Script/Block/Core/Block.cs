@@ -176,6 +176,9 @@ public sealed class Block : MonoBehaviour
     public event Action<Block>
         Destroyed;
 
+    public event Action<Block>
+        ExpiredWithoutReward;
+
     private void Awake()
     {
         EnsureHelperObjects();
@@ -656,10 +659,13 @@ public sealed class Block : MonoBehaviour
         );
 
         /*
-         * Destroyed 이벤트를 호출하지 않는다.
-         * 따라서 공 추가, 회복 등의
-         * 파괴 보상이 실행되지 않는다.
+         * 일반 파괴 이벤트와 분리된
+         * 특수 블록 만료 이벤트를 발생시킨다.
          */
+        ExpiredWithoutReward?.Invoke(
+            this
+        );
+
         gameObject.SetActive(
             false
         );

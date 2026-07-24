@@ -1,9 +1,7 @@
-using System;
 using TMPro;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-[RequireComponent(typeof(TextMeshPro))]
 public sealed class BallCountView :
     MonoBehaviour
 {
@@ -15,35 +13,47 @@ public sealed class BallCountView :
     private BallLauncher ballLauncher;
 
     [SerializeField]
-    private TextMeshPro countText;
+    private BallSealController
+        ballSealController;
+
+    [SerializeField]
+    private TMP_Text countLabel;
 
     [Header("Text")]
-    [Tooltip(
-        "{0} 위치에 표시할 공 개수가 들어갑니다."
-    )]
     [SerializeField]
-    private string textFormat = "x{0}";
-
-    [Header("Sorting")]
-    [SerializeField]
-    private string sortingLayerName = "UI";
+    private string normalTextFormat = "x{0}";
 
     [SerializeField]
-    private int sortingOrder = 100;
+    private string sealedTextFormat =
+        "x{0}/{1}";
+
+    [Header("Visibility")]
+    [SerializeField]
+    private bool hideWhenZero = true;
+
+    [Header("Debug")]
+    [SerializeField]
+    private bool showDebugLog;
 
     private bool isShowingLaunchQueue;
 
     private void Awake()
     {
         FindReferences();
-        ApplySorting();
+        NormalizeSettings();
+        ValidateReferences();
     }
 
     private void OnEnable()
     {
         FindReferences();
         SubscribeEvents();
-        Refresh();
+        RefreshIdleDisplay();
+    }
+
+    private void Start()
+    {
+        RefreshIdleDisplay();
     }
 
     private void OnDisable()
@@ -54,32 +64,20 @@ public sealed class BallCountView :
     private void OnValidate()
     {
         FindReferences();
-        ApplySorting();
+        NormalizeSettings();
 
-        if (string.IsNullOrWhiteSpace(
-                textFormat))
+        if (!Application.isPlaying)
         {
-            textFormat = "x{0}";
-        }
-
-        if (!Application.isPlaying &&
-            countText != null)
-        {
-            countText.text =
-                FormatCount(
-                    0
-                );
-
-            countText.enabled = true;
+            RefreshIdleDisplay();
         }
     }
 
     private void FindReferences()
     {
-        if (countText == null)
+        if (countLabel == null)
         {
-            countText =
-                GetComponent<TextMeshPro>();
+            countLabel =
+                GetComponent<TMP_Text>();
         }
 
         if (ballCollection == null)
@@ -95,6 +93,14 @@ public sealed class BallCountView :
             ballLauncher =
                 GetComponentInParent<
                     BallLauncher
+                >();
+        }
+
+        if (ballSealController == null)
+        {
+            ballSealController =
+                GetComponentInParent<
+                    BallSealController
                 >();
         }
 
@@ -115,6 +121,71 @@ public sealed class BallCountView :
                         BallLauncher
                     >();
             }
+
+            if (ballSealController == null)
+            {
+                ballSealController =
+                    FindFirstObjectByType<
+                        BallSealController
+                    >();
+            }
+        }
+    }
+
+    private void NormalizeSettings()
+    {
+        if (string.IsNullOrWhiteSpace(
+                normalTextFormat))
+        {
+            normalTextFormat =
+                "x{0}";
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                sealedTextFormat))
+        {
+            sealedTextFormat =
+                "x{0}/{1}";
+        }
+    }
+
+    private void ValidateReferences()
+    {
+        if (countLabel == null)
+        {
+            Debug.LogError(
+                "BallCountView: " +
+                "TMP_Text를 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (ballCollection == null)
+        {
+            Debug.LogError(
+                "BallCountView: " +
+                "BallCollection을 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (ballLauncher == null)
+        {
+            Debug.LogError(
+                "BallCountView: " +
+                "BallLauncher를 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (ballSealController == null)
+        {
+            Debug.LogWarning(
+                "BallCountView: " +
+                "BallSealController를 찾지 못했습니다. " +
+                "봉인 UI는 표시되지 않습니다.",
+                this
+            );
         }
     }
 
@@ -123,27 +194,42 @@ public sealed class BallCountView :
         if (ballCollection != null)
         {
             ballCollection.BallCountChanged -=
-                HandleTotalBallCountChanged;
+                HandleBallCountChanged;
 
             ballCollection.BallCountChanged +=
-                HandleTotalBallCountChanged;
+                HandleBallCountChanged;
         }
 
         if (ballLauncher != null)
         {
             ballLauncher
                 .RemainingBallsToLaunchChanged -=
-                HandleRemainingBallsToLaunchChanged;
+                HandleRemainingBallsChanged;
 
             ballLauncher
                 .RemainingBallsToLaunchChanged +=
-                HandleRemainingBallsToLaunchChanged;
+                HandleRemainingBallsChanged;
 
             ballLauncher.LaunchCycleCompleted -=
                 HandleLaunchCycleCompleted;
 
             ballLauncher.LaunchCycleCompleted +=
                 HandleLaunchCycleCompleted;
+        }
+
+        if (ballSealController != null)
+        {
+            ballSealController.SealApplied -=
+                HandleSealApplied;
+
+            ballSealController.SealApplied +=
+                HandleSealApplied;
+
+            ballSealController.SealConsumed -=
+                HandleSealConsumed;
+
+            ballSealController.SealConsumed +=
+                HandleSealConsumed;
         }
     }
 
@@ -152,53 +238,46 @@ public sealed class BallCountView :
         if (ballCollection != null)
         {
             ballCollection.BallCountChanged -=
-                HandleTotalBallCountChanged;
+                HandleBallCountChanged;
         }
 
         if (ballLauncher != null)
         {
             ballLauncher
                 .RemainingBallsToLaunchChanged -=
-                HandleRemainingBallsToLaunchChanged;
+                HandleRemainingBallsChanged;
 
             ballLauncher.LaunchCycleCompleted -=
                 HandleLaunchCycleCompleted;
         }
+
+        if (ballSealController != null)
+        {
+            ballSealController.SealApplied -=
+                HandleSealApplied;
+
+            ballSealController.SealConsumed -=
+                HandleSealConsumed;
+        }
     }
 
-    private void HandleTotalBallCountChanged(
-        int currentBallCount)
+    private void HandleBallCountChanged(
+        int totalBallCount)
     {
-        /*
-         * 현재 발사 중일 때 공을 추가로 획득하더라도
-         * 발사 대기 숫자는 변경하지 않는다.
-         *
-         * 새로 얻은 공은 다음 턴부터 표시된다.
-         */
         if (isShowingLaunchQueue)
         {
             return;
         }
 
-        ShowCount(
-            currentBallCount
-        );
+        RefreshIdleDisplay();
     }
 
-    private void
-        HandleRemainingBallsToLaunchChanged(
-            int remainingBallCount)
+    private void HandleRemainingBallsChanged(
+        int remainingBallCount)
     {
         isShowingLaunchQueue = true;
 
-        if (remainingBallCount <= 0)
-        {
-            HideText();
-
-            return;
-        }
-
-        ShowCount(
+        SetNormalCount(
             remainingBallCount
         );
     }
@@ -207,135 +286,195 @@ public sealed class BallCountView :
     {
         isShowingLaunchQueue = false;
 
-        RefreshTotalBallCount();
+        RefreshIdleDisplay();
     }
 
-    private void Refresh()
+    private void HandleSealApplied(
+        int sealedBallCount,
+        int launchableBallCount)
     {
-        if (ballLauncher != null &&
-            ballLauncher.IsAttackInProgress)
+        if (isShowingLaunchQueue)
         {
-            isShowingLaunchQueue = true;
+            return;
+        }
 
-            int remainingBallCount =
-                ballLauncher
-                    .RemainingBallsToLaunch;
+        int totalBallCount =
+            ballCollection != null
+                ? ballCollection.Count
+                : launchableBallCount +
+                  sealedBallCount;
 
-            if (remainingBallCount <= 0)
-            {
-                HideText();
-            }
-            else
-            {
-                ShowCount(
-                    remainingBallCount
-                );
-            }
+        SetSealedCount(
+            launchableBallCount,
+            totalBallCount
+        );
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "BallCountView: " +
+                $"봉인 UI 표시 " +
+                $"{launchableBallCount}/" +
+                $"{totalBallCount}",
+                this
+            );
+        }
+    }
+
+    private void HandleSealConsumed(
+        int consumedSealedBallCount)
+    {
+        /*
+         * TryLaunch 내부에서 이 이벤트 직후
+         * RemainingBallsToLaunchChanged가 호출된다.
+         *
+         * 우선 현재 상태를 갱신하고,
+         * 같은 프레임에 발사 대기 숫자로 덮어쓴다.
+         */
+        if (!isShowingLaunchQueue)
+        {
+            RefreshIdleDisplay();
+        }
+    }
+
+    private void RefreshIdleDisplay()
+    {
+        if (countLabel == null ||
+            ballCollection == null)
+        {
+            return;
+        }
+
+        int totalBallCount =
+            ballCollection.Count;
+
+        if (ballSealController != null &&
+            ballSealController.HasPendingSeal)
+        {
+            int launchableBallCount =
+                ballSealController
+                    .GetLaunchableBallCount(
+                        totalBallCount
+                    );
+
+            SetSealedCount(
+                launchableBallCount,
+                totalBallCount
+            );
 
             return;
         }
 
-        isShowingLaunchQueue = false;
-
-        RefreshTotalBallCount();
-    }
-
-    private void RefreshTotalBallCount()
-    {
-        int currentBallCount =
-            ballCollection != null
-                ? ballCollection.Count
-                : 0;
-
-        ShowCount(
-            currentBallCount
+        SetNormalCount(
+            totalBallCount
         );
     }
 
-    private void ShowCount(
-        int currentBallCount)
+    private void SetNormalCount(
+        int count)
     {
-        if (countText == null)
-        {
-            return;
-        }
-
-        currentBallCount =
+        count =
             Mathf.Max(
-                currentBallCount,
+                count,
                 0
             );
 
-        if (currentBallCount <= 0)
+        if (countLabel == null)
         {
-            HideText();
+            return;
+        }
+
+        if (hideWhenZero &&
+            count <= 0)
+        {
+            countLabel.enabled =
+                false;
 
             return;
         }
 
-        countText.text =
-            FormatCount(
-                currentBallCount
+        countLabel.enabled =
+            true;
+
+        countLabel.text =
+            FormatNormalCount(
+                count
+            );
+    }
+
+    private void SetSealedCount(
+        int launchableBallCount,
+        int totalBallCount)
+    {
+        launchableBallCount =
+            Mathf.Max(
+                launchableBallCount,
+                0
             );
 
-        countText.enabled = true;
-    }
+        totalBallCount =
+            Mathf.Max(
+                totalBallCount,
+                launchableBallCount
+            );
 
-    private void HideText()
-    {
-        if (countText == null)
+        if (countLabel == null)
         {
             return;
         }
 
-        countText.enabled = false;
-    }
-
-    private string FormatCount(
-        int currentBallCount)
-    {
-        if (string.IsNullOrWhiteSpace(
-                textFormat))
+        if (hideWhenZero &&
+            launchableBallCount <= 0)
         {
-            return $"x{currentBallCount}";
+            countLabel.enabled =
+                false;
+
+            return;
         }
 
+        countLabel.enabled =
+            true;
+
+        countLabel.text =
+            FormatSealedCount(
+                launchableBallCount,
+                totalBallCount
+            );
+    }
+
+    private string FormatNormalCount(
+        int count)
+    {
         try
         {
             return string.Format(
-                textFormat,
-                currentBallCount
+                normalTextFormat,
+                count
             );
         }
-        catch (FormatException)
+        catch
         {
-            return $"x{currentBallCount}";
+            return $"x{count}";
         }
     }
 
-    private void ApplySorting()
+    private string FormatSealedCount(
+        int launchableBallCount,
+        int totalBallCount)
     {
-        if (countText == null)
+        try
         {
-            return;
+            return string.Format(
+                sealedTextFormat,
+                launchableBallCount,
+                totalBallCount
+            );
         }
-
-        Renderer textRenderer =
-            countText.GetComponent<Renderer>();
-
-        if (textRenderer == null)
+        catch
         {
-            return;
+            return
+                $"x{launchableBallCount}/" +
+                $"{totalBallCount}";
         }
-
-        if (!string.IsNullOrWhiteSpace(
-                sortingLayerName))
-        {
-            textRenderer.sortingLayerName =
-                sortingLayerName;
-        }
-
-        textRenderer.sortingOrder =
-            sortingOrder;
     }
 }

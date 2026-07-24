@@ -5,6 +5,7 @@ using UnityEngine;
 
 [RequireComponent(typeof(BallCollection))]
 [RequireComponent(typeof(BallTurnTempoController))]
+[RequireComponent(typeof(BallSealController))]
 public sealed class BallLauncher :
     MonoBehaviour
 {
@@ -18,6 +19,10 @@ public sealed class BallLauncher :
     [SerializeField]
     private BallTurnTempoController
         tempoController;
+
+    [SerializeField]
+    private BallSealController
+        ballSealController;
 
     [Header("Launch Settings")]
     [SerializeField, Min(0f)]
@@ -163,6 +168,14 @@ public sealed class BallLauncher :
                     BallTurnTempoController
                 >();
         }
+
+        if (ballSealController == null)
+        {
+            ballSealController =
+                GetComponent<
+                    BallSealController
+                >();
+        }
     }
 
     private void NormalizeSettings()
@@ -218,6 +231,15 @@ public sealed class BallLauncher :
             Debug.LogError(
                 "BallLauncher: " +
                 "BallTurnTempoController를 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (ballSealController == null)
+        {
+            Debug.LogError(
+                "BallLauncher: " +
+                "BallSealController를 찾지 못했습니다.",
                 this
             );
         }
@@ -287,10 +309,10 @@ public sealed class BallLauncher :
             return false;
         }
 
-        List<Ball> launchSnapshot =
+        List<Ball> availableSnapshot =
             ballCollection.CreateSnapshot();
 
-        if (launchSnapshot.Count == 0)
+        if (availableSnapshot.Count == 0)
         {
             return false;
         }
@@ -307,6 +329,25 @@ public sealed class BallLauncher :
             return false;
         }
 
+        int launchableBallCount =
+            availableSnapshot.Count;
+
+        if (ballSealController != null)
+        {
+            launchableBallCount =
+                ballSealController
+                    .ConsumePendingSealAndGetLaunchableCount(
+                        availableSnapshot.Count
+                    );
+        }
+
+        launchableBallCount =
+            Mathf.Clamp(
+                launchableBallCount,
+                1,
+                availableSnapshot.Count
+            );
+
         currentTurnLaunchPosition =
             new Vector2(
                 transform.position.x,
@@ -320,9 +361,35 @@ public sealed class BallLauncher :
 
         currentLaunchSnapshot.Clear();
 
-        currentLaunchSnapshot.AddRange(
-            launchSnapshot
-        );
+        for (int i = 0;
+             i < launchableBallCount;
+             i++)
+        {
+            Ball ball =
+                availableSnapshot[i];
+
+            if (ball == null)
+            {
+                continue;
+            }
+
+            currentLaunchSnapshot.Add(
+                ball
+            );
+        }
+
+        if (currentLaunchSnapshot.Count == 0)
+        {
+            Debug.LogError(
+                "BallLauncher: " +
+                "발사 가능한 공이 없습니다.",
+                this
+            );
+
+            turnManager.NotifyAllBallsReturned();
+
+            return false;
+        }
 
         plannedBallCount =
             currentLaunchSnapshot.Count;
@@ -552,14 +619,6 @@ public sealed class BallLauncher :
             return;
         }
 
-        /*
-         * 모든 공이 하단에 도착한 시점에
-         * 공을 정렬하고 배속 처리를 종료한다.
-         *
-         * 다만 TurnManager에는 아직 공격 종료를
-         * 통보하지 않으므로 대기 시간 동안에는
-         * 다시 조준하거나 발사할 수 없다.
-         */
         tempoController?.EndAttack();
 
         AlignBallsToNextLaunchPosition();
