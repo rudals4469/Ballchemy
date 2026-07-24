@@ -29,6 +29,9 @@ public sealed class BlockEnemyPhaseResolver
     private readonly Func<bool>
         tryStartBossEncounter;
 
+    private BallSealController
+        ballSealController;
+
     public event Action<int>
         WaveGenerated;
 
@@ -90,6 +93,9 @@ public sealed class BlockEnemyPhaseResolver
          *
          * Block.Destroyed 이벤트를 발생시키지 않으므로
          * 공 추가, 회복 등의 보상은 지급되지 않는다.
+         *
+         * 봉인 블록은 이 과정에서
+         * BallSealController에 봉인을 적용한다.
          */
         int expiredSpecialBlockCount =
             blockRegistry
@@ -113,6 +119,12 @@ public sealed class BlockEnemyPhaseResolver
             yield break;
         }
 
+        /*
+         * 보스전 진입 시에는 일반 웨이브를 생성하지 않는다.
+         *
+         * 보스전 시작 과정에서 BallLauncher가
+         * 남아 있는 봉인을 즉시 해제한다.
+         */
         if (waveDirector
                 .ShouldStartBossAfterCurrentWave() &&
             TryStartBossEncounter())
@@ -159,9 +171,39 @@ public sealed class BlockEnemyPhaseResolver
 
         blockRegistry.RemoveInvalidBlocks();
 
+        /*
+         * 실제 블록 생성이 끝난 시점을
+         * 봉인 시스템에 전달한다.
+         *
+         * 봉인 적용 직후 발생한 첫 알림에서는 유지되고,
+         * 다음 공격 주기의 웨이브 생성 알림에서 해제된다.
+         */
+        NotifyWaveGeneratedToSealController();
+
         WaveGenerated?.Invoke(
             waveDirector.CurrentWaveNumber
         );
+    }
+
+    private void
+        NotifyWaveGeneratedToSealController()
+    {
+        if (ballSealController == null)
+        {
+            ballSealController =
+                UnityEngine.Object
+                    .FindFirstObjectByType<
+                        BallSealController
+                    >();
+        }
+
+        if (ballSealController == null)
+        {
+            return;
+        }
+
+        ballSealController
+            .NotifyWaveGenerated();
     }
 
     private bool TryStartBossEncounter()

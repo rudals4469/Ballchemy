@@ -171,10 +171,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallCountView
   ballCollection: {fileID: 904823811}
   ballLauncher: {fileID: 904823807}
-  countText: {fileID: 18714753}
-  textFormat: x{0}
-  sortingLayerName: UI
-  sortingOrder: 100
+  ballSealController: {fileID: 904823812}
+  countLabel: {fileID: 18714753}
+  normalTextFormat: x{0}
+  sealedTextFormat: x{0}/{1}
+  hideWhenZero: 1
+  showDebugLog: 0
 --- !u!114 &18714753
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -182,7 +184,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 18714750}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9541d86e2fd84c1d9990edf0852d74ab, type: 3}
   m_Name: 
@@ -1664,6 +1666,7 @@ GameObject:
   - component: {fileID: 904823808}
   - component: {fileID: 904823811}
   - component: {fileID: 904823810}
+  - component: {fileID: 904823812}
   m_Layer: 0
   m_Name: Launcher
   m_TagString: Untagged
@@ -1704,7 +1707,9 @@ MonoBehaviour:
   turnManager: {fileID: 1520316753}
   ballCollection: {fileID: 904823811}
   tempoController: {fileID: 904823810}
+  ballSealController: {fileID: 904823812}
   launchInterval: 0.08
+  allBallsReturnedDelay: 0.7
   minimumLaunchX: -4.3
   maximumLaunchX: 4.3
 --- !u!114 &904823808
@@ -1801,6 +1806,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallCollection
   ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
   initialBallCount: 20
+--- !u!114 &904823812
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b61ab25d17ee907459bb555a60c7438b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallSealController
+  maximumSealRatio: 0.8
+  showDebugLog: 1
 --- !u!1 &987057995
 GameObject:
   m_ObjectHideFlags: 0
@@ -1914,8 +1933,12 @@ MonoBehaviour:
       specialWaveChance: 1
       minimumSpecialBlocksPerWave: 1
       maximumSpecialBlocksPerWave: 1
-      allowInFeaturedWaves: 0
+      allowInFeaturedWaves: 1
       specialHealthMultiplier: 1
+      enableTestMode: 1
+      forcedSpecialDefinition: {fileID: 11400000, guid: c9b727fcc8d24614b85902f8de0a4bee, type: 2}
+      forceSpawnEveryWaveInTestMode: 1
+      forcedSpecialCount: 1
     minimumRowsPerWave: 2
     maximumRowsPerWave: 3
     minimumBlocksPerRow: 2
@@ -1923,7 +1946,7 @@ MonoBehaviour:
     minimumPillarColumns: 2
     maximumPillarColumns: 2
     extraColumnCarryChance: 0.65
-  defaultWaveBlockType: 1
+  defaultWaveBlockType: 0
   startingBlockHealth: 8
   healthIncreasePerWave: 2
   startingBlockAttack: 1

@@ -332,11 +332,17 @@ public sealed class BallLauncher :
         int launchableBallCount =
             availableSnapshot.Count;
 
+        /*
+         * 봉인이 존재하면 현재 발사 가능한 공 개수만 계산한다.
+         *
+         * 발사 시 봉인을 소비하지 않으므로
+         * 다음 블록 생성 주기까지 같은 감소량이 유지된다.
+         */
         if (ballSealController != null)
         {
             launchableBallCount =
                 ballSealController
-                    .ConsumePendingSealAndGetLaunchableCount(
+                    .GetLaunchableBallCount(
                         availableSnapshot.Count
                     );
         }
@@ -735,6 +741,16 @@ public sealed class BallLauncher :
                 launchBaselineY
             );
 
+        /*
+         * 일반 보스 진입과 B키 보스 테스트 진입이
+         * 모두 이 함수를 사용한다.
+         *
+         * 보스전에서는 일반 웨이브의 봉인 상태를
+         * 가져가지 않고 전체 공 개수를 복구한다.
+         */
+        ballSealController
+            ?.ClearPendingSeal();
+
         currentTurnLaunchPosition =
             centerPosition;
 
@@ -753,8 +769,9 @@ public sealed class BallLauncher :
             );
 
         Debug.Log(
-            "BallLauncher: 보스전 시작 위치를 " +
-            $"중앙 {centerPosition}으로 초기화했습니다.",
+            "BallLauncher: 보스전 시작 상태 초기화, " +
+            $"중앙 위치={centerPosition}, " +
+            "공 봉인 해제",
             this
         );
 

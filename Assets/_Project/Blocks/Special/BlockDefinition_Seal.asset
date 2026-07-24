@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 886c36495a3475f4f8ab51277a3e8675, type: 3}
   m_Name: BlockDefinition_Seal
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
-  blockId: 
-  displayName: 
-  blockType: 0
+  blockId: special_seal
+  displayName: seal
+  blockType: 1
   destructionRule: 0
   gridSize: {x: 1, y: 1}
   sprite: {fileID: 0}
-  color: {r: 1, g: 1, b: 1, a: 1}
+  color: {r: 0.6659298, g: 0, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
   selectionWeight: 1
