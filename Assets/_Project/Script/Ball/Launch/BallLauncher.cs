@@ -6,6 +6,7 @@ using UnityEngine;
 [RequireComponent(typeof(BallCollection))]
 [RequireComponent(typeof(BallTurnTempoController))]
 [RequireComponent(typeof(BallSealController))]
+[RequireComponent(typeof(BallGatherAnimator))]
 public sealed class BallLauncher :
     MonoBehaviour
 {
@@ -24,11 +25,19 @@ public sealed class BallLauncher :
     private BallSealController
         ballSealController;
 
+    [SerializeField]
+    private BallGatherAnimator
+        gatherAnimator;
+
     [Header("Launch Settings")]
     [SerializeField, Min(0f)]
     private float launchInterval = 0.08f;
 
     [Header("Attack Completion")]
+    [Tooltip(
+        "마지막 공이 복귀한 뒤 " +
+        "공 모으기 애니메이션을 시작하기 전까지의 대기 시간입니다."
+    )]
     [SerializeField, Min(0f)]
     private float allBallsReturnedDelay = 0.7f;
 
@@ -176,6 +185,14 @@ public sealed class BallLauncher :
                     BallSealController
                 >();
         }
+
+        if (gatherAnimator == null)
+        {
+            gatherAnimator =
+                GetComponent<
+                    BallGatherAnimator
+                >();
+        }
     }
 
     private void NormalizeSettings()
@@ -240,6 +257,15 @@ public sealed class BallLauncher :
             Debug.LogError(
                 "BallLauncher: " +
                 "BallSealController를 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (gatherAnimator == null)
+        {
+            Debug.LogError(
+                "BallLauncher: " +
+                "BallGatherAnimator를 찾지 못했습니다.",
                 this
             );
         }
@@ -332,12 +358,6 @@ public sealed class BallLauncher :
         int launchableBallCount =
             availableSnapshot.Count;
 
-        /*
-         * 봉인이 존재하면 현재 발사 가능한 공 개수만 계산한다.
-         *
-         * 발사 시 봉인을 소비하지 않으므로
-         * 다음 블록 생성 주기까지 같은 감소량이 유지된다.
-         */
         if (ballSealController != null)
         {
             launchableBallCount =
@@ -627,15 +647,11 @@ public sealed class BallLauncher :
 
         tempoController?.EndAttack();
 
-        AlignBallsToNextLaunchPosition();
-
-        if (allBallsReturnedDelay <= 0f)
-        {
-            CompleteAttack();
-
-            return;
-        }
-
+        /*
+         * 마지막 공이 복귀한 뒤
+         * 대기와 공 모으기 애니메이션을
+         * 하나의 종료 코루틴에서 처리한다.
+         */
         completeAttackCoroutine =
             StartCoroutine(
                 CompleteAttackAfterDelayRoutine()
@@ -645,20 +661,60 @@ public sealed class BallLauncher :
     private IEnumerator
         CompleteAttackAfterDelayRoutine()
     {
-        Debug.Log(
-            "BallLauncher: 모든 공 복귀 완료, " +
-            $"{allBallsReturnedDelay:0.00}초 대기",
-            this
-        );
-
-        yield return
-            new WaitForSeconds(
-                allBallsReturnedDelay
+        if (allBallsReturnedDelay > 0f)
+        {
+            Debug.Log(
+                "BallLauncher: 모든 공 복귀 완료, " +
+                $"{allBallsReturnedDelay:0.00}초 후 " +
+                "공 모으기 시작",
+                this
             );
+
+            yield return
+                new WaitForSeconds(
+                    allBallsReturnedDelay
+                );
+        }
+
+        nextTurnLaunchPosition =
+            new Vector2(
+                nextTurnLaunchPosition.x,
+                launchBaselineY
+            );
+
+        if (gatherAnimator != null)
+        {
+            yield return gatherAnimator
+                .PlayGatherRoutine(
+                    nextTurnLaunchPosition
+                );
+        }
+        else
+        {
+            ballCollection?.AlignAll(
+                nextTurnLaunchPosition
+            );
+        }
+
+        ApplyNextLaunchPosition();
 
         completeAttackCoroutine = null;
 
         CompleteAttack();
+    }
+
+    private void ApplyNextLaunchPosition()
+    {
+        ballCollection?.SetStandbyPosition(
+            nextTurnLaunchPosition
+        );
+
+        transform.position =
+            new Vector3(
+                nextTurnLaunchPosition.x,
+                launchBaselineY,
+                transform.position.z
+            );
     }
 
     private void CompleteAttack()
@@ -677,30 +733,10 @@ public sealed class BallLauncher :
         turnManager?.NotifyAllBallsReturned();
 
         Debug.Log(
-            "BallLauncher: 복귀 대기 종료, " +
+            "BallLauncher: 공 모으기 완료, " +
             "다음 턴 처리를 시작합니다.",
             this
         );
-    }
-
-    private void AlignBallsToNextLaunchPosition()
-    {
-        nextTurnLaunchPosition =
-            new Vector2(
-                nextTurnLaunchPosition.x,
-                launchBaselineY
-            );
-
-        ballCollection?.AlignAll(
-            nextTurnLaunchPosition
-        );
-
-        transform.position =
-            new Vector3(
-                nextTurnLaunchPosition.x,
-                launchBaselineY,
-                transform.position.z
-            );
     }
 
     public bool TryResetLaunchPositionToCenter()
@@ -741,13 +777,6 @@ public sealed class BallLauncher :
                 launchBaselineY
             );
 
-        /*
-         * 일반 보스 진입과 B키 보스 테스트 진입이
-         * 모두 이 함수를 사용한다.
-         *
-         * 보스전에서는 일반 웨이브의 봉인 상태를
-         * 가져가지 않고 전체 공 개수를 복구한다.
-         */
         ballSealController
             ?.ClearPendingSeal();
 
