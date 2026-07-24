@@ -2,21 +2,45 @@ using UnityEngine;
 
 public sealed class BlockSpawnRequest
 {
-    public int StartColumn { get; }
+    public int StartColumn
+    {
+        get;
+    }
 
-    public int StartRow { get; }
+    public int StartRow
+    {
+        get;
+    }
 
-    public int WaveIndex { get; }
+    public int WaveIndex
+    {
+        get;
+    }
 
-    public BlockDefinition Definition { get; }
+    public BlockDefinition Definition
+    {
+        get;
+    }
 
-    public BlockType RequestedBlockType { get; }
+    public BlockType RequestedBlockType
+    {
+        get;
+    }
 
-    public Vector2Int GridSize { get; }
+    public Vector2Int GridSize
+    {
+        get;
+    }
 
-    public int Health { get; }
+    public int Health
+    {
+        get;
+    }
 
-    public int Attack { get; }
+    public int Attack
+    {
+        get;
+    }
 
     public BlockSpawnRequest(
         int startColumn,
@@ -43,8 +67,14 @@ public sealed class BlockSpawnRequest
         Definition =
             definition;
 
+        /*
+         * Definition이 있다면 Definition의 타입을
+         * 최종 타입으로 사용한다.
+         */
         RequestedBlockType =
-            requestedBlockType;
+            definition != null
+                ? definition.BlockType
+                : requestedBlockType;
 
         GridSize =
             new Vector2Int(
@@ -64,10 +94,20 @@ public sealed class BlockSpawnRequest
                 1
             );
 
+        /*
+         * 일반 스테이지의 모든 Special 블록은
+         * 플레이어를 공격하지 않는다.
+         *
+         * 생성 측에서 공격력을 잘못 전달하더라도
+         * SpawnRequest 단계에서 0으로 고정한다.
+         */
         Attack =
-            Mathf.Max(
-                attack,
-                0
-            );
+            RequestedBlockType ==
+            BlockType.Special
+                ? 0
+                : Mathf.Max(
+                    attack,
+                    0
+                );
     }
 }

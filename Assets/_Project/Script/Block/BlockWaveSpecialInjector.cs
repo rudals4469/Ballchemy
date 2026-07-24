@@ -39,28 +39,19 @@ public sealed class BlockWaveSpecialInjector
     private int maximumSpecialBlocksPerWave = 1;
 
     [Tooltip(
-        "네임드 블록이 포함된 주요 웨이브에도 " +
+        "네임드 블록이 포함된 웨이브에도 " +
         "특수 블록을 추가할지 결정합니다."
     )]
     [SerializeField]
     private bool allowInFeaturedWaves;
 
-    [Header("Runtime Stats")]
+    [Header("Special Block Health")]
     [Tooltip(
-        "특수 블록 체력에 적용되는 공통 배율입니다."
+        "일반 블록 체력을 기준으로 특수 블록에 " +
+        "적용되는 공통 체력 배율입니다."
     )]
     [SerializeField, Min(0.1f)]
     private float specialHealthMultiplier = 1f;
-
-    [Tooltip(
-        "특수 블록도 일반 적처럼 공격력을 " +
-        "가질지 결정합니다."
-    )]
-    [SerializeField]
-    private bool specialBlocksCanAttack;
-
-    [SerializeField, Min(0f)]
-    private float specialAttackMultiplier = 1f;
 
     public void Normalize()
     {
@@ -91,12 +82,6 @@ public sealed class BlockWaveSpecialInjector
             Mathf.Max(
                 specialHealthMultiplier,
                 0.1f
-            );
-
-        specialAttackMultiplier =
-            Mathf.Max(
-                specialAttackMultiplier,
-                0f
             );
     }
 
@@ -233,7 +218,9 @@ public sealed class BlockWaveSpecialInjector
                 ];
 
             BlockSpawnRequest originalRequest =
-                requests[requestIndex];
+                requests[
+                    requestIndex
+                ];
 
             int specialHealth =
                 Mathf.Max(
@@ -244,27 +231,16 @@ public sealed class BlockWaveSpecialInjector
                     )
                 );
 
-            int specialAttack =
-                specialBlocksCanAttack
-                    ? Mathf.Max(
-                        0,
-                        Mathf.RoundToInt(
-                            originalRequest.Attack *
-                            specialAttackMultiplier
-                        )
-                    )
-                    : 0;
-
             requests[requestIndex] =
                 new BlockSpawnRequest(
                     originalRequest.StartColumn,
                     originalRequest.StartRow,
                     originalRequest.WaveIndex,
                     selectedDefinition,
-                    selectedDefinition.BlockType,
+                    BlockType.Special,
                     selectedDefinition.GridSize,
                     specialHealth,
-                    specialAttack
+                    0
                 );
 
             availableRequestIndexes.RemoveAt(
@@ -284,8 +260,9 @@ public sealed class BlockWaveSpecialInjector
         }
     }
 
-    private List<int> CollectReplaceableRequestIndexes(
-        IReadOnlyList<BlockSpawnRequest> requests)
+    private List<int>
+        CollectReplaceableRequestIndexes(
+            IReadOnlyList<BlockSpawnRequest> requests)
     {
         List<int> indexes =
             new List<int>();
@@ -410,13 +387,16 @@ public sealed class BlockWaveSpecialInjector
                 availableRequestIndexes[i];
 
             if (requestIndex < 0 ||
-                requestIndex >= requests.Count)
+                requestIndex >=
+                requests.Count)
             {
                 continue;
             }
 
             BlockSpawnRequest request =
-                requests[requestIndex];
+                requests[
+                    requestIndex
+                ];
 
             if (request == null)
             {
@@ -433,10 +413,11 @@ public sealed class BlockWaveSpecialInjector
         return false;
     }
 
-    private int GetRandomMatchingRequestListIndex(
-        BlockDefinition definition,
-        IReadOnlyList<BlockSpawnRequest> requests,
-        IReadOnlyList<int> availableRequestIndexes)
+    private int
+        GetRandomMatchingRequestListIndex(
+            BlockDefinition definition,
+            IReadOnlyList<BlockSpawnRequest> requests,
+            IReadOnlyList<int> availableRequestIndexes)
     {
         Vector2Int requiredSize =
             NormalizeGridSize(
@@ -454,13 +435,16 @@ public sealed class BlockWaveSpecialInjector
                 availableRequestIndexes[i];
 
             if (requestIndex < 0 ||
-                requestIndex >= requests.Count)
+                requestIndex >=
+                requests.Count)
             {
                 continue;
             }
 
             BlockSpawnRequest request =
-                requests[requestIndex];
+                requests[
+                    requestIndex
+                ];
 
             if (request == null ||
                 request.GridSize !=
