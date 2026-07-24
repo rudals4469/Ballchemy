@@ -13,14 +13,28 @@ MonoBehaviour:
   m_Name: MainBlockCatalog
   m_EditorClassIdentifier: Assembly-CSharp::BlockCatalog
   definitions:
-  - {fileID: 11400000, guid: c2bbd4b7704f21b4a82de9c5889fa31a, type: 2}
-  - {fileID: 11400000, guid: 1010a7205087bf84987805122fd56d3e, type: 2}
-  - {fileID: 11400000, guid: b75314e3267ee6c48a44e50aeffd290a, type: 2}
-  - {fileID: 11400000, guid: 15bf1b22fa69eaf41a374b9c7a64c98c, type: 2}
-  - {fileID: 11400000, guid: d1a8b9df5341fe34e9a63523e1093965, type: 2}
+  - {fileID: 11400000, guid: 76530a832fb6ed24590056d98d11b6c9, type: 2}
+  - {fileID: 11400000, guid: c2511144af2a30e4ab21e91f5ac22cf9, type: 2}
+  - {fileID: 11400000, guid: 10337aae5b6d6624682291cda6dcbea4, type: 2}
+  - {fileID: 11400000, guid: 2e816761932060f4387e4c8cbeedafe2, type: 2}
   - {fileID: 11400000, guid: 8a39c8e71e3c1af49bcf731ee6a05a29, type: 2}
   - {fileID: 11400000, guid: 6f34c8f5f7e0ddf48b3ecd04e48b7fd6, type: 2}
   - {fileID: 11400000, guid: d9490f0aad85dad40894e280bb7b87d6, type: 2}
   - {fileID: 11400000, guid: 47267789aa7174a4cafab2a488bc2b6b, type: 2}
   - {fileID: 11400000, guid: 412be5dabe9bb334897141cc4cb1c283, type: 2}
   - {fileID: 11400000, guid: 4cdc9b857bcb5184a997e819e19ae25e, type: 2}
+  - {fileID: 11400000, guid: c2bbd4b7704f21b4a82de9c5889fa31a, type: 2}
+  - {fileID: 11400000, guid: 1010a7205087bf84987805122fd56d3e, type: 2}
+  - {fileID: 11400000, guid: 15bf1b22fa69eaf41a374b9c7a64c98c, type: 2}
+  - {fileID: 11400000, guid: b75314e3267ee6c48a44e50aeffd290a, type: 2}
+  - {fileID: 11400000, guid: d1a8b9df5341fe34e9a63523e1093965, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}

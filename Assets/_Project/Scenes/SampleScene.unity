@@ -1462,6 +1462,8 @@ GameObject:
   - component: {fileID: 904823807}
   - component: {fileID: 904823809}
   - component: {fileID: 904823808}
+  - component: {fileID: 904823811}
+  - component: {fileID: 904823810}
   m_Layer: 0
   m_Name: Launcher
   m_TagString: Untagged
@@ -1499,20 +1501,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallLauncher
   turnManager: {fileID: 1520316753}
-  ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
-  ballCount: 20
-  launchInterval: 0.1
+  ballCollection: {fileID: 904823811}
+  tempoController: {fileID: 904823810}
+  launchInterval: 0.08
   minimumLaunchX: -4.3
   maximumLaunchX: 4.3
-  enableAutomaticSpeedUp: 1
-  speedUpStartRemainingRatio: 0.5
-  firstSpeedMultiplier: 1.25
-  secondSpeedUpDelay: 4
-  secondSpeedMultiplier: 1.5
-  speedTransitionDuration: 0.3
-  enableAutomaticRecall: 1
-  recallStartRemainingRatio: 0.2
-  automaticRecallDelay: 15
 --- !u!114 &904823808
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1571,6 +1564,42 @@ MonoBehaviour:
   aimSmoothSpeed: 14
   aimMovementThresholdDegrees: 1.5
   stableAimDelay: 0.5
+--- !u!114 &904823810
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94244703debfe7d4ea31c56551724765, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallTurnTempoController
+  ballCollection: {fileID: 904823811}
+  enableAutomaticSpeedUp: 1
+  speedUpStartRemainingRatio: 0.5
+  firstSpeedMultiplier: 1.25
+  secondSpeedUpDelay: 4
+  secondSpeedMultiplier: 1.5
+  speedTransitionDuration: 0.3
+  enableAutomaticRecall: 1
+  recallStartRemainingRatio: 0.2
+  automaticRecallDelay: 15
+--- !u!114 &904823811
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 75b0de1b6b5d95849b665ff95a56e25a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallCollection
+  ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
+  initialBallCount: 20
 --- !u!1 &987057995
 GameObject:
   m_ObjectHideFlags: 0
@@ -1673,11 +1702,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BlockWaveGenerator
   boardGrid: {fileID: 1710125463}
   blockSpawner:
-    blockPrefab: {fileID: 5741669861215845034, guid: 63c51ec1f2fb1cc41817829b42d6d84e, type: 3}
+    prefabCatalog: {fileID: 11400000, guid: b53e06d3c1ffdf140b3c16ce9316c09f, type: 2}
     blockContainer: {fileID: 987057996}
     showSpawnDebugLog: 0
   patternBuilder:
     blockCatalog: {fileID: 11400000, guid: c4c0d4c097d226e4ca087745d48ea6b0, type: 2}
+    specialInjector:
+      enableSpecialBlocks: 1
+      firstSpecialWaveNumber: 1
+      specialWaveChance: 1
+      minimumSpecialBlocksPerWave: 1
+      maximumSpecialBlocksPerWave: 1
+      allowInFeaturedWaves: 0
+      specialHealthMultiplier: 1
+      specialBlocksCanAttack: 0
+      specialAttackMultiplier: 1
     minimumRowsPerWave: 2
     maximumRowsPerWave: 3
     minimumBlocksPerRow: 2
@@ -1685,7 +1724,7 @@ MonoBehaviour:
     minimumPillarColumns: 2
     maximumPillarColumns: 2
     extraColumnCarryChance: 0.65
-  defaultWaveBlockType: 0
+  defaultWaveBlockType: 1
   startingBlockHealth: 8
   healthIncreasePerWave: 2
   startingBlockAttack: 1

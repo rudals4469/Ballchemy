@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14fa0d5ab0b15464a89b21cf23ed5636, type: 3}
+  m_Name: BlockPrefabCatalog_Main
+  m_EditorClassIdentifier: Assembly-CSharp::BlockPrefabCatalog
+  defaultBlockPrefab: {fileID: 5741669861215845034, guid: 6f7a787f1ac0e13419e6eed0592dc6a4, type: 3}
+  prefabOverrides:
+  - definition: {fileID: 11400000, guid: 76530a832fb6ed24590056d98d11b6c9, type: 2}
+    prefab: {fileID: 5741669861215845034, guid: 63c51ec1f2fb1cc41817829b42d6d84e, type: 3}

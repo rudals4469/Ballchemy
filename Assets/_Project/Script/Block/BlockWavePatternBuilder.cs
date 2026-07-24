@@ -10,6 +10,11 @@ public sealed class BlockWavePatternBuilder
     [SerializeField]
     private BlockCatalog blockCatalog;
 
+    [Header("Special Blocks")]
+    [SerializeField]
+    private BlockWaveSpecialInjector specialInjector =
+        new BlockWaveSpecialInjector();
+
     [Header("Wave Row Settings")]
     [SerializeField, Min(1)]
     private int minimumRowsPerWave = 2;
@@ -53,6 +58,8 @@ public sealed class BlockWavePatternBuilder
         int availableColumns,
         int availableRows)
     {
+        EnsureHelpers();
+
         availableColumns =
             Mathf.Max(
                 availableColumns,
@@ -111,11 +118,15 @@ public sealed class BlockWavePatternBuilder
             Mathf.Clamp01(
                 extraColumnCarryChance
             );
+
+        specialInjector.Normalize();
     }
 
     public void Validate(
         UnityEngine.Object context)
     {
+        EnsureHelpers();
+
         if (blockCatalog == null)
         {
             Debug.LogWarning(
@@ -124,6 +135,19 @@ public sealed class BlockWavePatternBuilder
                 "Normal 타입은 기본 1x1 블록으로 대체됩니다.",
                 context
             );
+        }
+
+        specialInjector.Validate(
+            context
+        );
+    }
+
+    private void EnsureHelpers()
+    {
+        if (specialInjector == null)
+        {
+            specialInjector =
+                new BlockWaveSpecialInjector();
         }
     }
 
@@ -217,6 +241,8 @@ public sealed class BlockWavePatternBuilder
         float featuredHealthMultiplier,
         float featuredAttackMultiplier)
     {
+        EnsureHelpers();
+
         columnCount =
             Mathf.Max(
                 columnCount,
@@ -328,6 +354,13 @@ public sealed class BlockWavePatternBuilder
                     ? spawnedColumns
                     : preferredColumns;
         }
+
+        specialInjector.InjectSpecialBlocks(
+            requests,
+            blockCatalog,
+            waveIndex,
+            featuredDefinition != null
+        );
 
         return requests;
     }
