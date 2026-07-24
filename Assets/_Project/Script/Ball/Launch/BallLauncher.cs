@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -44,6 +45,7 @@ public sealed class BallLauncher :
     private int launchedBallCount;
     private int returnedBallCount;
 
+    private bool isInitialized;
     private bool isLaunching;
     private bool hasFirstReturnedBall;
     private bool isAttackCompleted;
@@ -56,16 +58,36 @@ public sealed class BallLauncher :
     public bool IsLaunching =>
         isLaunching;
 
+    public bool IsAttackInProgress =>
+        isLaunching ||
+        (
+            launchedBallCount > 0 &&
+            !isAttackCompleted
+        );
+
     public int BallCount =>
         ballCollection != null
             ? ballCollection.Count
             : 0;
+
+    public int RemainingBallsToLaunch =>
+        Mathf.Max(
+            plannedBallCount -
+            launchedBallCount,
+            0
+        );
 
     public Ball LastLaunchedBall
     {
         get;
         private set;
     }
+
+    public event Action<int>
+        RemainingBallsToLaunchChanged;
+
+    public event Action
+        LaunchCycleCompleted;
 
     private void Awake()
     {
@@ -106,6 +128,9 @@ public sealed class BallLauncher :
         ballCollection.Initialize(
             currentTurnLaunchPosition
         );
+
+        isInitialized = true;
+        isAttackCompleted = true;
     }
 
     private void FindReferences()
@@ -240,7 +265,7 @@ public sealed class BallLauncher :
             return false;
         }
 
-        if (isLaunching ||
+        if (IsAttackInProgress ||
             ballCollection == null ||
             turnManager == null)
         {
@@ -279,6 +304,7 @@ public sealed class BallLauncher :
         NormalizeLauncherPosition();
 
         currentLaunchSnapshot.Clear();
+
         currentLaunchSnapshot.AddRange(
             launchSnapshot
         );
@@ -301,6 +327,8 @@ public sealed class BallLauncher :
         tempoController?.BeginAttack(
             plannedBallCount
         );
+
+        NotifyRemainingBallsToLaunchChanged();
 
         launchCoroutine =
             StartCoroutine(
@@ -333,8 +361,6 @@ public sealed class BallLauncher :
                 continue;
             }
 
-            launchedBallCount++;
-
             ball.ResetTo(
                 currentTurnLaunchPosition
             );
@@ -342,6 +368,10 @@ public sealed class BallLauncher :
             ball.Launch(
                 direction
             );
+
+            launchedBallCount++;
+
+            NotifyRemainingBallsToLaunchChanged();
 
             if (launchInterval > 0f)
             {
@@ -366,6 +396,13 @@ public sealed class BallLauncher :
             );
 
         TryCompleteAttack();
+    }
+
+    private void NotifyRemainingBallsToLaunchChanged()
+    {
+        RemainingBallsToLaunchChanged?.Invoke(
+            RemainingBallsToLaunch
+        );
     }
 
     private void HandleBallReturned(
@@ -503,6 +540,8 @@ public sealed class BallLauncher :
 
         currentLaunchSnapshot.Clear();
 
+        LaunchCycleCompleted?.Invoke();
+
         turnManager.NotifyAllBallsReturned();
     }
 
@@ -524,6 +563,70 @@ public sealed class BallLauncher :
                 launchBaselineY,
                 transform.position.z
             );
+    }
+
+    public bool TryResetLaunchPositionToCenter()
+    {
+        if (!isInitialized ||
+            ballCollection == null)
+        {
+            Debug.LogWarning(
+                "BallLauncher: 초기화 전이라 " +
+                "발사 위치를 중앙으로 이동할 수 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        if (IsAttackInProgress)
+        {
+            Debug.LogWarning(
+                "BallLauncher: 공격 진행 중에는 " +
+                "발사 위치를 중앙으로 이동할 수 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        float centerX =
+            (
+                minimumLaunchX +
+                maximumLaunchX
+            ) *
+            0.5f;
+
+        Vector2 centerPosition =
+            new Vector2(
+                centerX,
+                launchBaselineY
+            );
+
+        currentTurnLaunchPosition =
+            centerPosition;
+
+        nextTurnLaunchPosition =
+            centerPosition;
+
+        ballCollection.AlignAll(
+            centerPosition
+        );
+
+        transform.position =
+            new Vector3(
+                centerPosition.x,
+                launchBaselineY,
+                transform.position.z
+            );
+
+        Debug.Log(
+            "BallLauncher: 보스전 시작 위치를 " +
+            $"중앙 {centerPosition}으로 초기화했습니다.",
+            this
+        );
+
+        return true;
     }
 
     private void NormalizeLauncherPosition()
