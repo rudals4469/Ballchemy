@@ -31,6 +31,8 @@ public sealed class Block : MonoBehaviour
 
     private int currentHealth;
 
+    private bool isDestructionStarted;
+
     public BlockDefinition Definition =>
         definition;
 
@@ -124,7 +126,11 @@ public sealed class Block : MonoBehaviour
         attackPower;
 
     public bool IsAlive =>
-        currentHealth > 0;
+        currentHealth > 0 &&
+        !isDestructionStarted;
+
+    public bool IsDestructionStarted =>
+        isDestructionStarted;
 
     public bool IsBreakable =>
         DestructionRule ==
@@ -167,9 +173,14 @@ public sealed class Block : MonoBehaviour
     public event Action<Block, Vector2Int>
         GridPositionChanged;
 
+    public event Action<Block>
+        Destroyed;
+
     private void Awake()
     {
         EnsureHelperObjects();
+
+        isDestructionStarted = false;
 
         currentHealth =
             maxHealth;
@@ -226,6 +237,8 @@ public sealed class Block : MonoBehaviour
     {
         EnsureHelperObjects();
 
+        isDestructionStarted = false;
+
         SetRuntimeStats(
             health,
             attack
@@ -261,6 +274,8 @@ public sealed class Block : MonoBehaviour
         float cellSize)
     {
         EnsureHelperObjects();
+
+        isDestructionStarted = false;
 
         definition =
             blockDefinition;
@@ -575,7 +590,8 @@ public sealed class Block : MonoBehaviour
         int damage)
     {
         if (damage <= 0 ||
-            !IsAlive)
+            !IsAlive ||
+            isDestructionStarted)
         {
             return;
         }
@@ -623,8 +639,19 @@ public sealed class Block : MonoBehaviour
 
     private void DestroyBlock()
     {
+        if (isDestructionStarted)
+        {
+            return;
+        }
+
+        isDestructionStarted = true;
+
         Debug.Log(
             $"{name} 파괴",
+            this
+        );
+
+        Destroyed?.Invoke(
             this
         );
 

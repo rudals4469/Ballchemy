@@ -11,11 +11,11 @@ GameObject:
   - component: {fileID: 2542385676850369577}
   - component: {fileID: 8902717914776242626}
   - component: {fileID: 5741669861215845034}
+  - component: {fileID: 3807108553937151508}
   - component: {fileID: 7281401101237391874}
   - component: {fileID: 2706938483844556531}
-  - component: {fileID: 3807108553937151508}
   m_Layer: 0
-  m_Name: Block
+  m_Name: Block_AddBall
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -95,7 +95,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0debd842d3c5c94aa52e1b05ca211bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Block
-  definition: {fileID: 0}
+  definition: {fileID: 11400000, guid: 76530a832fb6ed24590056d98d11b6c9, type: 2}
   layout:
     visualRenderer: {fileID: 5051892278997693569}
     boxCollider: {fileID: 8902717914776242626}
@@ -108,6 +108,21 @@ MonoBehaviour:
   runtimeCellSize: 1
   maxHealth: 3
   attackPower: 2
+--- !u!114 &3807108553937151508
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 568822364854027056}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e343efc13e2e2f84a8204d9e5d98188c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AddBallRewardEffect
+  ballCollection: {fileID: 0}
+  minimumAddedBallCount: 1
+  maximumAddedBallCount: 3
 --- !u!114 &7281401101237391874
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -152,21 +167,6 @@ MonoBehaviour:
   useScaleFeedback: 1
   scaleAmount: 0.04
   scaleDuration: 0.12
---- !u!114 &3807108553937151508
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 568822364854027056}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e343efc13e2e2f84a8204d9e5d98188c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AddBallRewardEffect
-  ballCollection: {fileID: 0}
-  minimumAddedBallCount: 1
-  maximumAddedBallCount: 3
 --- !u!1 &1430352254046490565
 GameObject:
   m_ObjectHideFlags: 0
@@ -431,7 +431,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.7735849, g: 0.7735849, b: 0.7735849, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 1

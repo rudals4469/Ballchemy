@@ -2,19 +2,23 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class BallLauncher : MonoBehaviour
+[RequireComponent(typeof(BallCollection))]
+[RequireComponent(typeof(BallTurnTempoController))]
+public sealed class BallLauncher :
+    MonoBehaviour
 {
     [Header("References")]
     [SerializeField]
     private TurnManager turnManager;
 
     [SerializeField]
-    private Ball ballPrefab;
+    private BallCollection ballCollection;
 
-    [Header("Ball Settings")]
-    [SerializeField, Min(1)]
-    private int ballCount = 5;
+    [SerializeField]
+    private BallTurnTempoController
+        tempoController;
 
+    [Header("Launch Settings")]
     [SerializeField, Min(0f)]
     private float launchInterval = 0.08f;
 
@@ -25,71 +29,9 @@ public sealed class BallLauncher : MonoBehaviour
     [SerializeField]
     private float maximumLaunchX = 4.3f;
 
-    [Header("Automatic Speed Up")]
-    [Tooltip(
-        "턴 후반에 남아 있는 공들의 속도를 " +
-        "자동으로 증가시킵니다."
-    )]
-    [SerializeField]
-    private bool enableAutomaticSpeedUp = true;
-
-    [Tooltip(
-        "남은 공의 비율이 이 값 이하가 되면 " +
-        "배속을 시작합니다. " +
-        "0.5는 전체 공의 50%를 의미합니다."
-    )]
-    [SerializeField, Range(0f, 1f)]
-    private float speedUpStartRemainingRatio = 0.5f;
-
-    [Tooltip(
-        "배속 시작 직후 적용되는 첫 번째 배속입니다."
-    )]
-    [SerializeField, Min(1f)]
-    private float firstSpeedMultiplier = 1.25f;
-
-    [Tooltip(
-        "배속이 시작된 뒤 두 번째 배속까지의 시간입니다."
-    )]
-    [SerializeField, Min(0f)]
-    private float secondSpeedUpDelay = 4f;
-
-    [Tooltip(
-        "두 번째 단계에서 적용되는 배속입니다."
-    )]
-    [SerializeField, Min(1f)]
-    private float secondSpeedMultiplier = 1.5f;
-
-    [Tooltip(
-        "현재 배속에서 목표 배속까지 " +
-        "부드럽게 전환되는 시간입니다."
-    )]
-    [SerializeField, Min(0f)]
-    private float speedTransitionDuration = 0.3f;
-
-    [Header("Automatic Recall")]
-    [Tooltip(
-        "남은 공이 적어지면 자동 회수 타이머를 시작합니다."
-    )]
-    [SerializeField]
-    private bool enableAutomaticRecall = true;
-
-    [Tooltip(
-        "남은 공의 비율이 이 값 이하가 되면 " +
-        "자동 회수 타이머를 시작합니다. " +
-        "0.2는 전체 공의 20%를 의미합니다."
-    )]
-    [SerializeField, Range(0f, 1f)]
-    private float recallStartRemainingRatio = 0.2f;
-
-    [Tooltip(
-        "회수 조건을 만족한 순간부터 " +
-        "남은 공이 자동 회수되기까지의 시간입니다."
-    )]
-    [SerializeField, Min(0.1f)]
-    private float automaticRecallDelay = 15f;
-
-    private readonly List<Ball> balls =
-        new List<Ball>();
+    private readonly List<Ball>
+        currentLaunchSnapshot =
+            new List<Ball>();
 
     private Coroutine launchCoroutine;
 
@@ -98,13 +40,7 @@ public sealed class BallLauncher : MonoBehaviour
 
     private float launchBaselineY;
 
-    private float attackElapsedTime;
-    private float speedUpElapsedTime;
-    private float recallElapsedTime;
-
-    private float currentSpeedMultiplier = 1f;
-    private float speedMultiplierVelocity;
-
+    private int plannedBallCount;
     private int launchedBallCount;
     private int returnedBallCount;
 
@@ -112,43 +48,18 @@ public sealed class BallLauncher : MonoBehaviour
     private bool hasFirstReturnedBall;
     private bool isAttackCompleted;
 
-    private bool isAttackTempoActive;
-    private bool isSpeedUpPhaseActive;
-    private bool isRecallCountdownActive;
-    private bool hasAutomaticRecallTriggered;
-
     public Ball BallPrefab =>
-        ballPrefab;
+        ballCollection != null
+            ? ballCollection.BallPrefab
+            : null;
 
     public bool IsLaunching =>
         isLaunching;
 
     public int BallCount =>
-        balls.Count;
-
-    public float AttackElapsedTime =>
-        attackElapsedTime;
-
-    public float CurrentSpeedMultiplier =>
-        currentSpeedMultiplier;
-
-    public bool IsSpeedUpPhaseActive =>
-        isSpeedUpPhaseActive;
-
-    public bool IsRecallCountdownActive =>
-        isRecallCountdownActive;
-
-    public float RecallElapsedTime =>
-        recallElapsedTime;
-
-    public float RecallRemainingTime =>
-        isRecallCountdownActive
-            ? Mathf.Max(
-                automaticRecallDelay -
-                recallElapsedTime,
-                0f
-            )
-            : automaticRecallDelay;
+        ballCollection != null
+            ? ballCollection.Count
+            : 0;
 
     public Ball LastLaunchedBall
     {
@@ -158,24 +69,22 @@ public sealed class BallLauncher : MonoBehaviour
 
     private void Awake()
     {
-        if (turnManager == null)
-        {
-            turnManager =
-                FindFirstObjectByType<TurnManager>();
-        }
-
+        FindReferences();
         NormalizeSettings();
         ValidateReferences();
+        SubscribeEvents();
     }
 
     private void OnValidate()
     {
+        FindReferences();
         NormalizeSettings();
     }
 
     private void Start()
     {
-        if (ballPrefab == null)
+        if (ballCollection == null ||
+            ballCollection.BallPrefab == null)
         {
             return;
         }
@@ -193,22 +102,37 @@ public sealed class BallLauncher : MonoBehaviour
             currentTurnLaunchPosition;
 
         NormalizeLauncherPosition();
-        CreateBalls();
+
+        ballCollection.Initialize(
+            currentTurnLaunchPosition
+        );
     }
 
-    private void Update()
+    private void FindReferences()
     {
-        UpdateAttackTempo();
+        if (turnManager == null)
+        {
+            turnManager =
+                FindFirstObjectByType<TurnManager>();
+        }
+
+        if (ballCollection == null)
+        {
+            ballCollection =
+                GetComponent<BallCollection>();
+        }
+
+        if (tempoController == null)
+        {
+            tempoController =
+                GetComponent<
+                    BallTurnTempoController
+                >();
+        }
     }
 
     private void NormalizeSettings()
     {
-        ballCount =
-            Mathf.Max(
-                ballCount,
-                1
-            );
-
         launchInterval =
             Mathf.Max(
                 launchInterval,
@@ -227,46 +151,6 @@ public sealed class BallLauncher : MonoBehaviour
             maximumLaunchX =
                 previousMinimum;
         }
-
-        speedUpStartRemainingRatio =
-            Mathf.Clamp01(
-                speedUpStartRemainingRatio
-            );
-
-        firstSpeedMultiplier =
-            Mathf.Max(
-                firstSpeedMultiplier,
-                1f
-            );
-
-        secondSpeedUpDelay =
-            Mathf.Max(
-                secondSpeedUpDelay,
-                0f
-            );
-
-        secondSpeedMultiplier =
-            Mathf.Max(
-                secondSpeedMultiplier,
-                firstSpeedMultiplier
-            );
-
-        speedTransitionDuration =
-            Mathf.Max(
-                speedTransitionDuration,
-                0f
-            );
-
-        recallStartRemainingRatio =
-            Mathf.Clamp01(
-                recallStartRemainingRatio
-            );
-
-        automaticRecallDelay =
-            Mathf.Max(
-                automaticRecallDelay,
-                0.1f
-            );
     }
 
     private void ValidateReferences()
@@ -274,103 +158,77 @@ public sealed class BallLauncher : MonoBehaviour
         if (turnManager == null)
         {
             Debug.LogError(
-                "BallLauncher: TurnManager를 찾지 못했습니다.",
+                "BallLauncher: " +
+                "TurnManager를 찾지 못했습니다.",
                 this
             );
         }
 
-        if (ballPrefab == null)
+        if (ballCollection == null)
         {
             Debug.LogError(
-                "BallLauncher: Ball Prefab이 연결되지 않았습니다.",
+                "BallLauncher: " +
+                "BallCollection을 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (tempoController == null)
+        {
+            Debug.LogError(
+                "BallLauncher: " +
+                "BallTurnTempoController를 찾지 못했습니다.",
                 this
             );
         }
     }
 
-    private void CreateBalls()
+    private void SubscribeEvents()
     {
-        balls.Clear();
-
-        for (int i = 0;
-             i < ballCount;
-             i++)
+        if (ballCollection != null)
         {
-            Ball newBall =
-                Instantiate(
-                    ballPrefab,
-                    currentTurnLaunchPosition,
-                    Quaternion.identity
+            ballCollection.BallCreated -=
+                HandleBallCreated;
+
+            ballCollection.BallCreated +=
+                HandleBallCreated;
+
+            IReadOnlyList<Ball> existingBalls =
+                ballCollection.Balls;
+
+            for (int i = 0;
+                 i < existingBalls.Count;
+                 i++)
+            {
+                HandleBallCreated(
+                    existingBalls[i]
                 );
-
-            newBall.name =
-                $"Ball_{i + 1}";
-
-            newBall.Returned +=
-                HandleBallReturned;
-
-            newBall.ResetTo(
-                currentTurnLaunchPosition
-            );
-
-            balls.Add(
-                newBall
-            );
+            }
         }
 
-        IgnoreBallCollisions();
+        if (tempoController != null)
+        {
+            tempoController.RecallRequested -=
+                ForceRecallRemainingBalls;
 
-        Debug.Log(
-            $"BallLauncher: 공 {balls.Count}개 생성 완료",
-            this
-        );
+            tempoController.RecallRequested +=
+                ForceRecallRemainingBalls;
+        }
     }
 
-    private void IgnoreBallCollisions()
+    private void HandleBallCreated(
+        Ball createdBall)
     {
-        for (int i = 0;
-             i < balls.Count;
-             i++)
+        if (createdBall == null)
         {
-            if (balls[i] == null)
-            {
-                continue;
-            }
-
-            Collider2D firstCollider =
-                balls[i]
-                    .GetComponent<Collider2D>();
-
-            if (firstCollider == null)
-            {
-                continue;
-            }
-
-            for (int j = i + 1;
-                 j < balls.Count;
-                 j++)
-            {
-                if (balls[j] == null)
-                {
-                    continue;
-                }
-
-                Collider2D secondCollider =
-                    balls[j]
-                        .GetComponent<Collider2D>();
-
-                if (secondCollider == null)
-                {
-                    continue;
-                }
-
-                Physics2D.IgnoreCollision(
-                    firstCollider,
-                    secondCollider,
-                    true
-                );
-            }
+            return;
         }
+
+        createdBall.Returned -=
+            HandleBallReturned;
+
+        createdBall.Returned +=
+            HandleBallReturned;
     }
 
     public bool TryLaunch(
@@ -383,8 +241,16 @@ public sealed class BallLauncher : MonoBehaviour
         }
 
         if (isLaunching ||
-            balls.Count == 0 ||
+            ballCollection == null ||
             turnManager == null)
+        {
+            return false;
+        }
+
+        List<Ball> launchSnapshot =
+            ballCollection.CreateSnapshot();
+
+        if (launchSnapshot.Count == 0)
         {
             return false;
         }
@@ -412,6 +278,14 @@ public sealed class BallLauncher : MonoBehaviour
 
         NormalizeLauncherPosition();
 
+        currentLaunchSnapshot.Clear();
+        currentLaunchSnapshot.AddRange(
+            launchSnapshot
+        );
+
+        plannedBallCount =
+            currentLaunchSnapshot.Count;
+
         launchedBallCount = 0;
         returnedBallCount = 0;
 
@@ -420,9 +294,13 @@ public sealed class BallLauncher : MonoBehaviour
         isLaunching = true;
 
         LastLaunchedBall =
-            FindLastAvailableBall();
+            currentLaunchSnapshot[
+                currentLaunchSnapshot.Count - 1
+            ];
 
-        BeginAttackTempo();
+        tempoController?.BeginAttack(
+            plannedBallCount
+        );
 
         launchCoroutine =
             StartCoroutine(
@@ -434,333 +312,22 @@ public sealed class BallLauncher : MonoBehaviour
         return true;
     }
 
-    private void BeginAttackTempo()
-    {
-        attackElapsedTime = 0f;
-        speedUpElapsedTime = 0f;
-        recallElapsedTime = 0f;
-
-        currentSpeedMultiplier = 1f;
-        speedMultiplierVelocity = 0f;
-
-        isSpeedUpPhaseActive = false;
-        isRecallCountdownActive = false;
-        hasAutomaticRecallTriggered = false;
-
-        isAttackTempoActive =
-            enableAutomaticSpeedUp ||
-            enableAutomaticRecall;
-
-        ApplySpeedMultiplierToBalls(
-            1f
-        );
-    }
-
-    private void UpdateAttackTempo()
-    {
-        if (!isAttackTempoActive ||
-            isAttackCompleted)
-        {
-            return;
-        }
-
-        attackElapsedTime +=
-            Time.deltaTime;
-
-        /*
-         * 모든 공이 발사된 이후부터
-         * 남은 공 비율을 기준으로 템포를 조절한다.
-         */
-        if (isLaunching)
-        {
-            return;
-        }
-
-        UpdateSpeedUpPhase();
-        UpdateAutomaticSpeed();
-        UpdateRecallCountdown();
-    }
-
-    private void UpdateSpeedUpPhase()
-    {
-        if (!enableAutomaticSpeedUp)
-        {
-            isSpeedUpPhaseActive = false;
-
-            return;
-        }
-
-        if (!isSpeedUpPhaseActive)
-        {
-            bool reachedSpeedUpCondition =
-                IsRemainingRatioAtOrBelow(
-                    speedUpStartRemainingRatio
-                );
-
-            if (!reachedSpeedUpCondition)
-            {
-                return;
-            }
-
-            isSpeedUpPhaseActive = true;
-            speedUpElapsedTime = 0f;
-
-            Debug.Log(
-                "BallLauncher: 남은 공이 " +
-                $"{speedUpStartRemainingRatio * 100f:0}% 이하가 되어 " +
-                "자동 배속을 시작합니다.",
-                this
-            );
-        }
-
-        speedUpElapsedTime +=
-            Time.deltaTime;
-    }
-
-    private void UpdateAutomaticSpeed()
-    {
-        float targetMultiplier =
-            GetTargetSpeedMultiplier();
-
-        float nextMultiplier;
-
-        if (speedTransitionDuration <= 0f)
-        {
-            nextMultiplier =
-                targetMultiplier;
-        }
-        else
-        {
-            nextMultiplier =
-                Mathf.SmoothDamp(
-                    currentSpeedMultiplier,
-                    targetMultiplier,
-                    ref speedMultiplierVelocity,
-                    speedTransitionDuration
-                );
-        }
-
-        if (Mathf.Abs(
-                currentSpeedMultiplier -
-                nextMultiplier
-            ) <= 0.0001f)
-        {
-            return;
-        }
-
-        currentSpeedMultiplier =
-            nextMultiplier;
-
-        ApplySpeedMultiplierToMovingBalls(
-            currentSpeedMultiplier
-        );
-    }
-
-    private float GetTargetSpeedMultiplier()
-    {
-        if (!enableAutomaticSpeedUp ||
-            !isSpeedUpPhaseActive)
-        {
-            return 1f;
-        }
-
-        if (speedUpElapsedTime >=
-            secondSpeedUpDelay)
-        {
-            return secondSpeedMultiplier;
-        }
-
-        return firstSpeedMultiplier;
-    }
-
-    private void UpdateRecallCountdown()
-    {
-        if (!enableAutomaticRecall ||
-            hasAutomaticRecallTriggered)
-        {
-            return;
-        }
-
-        if (!isRecallCountdownActive)
-        {
-            bool reachedRecallCondition =
-                IsRemainingRatioAtOrBelow(
-                    recallStartRemainingRatio
-                );
-
-            if (!reachedRecallCondition)
-            {
-                return;
-            }
-
-            isRecallCountdownActive = true;
-            recallElapsedTime = 0f;
-
-            Debug.Log(
-                "BallLauncher: 남은 공이 " +
-                $"{recallStartRemainingRatio * 100f:0}% 이하가 되어 " +
-                $"{automaticRecallDelay:0.##}초 자동 회수 타이머를 시작합니다.",
-                this
-            );
-
-            return;
-        }
-
-        recallElapsedTime +=
-            Time.deltaTime;
-
-        if (recallElapsedTime <
-            automaticRecallDelay)
-        {
-            return;
-        }
-
-        ForceRecallRemainingBalls();
-    }
-
-    private bool IsRemainingRatioAtOrBelow(
-        float targetRatio)
-    {
-        if (launchedBallCount <= 0)
-        {
-            return false;
-        }
-
-        int remainingBallCount =
-            GetRemainingBallCount();
-
-        if (remainingBallCount <= 0)
-        {
-            return false;
-        }
-
-        float remainingRatio =
-            (float)remainingBallCount /
-            launchedBallCount;
-
-        return remainingRatio <=
-               targetRatio;
-    }
-
-    private int GetRemainingBallCount()
-    {
-        return Mathf.Max(
-            launchedBallCount -
-            returnedBallCount,
-            0
-        );
-    }
-
-    private void ApplySpeedMultiplierToMovingBalls(
-        float multiplier)
-    {
-        for (int i = 0;
-             i < balls.Count;
-             i++)
-        {
-            Ball ball =
-                balls[i];
-
-            if (ball == null ||
-                !ball.IsMoving)
-            {
-                continue;
-            }
-
-            ball.SetRuntimeSpeedMultiplier(
-                multiplier
-            );
-        }
-    }
-
-    private void ApplySpeedMultiplierToBalls(
-        float multiplier)
-    {
-        for (int i = 0;
-             i < balls.Count;
-             i++)
-        {
-            Ball ball =
-                balls[i];
-
-            if (ball == null)
-            {
-                continue;
-            }
-
-            ball.SetRuntimeSpeedMultiplier(
-                multiplier
-            );
-        }
-    }
-
-    private void ForceRecallRemainingBalls()
-    {
-        if (hasAutomaticRecallTriggered)
-        {
-            return;
-        }
-
-        hasAutomaticRecallTriggered = true;
-        isAttackTempoActive = false;
-
-        currentSpeedMultiplier = 1f;
-        speedMultiplierVelocity = 0f;
-
-        Debug.Log(
-            "BallLauncher: 자동 회수 타이머 종료, " +
-            "남은 공을 회수합니다.",
-            this
-        );
-
-        for (int i = 0;
-             i < balls.Count;
-             i++)
-        {
-            Ball ball =
-                balls[i];
-
-            if (ball == null ||
-                !ball.IsMoving)
-            {
-                continue;
-            }
-
-            ball.SetRuntimeSpeedMultiplier(
-                1f
-            );
-
-            ball.ForceReturn();
-        }
-
-        TryCompleteAttack();
-    }
-
-    private Ball FindLastAvailableBall()
-    {
-        for (int i = balls.Count - 1;
-             i >= 0;
-             i--)
-        {
-            if (balls[i] != null)
-            {
-                return balls[i];
-            }
-        }
-
-        return null;
-    }
-
     private IEnumerator LaunchBallsRoutine(
         Vector2 direction)
     {
         Debug.Log(
-            $"BallLauncher: 공 {balls.Count}개 순차 발사 시작",
+            "BallLauncher: " +
+            $"공 {plannedBallCount}개 순차 발사 시작",
             this
         );
 
-        foreach (Ball ball in balls)
+        for (int i = 0;
+             i < currentLaunchSnapshot.Count;
+             i++)
         {
+            Ball ball =
+                currentLaunchSnapshot[i];
+
             if (ball == null)
             {
                 continue;
@@ -770,10 +337,6 @@ public sealed class BallLauncher : MonoBehaviour
 
             ball.ResetTo(
                 currentTurnLaunchPosition
-            );
-
-            ball.SetRuntimeSpeedMultiplier(
-                currentSpeedMultiplier
             );
 
             ball.Launch(
@@ -795,6 +358,12 @@ public sealed class BallLauncher : MonoBehaviour
 
         isLaunching = false;
         launchCoroutine = null;
+
+        tempoController
+            ?.NotifyLaunchCompleted(
+                launchedBallCount,
+                GetRemainingLaunchedBallCount()
+            );
 
         TryCompleteAttack();
     }
@@ -834,18 +403,71 @@ public sealed class BallLauncher : MonoBehaviour
 
             Debug.Log(
                 "BallLauncher: 첫 번째 공 복귀 위치 저장, " +
-                $"다음 시작 위치 = {nextTurnLaunchPosition}",
+                $"다음 시작 위치 = " +
+                $"{nextTurnLaunchPosition}",
                 this
             );
         }
 
         returnedBallCount++;
 
+        tempoController
+            ?.NotifyBallReturned(
+                GetRemainingLaunchedBallCount()
+            );
+
         Debug.Log(
             "BallLauncher: 공 복귀 " +
-            $"{returnedBallCount}/{launchedBallCount}",
+            $"{returnedBallCount}/" +
+            $"{launchedBallCount}",
             this
         );
+
+        TryCompleteAttack();
+    }
+
+    private int GetRemainingLaunchedBallCount()
+    {
+        return Mathf.Max(
+            launchedBallCount -
+            returnedBallCount,
+            0
+        );
+    }
+
+    private void ForceRecallRemainingBalls()
+    {
+        if (isAttackCompleted ||
+            isLaunching ||
+            ballCollection == null)
+        {
+            return;
+        }
+
+        Debug.Log(
+            "BallLauncher: 자동 회수 시간 종료, " +
+            "남은 공을 회수합니다.",
+            this
+        );
+
+        List<Ball> recallSnapshot =
+            ballCollection.CreateSnapshot();
+
+        for (int i = 0;
+             i < recallSnapshot.Count;
+             i++)
+        {
+            Ball ball =
+                recallSnapshot[i];
+
+            if (ball == null ||
+                !ball.IsMoving)
+            {
+                continue;
+            }
+
+            ball.ForceReturn();
+        }
 
         TryCompleteAttack();
     }
@@ -862,7 +484,7 @@ public sealed class BallLauncher : MonoBehaviour
             return;
         }
 
-        if (launchedBallCount == 0)
+        if (launchedBallCount <= 0)
         {
             return;
         }
@@ -875,30 +497,13 @@ public sealed class BallLauncher : MonoBehaviour
 
         isAttackCompleted = true;
 
-        StopAttackTempo();
+        tempoController?.EndAttack();
+
         AlignBallsToNextLaunchPosition();
 
+        currentLaunchSnapshot.Clear();
+
         turnManager.NotifyAllBallsReturned();
-    }
-
-    private void StopAttackTempo()
-    {
-        isAttackTempoActive = false;
-
-        attackElapsedTime = 0f;
-        speedUpElapsedTime = 0f;
-        recallElapsedTime = 0f;
-
-        currentSpeedMultiplier = 1f;
-        speedMultiplierVelocity = 0f;
-
-        isSpeedUpPhaseActive = false;
-        isRecallCountdownActive = false;
-        hasAutomaticRecallTriggered = false;
-
-        ApplySpeedMultiplierToBalls(
-            1f
-        );
     }
 
     private void AlignBallsToNextLaunchPosition()
@@ -909,17 +514,9 @@ public sealed class BallLauncher : MonoBehaviour
                 launchBaselineY
             );
 
-        foreach (Ball ball in balls)
-        {
-            if (ball == null)
-            {
-                continue;
-            }
-
-            ball.ResetTo(
-                nextTurnLaunchPosition
-            );
-        }
+        ballCollection?.AlignAll(
+            nextTurnLaunchPosition
+        );
 
         transform.position =
             new Vector3(
@@ -948,13 +545,35 @@ public sealed class BallLauncher : MonoBehaviour
             );
         }
 
-        foreach (Ball ball in balls)
+        if (ballCollection != null)
         {
-            if (ball != null)
+            ballCollection.BallCreated -=
+                HandleBallCreated;
+
+            IReadOnlyList<Ball> balls =
+                ballCollection.Balls;
+
+            for (int i = 0;
+                 i < balls.Count;
+                 i++)
             {
+                Ball ball =
+                    balls[i];
+
+                if (ball == null)
+                {
+                    continue;
+                }
+
                 ball.Returned -=
                     HandleBallReturned;
             }
+        }
+
+        if (tempoController != null)
+        {
+            tempoController.RecallRequested -=
+                ForceRecallRemainingBalls;
         }
     }
 }

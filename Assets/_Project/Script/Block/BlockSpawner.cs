@@ -6,7 +6,7 @@ public sealed class BlockSpawner
 {
     [Header("References")]
     [SerializeField]
-    private Block blockPrefab;
+    private BlockPrefabCatalog prefabCatalog;
 
     [SerializeField]
     private Transform blockContainer;
@@ -16,7 +16,8 @@ public sealed class BlockSpawner
     private bool showSpawnDebugLog;
 
     public bool IsReady =>
-        blockPrefab != null;
+        prefabCatalog != null &&
+        prefabCatalog.IsReady;
 
     public void Prepare(
         Transform fallbackContainer)
@@ -31,11 +32,20 @@ public sealed class BlockSpawner
     public void Validate(
         UnityEngine.Object context)
     {
-        if (blockPrefab == null)
+        if (prefabCatalog == null)
         {
             Debug.LogError(
                 "BlockSpawner: " +
-                "Block Prefab이 연결되지 않았습니다.",
+                "Block Prefab Catalog가 연결되지 않았습니다.",
+                context
+            );
+        }
+        else if (!prefabCatalog.IsReady)
+        {
+            Debug.LogError(
+                "BlockSpawner: " +
+                "Block Prefab Catalog의 기본 프리팹이 " +
+                "연결되지 않았습니다.",
                 context
             );
         }
@@ -64,11 +74,12 @@ public sealed class BlockSpawner
             return null;
         }
 
-        if (blockPrefab == null)
+        if (prefabCatalog == null)
         {
             Debug.LogError(
                 "BlockSpawner: " +
-                "Block Prefab이 없어 블록을 생성할 수 없습니다."
+                "Block Prefab Catalog가 없어 " +
+                "블록을 생성할 수 없습니다."
             );
 
             return null;
@@ -79,6 +90,27 @@ public sealed class BlockSpawner
             Debug.LogWarning(
                 "BlockSpawner: " +
                 "BlockSpawnRequest가 비어 있습니다."
+            );
+
+            return null;
+        }
+
+        Block selectedPrefab =
+            prefabCatalog.ResolvePrefab(
+                request.Definition
+            );
+
+        if (selectedPrefab == null)
+        {
+            string missingDefinitionId =
+                request.Definition != null
+                    ? request.Definition.BlockId
+                    : "None";
+
+            Debug.LogError(
+                "BlockSpawner: " +
+                $"Definition {missingDefinitionId}에 사용할 " +
+                "프리팹을 찾지 못했습니다."
             );
 
             return null;
@@ -99,7 +131,7 @@ public sealed class BlockSpawner
 
         Block newBlock =
             UnityEngine.Object.Instantiate(
-                blockPrefab,
+                selectedPrefab,
                 spawnPosition,
                 spawnRotation,
                 blockContainer
@@ -154,6 +186,7 @@ public sealed class BlockSpawner
                 "BlockSpawner: 블록 생성, " +
                 $"타입={request.RequestedBlockType}, " +
                 $"데이터={definitionId}, " +
+                $"프리팹={selectedPrefab.name}, " +
                 $"크기={request.GridSize.x}x" +
                 $"{request.GridSize.y}, " +
                 $"시작 셀=({request.StartColumn}, " +
