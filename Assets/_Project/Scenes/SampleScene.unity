@@ -154,7 +154,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.35, y: -0.25}
+  m_AnchoredPosition: {x: 0.25, y: -0.1}
   m_SizeDelta: {x: 0.1, y: 0.1}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &18714752
@@ -170,6 +170,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallCountView
   ballCollection: {fileID: 904823811}
+  ballLauncher: {fileID: 904823807}
   countText: {fileID: 18714753}
   textFormat: x{0}
   sortingLayerName: UI
@@ -1953,6 +1954,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1004609279}
   - component: {fileID: 1004609280}
+  - component: {fileID: 1004609281}
   m_Layer: 0
   m_Name: BossEncounterSystem
   m_TagString: Untagged
@@ -1991,8 +1993,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BossEncounterController
   blockGridManager: {fileID: 987057997}
   turnManager: {fileID: 1520316753}
+  ballLauncher: {fileID: 904823807}
   boardGrid: {fileID: 1710125463}
-  blockPrefab: {fileID: 5741669861215845034, guid: 63c51ec1f2fb1cc41817829b42d6d84e, type: 3}
+  blockPrefab: {fileID: 5741669861215845034, guid: 6f7a787f1ac0e13419e6eed0592dc6a4, type: 3}
   bossBlockContainer: {fileID: 137645039}
   testPattern: {fileID: 11400000, guid: 857ddb12d0c98184696e4c48bc4a068f, type: 2}
   entranceAnimator:
@@ -2005,6 +2008,21 @@ MonoBehaviour:
     settleDuration: 0.12
   boardClearDelay: 0.15
   enableBossTestKey: 1
+--- !u!114 &1004609281
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1004609278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6594312963847504e8b979eaf100880f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BossLaunchPositionResetter
+  blockGridManager: {fileID: 987057997}
+  ballLauncher: {fileID: 904823807}
+  showDebugLog: 1
 --- !u!1 &1312074105
 GameObject:
   m_ObjectHideFlags: 0

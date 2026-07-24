@@ -18,6 +18,9 @@ public sealed class BossEncounterController :
     private TurnManager turnManager;
 
     [SerializeField]
+    private BallLauncher ballLauncher;
+
+    [SerializeField]
     private BoardGrid boardGrid;
 
     [SerializeField]
@@ -98,11 +101,16 @@ public sealed class BossEncounterController :
                 0f
             );
 
+        FindReferences();
         NormalizeSettings();
     }
 
     private void Update()
     {
+        /*
+         * B키 테스트 진입도 일반 보스전 진입과
+         * 동일한 StartBossEncounter()를 사용한다.
+         */
         if (enableBossTestKey &&
             WasBossTestKeyPressed())
         {
@@ -152,6 +160,14 @@ public sealed class BossEncounterController :
                 >();
         }
 
+        if (ballLauncher == null)
+        {
+            ballLauncher =
+                FindFirstObjectByType<
+                    BallLauncher
+                >();
+        }
+
         if (boardGrid == null)
         {
             boardGrid =
@@ -194,6 +210,15 @@ public sealed class BossEncounterController :
             Debug.LogError(
                 "BossEncounterController: " +
                 "TurnManager가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (ballLauncher == null)
+        {
+            Debug.LogError(
+                "BossEncounterController: " +
+                "BallLauncher가 연결되지 않았습니다.",
                 this
             );
         }
@@ -369,6 +394,29 @@ public sealed class BossEncounterController :
                 "보스 패턴이 올바르지 않습니다.\n" +
                 validationMessage,
                 testPattern
+            );
+
+            return false;
+        }
+
+        /*
+         * 일반 보스 진입과 B키 테스트 진입이
+         * 반드시 이 지점을 함께 통과한다.
+         *
+         * 보스 패턴을 생성하기 전에
+         * Launcher와 모든 대기 공을 중앙으로 정렬한다.
+         */
+        bool launchPositionReset =
+            ballLauncher
+                .TryResetLaunchPositionToCenter();
+
+        if (!launchPositionReset)
+        {
+            Debug.LogWarning(
+                "BossEncounterController: " +
+                "공 발사 위치를 중앙으로 " +
+                "초기화하지 못해 보스전을 시작하지 않습니다.",
+                this
             );
 
             return false;
@@ -1073,6 +1121,7 @@ public sealed class BossEncounterController :
     {
         return blockGridManager != null &&
                turnManager != null &&
+               ballLauncher != null &&
                boardGrid != null &&
                blockPrefab != null &&
                testPattern != null;
