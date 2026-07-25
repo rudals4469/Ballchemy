@@ -30,6 +30,7 @@ public sealed class Block : MonoBehaviour
     private int attackPower = 2;
 
     private int currentHealth;
+    private int shieldHitCount;
 
     private bool isDestructionStarted;
 
@@ -125,6 +126,12 @@ public sealed class Block : MonoBehaviour
     public int AttackPower =>
         attackPower;
 
+    public int ShieldHitCount =>
+        shieldHitCount;
+
+    public bool HasShield =>
+        shieldHitCount > 0;
+
     public bool IsAlive =>
         currentHealth > 0 &&
         !isDestructionStarted;
@@ -173,6 +180,15 @@ public sealed class Block : MonoBehaviour
     public event Action<Block, int>
         HealingReceived;
 
+    public event Action<Block, int>
+        ShieldChanged;
+
+    public event Action<Block, int>
+        ShieldGranted;
+
+    public event Action<Block, int>
+        ShieldConsumed;
+
     public event Action<Block, Vector2Int>
         GridPositionChanged;
 
@@ -190,6 +206,8 @@ public sealed class Block : MonoBehaviour
 
         currentHealth =
             maxHealth;
+
+        shieldHitCount = 0;
 
         ApplyPresentation();
         RefreshGridPlacement();
@@ -573,9 +591,16 @@ public sealed class Block : MonoBehaviour
                 0
             );
 
+        shieldHitCount = 0;
+
         HealthChanged?.Invoke(
             currentHealth,
             maxHealth
+        );
+
+        ShieldChanged?.Invoke(
+            this,
+            shieldHitCount
         );
     }
 
@@ -616,6 +641,37 @@ public sealed class Block : MonoBehaviour
         if (DestructionRule ==
             BlockDestructionRule.TriggerOnly)
         {
+            return;
+        }
+
+        /*
+         * 쉴드는 피해량과 관계없이
+         * 피격 한 번을 완전히 방어한다.
+         */
+        if (shieldHitCount > 0)
+        {
+            shieldHitCount =
+                Mathf.Max(
+                    shieldHitCount - 1,
+                    0
+                );
+
+            Debug.Log(
+                $"{name} 쉴드로 피해 방어, " +
+                $"남은 쉴드 {shieldHitCount}",
+                this
+            );
+
+            ShieldConsumed?.Invoke(
+                this,
+                shieldHitCount
+            );
+
+            ShieldChanged?.Invoke(
+                this,
+                shieldHitCount
+            );
+
             return;
         }
 
@@ -697,6 +753,72 @@ public sealed class Block : MonoBehaviour
         return appliedHealing;
     }
 
+    public int AddShield(
+        int amount,
+        int maximumShieldHitCount = 1)
+    {
+        if (amount <= 0 ||
+            maximumShieldHitCount <= 0 ||
+            !IsAlive ||
+            isDestructionStarted ||
+            !IsBreakable)
+        {
+            return 0;
+        }
+
+        int previousShieldHitCount =
+            shieldHitCount;
+
+        shieldHitCount =
+            Mathf.Min(
+                shieldHitCount + amount,
+                maximumShieldHitCount
+            );
+
+        int appliedShield =
+            shieldHitCount -
+            previousShieldHitCount;
+
+        if (appliedShield <= 0)
+        {
+            return 0;
+        }
+
+        Debug.Log(
+            $"{name} 쉴드 획득: " +
+            $"+{appliedShield}, " +
+            $"현재 쉴드 {shieldHitCount}",
+            this
+        );
+
+        ShieldGranted?.Invoke(
+            this,
+            appliedShield
+        );
+
+        ShieldChanged?.Invoke(
+            this,
+            shieldHitCount
+        );
+
+        return appliedShield;
+    }
+
+    public void ClearShield()
+    {
+        if (shieldHitCount <= 0)
+        {
+            return;
+        }
+
+        shieldHitCount = 0;
+
+        ShieldChanged?.Invoke(
+            this,
+            shieldHitCount
+        );
+    }
+
     public bool ExpireWithoutReward()
     {
         if (isDestructionStarted ||
@@ -707,6 +829,7 @@ public sealed class Block : MonoBehaviour
 
         isDestructionStarted = true;
         currentHealth = 0;
+        shieldHitCount = 0;
 
         ClearGridPosition();
 

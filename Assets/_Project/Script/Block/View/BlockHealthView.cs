@@ -1,7 +1,8 @@
 using TMPro;
 using UnityEngine;
 
-public sealed class BlockHealthView : MonoBehaviour
+public sealed class BlockHealthView :
+    MonoBehaviour
 {
     [Header("References")]
     [SerializeField]
@@ -16,6 +17,29 @@ public sealed class BlockHealthView : MonoBehaviour
     [Header("Display")]
     [SerializeField]
     private bool showMaximumHealth;
+
+    [Tooltip(
+        "쉴드가 존재할 때 체력 옆에 " +
+        "(+1) 형태로 표시합니다."
+    )]
+    [SerializeField]
+    private bool showShieldCount = true;
+
+    [SerializeField]
+    private Color shieldTextColor =
+        new Color(
+            0.15f,
+            0.8f,
+            1f,
+            1f
+        );
+
+    [Tooltip(
+        "체력 숫자를 기준으로 한 " +
+        "쉴드 텍스트의 상대 크기입니다."
+    )]
+    [SerializeField, Range(40, 100)]
+    private int shieldTextSizePercent = 65;
 
     [Header("Auto Size")]
     [SerializeField, Min(1f)]
@@ -35,7 +59,10 @@ public sealed class BlockHealthView : MonoBehaviour
     )]
     [SerializeField]
     private Vector2 baseTextRectSize =
-        new Vector2(10f, 5f);
+        new Vector2(
+            10f,
+            5f
+        );
 
     [Tooltip(
         "블록 크기에 맞춰 텍스트 영역을 " +
@@ -98,6 +125,13 @@ public sealed class BlockHealthView : MonoBehaviour
                 maximumFontSize
             );
 
+        shieldTextSizePercent =
+            Mathf.Clamp(
+                shieldTextSizePercent,
+                40,
+                100
+            );
+
         baseTextRectSize.x =
             Mathf.Max(
                 baseTextRectSize.x,
@@ -132,7 +166,9 @@ public sealed class BlockHealthView : MonoBehaviour
         if (healthText == null)
         {
             healthText =
-                GetComponentInChildren<TextMeshPro>(
+                GetComponentInChildren<
+                    TextMeshPro
+                >(
                     true
                 );
         }
@@ -146,7 +182,9 @@ public sealed class BlockHealthView : MonoBehaviour
         if (blockSpriteRenderer == null)
         {
             blockSpriteRenderer =
-                GetComponentInChildren<SpriteRenderer>(
+                GetComponentInChildren<
+                    SpriteRenderer
+                >(
                     true
                 );
         }
@@ -157,10 +195,14 @@ public sealed class BlockHealthView : MonoBehaviour
         }
 
         textMeshRenderer =
-            healthText.GetComponent<MeshRenderer>();
+            healthText.GetComponent<
+                MeshRenderer
+            >();
 
         textRectTransform =
-            healthText.GetComponent<RectTransform>();
+            healthText.GetComponent<
+                RectTransform
+            >();
     }
 
     private void ApplyTextSettings()
@@ -213,14 +255,19 @@ public sealed class BlockHealthView : MonoBehaviour
         healthText.overflowMode =
             TextOverflowModes.Overflow;
 
+        healthText.richText =
+            true;
+
         if (textMeshRenderer != null &&
             blockSpriteRenderer != null)
         {
             textMeshRenderer.sortingLayerID =
-                blockSpriteRenderer.sortingLayerID;
+                blockSpriteRenderer
+                    .sortingLayerID;
 
             textMeshRenderer.sortingOrder =
-                blockSpriteRenderer.sortingOrder +
+                blockSpriteRenderer
+                    .sortingOrder +
                 sortingOrderOffset;
         }
 
@@ -294,6 +341,9 @@ public sealed class BlockHealthView : MonoBehaviour
         block.HealthChanged +=
             HandleHealthChanged;
 
+        block.ShieldChanged +=
+            HandleShieldChanged;
+
         block.DefinitionChanged +=
             HandleDefinitionChanged;
 
@@ -313,6 +363,9 @@ public sealed class BlockHealthView : MonoBehaviour
 
         block.HealthChanged -=
             HandleHealthChanged;
+
+        block.ShieldChanged -=
+            HandleShieldChanged;
 
         block.DefinitionChanged -=
             HandleDefinitionChanged;
@@ -343,7 +396,8 @@ public sealed class BlockHealthView : MonoBehaviour
 
         UpdateText(
             block.CurrentHealth,
-            block.MaxHealth
+            block.MaxHealth,
+            block.ShieldHitCount
         );
     }
 
@@ -369,14 +423,41 @@ public sealed class BlockHealthView : MonoBehaviour
         UpdateVisibility();
 
         if (healthText == null ||
-            !healthText.enabled)
+            !healthText.enabled ||
+            block == null)
         {
             return;
         }
 
         UpdateText(
             currentHealth,
-            maxHealth
+            maxHealth,
+            block.ShieldHitCount
+        );
+    }
+
+    private void HandleShieldChanged(
+        Block changedBlock,
+        int currentShieldHitCount)
+    {
+        if (changedBlock == null ||
+            changedBlock != block)
+        {
+            return;
+        }
+
+        UpdateVisibility();
+
+        if (healthText == null ||
+            !healthText.enabled)
+        {
+            return;
+        }
+
+        UpdateText(
+            block.CurrentHealth,
+            block.MaxHealth,
+            currentShieldHitCount
         );
     }
 
@@ -397,7 +478,8 @@ public sealed class BlockHealthView : MonoBehaviour
 
     private void UpdateText(
         int currentHealth,
-        int maxHealth)
+        int maxHealth,
+        int shieldHitCount)
     {
         if (healthText == null ||
             !healthText.enabled)
@@ -405,12 +487,43 @@ public sealed class BlockHealthView : MonoBehaviour
             return;
         }
 
-        healthText.text =
+        string healthValue =
             showMaximumHealth
                 ? $"{currentHealth}/{maxHealth}"
                 : currentHealth.ToString();
 
+        string shieldValue =
+            CreateShieldText(
+                shieldHitCount
+            );
+
+        healthText.text =
+            healthValue +
+            shieldValue;
+
         healthText.ForceMeshUpdate();
+    }
+
+    private string CreateShieldText(
+        int shieldHitCount)
+    {
+        if (!showShieldCount ||
+            shieldHitCount <= 0)
+        {
+            return string.Empty;
+        }
+
+        string colorHex =
+            ColorUtility.ToHtmlStringRGBA(
+                shieldTextColor
+            );
+
+        return
+            $"<size={shieldTextSizePercent}%>" +
+            $"<color=#{colorHex}>" +
+            $"(+{shieldHitCount})" +
+            "</color>" +
+            "</size>";
     }
 
     private void OnDisable()
