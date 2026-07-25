@@ -1667,6 +1667,7 @@ GameObject:
   - component: {fileID: 904823811}
   - component: {fileID: 904823810}
   - component: {fileID: 904823812}
+  - component: {fileID: 904823813}
   m_Layer: 0
   m_Name: Launcher
   m_TagString: Untagged
@@ -1708,6 +1709,7 @@ MonoBehaviour:
   ballCollection: {fileID: 904823811}
   tempoController: {fileID: 904823810}
   ballSealController: {fileID: 904823812}
+  gatherAnimator: {fileID: 904823813}
   launchInterval: 0.08
   allBallsReturnedDelay: 0.7
   minimumLaunchX: -4.3
@@ -1819,6 +1821,23 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallSealController
   maximumSealRatio: 0.8
+  showDebugLog: 1
+--- !u!114 &904823813
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8d2a73a7464c9614b809a07cdf1c551e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallGatherAnimator
+  ballCollection: {fileID: 904823811}
+  gatherDuration: 0.35
+  maximumRandomStartDelay: 0.05
+  gatherEase: 4
   showDebugLog: 1
 --- !u!1 &987057995
 GameObject:
@@ -1935,7 +1954,7 @@ MonoBehaviour:
       maximumSpecialBlocksPerWave: 1
       allowInFeaturedWaves: 1
       specialHealthMultiplier: 1
-      enableTestMode: 1
+      enableTestMode: 0
       forcedSpecialDefinition: {fileID: 11400000, guid: c9b727fcc8d24614b85902f8de0a4bee, type: 2}
       forceSpawnEveryWaveInTestMode: 1
       forcedSpecialCount: 1
