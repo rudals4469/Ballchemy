@@ -170,6 +170,9 @@ public sealed class Block : MonoBehaviour
     public event Action<Block, int>
         HitReceived;
 
+    public event Action<Block, int>
+        HealingReceived;
+
     public event Action<Block, Vector2Int>
         GridPositionChanged;
 
@@ -640,6 +643,60 @@ public sealed class Block : MonoBehaviour
         }
     }
 
+    public int Heal(
+        int amount)
+    {
+        if (amount <= 0 ||
+            !IsAlive ||
+            isDestructionStarted ||
+            !IsBreakable)
+        {
+            return 0;
+        }
+
+        if (currentHealth >= maxHealth)
+        {
+            return 0;
+        }
+
+        int previousHealth =
+            currentHealth;
+
+        currentHealth =
+            Mathf.Min(
+                currentHealth + amount,
+                maxHealth
+            );
+
+        int appliedHealing =
+            currentHealth -
+            previousHealth;
+
+        if (appliedHealing <= 0)
+        {
+            return 0;
+        }
+
+        Debug.Log(
+            $"{name} 회복: " +
+            $"+{appliedHealing}, " +
+            $"HP {currentHealth}/{maxHealth}",
+            this
+        );
+
+        HealingReceived?.Invoke(
+            this,
+            appliedHealing
+        );
+
+        HealthChanged?.Invoke(
+            currentHealth,
+            maxHealth
+        );
+
+        return appliedHealing;
+    }
+
     public bool ExpireWithoutReward()
     {
         if (isDestructionStarted ||
@@ -658,10 +715,6 @@ public sealed class Block : MonoBehaviour
             this
         );
 
-        /*
-         * 일반 파괴 이벤트와 분리된
-         * 특수 블록 만료 이벤트를 발생시킨다.
-         */
         ExpiredWithoutReward?.Invoke(
             this
         );

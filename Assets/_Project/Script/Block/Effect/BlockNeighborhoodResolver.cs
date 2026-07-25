@@ -1,11 +1,23 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 public static class BlockNeighborhoodResolver
 {
+    /*
+     * radius = 1
+     * → 중심 블록을 포함한 3×3 범위
+     *
+     * radius = 2
+     * → 중심 블록을 포함한 5×5 범위
+     *
+     * radius = 3
+     * → 중심 블록을 포함한 7×7 범위
+     */
     public static List<Block>
         FindSurroundingBlocks(
             Block sourceBlock,
-            IReadOnlyList<Block> activeBlocks)
+            IReadOnlyList<Block> activeBlocks,
+            int radius = 1)
     {
         List<Block> result =
             new List<Block>();
@@ -17,20 +29,30 @@ public static class BlockNeighborhoodResolver
             return result;
         }
 
+        radius =
+            Mathf.Max(
+                radius,
+                1
+            );
+
         HashSet<Block> uniqueBlocks =
             new HashSet<Block>();
 
         int minimumColumn =
-            sourceBlock.StartColumn - 1;
+            sourceBlock.StartColumn -
+            radius;
 
         int maximumColumn =
-            sourceBlock.EndColumn + 1;
+            sourceBlock.EndColumn +
+            radius;
 
         int minimumRow =
-            sourceBlock.StartRow - 1;
+            sourceBlock.StartRow -
+            radius;
 
         int maximumRow =
-            sourceBlock.EndRow + 1;
+            sourceBlock.EndRow +
+            radius;
 
         for (int i = 0;
              i < activeBlocks.Count;
@@ -56,6 +78,10 @@ public static class BlockNeighborhoodResolver
                 continue;
             }
 
+            /*
+             * 2×2 이상의 블록이 범위의 여러 칸에
+             * 걸쳐 있어도 한 번만 등록한다.
+             */
             if (uniqueBlocks.Add(
                     targetBlock))
             {
@@ -81,9 +107,9 @@ public static class BlockNeighborhoodResolver
         }
 
         /*
-         * 서로 다른 보드에 속한 블록이
+         * 서로 다른 보드에 있는 블록이
          * 같은 좌표를 가지고 있어도
-         * 주변 대상으로 판정되지 않게 한다.
+         * 범위 대상으로 판정되지 않게 한다.
          */
         if (sourceBlock.BoardGrid != null &&
             targetBlock.BoardGrid != null &&
