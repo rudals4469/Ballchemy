@@ -8,6 +8,9 @@ public sealed class ExplosionBallEffect :
     private static BlockGridManager
         cachedBlockGridManager;
 
+    private static ExplosionPatternVfxSpawner
+        cachedPatternVfxSpawner;
+
     private ExplosionBallTraitDefinition
         explosionDefinition;
 
@@ -21,6 +24,9 @@ public sealed class ExplosionBallEffect :
     private static void ResetStaticCache()
     {
         cachedBlockGridManager =
+            null;
+
+        cachedPatternVfxSpawner =
             null;
     }
 
@@ -42,6 +48,7 @@ public sealed class ExplosionBallEffect :
         }
 
         FindBlockGridManager();
+        FindPatternVfxSpawner();
     }
 
     public override BallHitResult ResolveHit(
@@ -55,23 +62,31 @@ public sealed class ExplosionBallEffect :
             return BallHitResult.NotHandled();
         }
 
-        /*
-         * 직접 피해로 중심 블록이 파괴되기 전에
-         * 주변 대상을 먼저 찾아둡니다.
-         *
-         * 이후 Block의 파괴 처리 방식이 바뀌어
-         * Grid Position을 바로 지우더라도
-         * 폭발 범위 계산이 깨지지 않습니다.
-         */
-        List<Block> explosionTargets =
-            FindExplosionTargets(
+        int explosionRange =
+            GetExplosionRange(
                 context
             );
 
+        List<Block> explosionTargets =
+            FindExplosionTargets(
+                context,
+                explosionRange
+            );
+
         /*
-         * 충돌한 중심 블록에는 공의 직접 피해가 들어갑니다.
-         * BallDefinition에 연결된 기본 데미지 텍스트 스타일을
-         * 사용합니다.
+         * 데미지가 적용되는 순간 패턴 선을 함께 표시합니다.
+         *
+         * Cross         → + 모양
+         * Diagonal      → X 모양
+         * AllDirections → 8방향
+         */
+        PlayPatternVfx(
+            context.Block,
+            explosionRange
+        );
+
+        /*
+         * 충돌한 중심 블록에는 직접 피해만 적용합니다.
          */
         CombatController.ApplyDamage(
             context.Block,
@@ -111,13 +126,6 @@ public sealed class ExplosionBallEffect :
                 continue;
             }
 
-            /*
-             * 주변 폭발 텍스트는 해당 대상 블록의 중심을
-             * 타격 지점으로 사용합니다.
-             *
-             * 이후 DamageTextSpawner가 블록 중심 주변 슬롯과
-             * 랜덤 위치를 추가로 적용합니다.
-             */
             Vector2 targetHitPoint =
                 targetBlock.transform.position;
 
@@ -133,8 +141,28 @@ public sealed class ExplosionBallEffect :
             .HandledWithBounce();
     }
 
-    private List<Block> FindExplosionTargets(
+    private int GetExplosionRange(
         BallHitContext context)
+    {
+        if (explosionDefinition == null)
+        {
+            return 1;
+        }
+
+        BallStarGrade starGrade =
+            context != null &&
+            context.Definition != null
+                ? context.Definition.StarGrade
+                : BallStarGrade.OneStar;
+
+        return explosionDefinition.GetRange(
+            starGrade
+        );
+    }
+
+    private List<Block> FindExplosionTargets(
+        BallHitContext context,
+        int explosionRange)
     {
         List<Block> emptyResult =
             new List<Block>();
@@ -161,16 +189,6 @@ public sealed class ExplosionBallEffect :
             return emptyResult;
         }
 
-        BallStarGrade starGrade =
-            context.Definition != null
-                ? context.Definition.StarGrade
-                : BallStarGrade.OneStar;
-
-        int explosionRange =
-            explosionDefinition.GetRange(
-                starGrade
-            );
-
         return BlockNeighborhoodResolver
             .FindPatternBlocks(
                 context.Block,
@@ -178,6 +196,32 @@ public sealed class ExplosionBallEffect :
                 explosionDefinition.PatternType,
                 explosionRange
             );
+    }
+
+    private void PlayPatternVfx(
+        Block sourceBlock,
+        int explosionRange)
+    {
+        if (sourceBlock == null ||
+            explosionDefinition == null)
+        {
+            return;
+        }
+
+        ExplosionPatternVfxSpawner
+            vfxSpawner =
+                FindPatternVfxSpawner();
+
+        if (vfxSpawner == null)
+        {
+            return;
+        }
+
+        vfxSpawner.Play(
+            sourceBlock,
+            explosionDefinition.PatternType,
+            explosionRange
+        );
     }
 
     private BlockGridManager
@@ -197,6 +241,23 @@ public sealed class ExplosionBallEffect :
         return cachedBlockGridManager;
     }
 
+    private ExplosionPatternVfxSpawner
+        FindPatternVfxSpawner()
+    {
+        if (cachedPatternVfxSpawner != null)
+        {
+            return cachedPatternVfxSpawner;
+        }
+
+        cachedPatternVfxSpawner =
+            UnityEngine.Object
+                .FindFirstObjectByType<
+                    ExplosionPatternVfxSpawner
+                >();
+
+        return cachedPatternVfxSpawner;
+    }
+
     private static bool
         CanDamageExplosionTarget(
             Block targetBlock)
@@ -207,10 +268,6 @@ public sealed class ExplosionBallEffect :
             return false;
         }
 
-        /*
-         * 무적 블록과 TriggerOnly 블록은
-         * 일반 폭발 피해 대상에서 제외합니다.
-         */
         if (!targetBlock.IsBreakable)
         {
             return false;
