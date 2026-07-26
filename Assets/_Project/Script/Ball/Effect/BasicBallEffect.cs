@@ -12,13 +12,16 @@ public sealed class BasicBallEffect :
     {
         if (context == null ||
             context.Block == null ||
-            !context.Block.IsAlive)
+            !context.Block.IsAlive ||
+            CombatController == null)
         {
             return BallHitResult.NotHandled();
         }
 
-        context.Block.TakeDamage(
-            context.DirectDamage
+        CombatController.ApplyDamage(
+            context.Block,
+            context.DirectDamage,
+            context.HitPoint
         );
 
         return BallHitResult

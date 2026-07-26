@@ -35,7 +35,8 @@ public sealed class CriticalBallEffect :
     {
         if (context == null ||
             context.Block == null ||
-            !context.Block.IsAlive)
+            !context.Block.IsAlive ||
+            CombatController == null)
         {
             return BallHitResult.NotHandled();
         }
@@ -70,8 +71,10 @@ public sealed class CriticalBallEffect :
                 1
             );
 
-        context.Block.TakeDamage(
-            criticalDamage
+        CombatController.ApplyDamage(
+            context.Block,
+            criticalDamage,
+            context.HitPoint
         );
 
         return BallHitResult

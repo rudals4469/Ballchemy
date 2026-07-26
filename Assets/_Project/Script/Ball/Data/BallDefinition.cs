@@ -24,8 +24,7 @@ public sealed class BallDefinition :
 
     [Tooltip(
         "공통 기본 피해에 더해지는 " +
-        "이 공만의 직접 타격 피해 보너스입니다. " +
-        "기본 공처럼 직접 타격이 강한 공에 사용합니다."
+        "이 공만의 직접 타격 피해 보너스입니다."
     )]
     [SerializeField]
     private int directDamageBonus;
@@ -49,6 +48,16 @@ public sealed class BallDefinition :
     [SerializeField]
     private Vector3 visualScale =
         Vector3.one;
+
+    [Header("Damage Text")]
+
+    [Tooltip(
+        "이 공이 피해를 입혔을 때 사용하는 " +
+        "기본 데미지 텍스트 스타일입니다."
+    )]
+    [SerializeField]
+    private BallDamageTextStyleDefinition
+        damageTextStyle;
 
     [Header("Selection")]
 
@@ -87,6 +96,10 @@ public sealed class BallDefinition :
 
     public Vector3 VisualScale =>
         visualScale;
+
+    public BallDamageTextStyleDefinition
+        DamageTextStyle =>
+            damageTextStyle;
 
     public int SelectionWeight =>
         selectionWeight;

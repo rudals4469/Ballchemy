@@ -135,11 +135,6 @@ public sealed class BallCombatController :
         }
     }
 
-    /*
-     * 기존 Ball.cs가 BaseDamage를 참조해도
-     * 컴파일이 깨지지 않도록 유지한다.
-     * 실제 의미는 현재 계산된 직접 피해다.
-     */
     public int BaseDamage =>
         DirectDamage;
 
@@ -283,6 +278,73 @@ public sealed class BallCombatController :
             );
     }
 
+    public int ApplyDamage(
+        Block target,
+        int requestedDamage,
+        Vector2 hitPoint,
+        BallDamageTextStyleDefinition
+            styleOverride = null)
+    {
+        if (target == null ||
+            !target.IsAlive)
+        {
+            return 0;
+        }
+
+        requestedDamage =
+            Mathf.Max(
+                requestedDamage,
+                1
+            );
+
+        int healthBeforeDamage =
+            target.CurrentHealth;
+
+        target.TakeDamage(
+            requestedDamage
+        );
+
+        int healthAfterDamage =
+            target != null
+                ? target.CurrentHealth
+                : 0;
+
+        int appliedDamage =
+            Mathf.Clamp(
+                healthBeforeDamage -
+                healthAfterDamage,
+                0,
+                healthBeforeDamage
+            );
+
+        if (appliedDamage <= 0)
+        {
+            return 0;
+        }
+
+        BallDamageTextStyleDefinition
+            resolvedStyle =
+                styleOverride != null
+                    ? styleOverride
+                    : definition != null
+                        ? definition
+                            .DamageTextStyle
+                        : null;
+
+        BallDamageEvents.Publish(
+            new BallDamageEvent(
+                ball,
+                definition,
+                target,
+                appliedDamage,
+                hitPoint,
+                resolvedStyle
+            )
+        );
+
+        return appliedDamage;
+    }
+
     public BallHitResult ResolveBlockHit(
         Block hitBlock,
         Vector2 hitPoint,
@@ -308,8 +370,10 @@ public sealed class BallCombatController :
                 this
             );
 
-            hitBlock.TakeDamage(
-                DirectDamage
+            ApplyDamage(
+                hitBlock,
+                DirectDamage,
+                hitPoint
             );
 
             return BallHitResult
