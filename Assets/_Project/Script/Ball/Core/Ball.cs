@@ -1,10 +1,28 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(CircleCollider2D))]
-public sealed class Ball : MonoBehaviour
+public sealed class Ball :
+    MonoBehaviour
 {
+    [Header("Data")]
+    [Tooltip(
+        "현재 공에 적용된 공 데이터입니다. " +
+        "BallCollection에서 생성 시 설정합니다."
+    )]
+    [SerializeField]
+    private BallDefinition definition;
+
+    [Header("Visual")]
+    [Tooltip(
+        "공의 스프라이트와 색상을 표시하는 " +
+        "SpriteRenderer입니다."
+    )]
+    [SerializeField]
+    private SpriteRenderer visualRenderer;
+
     [Header("Movement")]
     [SerializeField, Min(0.1f)]
     private float moveSpeed = 12f;
@@ -32,9 +50,14 @@ public sealed class Ball : MonoBehaviour
     [SerializeField, Min(0f)]
     private float bounceSeparationDistance = 0.02f;
 
-    [Header("Combat")]
+    [Header("Combat Fallback")]
+    [Tooltip(
+        "BallDefinition이 연결되지 않았을 때만 " +
+        "사용하는 임시 피해량입니다."
+    )]
+    [FormerlySerializedAs("damage")]
     [SerializeField, Min(1)]
-    private int damage = 1;
+    private int fallbackDamage = 1;
 
     private static int activeMovingBallCount;
 
@@ -51,6 +74,27 @@ public sealed class Ball : MonoBehaviour
 
     public static int ActiveMovingBallCount =>
         activeMovingBallCount;
+
+    public BallDefinition Definition =>
+        definition;
+
+    public BallTraitType TraitType =>
+        definition != null
+            ? definition.TraitType
+            : BallTraitType.Basic;
+
+    public BallStarGrade StarGrade =>
+        definition != null
+            ? definition.StarGrade
+            : BallStarGrade.None;
+
+    public int CurrentDamage =>
+        definition != null
+            ? Mathf.Max(
+                definition.BaseDamage,
+                1
+            )
+            : fallbackDamage;
 
     public bool IsMoving =>
         isMoving;
@@ -75,7 +119,11 @@ public sealed class Ball : MonoBehaviour
             ? body.linearVelocity.y
             : 0f;
 
-    public event Action<Ball> Returned;
+    public event Action<Ball>
+        Returned;
+
+    public event Action<Ball, BallDefinition>
+        DefinitionChanged;
 
     public static event Action<Ball>
         BlockHitOccurred;
@@ -96,11 +144,7 @@ public sealed class Ball : MonoBehaviour
 
     private void Awake()
     {
-        body =
-            GetComponent<Rigidbody2D>();
-
-        circleCollider =
-            GetComponent<CircleCollider2D>();
+        FindReferences();
 
         EnsureHelpers();
         ConfigureRigidbody();
@@ -108,6 +152,8 @@ public sealed class Ball : MonoBehaviour
         loopEscape.Initialize(
             GetInstanceID()
         );
+
+        RefreshDefinitionVisual();
 
         StopMovement();
     }
@@ -132,16 +178,44 @@ public sealed class Ball : MonoBehaviour
                 0f
             );
 
-        damage =
+        fallbackDamage =
             Mathf.Max(
-                damage,
+                fallbackDamage,
                 1
             );
 
+        FindReferences();
         EnsureHelpers();
 
         bounceResolver.Normalize();
         loopEscape.Normalize();
+
+        RefreshDefinitionVisual();
+    }
+
+    private void FindReferences()
+    {
+        if (body == null)
+        {
+            body =
+                GetComponent<Rigidbody2D>();
+        }
+
+        if (circleCollider == null)
+        {
+            circleCollider =
+                GetComponent<CircleCollider2D>();
+        }
+
+        if (visualRenderer == null)
+        {
+            visualRenderer =
+                GetComponentInChildren<
+                    SpriteRenderer
+                >(
+                    true
+                );
+        }
     }
 
     private void EnsureHelpers()
@@ -174,6 +248,68 @@ public sealed class Ball : MonoBehaviour
 
         body.interpolation =
             RigidbodyInterpolation2D.Interpolate;
+    }
+
+    public void ApplyDefinition(
+        BallDefinition newDefinition)
+    {
+        definition =
+            newDefinition;
+
+        RefreshDefinitionVisual();
+
+        DefinitionChanged?.Invoke(
+            this,
+            definition
+        );
+    }
+
+    private void RefreshDefinitionVisual()
+    {
+        if (definition == null)
+        {
+            return;
+        }
+
+        if (visualRenderer == null)
+        {
+            visualRenderer =
+                GetComponentInChildren<
+                    SpriteRenderer
+                >(
+                    true
+                );
+        }
+
+        if (visualRenderer == null)
+        {
+            return;
+        }
+
+        if (definition.Sprite != null)
+        {
+            visualRenderer.sprite =
+                definition.Sprite;
+        }
+
+        visualRenderer.color =
+            definition.Color;
+
+        /*
+         * SpriteRenderer가 공 루트의 자식일 때만
+         * 비주얼 크기를 적용한다.
+         *
+         * 루트 오브젝트의 크기를 바꾸면
+         * CircleCollider2D 크기까지 변할 수 있으므로
+         * 루트 Renderer에는 자동 스케일을 적용하지 않는다.
+         */
+        if (visualRenderer.transform !=
+            transform)
+        {
+            visualRenderer.transform
+                .localScale =
+                definition.VisualScale;
+        }
     }
 
     private void FixedUpdate()
@@ -510,7 +646,7 @@ public sealed class Ball : MonoBehaviour
         }
 
         block.TakeDamage(
-            damage
+            CurrentDamage
         );
 
         BlockHitOccurred?.Invoke(

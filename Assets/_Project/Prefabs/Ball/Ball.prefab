@@ -169,6 +169,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8100b4b1b687f74eb5ea125459c3a95, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ball
+  definition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
+  visualRenderer: {fileID: 2544826838925475784}
   moveSpeed: 12
   verticalDirectionThreshold: 0.05
-  damage: 1
+  bounceResolver:
+    snapBoxNormalToAxis: 1
+    cornerTieTolerance: 0.12
+    minimumNormalMagnitude: 0.001
+  loopEscape:
+    requiredAlternatingHits: 4
+    maximumHitInterval: 1.25
+    verticalNormalThreshold: 0.8
+    minimumHorizontalRatio: 0.22
+    boardCenterX: 0
+    escapeCooldown: 0.25
+  bounceSeparationDistance: 0.02
+  fallbackDamage: 1

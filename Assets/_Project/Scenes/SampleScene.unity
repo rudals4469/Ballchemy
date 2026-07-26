@@ -1953,6 +1953,10 @@ MonoBehaviour:
       minimumSpecialBlocksPerWave: 1
       maximumSpecialBlocksPerWave: 1
       allowInFeaturedWaves: 1
+      guaranteedRewardCount: 1
+      rewardSpecialDefinitions: []
+      randomSpecialDefinitions: []
+      preventDuplicateDefinitionsInSameWave: 1
       specialHealthMultiplier: 1
       enableTestMode: 0
       forcedSpecialDefinition: {fileID: 11400000, guid: 07a1e78f430ea7c48a1167689f7e7a9c, type: 2}
@@ -2702,6 +2706,39 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: 1313e4eb7417f664b88a2bf1c4a3ae53, type: 2}
   drawGridAlways: 1
   centerMarkerSize: 0.2
+--- !u!1 &1806855581
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1806855582}
+  m_Layer: 0
+  m_Name: "\uD2B9\uC218\uBE14\uB7ED(\uC775\uC2A4\uD50C\uB85C\uC804)\uC5D0 \uB370\uBBF8\uC9C0
+    \uC785\uC744\uB54C\uB3C4 \uC717\uBC29\uD5A5\uC73C\uB85C \uC6C0\uC9C1\uC774\uB294
+    \uD6A8\uACFC \uCD94\uAC00\uD560 \uAC83)"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1806855582
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1806855581}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.41262, y: 6.49164, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1845288315
 GameObject:
   m_ObjectHideFlags: 0
@@ -3016,3 +3053,4 @@ SceneRoots:
   - {fileID: 519420032}
   - {fileID: 1312074106}
   - {fileID: 445980720}
+  - {fileID: 1806855582}

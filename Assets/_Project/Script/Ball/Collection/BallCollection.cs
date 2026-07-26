@@ -12,6 +12,15 @@ public sealed class BallCollection :
     [SerializeField, Min(1)]
     private int initialBallCount = 5;
 
+    [Header("Default Ball Data")]
+    [Tooltip(
+        "게임 시작 시 생성되는 공과, " +
+        "종류를 별도로 지정하지 않고 추가되는 공에 " +
+        "사용할 기본 BallDefinition입니다."
+    )]
+    [SerializeField]
+    private BallDefinition defaultBallDefinition;
+
     private readonly List<Ball> balls =
         new List<Ball>();
 
@@ -21,6 +30,9 @@ public sealed class BallCollection :
 
     public Ball BallPrefab =>
         ballPrefab;
+
+    public BallDefinition DefaultBallDefinition =>
+        defaultBallDefinition;
 
     public int Count =>
         balls.Count;
@@ -72,6 +84,20 @@ public sealed class BallCollection :
                 "Ball Prefab이 연결되지 않았습니다.",
                 this
             );
+
+            return;
+        }
+
+        if (defaultBallDefinition == null &&
+            ballPrefab.Definition == null)
+        {
+            Debug.LogWarning(
+                "BallCollection: " +
+                "Default Ball Definition과 " +
+                "Ball Prefab의 Definition이 모두 비어 있습니다. " +
+                "Fallback Damage가 사용됩니다.",
+                this
+            );
         }
     }
 
@@ -104,7 +130,8 @@ public sealed class BallCollection :
         isInitialized = true;
 
         CreateBalls(
-            initialBallCount
+            initialBallCount,
+            defaultBallDefinition
         );
 
         Debug.Log(
@@ -116,6 +143,16 @@ public sealed class BallCollection :
 
     public int AddBalls(
         int amount)
+    {
+        return AddBalls(
+            amount,
+            defaultBallDefinition
+        );
+    }
+
+    public int AddBalls(
+        int amount,
+        BallDefinition definition)
     {
         if (!isInitialized)
         {
@@ -139,11 +176,17 @@ public sealed class BallCollection :
             return 0;
         }
 
+        BallDefinition resolvedDefinition =
+            definition != null
+                ? definition
+                : defaultBallDefinition;
+
         int previousCount =
             balls.Count;
 
         CreateBalls(
-            amount
+            amount,
+            resolvedDefinition
         );
 
         int addedCount =
@@ -159,9 +202,14 @@ public sealed class BallCollection :
             addedCount
         );
 
+        string definitionName =
+            resolvedDefinition != null
+                ? resolvedDefinition.DisplayName
+                : "Fallback Ball";
+
         Debug.Log(
             "BallCollection: " +
-            $"공 {addedCount}개 추가, " +
+            $"{definitionName} {addedCount}개 추가, " +
             $"현재 총 {balls.Count}개",
             this
         );
@@ -170,7 +218,8 @@ public sealed class BallCollection :
     }
 
     private void CreateBalls(
-        int amount)
+        int amount,
+        BallDefinition definition)
     {
         if (ballPrefab == null)
         {
@@ -181,7 +230,9 @@ public sealed class BallCollection :
              i < amount;
              i++)
         {
-            CreateBall();
+            CreateBall(
+                definition
+            );
         }
 
         BallCountChanged?.Invoke(
@@ -189,7 +240,8 @@ public sealed class BallCollection :
         );
     }
 
-    private Ball CreateBall()
+    private Ball CreateBall(
+        BallDefinition definition)
     {
         Ball newBall =
             Instantiate(
@@ -199,7 +251,16 @@ public sealed class BallCollection :
             );
 
         newBall.name =
-            $"Ball_{balls.Count + 1}";
+            CreateBallObjectName(
+                definition
+            );
+
+        if (definition != null)
+        {
+            newBall.ApplyDefinition(
+                definition
+            );
+        }
 
         newBall.ResetTo(
             standbyPosition
@@ -218,6 +279,24 @@ public sealed class BallCollection :
         );
 
         return newBall;
+    }
+
+    private string CreateBallObjectName(
+        BallDefinition definition)
+    {
+        int ballNumber =
+            balls.Count + 1;
+
+        if (definition == null ||
+            string.IsNullOrWhiteSpace(
+                definition.BallId))
+        {
+            return $"Ball_{ballNumber}";
+        }
+
+        return
+            $"Ball_{ballNumber}_" +
+            $"{definition.BallId}";
     }
 
     private void IgnoreCollisionWithExistingBalls(
