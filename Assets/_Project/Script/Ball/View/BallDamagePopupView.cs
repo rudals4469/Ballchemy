@@ -12,7 +12,9 @@ public sealed class BallDamagePopupView :
     [SerializeField]
     private TextMeshPro damageText;
 
-    private Sequence animationSequence;
+    private Sequence pulseSequence;
+    private Sequence exitSequence;
+    private Tween exitDelayTween;
 
     private Action<BallDamagePopupView>
         completedCallback;
@@ -27,6 +29,25 @@ public sealed class BallDamagePopupView :
 
     private string defaultSortingLayerName;
     private int defaultSortingOrder;
+
+    private BallDamageTextStyleDefinition
+        activeStyle;
+
+    private int accumulatedDisplayedDamage;
+    private int accumulatedAppliedHealthDamage;
+
+    private float activeAggregationWindow;
+
+    private bool isAcceptingDamage;
+
+    public bool IsAcceptingDamage =>
+        isAcceptingDamage;
+
+    public int AccumulatedDisplayedDamage =>
+        accumulatedDisplayedDamage;
+
+    public int AccumulatedAppliedHealthDamage =>
+        accumulatedAppliedHealthDamage;
 
     private void Awake()
     {
@@ -88,193 +109,110 @@ public sealed class BallDamagePopupView :
             textRenderer.sortingOrder;
     }
 
-    public void Play(
+    public void BeginDisplay(
         BallDamageEvent damageEvent,
         BallDamageTextStyleDefinition style,
         Vector3 worldPosition,
+        float aggregationWindow,
         Action<BallDamagePopupView>
             onCompleted)
     {
         CancelWithoutCallback();
 
+        activeStyle =
+            style;
+
+        activeAggregationWindow =
+            Mathf.Max(
+                aggregationWindow,
+                0f
+            );
+
         completedCallback =
             onCompleted;
+
+        accumulatedDisplayedDamage =
+            Mathf.Max(
+                damageEvent.DisplayedDamage,
+                0
+            );
+
+        accumulatedAppliedHealthDamage =
+            Mathf.Max(
+                damageEvent.AppliedHealthDamage,
+                0
+            );
 
         gameObject.SetActive(
             true
         );
 
-        ApplyTextStyle(
-            damageEvent,
-            style
-        );
-
-        float duration =
-            style != null
-                ? style.Duration
-                : 0.55f;
-
-        float riseDistance =
-            style != null
-                ? style.RiseDistance
-                : 0.7f;
-
-        float startScale =
-            style != null
-                ? style.StartScale
-                : 0.9f;
-
-        float peakScale =
-            style != null
-                ? style.PeakScale
-                : 1.15f;
-
-        float endScale =
-            style != null
-                ? style.EndScale
-                : 1f;
-
-        float popDurationRatio =
-            style != null
-                ? style.PopDurationRatio
-                : 0.25f;
-
-        float fadeStartRatio =
-            style != null
-                ? style.FadeStartRatio
-                : 0.35f;
-
-        Ease moveEase =
-            style != null
-                ? style.MoveEase
-                : Ease.OutCubic;
-
-        Ease popEase =
-            style != null
-                ? style.PopEase
-                : Ease.OutBack;
-
-        Ease settleEase =
-            style != null
-                ? style.SettleEase
-                : Ease.OutQuad;
-
-        Ease fadeEase =
-            style != null
-                ? style.FadeEase
-                : Ease.InQuad;
-
-        Vector2 driftRange =
-            style != null
-                ? style.HorizontalDriftRange
-                : new Vector2(
-                    -0.08f,
-                    0.08f
-                );
-
-        float horizontalDrift =
-            UnityEngine.Random.Range(
-                driftRange.x,
-                driftRange.y
-            );
-
         transform.position =
             worldPosition;
 
-        transform.localScale =
-            Vector3.one *
-            startScale;
-
-        damageText.alpha = 1f;
-
-        Vector3 endPosition =
-            worldPosition +
-            new Vector3(
-                horizontalDrift,
-                riseDistance,
-                0f
-            );
-
-        float popDuration =
-            Mathf.Max(
-                duration *
-                popDurationRatio,
-                0.01f
-            );
-
-        float settleDuration =
-            Mathf.Max(
-                duration -
-                popDuration,
-                0.01f
-            );
-
-        float fadeStartTime =
-            duration *
-            fadeStartRatio;
-
-        float fadeDuration =
-            Mathf.Max(
-                duration -
-                fadeStartTime,
-                0.01f
-            );
-
-        animationSequence =
-            DOTween.Sequence();
-
-        animationSequence.Join(
-            transform.DOMove(
-                    endPosition,
-                    duration
-                )
-                .SetEase(
-                    moveEase
-                )
+        ApplyVisualStyle(
+            activeStyle
         );
 
-        animationSequence.Join(
-            transform.DOScale(
-                    Vector3.one *
-                    peakScale,
-                    popDuration
-                )
-                .SetEase(
-                    popEase
-                )
+        RefreshText();
+
+        float visibleAlpha =
+            activeStyle != null
+                ? activeStyle.TextColor.a
+                : defaultColor.a;
+
+        damageText.alpha =
+            visibleAlpha;
+
+        isAcceptingDamage =
+            activeAggregationWindow > 0f;
+
+        PlayPulse(
+            true
         );
 
-        animationSequence.Insert(
-            popDuration,
-            transform.DOScale(
-                    Vector3.one *
-                    endScale,
-                    settleDuration
-                )
-                .SetEase(
-                    settleEase
-                )
-        );
-
-        animationSequence.Insert(
-            fadeStartTime,
-            damageText.DOFade(
-                    0f,
-                    fadeDuration
-                )
-                .SetEase(
-                    fadeEase
-                )
-        );
-
-        animationSequence.OnComplete(
-            Complete
-        );
+        if (isAcceptingDamage)
+        {
+            ScheduleExit();
+        }
+        else
+        {
+            StartExit();
+        }
     }
 
-    private void ApplyTextStyle(
-        BallDamageEvent damageEvent,
-        BallDamageTextStyleDefinition style)
+    public bool TryAccumulate(
+        BallDamageEvent damageEvent)
+    {
+        if (!isAcceptingDamage)
+        {
+            return false;
+        }
+
+        accumulatedDisplayedDamage +=
+            Mathf.Max(
+                damageEvent.DisplayedDamage,
+                0
+            );
+
+        accumulatedAppliedHealthDamage +=
+            Mathf.Max(
+                damageEvent.AppliedHealthDamage,
+                0
+            );
+
+        RefreshText();
+
+        PlayPulse(
+            false
+        );
+
+        ScheduleExit();
+
+        return true;
+    }
+
+    private void RefreshText()
     {
         if (damageText == null)
         {
@@ -282,31 +220,56 @@ public sealed class BallDamagePopupView :
         }
 
         string prefix =
-            style != null
-                ? style.Prefix
+            activeStyle != null
+                ? activeStyle.Prefix
                 : string.Empty;
 
         string suffix =
-            style != null
-                ? style.Suffix
+            activeStyle != null
+                ? activeStyle.Suffix
                 : string.Empty;
 
         damageText.text =
             $"{prefix}" +
-            $"{damageEvent.Damage}" +
+            $"{accumulatedDisplayedDamage}" +
             $"{suffix}";
+    }
 
-        damageText.font =
+    private void ApplyVisualStyle(
+        BallDamageTextStyleDefinition style)
+    {
+        if (damageText == null)
+        {
+            return;
+        }
+
+        TMP_FontAsset resolvedFont =
             style != null &&
             style.FontAsset != null
                 ? style.FontAsset
                 : defaultFontAsset;
 
-        damageText.fontSharedMaterial =
-            style != null &&
-            style.FontMaterialPreset != null
-                ? style.FontMaterialPreset
-                : defaultFontMaterial;
+        damageText.font =
+            resolvedFont;
+
+        if (style != null &&
+            style.FontMaterialPreset != null)
+        {
+            damageText.fontSharedMaterial =
+                style.FontMaterialPreset;
+        }
+        else if (style != null &&
+                 style.FontAsset != null &&
+                 style.FontAsset.material != null)
+        {
+            damageText.fontSharedMaterial =
+                style.FontAsset.material;
+        }
+        else
+        {
+            damageText.fontSharedMaterial =
+                defaultFontMaterial;
+        }
 
         damageText.color =
             style != null
@@ -345,21 +308,276 @@ public sealed class BallDamagePopupView :
                 : defaultSortingOrder;
     }
 
+    private void PlayPulse(
+        bool isInitialPulse)
+    {
+        if (pulseSequence != null)
+        {
+            pulseSequence.Kill();
+
+            pulseSequence = null;
+        }
+
+        float duration =
+            activeStyle != null
+                ? activeStyle.Duration
+                : 0.55f;
+
+        float startScale =
+            activeStyle != null
+                ? activeStyle.StartScale
+                : 0.9f;
+
+        float peakScale =
+            activeStyle != null
+                ? activeStyle.PeakScale
+                : 1.15f;
+
+        float endScale =
+            activeStyle != null
+                ? activeStyle.EndScale
+                : 1f;
+
+        float popDurationRatio =
+            activeStyle != null
+                ? activeStyle.PopDurationRatio
+                : 0.25f;
+
+        Ease popEase =
+            activeStyle != null
+                ? activeStyle.PopEase
+                : Ease.OutBack;
+
+        Ease settleEase =
+            activeStyle != null
+                ? activeStyle.SettleEase
+                : Ease.OutQuad;
+
+        float popDuration =
+            Mathf.Max(
+                duration *
+                popDurationRatio,
+                0.01f
+            );
+
+        float settleDuration =
+            Mathf.Max(
+                duration -
+                popDuration,
+                0.01f
+            );
+
+        transform.localScale =
+            Vector3.one *
+            (
+                isInitialPulse
+                    ? startScale
+                    : endScale
+            );
+
+        pulseSequence =
+            DOTween.Sequence();
+
+        pulseSequence.Append(
+            transform.DOScale(
+                    Vector3.one *
+                    peakScale,
+                    popDuration
+                )
+                .SetEase(
+                    popEase
+                )
+        );
+
+        pulseSequence.Append(
+            transform.DOScale(
+                    Vector3.one *
+                    endScale,
+                    settleDuration
+                )
+                .SetEase(
+                    settleEase
+                )
+        );
+    }
+
+    private void ScheduleExit()
+    {
+        if (exitDelayTween != null)
+        {
+            exitDelayTween.Kill();
+
+            exitDelayTween = null;
+        }
+
+        exitDelayTween =
+            DOVirtual.DelayedCall(
+                activeAggregationWindow,
+                StartExit
+            );
+    }
+
+    private void StartExit()
+    {
+        if (exitSequence != null)
+        {
+            return;
+        }
+
+        isAcceptingDamage =
+            false;
+
+        if (exitDelayTween != null)
+        {
+            exitDelayTween.Kill();
+
+            exitDelayTween = null;
+        }
+
+        if (pulseSequence != null)
+        {
+            pulseSequence.Kill();
+
+            pulseSequence = null;
+        }
+
+        float duration =
+            activeStyle != null
+                ? activeStyle.Duration
+                : 0.55f;
+
+        float riseDistance =
+            activeStyle != null
+                ? activeStyle.RiseDistance
+                : 0.7f;
+
+        float endScale =
+            activeStyle != null
+                ? activeStyle.EndScale
+                : 1f;
+
+        float fadeStartRatio =
+            activeStyle != null
+                ? activeStyle.FadeStartRatio
+                : 0.35f;
+
+        Ease moveEase =
+            activeStyle != null
+                ? activeStyle.MoveEase
+                : Ease.OutCubic;
+
+        Ease fadeEase =
+            activeStyle != null
+                ? activeStyle.FadeEase
+                : Ease.InQuad;
+
+        Vector2 driftRange =
+            activeStyle != null
+                ? activeStyle.HorizontalDriftRange
+                : new Vector2(
+                    -0.08f,
+                    0.08f
+                );
+
+        float horizontalDrift =
+            UnityEngine.Random.Range(
+                driftRange.x,
+                driftRange.y
+            );
+
+        Vector3 endPosition =
+            transform.position +
+            new Vector3(
+                horizontalDrift,
+                riseDistance,
+                0f
+            );
+
+        float fadeStartTime =
+            duration *
+            fadeStartRatio;
+
+        float fadeDuration =
+            Mathf.Max(
+                duration -
+                fadeStartTime,
+                0.01f
+            );
+
+        transform.localScale =
+            Vector3.one *
+            endScale;
+
+        exitSequence =
+            DOTween.Sequence();
+
+        exitSequence.Join(
+            transform.DOMove(
+                    endPosition,
+                    duration
+                )
+                .SetEase(
+                    moveEase
+                )
+        );
+
+        exitSequence.Insert(
+            fadeStartTime,
+            damageText.DOFade(
+                    0f,
+                    fadeDuration
+                )
+                .SetEase(
+                    fadeEase
+                )
+        );
+
+        exitSequence.OnComplete(
+            Complete
+        );
+    }
+
     public void CancelWithoutCallback()
     {
-        if (animationSequence != null)
+        if (pulseSequence != null)
         {
-            animationSequence.Kill();
+            pulseSequence.Kill();
 
-            animationSequence = null;
+            pulseSequence = null;
+        }
+
+        if (exitSequence != null)
+        {
+            exitSequence.Kill();
+
+            exitSequence = null;
+        }
+
+        if (exitDelayTween != null)
+        {
+            exitDelayTween.Kill();
+
+            exitDelayTween = null;
         }
 
         completedCallback = null;
+
+        activeStyle = null;
+
+        activeAggregationWindow = 0f;
+
+        accumulatedDisplayedDamage = 0;
+        accumulatedAppliedHealthDamage = 0;
+
+        isAcceptingDamage = false;
     }
 
     private void Complete()
     {
-        animationSequence = null;
+        exitSequence = null;
+
+        isAcceptingDamage =
+            false;
 
         Action<BallDamagePopupView>
             callback =

@@ -280,7 +280,7 @@ public sealed class BallCombatController :
 
     public int ApplyDamage(
         Block target,
-        int requestedDamage,
+        int calculatedDamage,
         Vector2 hitPoint,
         BallDamageTextStyleDefinition
             styleOverride = null)
@@ -291,25 +291,31 @@ public sealed class BallCombatController :
             return 0;
         }
 
-        requestedDamage =
+        calculatedDamage =
             Mathf.Max(
-                requestedDamage,
+                calculatedDamage,
                 1
             );
 
         int healthBeforeDamage =
-            target.CurrentHealth;
+            Mathf.Max(
+                target.CurrentHealth,
+                0
+            );
 
         target.TakeDamage(
-            requestedDamage
+            calculatedDamage
         );
 
         int healthAfterDamage =
             target != null
-                ? target.CurrentHealth
+                ? Mathf.Max(
+                    target.CurrentHealth,
+                    0
+                )
                 : 0;
 
-        int appliedDamage =
+        int appliedHealthDamage =
             Mathf.Clamp(
                 healthBeforeDamage -
                 healthAfterDamage,
@@ -317,7 +323,12 @@ public sealed class BallCombatController :
                 healthBeforeDamage
             );
 
-        if (appliedDamage <= 0)
+        /*
+         * 방어막, 무적 등의 이유로 실제 체력이
+         * 전혀 감소하지 않았다면 일반 데미지 텍스트를
+         * 표시하지 않습니다.
+         */
+        if (appliedHealthDamage <= 0)
         {
             return 0;
         }
@@ -336,13 +347,20 @@ public sealed class BallCombatController :
                 ball,
                 definition,
                 target,
-                appliedDamage,
+                calculatedDamage,
+                appliedHealthDamage,
                 hitPoint,
                 resolvedStyle
             )
         );
 
-        return appliedDamage;
+        /*
+         * 반환값은 실제 감소한 체력입니다.
+         *
+         * 흡혈, 피해 통계 등 실제 체력 감소량이 필요한
+         * 시스템에서 사용할 수 있습니다.
+         */
+        return appliedHealthDamage;
     }
 
     public BallHitResult ResolveBlockHit(

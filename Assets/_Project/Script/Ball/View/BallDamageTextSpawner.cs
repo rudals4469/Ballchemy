@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,6 +6,61 @@ using UnityEngine;
 public sealed class BallDamageTextSpawner :
     MonoBehaviour
 {
+    private readonly struct AggregationKey :
+        IEquatable<AggregationKey>
+    {
+        private readonly int targetInstanceId;
+        private readonly int styleInstanceId;
+
+        public AggregationKey(
+            Block target,
+            BallDamageTextStyleDefinition style)
+        {
+            targetInstanceId =
+                target != null
+                    ? target.GetInstanceID()
+                    : 0;
+
+            styleInstanceId =
+                style != null
+                    ? style.GetInstanceID()
+                    : 0;
+        }
+
+        public bool Equals(
+            AggregationKey other)
+        {
+            return
+                targetInstanceId ==
+                other.targetInstanceId &&
+                styleInstanceId ==
+                other.styleInstanceId;
+        }
+
+        public override bool Equals(
+            object obj)
+        {
+            return
+                obj is AggregationKey other &&
+                Equals(
+                    other
+                );
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return
+                    (
+                        targetInstanceId *
+                        397
+                    ) ^
+                    styleInstanceId;
+            }
+        }
+    }
+
     private sealed class PopupPoolBucket
     {
         public BallDamagePopupView Prefab
@@ -83,6 +139,24 @@ public sealed class BallDamageTextSpawner :
         new Dictionary<
             BallDamagePopupView,
             PopupPoolBucket
+        >();
+
+    private readonly Dictionary<
+        AggregationKey,
+        BallDamagePopupView
+    > activeAggregatedPopups =
+        new Dictionary<
+            AggregationKey,
+            BallDamagePopupView
+        >();
+
+    private readonly Dictionary<
+        BallDamagePopupView,
+        AggregationKey
+    > aggregationKeyByPopup =
+        new Dictionary<
+            BallDamagePopupView,
+            AggregationKey
         >();
 
     private void Awake()
@@ -183,7 +257,8 @@ public sealed class BallDamageTextSpawner :
     private void HandleDamageApplied(
         BallDamageEvent damageEvent)
     {
-        if (damageEvent.Damage <= 0)
+        if (damageEvent.DisplayedDamage <= 0 ||
+            damageEvent.AppliedHealthDamage <= 0)
         {
             return;
         }
@@ -213,9 +288,76 @@ public sealed class BallDamageTextSpawner :
             return;
         }
 
+        BallDamageTextAggregationMode
+            aggregationMode =
+                resolvedStyle != null
+                    ? resolvedStyle
+                        .AggregationMode
+                    : BallDamageTextAggregationMode
+                        .SameTargetAndStyle;
+
+        float aggregationWindow =
+            resolvedStyle != null
+                ? resolvedStyle
+                    .AggregationWindow
+                : 0.3f;
+
+        if (aggregationMode ==
+                BallDamageTextAggregationMode
+                    .SameTargetAndStyle &&
+            damageEvent.Target != null)
+        {
+            HandleAggregatedDamage(
+                damageEvent,
+                resolvedStyle,
+                resolvedPrefab,
+                aggregationWindow
+            );
+
+            return;
+        }
+
+        SpawnIndividualPopup(
+            damageEvent,
+            resolvedStyle,
+            resolvedPrefab
+        );
+    }
+
+    private void HandleAggregatedDamage(
+        BallDamageEvent damageEvent,
+        BallDamageTextStyleDefinition style,
+        BallDamagePopupView prefab,
+        float aggregationWindow)
+    {
+        AggregationKey key =
+            new AggregationKey(
+                damageEvent.Target,
+                style
+            );
+
+        if (activeAggregatedPopups.TryGetValue(
+                key,
+                out BallDamagePopupView
+                    activePopup
+            ))
+        {
+            if (activePopup != null &&
+                activePopup.TryAccumulate(
+                    damageEvent
+                ))
+            {
+                return;
+            }
+
+            UnregisterAggregation(
+                activePopup
+            );
+        }
+
         PopupPoolBucket bucket =
             GetOrCreateBucket(
-                resolvedPrefab
+                prefab
             );
 
         BallDamagePopupView popup =
@@ -228,47 +370,169 @@ public sealed class BallDamageTextSpawner :
             return;
         }
 
-        Vector2 spawnOffset =
-            resolvedStyle != null
-                ? resolvedStyle.SpawnOffset
-                : Vector2.zero;
-
-        float horizontalJitter =
-            resolvedStyle != null
-                ? resolvedStyle.HorizontalJitter
-                : 0.12f;
-
-        float randomX =
-            Random.Range(
-                -horizontalJitter,
-                horizontalJitter
-            );
-
-        float worldZ =
-            resolvedStyle != null
-                ? resolvedStyle.WorldZ
-                : -1f;
-
         Vector3 worldPosition =
-            new Vector3(
-                damageEvent.HitPoint.x +
-                spawnOffset.x +
-                randomX,
-                damageEvent.HitPoint.y +
-                spawnOffset.y,
-                worldZ
+            CalculateWorldPosition(
+                damageEvent,
+                style
             );
 
         bucket.Active.AddLast(
             popup
         );
 
-        popup.Play(
+        RegisterAggregation(
+            key,
+            popup
+        );
+
+        popup.BeginDisplay(
             damageEvent,
-            resolvedStyle,
+            style,
             worldPosition,
+            aggregationWindow,
             ReleasePopup
         );
+    }
+
+    private void SpawnIndividualPopup(
+        BallDamageEvent damageEvent,
+        BallDamageTextStyleDefinition style,
+        BallDamagePopupView prefab)
+    {
+        PopupPoolBucket bucket =
+            GetOrCreateBucket(
+                prefab
+            );
+
+        BallDamagePopupView popup =
+            GetPopup(
+                bucket
+            );
+
+        if (popup == null)
+        {
+            return;
+        }
+
+        Vector3 worldPosition =
+            CalculateWorldPosition(
+                damageEvent,
+                style
+            );
+
+        bucket.Active.AddLast(
+            popup
+        );
+
+        popup.BeginDisplay(
+            damageEvent,
+            style,
+            worldPosition,
+            0f,
+            ReleasePopup
+        );
+    }
+
+    private Vector3 CalculateWorldPosition(
+        BallDamageEvent damageEvent,
+        BallDamageTextStyleDefinition style)
+    {
+        /*
+         * 누적 표시에서는 충돌 지점이 계속 달라질 수 있으므로
+         * 블록 중심을 기준으로 표시합니다.
+         */
+        Vector3 targetCenter =
+            damageEvent.Target != null
+                ? damageEvent.Target
+                    .transform.position
+                : new Vector3(
+                    damageEvent.HitPoint.x,
+                    damageEvent.HitPoint.y,
+                    0f
+                );
+
+        Vector2 spawnOffset =
+            style != null
+                ? style.SpawnOffset
+                : Vector2.zero;
+
+        float horizontalJitter =
+            style != null
+                ? style.HorizontalJitter
+                : 0.12f;
+
+        float randomX =
+            UnityEngine.Random.Range(
+                -horizontalJitter,
+                horizontalJitter
+            );
+
+        float worldZ =
+            style != null
+                ? style.WorldZ
+                : -1f;
+
+        return new Vector3(
+            targetCenter.x +
+            spawnOffset.x +
+            randomX,
+            targetCenter.y +
+            spawnOffset.y,
+            worldZ
+        );
+    }
+
+    private void RegisterAggregation(
+        AggregationKey key,
+        BallDamagePopupView popup)
+    {
+        if (popup == null)
+        {
+            return;
+        }
+
+        activeAggregatedPopups[
+            key
+        ] =
+            popup;
+
+        aggregationKeyByPopup[
+            popup
+        ] =
+            key;
+    }
+
+    private void UnregisterAggregation(
+        BallDamagePopupView popup)
+    {
+        if (popup == null)
+        {
+            return;
+        }
+
+        if (!aggregationKeyByPopup.TryGetValue(
+                popup,
+                out AggregationKey key
+            ))
+        {
+            return;
+        }
+
+        aggregationKeyByPopup.Remove(
+            popup
+        );
+
+        if (activeAggregatedPopups.TryGetValue(
+                key,
+                out BallDamagePopupView
+                    registeredPopup
+            ) &&
+            registeredPopup == popup)
+        {
+            activeAggregatedPopups.Remove(
+                key
+            );
+        }
     }
 
     private PopupPoolBucket GetOrCreateBucket(
@@ -327,6 +591,10 @@ public sealed class BallDamageTextSpawner :
 
         bucket.Active.RemoveFirst();
 
+        UnregisterAggregation(
+            recycledPopup
+        );
+
         recycledPopup
             .CancelWithoutCallback();
 
@@ -376,6 +644,10 @@ public sealed class BallDamageTextSpawner :
             return;
         }
 
+        UnregisterAggregation(
+            popup
+        );
+
         if (!ownerBucketByPopup.TryGetValue(
                 popup,
                 out PopupPoolBucket bucket
@@ -403,6 +675,9 @@ public sealed class BallDamageTextSpawner :
 
     private void ReturnAllActivePopups()
     {
+        activeAggregatedPopups.Clear();
+        aggregationKeyByPopup.Clear();
+
         foreach (PopupPoolBucket bucket
                  in buckets.Values)
         {

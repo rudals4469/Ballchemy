@@ -15,13 +15,32 @@ public sealed class BallDamageTextStyleDefinition :
     private string styleId;
 
     [Header("Optional Prefab Override")]
+
     [Tooltip(
         "비워두면 공용 데미지 텍스트 프리팹을 사용합니다. " +
-        "특정 공만 완전히 다른 구조의 텍스트를 사용해야 할 때 " +
-        "전용 프리팹을 연결합니다."
+        "완전히 다른 구조가 필요할 때만 전용 프리팹을 연결합니다."
     )]
     [SerializeField]
-    private BallDamagePopupView popupPrefabOverride;
+    private BallDamagePopupView
+        popupPrefabOverride;
+
+    [Header("Aggregation")]
+
+    [Tooltip(
+        "데미지 텍스트를 합산하는 방식입니다."
+    )]
+    [SerializeField]
+    private BallDamageTextAggregationMode
+        aggregationMode =
+            BallDamageTextAggregationMode
+                .SameTargetAndStyle;
+
+    [Tooltip(
+        "마지막 피해 이후 이 시간 동안 " +
+        "같은 블록과 같은 스타일의 피해가 들어오면 합산합니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float aggregationWindow = 0.3f;
 
     [Header("Text")]
     [SerializeField]
@@ -66,6 +85,10 @@ public sealed class BallDamageTextStyleDefinition :
     private float worldZ = -1f;
 
     [Header("Movement")]
+
+    [Tooltip(
+        "누적이 끝난 뒤 상승하며 사라지는 시간입니다."
+    )]
     [SerializeField, Min(0.05f)]
     private float duration = 0.55f;
 
@@ -73,7 +96,7 @@ public sealed class BallDamageTextStyleDefinition :
     private float riseDistance = 0.7f;
 
     [Tooltip(
-        "텍스트가 상승하면서 좌우로 이동하는 " +
+        "텍스트가 사라질 때 좌우로 움직이는 " +
         "거리의 무작위 범위입니다."
     )]
     [SerializeField]
@@ -98,8 +121,7 @@ public sealed class BallDamageTextStyleDefinition :
     private float endScale = 1f;
 
     [Tooltip(
-        "전체 지속 시간 중 확대 애니메이션이 " +
-        "차지하는 비율입니다."
+        "팝 애니메이션에서 확대가 차지하는 비율입니다."
     )]
     [SerializeField, Range(0.01f, 1f)]
     private float popDurationRatio = 0.25f;
@@ -113,8 +135,9 @@ public sealed class BallDamageTextStyleDefinition :
         Ease.OutQuad;
 
     [Header("Fade")]
+
     [Tooltip(
-        "전체 애니메이션의 어느 시점부터 " +
+        "종료 애니메이션 중 어느 시점부터 " +
         "투명해지기 시작할지 나타냅니다."
     )]
     [SerializeField, Range(0f, 0.95f)]
@@ -137,6 +160,13 @@ public sealed class BallDamageTextStyleDefinition :
 
     public BallDamagePopupView PopupPrefabOverride =>
         popupPrefabOverride;
+
+    public BallDamageTextAggregationMode
+        AggregationMode =>
+            aggregationMode;
+
+    public float AggregationWindow =>
+        aggregationWindow;
 
     public TMP_FontAsset FontAsset =>
         fontAsset;
@@ -212,6 +242,12 @@ public sealed class BallDamageTextStyleDefinition :
 
     private void OnValidate()
     {
+        aggregationWindow =
+            Mathf.Max(
+                aggregationWindow,
+                0f
+            );
+
         fontSize =
             Mathf.Max(
                 fontSize,
