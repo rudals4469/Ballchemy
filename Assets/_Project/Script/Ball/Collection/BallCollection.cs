@@ -1,25 +1,30 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public sealed class BallCollection :
     MonoBehaviour
 {
-    [Header("Ball Settings")]
+    [Header("Starting Ball Settings")]
     [SerializeField]
     private Ball ballPrefab;
 
-    [SerializeField, Min(1)]
-    private int initialBallCount = 5;
-
-    [Header("Default Ball Data")]
     [Tooltip(
-        "게임 시작 시 생성되는 공과, " +
-        "종류를 별도로 지정하지 않고 추가되는 공에 " +
-        "사용할 기본 BallDefinition입니다."
+        "게임을 시작할 때 보유하는 전체 공 개수입니다. " +
+        "추가로 생성되는 개수가 아닙니다."
     )]
+    [FormerlySerializedAs("initialBallCount")]
+    [SerializeField, Min(1)]
+    private int startingBallCount = 20;
+
+    [Tooltip(
+        "게임 시작 시 생성되는 공의 Definition입니다. " +
+        "반드시 연결되어 있어야 합니다."
+    )]
+    [FormerlySerializedAs("defaultBallDefinition")]
     [SerializeField]
-    private BallDefinition defaultBallDefinition;
+    private BallDefinition startingBallDefinition;
 
     private readonly List<Ball> balls =
         new List<Ball>();
@@ -31,8 +36,18 @@ public sealed class BallCollection :
     public Ball BallPrefab =>
         ballPrefab;
 
+    public BallDefinition StartingBallDefinition =>
+        startingBallDefinition;
+
+    /*
+     * 기존 코드에서 이 프로퍼티를 참조하고 있을 가능성을
+     * 고려해 이름을 유지한다.
+     */
     public BallDefinition DefaultBallDefinition =>
-        defaultBallDefinition;
+        startingBallDefinition;
+
+    public int StartingBallCount =>
+        startingBallCount;
 
     public int Count =>
         balls.Count;
@@ -68,15 +83,17 @@ public sealed class BallCollection :
 
     private void NormalizeSettings()
     {
-        initialBallCount =
+        startingBallCount =
             Mathf.Max(
-                initialBallCount,
+                startingBallCount,
                 1
             );
     }
 
-    private void ValidateReferences()
+    private bool ValidateReferences()
     {
+        bool isValid = true;
+
         if (ballPrefab == null)
         {
             Debug.LogError(
@@ -85,20 +102,22 @@ public sealed class BallCollection :
                 this
             );
 
-            return;
+            isValid = false;
         }
 
-        if (defaultBallDefinition == null &&
-            ballPrefab.Definition == null)
+        if (startingBallDefinition == null)
         {
-            Debug.LogWarning(
+            Debug.LogError(
                 "BallCollection: " +
-                "Default Ball Definition과 " +
-                "Ball Prefab의 Definition이 모두 비어 있습니다. " +
-                "Fallback Damage가 사용됩니다.",
+                "Starting Ball Definition이 연결되지 않았습니다. " +
+                "Definition이 없으면 공을 생성하지 않습니다.",
                 this
             );
+
+            isValid = false;
         }
+
+        return isValid;
     }
 
     public void Initialize(
@@ -116,27 +135,23 @@ public sealed class BallCollection :
             return;
         }
 
-        if (ballPrefab == null)
+        if (!ValidateReferences())
         {
-            Debug.LogError(
-                "BallCollection: " +
-                "Ball Prefab이 없어 초기화할 수 없습니다.",
-                this
-            );
-
             return;
         }
 
-        isInitialized = true;
-
         CreateBalls(
-            initialBallCount,
-            defaultBallDefinition
+            startingBallCount,
+            startingBallDefinition
         );
+
+        isInitialized = true;
 
         Debug.Log(
             "BallCollection: " +
-            $"초기 공 {balls.Count}개 생성 완료",
+            $"초기 공 {balls.Count}개 생성 완료, " +
+            $"공 종류 = {startingBallDefinition.DisplayName}, " +
+            $"기본 피해 = {startingBallDefinition.BaseDamage}",
             this
         );
     }
@@ -146,7 +161,7 @@ public sealed class BallCollection :
     {
         return AddBalls(
             amount,
-            defaultBallDefinition
+            startingBallDefinition
         );
     }
 
@@ -179,7 +194,18 @@ public sealed class BallCollection :
         BallDefinition resolvedDefinition =
             definition != null
                 ? definition
-                : defaultBallDefinition;
+                : startingBallDefinition;
+
+        if (resolvedDefinition == null)
+        {
+            Debug.LogError(
+                "BallCollection: " +
+                "추가할 공의 BallDefinition이 없습니다.",
+                this
+            );
+
+            return 0;
+        }
 
         int previousCount =
             balls.Count;
@@ -202,14 +228,10 @@ public sealed class BallCollection :
             addedCount
         );
 
-        string definitionName =
-            resolvedDefinition != null
-                ? resolvedDefinition.DisplayName
-                : "Fallback Ball";
-
         Debug.Log(
             "BallCollection: " +
-            $"{definitionName} {addedCount}개 추가, " +
+            $"{resolvedDefinition.DisplayName} " +
+            $"{addedCount}개 추가, " +
             $"현재 총 {balls.Count}개",
             this
         );
@@ -221,7 +243,8 @@ public sealed class BallCollection :
         int amount,
         BallDefinition definition)
     {
-        if (ballPrefab == null)
+        if (ballPrefab == null ||
+            definition == null)
         {
             return;
         }
@@ -243,6 +266,17 @@ public sealed class BallCollection :
     private Ball CreateBall(
         BallDefinition definition)
     {
+        if (definition == null)
+        {
+            Debug.LogError(
+                "BallCollection: " +
+                "BallDefinition이 없는 공은 생성할 수 없습니다.",
+                this
+            );
+
+            return null;
+        }
+
         Ball newBall =
             Instantiate(
                 ballPrefab,
@@ -255,12 +289,29 @@ public sealed class BallCollection :
                 definition
             );
 
-        if (definition != null)
+        BallCombatController combatController =
+            newBall.GetComponent<
+                BallCombatController
+            >();
+
+        if (combatController == null)
         {
-            newBall.ApplyDefinition(
-                definition
+            Debug.LogError(
+                "BallCollection: " +
+                "생성된 공에 BallCombatController가 없습니다.",
+                newBall
             );
+
+            Destroy(
+                newBall.gameObject
+            );
+
+            return null;
         }
+
+        combatController.ApplyDefinition(
+            definition
+        );
 
         newBall.ResetTo(
             standbyPosition
@@ -289,7 +340,8 @@ public sealed class BallCollection :
 
         if (definition == null ||
             string.IsNullOrWhiteSpace(
-                definition.BallId))
+                definition.BallId
+            ))
         {
             return $"Ball_{ballNumber}";
         }
@@ -328,8 +380,9 @@ public sealed class BallCollection :
             }
 
             Collider2D existingCollider =
-                existingBall
-                    .GetComponent<Collider2D>();
+                existingBall.GetComponent<
+                    Collider2D
+                >();
 
             if (existingCollider == null)
             {

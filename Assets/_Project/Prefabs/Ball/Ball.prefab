@@ -13,6 +13,8 @@ GameObject:
   - component: {fileID: 7457183230464499752}
   - component: {fileID: 5726347878816334614}
   - component: {fileID: -6506564171772199970}
+  - component: {fileID: 716773751127089919}
+  - component: {fileID: 667588407618561759}
   m_Layer: 0
   m_Name: Ball
   m_TagString: Untagged
@@ -169,8 +171,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f8100b4b1b687f74eb5ea125459c3a95, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ball
-  definition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
-  visualRenderer: {fileID: 2544826838925475784}
+  combatController: {fileID: 667588407618561759}
   moveSpeed: 12
   verticalDirectionThreshold: 0.05
   bounceResolver:
@@ -185,4 +186,32 @@ MonoBehaviour:
     boardCenterX: 0
     escapeCooldown: 0.25
   bounceSeparationDistance: 0.02
+--- !u!114 &716773751127089919
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7667098293119860426}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 23c286b4b74621f4c889135f67b5c14d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallVisualView
+  combatController: {fileID: 667588407618561759}
+  visualRenderer: {fileID: 2544826838925475784}
+--- !u!114 &667588407618561759
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7667098293119860426}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e67fa84bed2c3b4596c06e8139ca6d2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallCombatController
+  definition: {fileID: 0}
   fallbackDamage: 1
+  showDebugLog: 0

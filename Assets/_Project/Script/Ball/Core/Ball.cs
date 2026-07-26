@@ -1,27 +1,15 @@
 using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(CircleCollider2D))]
+[RequireComponent(typeof(BallCombatController))]
 public sealed class Ball :
     MonoBehaviour
 {
-    [Header("Data")]
-    [Tooltip(
-        "현재 공에 적용된 공 데이터입니다. " +
-        "BallCollection에서 생성 시 설정합니다."
-    )]
+    [Header("References")]
     [SerializeField]
-    private BallDefinition definition;
-
-    [Header("Visual")]
-    [Tooltip(
-        "공의 스프라이트와 색상을 표시하는 " +
-        "SpriteRenderer입니다."
-    )]
-    [SerializeField]
-    private SpriteRenderer visualRenderer;
+    private BallCombatController combatController;
 
     [Header("Movement")]
     [SerializeField, Min(0.1f)]
@@ -50,15 +38,6 @@ public sealed class Ball :
     [SerializeField, Min(0f)]
     private float bounceSeparationDistance = 0.02f;
 
-    [Header("Combat Fallback")]
-    [Tooltip(
-        "BallDefinition이 연결되지 않았을 때만 " +
-        "사용하는 임시 피해량입니다."
-    )]
-    [FormerlySerializedAs("damage")]
-    [SerializeField, Min(1)]
-    private int fallbackDamage = 1;
-
     private static int activeMovingBallCount;
 
     private Rigidbody2D body;
@@ -75,26 +54,28 @@ public sealed class Ball :
     public static int ActiveMovingBallCount =>
         activeMovingBallCount;
 
+    public BallCombatController CombatController =>
+        combatController;
+
     public BallDefinition Definition =>
-        definition;
+        combatController != null
+            ? combatController.Definition
+            : null;
 
     public BallTraitType TraitType =>
-        definition != null
-            ? definition.TraitType
+        combatController != null
+            ? combatController.TraitType
             : BallTraitType.Basic;
 
     public BallStarGrade StarGrade =>
-        definition != null
-            ? definition.StarGrade
+        combatController != null
+            ? combatController.StarGrade
             : BallStarGrade.None;
 
     public int CurrentDamage =>
-        definition != null
-            ? Mathf.Max(
-                definition.BaseDamage,
-                1
-            )
-            : fallbackDamage;
+        combatController != null
+            ? combatController.BaseDamage
+            : 1;
 
     public bool IsMoving =>
         isMoving;
@@ -121,9 +102,6 @@ public sealed class Ball :
 
     public event Action<Ball>
         Returned;
-
-    public event Action<Ball, BallDefinition>
-        DefinitionChanged;
 
     public static event Action<Ball>
         BlockHitOccurred;
@@ -153,8 +131,6 @@ public sealed class Ball :
             GetInstanceID()
         );
 
-        RefreshDefinitionVisual();
-
         StopMovement();
     }
 
@@ -178,19 +154,11 @@ public sealed class Ball :
                 0f
             );
 
-        fallbackDamage =
-            Mathf.Max(
-                fallbackDamage,
-                1
-            );
-
         FindReferences();
         EnsureHelpers();
 
         bounceResolver.Normalize();
         loopEscape.Normalize();
-
-        RefreshDefinitionVisual();
     }
 
     private void FindReferences()
@@ -207,14 +175,21 @@ public sealed class Ball :
                 GetComponent<CircleCollider2D>();
         }
 
-        if (visualRenderer == null)
+        if (combatController == null)
         {
-            visualRenderer =
-                GetComponentInChildren<
-                    SpriteRenderer
-                >(
-                    true
-                );
+            combatController =
+                GetComponent<
+                    BallCombatController
+                >();
+        }
+
+        if (combatController == null &&
+            Application.isPlaying)
+        {
+            combatController =
+                gameObject.AddComponent<
+                    BallCombatController
+                >();
         }
     }
 
@@ -248,68 +223,6 @@ public sealed class Ball :
 
         body.interpolation =
             RigidbodyInterpolation2D.Interpolate;
-    }
-
-    public void ApplyDefinition(
-        BallDefinition newDefinition)
-    {
-        definition =
-            newDefinition;
-
-        RefreshDefinitionVisual();
-
-        DefinitionChanged?.Invoke(
-            this,
-            definition
-        );
-    }
-
-    private void RefreshDefinitionVisual()
-    {
-        if (definition == null)
-        {
-            return;
-        }
-
-        if (visualRenderer == null)
-        {
-            visualRenderer =
-                GetComponentInChildren<
-                    SpriteRenderer
-                >(
-                    true
-                );
-        }
-
-        if (visualRenderer == null)
-        {
-            return;
-        }
-
-        if (definition.Sprite != null)
-        {
-            visualRenderer.sprite =
-                definition.Sprite;
-        }
-
-        visualRenderer.color =
-            definition.Color;
-
-        /*
-         * SpriteRenderer가 공 루트의 자식일 때만
-         * 비주얼 크기를 적용한다.
-         *
-         * 루트 오브젝트의 크기를 바꾸면
-         * CircleCollider2D 크기까지 변할 수 있으므로
-         * 루트 Renderer에는 자동 스케일을 적용하지 않는다.
-         */
-        if (visualRenderer.transform !=
-            transform)
-        {
-            visualRenderer.transform
-                .localScale =
-                definition.VisualScale;
-        }
     }
 
     private void FixedUpdate()
@@ -544,6 +457,87 @@ public sealed class Ball :
                 collision
             );
 
+        BallHitResult hitResult =
+            ResolveCombatHit(
+                hitBlock,
+                collision,
+                incomingVelocity
+            );
+
+        bool shouldResolveBounce =
+            hitBlock == null ||
+            hitResult.ShouldBounce;
+
+        if (shouldResolveBounce)
+        {
+            ResolveBounce(
+                collision,
+                hitBlock,
+                incomingVelocity
+            );
+        }
+
+        if (hitBlock != null &&
+            hitResult.WasHandled)
+        {
+            BlockHitOccurred?.Invoke(
+                this
+            );
+        }
+    }
+
+    private BallHitResult ResolveCombatHit(
+        Block hitBlock,
+        Collision2D collision,
+        Vector2 incomingVelocity)
+    {
+        if (hitBlock == null ||
+            !hitBlock.IsAlive)
+        {
+            return BallHitResult.NotHandled();
+        }
+
+        Vector2 hitPoint =
+            body != null
+                ? body.position
+                : (Vector2)transform.position;
+
+        if (collision != null &&
+            collision.contactCount > 0)
+        {
+            hitPoint =
+                collision
+                    .GetContact(0)
+                    .point;
+        }
+
+        if (combatController == null)
+        {
+            FindReferences();
+        }
+
+        if (combatController == null)
+        {
+            hitBlock.TakeDamage(
+                1
+            );
+
+            return BallHitResult
+                .HandledWithBounce();
+        }
+
+        return combatController.ResolveBlockHit(
+            hitBlock,
+            hitPoint,
+            incomingVelocity
+        );
+    }
+
+    private void ResolveBounce(
+        Collision2D collision,
+        Block hitBlock,
+        Vector2 incomingVelocity)
+    {
         bool resolvedBounce =
             bounceResolver.TryResolve(
                 collision,
@@ -555,45 +549,43 @@ public sealed class Ball :
                 out Collider2D hitCollider
             );
 
-        if (resolvedBounce)
+        if (!resolvedBounce)
         {
-            if (hitBlock == null &&
-                hitCollider != null)
-            {
-                hitBlock =
-                    hitCollider
-                        .GetComponentInParent<Block>();
-            }
-
-            bool escapedLoop =
-                loopEscape.TryEscape(
-                    hitBlock,
-                    resolvedNormal,
-                    outgoingVelocity,
-                    body.position,
-                    CurrentMoveSpeed,
-                    out Vector2 escapedVelocity
-                );
-
-            Vector2 finalVelocity =
-                escapedLoop
-                    ? escapedVelocity
-                    : outgoingVelocity;
-
-            SeparateFromSurface(
-                resolvedNormal
-            );
-
-            body.linearVelocity =
-                finalVelocity;
-
-            lastPhysicsVelocity =
-                finalVelocity;
+            return;
         }
 
-        HandleBlockHit(
-            hitBlock
+        if (hitBlock == null &&
+            hitCollider != null)
+        {
+            hitBlock =
+                hitCollider
+                    .GetComponentInParent<Block>();
+        }
+
+        bool escapedLoop =
+            loopEscape.TryEscape(
+                hitBlock,
+                resolvedNormal,
+                outgoingVelocity,
+                body.position,
+                CurrentMoveSpeed,
+                out Vector2 escapedVelocity
+            );
+
+        Vector2 finalVelocity =
+            escapedLoop
+                ? escapedVelocity
+                : outgoingVelocity;
+
+        SeparateFromSurface(
+            resolvedNormal
         );
+
+        body.linearVelocity =
+            finalVelocity;
+
+        lastPhysicsVelocity =
+            finalVelocity;
     }
 
     private void SeparateFromSurface(
@@ -634,24 +626,6 @@ public sealed class Ball :
 
         return collision.gameObject
             .GetComponentInParent<Block>();
-    }
-
-    private void HandleBlockHit(
-        Block block)
-    {
-        if (block == null ||
-            !block.IsAlive)
-        {
-            return;
-        }
-
-        block.TakeDamage(
-            CurrentDamage
-        );
-
-        BlockHitOccurred?.Invoke(
-            this
-        );
     }
 
     private void OnTriggerEnter2D(
