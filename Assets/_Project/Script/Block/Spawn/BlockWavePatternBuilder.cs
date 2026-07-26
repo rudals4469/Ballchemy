@@ -17,17 +17,17 @@ public sealed class BlockWavePatternBuilder
 
     [Header("Wave Row Settings")]
     [SerializeField, Min(1)]
-    private int minimumRowsPerWave = 2;
+    private int minimumRowsPerWave = 3;
 
     [SerializeField, Min(1)]
     private int maximumRowsPerWave = 3;
 
     [Header("Blocks Per Row")]
     [SerializeField, Min(1)]
-    private int minimumBlocksPerRow = 2;
+    private int minimumBlocksPerRow = 4;
 
     [SerializeField, Min(1)]
-    private int maximumBlocksPerRow = 3;
+    private int maximumBlocksPerRow = 5;
 
     [Header("Vertical Pattern")]
     [Tooltip(
@@ -42,7 +42,7 @@ public sealed class BlockWavePatternBuilder
         "최대 세로 기둥 개수입니다."
     )]
     [SerializeField, Min(1)]
-    private int maximumPillarColumns = 2;
+    private int maximumPillarColumns = 3;
 
     [Tooltip(
         "이전 줄의 추가 블록 열이 " +
@@ -355,11 +355,20 @@ public sealed class BlockWavePatternBuilder
                     : preferredColumns;
         }
 
+        /*
+         * 일반 블록 생성이 끝난 뒤
+         * 남은 빈칸에 특수 블록을 추가한다.
+         *
+         * 기존 일반 블록 요청은 교체하지 않는다.
+         */
         specialInjector.InjectSpecialBlocks(
             requests,
             blockCatalog,
+            columnCount,
+            rowCount,
             waveIndex,
-            featuredDefinition != null
+            featuredDefinition != null,
+            baseHealth
         );
 
         return requests;

@@ -18,25 +18,25 @@ public sealed class BlockWaveSpecialInjector
     private int firstSpecialWaveNumber = 1;
 
     [Tooltip(
-        "각 웨이브에서 특수 블록이 " +
+        "각 웨이브에서 특수 블록 묶음이 " +
         "등장할 확률입니다."
     )]
     [SerializeField, Range(0f, 1f)]
-    private float specialWaveChance = 0.3f;
+    private float specialWaveChance = 1f;
 
     [Tooltip(
-        "특수 블록이 등장하기로 결정됐을 때 " +
-        "생성되는 최소 개수입니다."
+        "한 웨이브에 추가되는 " +
+        "최소 특수 블록 개수입니다."
     )]
     [SerializeField, Min(1)]
-    private int minimumSpecialBlocksPerWave = 1;
+    private int minimumSpecialBlocksPerWave = 2;
 
     [Tooltip(
-        "특수 블록이 등장하기로 결정됐을 때 " +
-        "생성되는 최대 개수입니다."
+        "한 웨이브에 추가되는 " +
+        "최대 특수 블록 개수입니다."
     )]
     [SerializeField, Min(1)]
-    private int maximumSpecialBlocksPerWave = 1;
+    private int maximumSpecialBlocksPerWave = 3;
 
     [Tooltip(
         "네임드 블록이 포함된 웨이브에도 " +
@@ -44,6 +44,43 @@ public sealed class BlockWaveSpecialInjector
     )]
     [SerializeField]
     private bool allowInFeaturedWaves;
+
+    [Header("Guaranteed Reward")]
+    [Tooltip(
+        "한 웨이브에서 반드시 먼저 생성할 " +
+        "보상 특수 블록 개수입니다."
+    )]
+    [SerializeField, Min(0)]
+    private int guaranteedRewardCount = 1;
+
+    [Tooltip(
+        "보장 슬롯에서 선택될 보상형 " +
+        "Special Definition 목록입니다."
+    )]
+    [SerializeField]
+    private List<BlockDefinition>
+        rewardSpecialDefinitions =
+            new List<BlockDefinition>();
+
+    [Header("Random Special Pool")]
+    [Tooltip(
+        "보장 슬롯 이후 랜덤으로 선택될 " +
+        "Special Definition 목록입니다. " +
+        "비어 있으면 BlockCatalog의 모든 " +
+        "Special Definition을 사용합니다."
+    )]
+    [SerializeField]
+    private List<BlockDefinition>
+        randomSpecialDefinitions =
+            new List<BlockDefinition>();
+
+    [Tooltip(
+        "활성화하면 한 웨이브 안에서 같은 " +
+        "Special Definition이 중복되지 않습니다."
+    )]
+    [SerializeField]
+    private bool preventDuplicateDefinitionsInSameWave =
+        true;
 
     [Header("Special Block Health")]
     [Tooltip(
@@ -76,7 +113,7 @@ public sealed class BlockWaveSpecialInjector
     private bool forceSpawnEveryWaveInTestMode = true;
 
     [Tooltip(
-        "테스트 모드에서 한 웨이브에 생성할 " +
+        "테스트 모드에서 한 웨이브에 추가할 " +
         "특수 블록 개수입니다."
     )]
     [SerializeField, Min(1)]
@@ -107,6 +144,13 @@ public sealed class BlockWaveSpecialInjector
                 minimumSpecialBlocksPerWave
             );
 
+        guaranteedRewardCount =
+            Mathf.Clamp(
+                guaranteedRewardCount,
+                0,
+                maximumSpecialBlocksPerWave
+            );
+
         specialHealthMultiplier =
             Mathf.Max(
                 specialHealthMultiplier,
@@ -118,6 +162,18 @@ public sealed class BlockWaveSpecialInjector
                 forcedSpecialCount,
                 1
             );
+
+        if (rewardSpecialDefinitions == null)
+        {
+            rewardSpecialDefinitions =
+                new List<BlockDefinition>();
+        }
+
+        if (randomSpecialDefinitions == null)
+        {
+            randomSpecialDefinitions =
+                new List<BlockDefinition>();
+        }
     }
 
     public void Validate(
@@ -167,18 +223,44 @@ public sealed class BlockWaveSpecialInjector
                 context
             );
         }
+
+        if (guaranteedRewardCount > 0 &&
+            CountValidSpecialDefinitions(
+                rewardSpecialDefinitions) == 0)
+        {
+            Debug.LogWarning(
+                "BlockWaveSpecialInjector: " +
+                "Guaranteed Reward Count가 1 이상이지만 " +
+                "Reward Special Definitions가 비어 있습니다.",
+                context
+            );
+        }
+
+        ValidateDefinitionList(
+            rewardSpecialDefinitions,
+            "Reward Special Definitions",
+            context
+        );
+
+        ValidateDefinitionList(
+            randomSpecialDefinitions,
+            "Random Special Definitions",
+            context
+        );
     }
 
     public void InjectSpecialBlocks(
         List<BlockSpawnRequest> requests,
         BlockCatalog blockCatalog,
+        int columnCount,
+        int rowCount,
         int waveIndex,
-        bool hasFeaturedDefinition)
+        bool hasFeaturedDefinition,
+        int baseHealth)
     {
         Normalize();
 
-        if (requests == null ||
-            requests.Count == 0)
+        if (requests == null)
         {
             return;
         }
@@ -189,150 +271,207 @@ public sealed class BlockWaveSpecialInjector
             return;
         }
 
+        columnCount =
+            Mathf.Max(
+                columnCount,
+                1
+            );
+
+        rowCount =
+            Mathf.Max(
+                rowCount,
+                1
+            );
+
         int waveNumber =
             waveIndex + 1;
 
-        if (!ShouldInjectSpecialBlock(
+        if (!ShouldInjectSpecialBlocks(
                 waveNumber,
                 hasFeaturedDefinition))
         {
             return;
         }
 
-        List<BlockDefinition> specialDefinitions =
-            GetAvailableSpecialDefinitions(
-                blockCatalog
+        BlockWaveOccupancyMap occupancyMap =
+            CreateOccupancyMap(
+                requests,
+                columnCount,
+                rowCount
             );
 
-        if (specialDefinitions == null ||
-            specialDefinitions.Count == 0)
+        if (enableTestMode)
         {
-            return;
-        }
-
-        List<int> availableRequestIndexes =
-            CollectReplaceableRequestIndexes(
-                requests
+            InjectTestBlocks(
+                requests,
+                occupancyMap,
+                waveIndex,
+                baseHealth,
+                waveNumber
             );
 
-        if (availableRequestIndexes.Count == 0)
-        {
             return;
         }
 
         int requestedSpecialCount =
-            GetRequestedSpecialCount();
-
-        requestedSpecialCount =
-            Mathf.Min(
-                requestedSpecialCount,
-                availableRequestIndexes.Count
+            Random.Range(
+                minimumSpecialBlocksPerWave,
+                maximumSpecialBlocksPerWave + 1
             );
 
-        int injectedCount = 0;
+        HashSet<BlockDefinition>
+            usedDefinitions =
+                new HashSet<BlockDefinition>();
 
+        int injectedCount = 0;
+        int rewardInjectedCount = 0;
+
+        int requestedRewardCount =
+            Mathf.Min(
+                guaranteedRewardCount,
+                requestedSpecialCount
+            );
+
+        /*
+         * 먼저 보상 슬롯을 채운다.
+         */
         for (int i = 0;
-             i < requestedSpecialCount;
+             i < requestedRewardCount;
              i++)
         {
-            BlockDefinition selectedDefinition =
-                SelectSpecialDefinition(
-                    specialDefinitions,
-                    requests,
-                    availableRequestIndexes
+            BlockDefinition rewardDefinition =
+                SelectRandomFittingDefinition(
+                    rewardSpecialDefinitions,
+                    occupancyMap,
+                    usedDefinitions
                 );
 
-            if (selectedDefinition == null)
+            if (rewardDefinition == null)
             {
                 break;
             }
 
-            int selectedRequestListIndex =
-                GetRandomMatchingRequestListIndex(
-                    selectedDefinition,
+            if (!TryAppendSpecialRequest(
                     requests,
-                    availableRequestIndexes
-                );
-
-            if (selectedRequestListIndex < 0)
+                    occupancyMap,
+                    rewardDefinition,
+                    waveIndex,
+                    baseHealth))
             {
                 break;
             }
 
-            int requestIndex =
-                availableRequestIndexes[
-                    selectedRequestListIndex
-                ];
+            usedDefinitions.Add(
+                rewardDefinition
+            );
 
-            BlockSpawnRequest originalRequest =
-                requests[
-                    requestIndex
-                ];
+            injectedCount++;
+            rewardInjectedCount++;
+        }
 
-            int specialHealth =
-                Mathf.Max(
-                    1,
-                    Mathf.RoundToInt(
-                        originalRequest.Health *
-                        specialHealthMultiplier
-                    )
+        /*
+         * 나머지 슬롯은 랜덤 특수 블록으로 채운다.
+         */
+        List<BlockDefinition> randomPool =
+            GetRandomSpecialPool(
+                blockCatalog
+            );
+
+        while (injectedCount <
+               requestedSpecialCount)
+        {
+            BlockDefinition randomDefinition =
+                SelectRandomFittingDefinition(
+                    randomPool,
+                    occupancyMap,
+                    usedDefinitions
                 );
 
-            requests[requestIndex] =
-                new BlockSpawnRequest(
-                    originalRequest.StartColumn,
-                    originalRequest.StartRow,
-                    originalRequest.WaveIndex,
-                    selectedDefinition,
-                    BlockType.Special,
-                    selectedDefinition.GridSize,
-                    specialHealth,
-                    0
-                );
+            if (randomDefinition == null)
+            {
+                break;
+            }
 
-            availableRequestIndexes.RemoveAt(
-                selectedRequestListIndex
+            if (!TryAppendSpecialRequest(
+                    requests,
+                    occupancyMap,
+                    randomDefinition,
+                    waveIndex,
+                    baseHealth))
+            {
+                break;
+            }
+
+            usedDefinitions.Add(
+                randomDefinition
             );
 
             injectedCount++;
         }
 
-        if (injectedCount <= 0)
+        if (rewardInjectedCount <
+            requestedRewardCount)
         {
-            if (enableTestMode &&
-                forcedSpecialDefinition != null)
-            {
-                Debug.LogWarning(
-                    "BlockWaveSpecialInjector: " +
-                    $"{forcedSpecialDefinition.name}과 " +
-                    "크기가 일치하는 일반 블록 요청이 없어 " +
-                    "테스트 블록을 생성하지 못했습니다."
-                );
-            }
-
-            return;
-        }
-
-        if (enableTestMode)
-        {
-            Debug.Log(
+            Debug.LogWarning(
                 "BlockWaveSpecialInjector: " +
-                $"테스트 모드 - 웨이브 {waveNumber}에 " +
-                $"{forcedSpecialDefinition.name} " +
-                $"{injectedCount}개 강제 추가"
+                $"웨이브 {waveNumber}에서 보상 블록을 " +
+                $"{requestedRewardCount}개 보장하려 했지만 " +
+                $"{rewardInjectedCount}개만 생성했습니다. " +
+                "Reward 목록과 남은 빈칸을 확인하세요."
             );
-
-            return;
         }
 
         Debug.Log(
             "BlockWaveSpecialInjector: " +
             $"웨이브 {waveNumber}에 " +
-            $"특수 블록 {injectedCount}개 추가"
+            $"특수 블록 {injectedCount}개 추가, " +
+            $"보상 블록 {rewardInjectedCount}개, " +
+            $"일반 블록 교체 없음"
         );
     }
 
-    private bool ShouldInjectSpecialBlock(
+    private void InjectTestBlocks(
+        List<BlockSpawnRequest> requests,
+        BlockWaveOccupancyMap occupancyMap,
+        int waveIndex,
+        int baseHealth,
+        int waveNumber)
+    {
+        if (forcedSpecialDefinition == null ||
+            forcedSpecialDefinition.BlockType !=
+            BlockType.Special)
+        {
+            return;
+        }
+
+        int injectedCount = 0;
+
+        for (int i = 0;
+             i < forcedSpecialCount;
+             i++)
+        {
+            if (!TryAppendSpecialRequest(
+                    requests,
+                    occupancyMap,
+                    forcedSpecialDefinition,
+                    waveIndex,
+                    baseHealth))
+            {
+                break;
+            }
+
+            injectedCount++;
+        }
+
+        Debug.Log(
+            "BlockWaveSpecialInjector: " +
+            $"테스트 모드 - 웨이브 {waveNumber}에 " +
+            $"{forcedSpecialDefinition.name} " +
+            $"{injectedCount}개 추가"
+        );
+    }
+
+    private bool ShouldInjectSpecialBlocks(
         int waveNumber,
         bool hasFeaturedDefinition)
     {
@@ -346,13 +485,6 @@ public sealed class BlockWaveSpecialInjector
             if (forcedSpecialDefinition.BlockType !=
                 BlockType.Special)
             {
-                Debug.LogWarning(
-                    "BlockWaveSpecialInjector: " +
-                    $"{forcedSpecialDefinition.name}은 " +
-                    "Special 타입이 아닙니다.",
-                    forcedSpecialDefinition
-                );
-
                 return false;
             }
 
@@ -381,99 +513,16 @@ public sealed class BlockWaveSpecialInjector
                specialWaveChance;
     }
 
-    private List<BlockDefinition>
-        GetAvailableSpecialDefinitions(
-        BlockCatalog blockCatalog)
-    {
-        if (enableTestMode)
-        {
-            if (forcedSpecialDefinition == null)
-            {
-                return null;
-            }
-
-            return new List<BlockDefinition>
-            {
-                forcedSpecialDefinition
-            };
-        }
-
-        if (blockCatalog == null)
-        {
-            Debug.LogWarning(
-                "BlockWaveSpecialInjector: " +
-                "BlockCatalog이 연결되지 않았습니다."
-            );
-
-            return null;
-        }
-
-        List<BlockDefinition> definitions =
-            blockCatalog.GetAll(
-                BlockType.Special
-            );
-
-        if (definitions == null ||
-            definitions.Count == 0)
-        {
-            Debug.LogWarning(
-                "BlockWaveSpecialInjector: " +
-                "BlockCatalog에 Special 타입 " +
-                "Definition이 없습니다."
-            );
-        }
-
-        return definitions;
-    }
-
-    private int GetRequestedSpecialCount()
-    {
-        if (enableTestMode)
-        {
-            return forcedSpecialCount;
-        }
-
-        return Random.Range(
-            minimumSpecialBlocksPerWave,
-            maximumSpecialBlocksPerWave + 1
-        );
-    }
-
-    private BlockDefinition
-        SelectSpecialDefinition(
-        IReadOnlyList<BlockDefinition> definitions,
+    private BlockWaveOccupancyMap CreateOccupancyMap(
         IReadOnlyList<BlockSpawnRequest> requests,
-        IReadOnlyList<int> availableRequestIndexes)
+        int columnCount,
+        int rowCount)
     {
-        if (enableTestMode)
-        {
-            if (forcedSpecialDefinition == null)
-            {
-                return null;
-            }
-
-            return HasMatchingRequest(
-                    forcedSpecialDefinition,
-                    requests,
-                    availableRequestIndexes
-                )
-                ? forcedSpecialDefinition
-                : null;
-        }
-
-        return GetRandomFittingSpecialDefinition(
-            definitions,
-            requests,
-            availableRequestIndexes
-        );
-    }
-
-    private List<int>
-        CollectReplaceableRequestIndexes(
-        IReadOnlyList<BlockSpawnRequest> requests)
-    {
-        List<int> indexes =
-            new List<int>();
+        BlockWaveOccupancyMap occupancyMap =
+            new BlockWaveOccupancyMap(
+                columnCount,
+                rowCount
+            );
 
         for (int i = 0;
              i < requests.Count;
@@ -487,26 +536,65 @@ public sealed class BlockWaveSpecialInjector
                 continue;
             }
 
-            if (request.RequestedBlockType !=
-                BlockType.Normal)
-            {
-                continue;
-            }
-
-            indexes.Add(
-                i
+            occupancyMap.TryOccupy(
+                request.StartColumn,
+                request.StartRow,
+                NormalizeGridSize(
+                    request.GridSize
+                )
             );
         }
 
-        return indexes;
+        return occupancyMap;
+    }
+
+    private List<BlockDefinition>
+        GetRandomSpecialPool(
+            BlockCatalog blockCatalog)
+    {
+        List<BlockDefinition> configuredPool =
+            FilterValidSpecialDefinitions(
+                randomSpecialDefinitions
+            );
+
+        if (configuredPool.Count > 0)
+        {
+            return configuredPool;
+        }
+
+        if (blockCatalog == null)
+        {
+            Debug.LogWarning(
+                "BlockWaveSpecialInjector: " +
+                "Random Special Definitions가 비어 있고 " +
+                "BlockCatalog도 연결되지 않았습니다."
+            );
+
+            return new List<BlockDefinition>();
+        }
+
+        List<BlockDefinition> catalogDefinitions =
+            blockCatalog.GetAll(
+                BlockType.Special
+            );
+
+        return FilterValidSpecialDefinitions(
+            catalogDefinitions
+        );
     }
 
     private BlockDefinition
-        GetRandomFittingSpecialDefinition(
+        SelectRandomFittingDefinition(
         IReadOnlyList<BlockDefinition> definitions,
-        IReadOnlyList<BlockSpawnRequest> requests,
-        IReadOnlyList<int> availableRequestIndexes)
+        BlockWaveOccupancyMap occupancyMap,
+        HashSet<BlockDefinition> usedDefinitions)
     {
+        if (definitions == null ||
+            definitions.Count == 0)
+        {
+            return null;
+        }
+
         List<BlockDefinition> candidates =
             new List<BlockDefinition>();
 
@@ -519,16 +607,22 @@ public sealed class BlockWaveSpecialInjector
             BlockDefinition definition =
                 definitions[i];
 
-            if (definition == null ||
-                definition.SelectionWeight <= 0)
+            if (!IsValidSpecialDefinition(
+                    definition))
             {
                 continue;
             }
 
-            if (!HasMatchingRequest(
+            if (preventDuplicateDefinitionsInSameWave &&
+                usedDefinitions.Contains(
+                    definition))
+            {
+                continue;
+            }
+
+            if (!HasFittingPosition(
                     definition,
-                    requests,
-                    availableRequestIndexes))
+                    occupancyMap))
             {
                 continue;
             }
@@ -577,114 +671,289 @@ public sealed class BlockWaveSpecialInjector
         ];
     }
 
-    private bool HasMatchingRequest(
+    private bool TryAppendSpecialRequest(
+        List<BlockSpawnRequest> requests,
+        BlockWaveOccupancyMap occupancyMap,
         BlockDefinition definition,
-        IReadOnlyList<BlockSpawnRequest> requests,
-        IReadOnlyList<int> availableRequestIndexes)
+        int waveIndex,
+        int baseHealth)
     {
-        if (definition == null)
+        if (!TryGetRandomFittingPosition(
+                definition,
+                occupancyMap,
+                out Vector2Int startPosition))
         {
             return false;
         }
 
-        Vector2Int requiredSize =
+        Vector2Int gridSize =
             NormalizeGridSize(
                 definition.GridSize
             );
 
-        for (int i = 0;
-             i < availableRequestIndexes.Count;
-             i++)
+        if (!occupancyMap.TryOccupy(
+                startPosition.x,
+                startPosition.y,
+                gridSize))
         {
-            int requestIndex =
-                availableRequestIndexes[i];
+            return false;
+        }
 
-            if (requestIndex < 0 ||
-                requestIndex >=
-                requests.Count)
+        int specialHealth =
+            Mathf.Max(
+                1,
+                Mathf.RoundToInt(
+                    Mathf.Max(
+                        baseHealth,
+                        1
+                    ) *
+                    specialHealthMultiplier
+                )
+            );
+
+        requests.Add(
+            new BlockSpawnRequest(
+                startPosition.x,
+                startPosition.y,
+                waveIndex,
+                definition,
+                BlockType.Special,
+                gridSize,
+                specialHealth,
+                0
+            )
+        );
+
+        return true;
+    }
+
+    private bool HasFittingPosition(
+        BlockDefinition definition,
+        BlockWaveOccupancyMap occupancyMap)
+    {
+        if (!IsValidSpecialDefinition(
+                definition))
+        {
+            return false;
+        }
+
+        Vector2Int gridSize =
+            NormalizeGridSize(
+                definition.GridSize
+            );
+
+        int maximumStartColumn =
+            occupancyMap.ColumnCount -
+            gridSize.x;
+
+        int maximumStartRow =
+            occupancyMap.RowCount -
+            gridSize.y;
+
+        if (maximumStartColumn < 0 ||
+            maximumStartRow < 0)
+        {
+            return false;
+        }
+
+        for (int row = 0;
+             row <= maximumStartRow;
+             row++)
+        {
+            for (int column = 0;
+                 column <= maximumStartColumn;
+                 column++)
             {
-                continue;
-            }
-
-            BlockSpawnRequest request =
-                requests[
-                    requestIndex
-                ];
-
-            if (request == null)
-            {
-                continue;
-            }
-
-            if (request.GridSize ==
-                requiredSize)
-            {
-                return true;
+                if (occupancyMap.CanOccupy(
+                        column,
+                        row,
+                        gridSize))
+                {
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    private int
-        GetRandomMatchingRequestListIndex(
+    private bool TryGetRandomFittingPosition(
         BlockDefinition definition,
-        IReadOnlyList<BlockSpawnRequest> requests,
-        IReadOnlyList<int> availableRequestIndexes)
+        BlockWaveOccupancyMap occupancyMap,
+        out Vector2Int startPosition)
     {
-        Vector2Int requiredSize =
+        startPosition =
+            new Vector2Int(
+                -1,
+                -1
+            );
+
+        if (!IsValidSpecialDefinition(
+                definition))
+        {
+            return false;
+        }
+
+        Vector2Int gridSize =
             NormalizeGridSize(
                 definition.GridSize
             );
 
-        List<int> matchingListIndexes =
-            new List<int>();
+        int maximumStartColumn =
+            occupancyMap.ColumnCount -
+            gridSize.x;
+
+        int maximumStartRow =
+            occupancyMap.RowCount -
+            gridSize.y;
+
+        if (maximumStartColumn < 0 ||
+            maximumStartRow < 0)
+        {
+            return false;
+        }
+
+        List<Vector2Int> fittingPositions =
+            new List<Vector2Int>();
+
+        for (int row = 0;
+             row <= maximumStartRow;
+             row++)
+        {
+            for (int column = 0;
+                 column <= maximumStartColumn;
+                 column++)
+            {
+                if (!occupancyMap.CanOccupy(
+                        column,
+                        row,
+                        gridSize))
+                {
+                    continue;
+                }
+
+                fittingPositions.Add(
+                    new Vector2Int(
+                        column,
+                        row
+                    )
+                );
+            }
+        }
+
+        if (fittingPositions.Count == 0)
+        {
+            return false;
+        }
+
+        startPosition =
+            fittingPositions[
+                Random.Range(
+                    0,
+                    fittingPositions.Count
+                )
+            ];
+
+        return true;
+    }
+
+    private List<BlockDefinition>
+        FilterValidSpecialDefinitions(
+            IReadOnlyList<BlockDefinition> definitions)
+    {
+        List<BlockDefinition> result =
+            new List<BlockDefinition>();
+
+        if (definitions == null)
+        {
+            return result;
+        }
 
         for (int i = 0;
-             i < availableRequestIndexes.Count;
+             i < definitions.Count;
              i++)
         {
-            int requestIndex =
-                availableRequestIndexes[i];
+            BlockDefinition definition =
+                definitions[i];
 
-            if (requestIndex < 0 ||
-                requestIndex >=
-                requests.Count)
+            if (!IsValidSpecialDefinition(
+                    definition))
             {
                 continue;
             }
 
-            BlockSpawnRequest request =
-                requests[
-                    requestIndex
-                ];
-
-            if (request == null ||
-                request.GridSize !=
-                requiredSize)
+            if (!result.Contains(
+                    definition))
             {
-                continue;
+                result.Add(
+                    definition
+                );
             }
-
-            matchingListIndexes.Add(
-                i
-            );
         }
 
-        if (matchingListIndexes.Count == 0)
+        return result;
+    }
+
+    private int CountValidSpecialDefinitions(
+        IReadOnlyList<BlockDefinition> definitions)
+    {
+        return FilterValidSpecialDefinitions(
+            definitions
+        ).Count;
+    }
+
+    private bool IsValidSpecialDefinition(
+        BlockDefinition definition)
+    {
+        return definition != null &&
+               definition.BlockType ==
+               BlockType.Special &&
+               definition.SelectionWeight > 0;
+    }
+
+    private void ValidateDefinitionList(
+        IReadOnlyList<BlockDefinition> definitions,
+        string listName,
+        UnityEngine.Object context)
+    {
+        if (definitions == null)
         {
-            return -1;
+            return;
         }
 
-        int randomIndex =
-            Random.Range(
-                0,
-                matchingListIndexes.Count
-            );
+        for (int i = 0;
+             i < definitions.Count;
+             i++)
+        {
+            BlockDefinition definition =
+                definitions[i];
 
-        return matchingListIndexes[
-            randomIndex
-        ];
+            if (definition == null)
+            {
+                continue;
+            }
+
+            if (definition.BlockType !=
+                BlockType.Special)
+            {
+                Debug.LogWarning(
+                    "BlockWaveSpecialInjector: " +
+                    $"{listName}의 {definition.name}은 " +
+                    "Special 타입이 아닙니다.",
+                    context
+                );
+            }
+
+            if (definition.SelectionWeight <= 0)
+            {
+                Debug.LogWarning(
+                    "BlockWaveSpecialInjector: " +
+                    $"{listName}의 {definition.name}은 " +
+                    "Selection Weight가 0 이하입니다.",
+                    context
+                );
+            }
+        }
     }
 
     private Vector2Int NormalizeGridSize(
