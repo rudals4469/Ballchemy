@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: Definition_Ball_Critical_2Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: critical_2
-  displayName: "\uCE58\uBA85\uD0C0 \uACF5"
+  displayName: "\uCE58\uBA85\uD0C02"
   starGrade: 2
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: e2631926fec21c846b6b06e6614519f0, type: 2}
   sprite: {fileID: 0}
   color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
+  damageTextStyle: {fileID: 11400000, guid: b6b8d532e5d6e654fbd9198285e02ae2, type: 2}
   selectionWeight: 1

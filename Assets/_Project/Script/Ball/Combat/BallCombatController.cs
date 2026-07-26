@@ -324,7 +324,7 @@ public sealed class BallCombatController :
             );
 
         /*
-         * 방어막, 무적 등의 이유로 실제 체력이
+         * 쉴드, 무적 등의 이유로 실제 체력이
          * 전혀 감소하지 않았다면 일반 데미지 텍스트를
          * 표시하지 않습니다.
          */
@@ -354,12 +354,6 @@ public sealed class BallCombatController :
             )
         );
 
-        /*
-         * 반환값은 실제 감소한 체력입니다.
-         *
-         * 흡혈, 피해 통계 등 실제 체력 감소량이 필요한
-         * 시스템에서 사용할 수 있습니다.
-         */
         return appliedHealthDamage;
     }
 
@@ -497,6 +491,11 @@ public sealed class BallCombatController :
             case BallTraitType.Critical:
                 return typeof(
                     CriticalBallEffect
+                );
+
+            case BallTraitType.Explosion:
+                return typeof(
+                    ExplosionBallEffect
                 );
 
             default:

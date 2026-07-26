@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9d9e0bff485c42b4caf2b0f1e9155c9b, type: 3}
-  m_Name: Definition_Ball_Basic_1Star
+  m_Name: Ball_Explosion_AllDirections_1Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
-  ballId: basic_1
-  displayName: "\uAE30\uBCF81"
+  ballId: explosion_all_direction_3
+  displayName: "\uC804\uBC94\uC7041"
   starGrade: 1
   directDamageBonus: 0
-  traitDefinition: {fileID: 11400000, guid: 4348aa1698c867746a98094f357792b6, type: 2}
+  traitDefinition: {fileID: 11400000, guid: 12de859e18679bb46a064b81c9c0d346, type: 2}
   sprite: {fileID: 0}
   color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
-  damageTextStyle: {fileID: 11400000, guid: 41a972179d37305498bc7150b6c136d1, type: 2}
-  selectionWeight: 60
+  damageTextStyle: {fileID: 11400000, guid: 2084ead34c5fbf24f94f69410684edaa, type: 2}
+  selectionWeight: 1

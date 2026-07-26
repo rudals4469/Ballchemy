@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: Definition_Ball_Basic_3Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: basic_3
-  displayName: "\uACE0\uAE09 \uAE30\uBCF8 \uACF5"
+  displayName: "\uAE30\uBCF83"
   starGrade: 3
   directDamageBonus: 3
   traitDefinition: {fileID: 11400000, guid: 4348aa1698c867746a98094f357792b6, type: 2}
   sprite: {fileID: 0}
   color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
+  damageTextStyle: {fileID: 11400000, guid: 41a972179d37305498bc7150b6c136d1, type: 2}
   selectionWeight: 10
