@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
+[RequireComponent(typeof(BallRuntimeStats))]
 public sealed class BallCollection :
     MonoBehaviour
 {
@@ -11,20 +12,27 @@ public sealed class BallCollection :
     private Ball ballPrefab;
 
     [Tooltip(
-        "게임을 시작할 때 보유하는 전체 공 개수입니다. " +
-        "추가로 생성되는 개수가 아닙니다."
+        "게임을 시작할 때 보유하는 전체 공 개수입니다."
     )]
     [FormerlySerializedAs("initialBallCount")]
     [SerializeField, Min(1)]
     private int startingBallCount = 20;
 
     [Tooltip(
-        "게임 시작 시 생성되는 공의 Definition입니다. " +
-        "반드시 연결되어 있어야 합니다."
+        "게임 시작 시 생성되는 공의 Definition입니다."
     )]
     [FormerlySerializedAs("defaultBallDefinition")]
     [SerializeField]
     private BallDefinition startingBallDefinition;
+
+    [Header("Runtime Stats")]
+
+    [Tooltip(
+        "생성된 모든 공이 공유할 " +
+        "현재 런의 공 전투 스탯입니다."
+    )]
+    [SerializeField]
+    private BallRuntimeStats runtimeStats;
 
     private readonly List<Ball> balls =
         new List<Ball>();
@@ -39,12 +47,11 @@ public sealed class BallCollection :
     public BallDefinition StartingBallDefinition =>
         startingBallDefinition;
 
-    /*
-     * 기존 코드에서 이 프로퍼티를 참조하고 있을 가능성을
-     * 고려해 이름을 유지한다.
-     */
     public BallDefinition DefaultBallDefinition =>
         startingBallDefinition;
+
+    public BallRuntimeStats RuntimeStats =>
+        runtimeStats;
 
     public int StartingBallCount =>
         startingBallCount;
@@ -72,13 +79,26 @@ public sealed class BallCollection :
 
     private void Awake()
     {
+        FindReferences();
         NormalizeSettings();
         ValidateReferences();
     }
 
     private void OnValidate()
     {
+        FindReferences();
         NormalizeSettings();
+    }
+
+    private void FindReferences()
+    {
+        if (runtimeStats == null)
+        {
+            runtimeStats =
+                GetComponent<
+                    BallRuntimeStats
+                >();
+        }
     }
 
     private void NormalizeSettings()
@@ -109,8 +129,19 @@ public sealed class BallCollection :
         {
             Debug.LogError(
                 "BallCollection: " +
-                "Starting Ball Definition이 연결되지 않았습니다. " +
-                "Definition이 없으면 공을 생성하지 않습니다.",
+                "Starting Ball Definition이 " +
+                "연결되지 않았습니다.",
+                this
+            );
+
+            isValid = false;
+        }
+
+        if (runtimeStats == null)
+        {
+            Debug.LogError(
+                "BallCollection: " +
+                "BallRuntimeStats가 연결되지 않았습니다.",
                 this
             );
 
@@ -135,6 +166,8 @@ public sealed class BallCollection :
             return;
         }
 
+        FindReferences();
+
         if (!ValidateReferences())
         {
             return;
@@ -150,8 +183,10 @@ public sealed class BallCollection :
         Debug.Log(
             "BallCollection: " +
             $"초기 공 {balls.Count}개 생성 완료, " +
-            $"공 종류 = {startingBallDefinition.DisplayName}, " +
-            $"기본 피해 = {startingBallDefinition.BaseDamage}",
+            $"공 종류 = " +
+            $"{startingBallDefinition.DisplayName}, " +
+            $"공통 기본 피해 = " +
+            $"{runtimeStats.BaseDirectDamage}",
             this
         );
     }
@@ -244,7 +279,8 @@ public sealed class BallCollection :
         BallDefinition definition)
     {
         if (ballPrefab == null ||
-            definition == null)
+            definition == null ||
+            runtimeStats == null)
         {
             return;
         }
@@ -266,17 +302,6 @@ public sealed class BallCollection :
     private Ball CreateBall(
         BallDefinition definition)
     {
-        if (definition == null)
-        {
-            Debug.LogError(
-                "BallCollection: " +
-                "BallDefinition이 없는 공은 생성할 수 없습니다.",
-                this
-            );
-
-            return null;
-        }
-
         Ball newBall =
             Instantiate(
                 ballPrefab,
@@ -308,6 +333,10 @@ public sealed class BallCollection :
 
             return null;
         }
+
+        combatController.ApplyRuntimeStats(
+            runtimeStats
+        );
 
         combatController.ApplyDefinition(
             definition

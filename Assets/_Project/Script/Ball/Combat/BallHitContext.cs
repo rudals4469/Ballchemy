@@ -27,7 +27,12 @@ public sealed class BallHitContext
         get;
     }
 
-    public int BaseDamage
+    public int DirectDamage
+    {
+        get;
+    }
+
+    public float CriticalDamageMultiplierBonus
     {
         get;
     }
@@ -38,7 +43,8 @@ public sealed class BallHitContext
         BallDefinition definition,
         Vector2 hitPoint,
         Vector2 incomingVelocity,
-        int baseDamage)
+        int directDamage,
+        float criticalDamageMultiplierBonus)
     {
         Ball =
             ball;
@@ -55,10 +61,16 @@ public sealed class BallHitContext
         IncomingVelocity =
             incomingVelocity;
 
-        BaseDamage =
+        DirectDamage =
             Mathf.Max(
-                baseDamage,
+                directDamage,
                 1
+            );
+
+        CriticalDamageMultiplierBonus =
+            Mathf.Max(
+                criticalDamageMultiplierBonus,
+                0f
             );
     }
 }

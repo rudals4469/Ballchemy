@@ -1668,6 +1668,7 @@ GameObject:
   - component: {fileID: 904823810}
   - component: {fileID: 904823812}
   - component: {fileID: 904823813}
+  - component: {fileID: 904823814}
   m_Layer: 0
   m_Name: Launcher
   m_TagString: Untagged
@@ -1807,7 +1808,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallCollection
   ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
-  initialBallCount: 20
+  startingBallCount: 10
+  startingBallDefinition: {fileID: 11400000, guid: bf5de3ebba911764ab25c7c82bf8b685, type: 2}
+  runtimeStats: {fileID: 0}
 --- !u!114 &904823812
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1839,6 +1842,22 @@ MonoBehaviour:
   maximumRandomStartDelay: 0.05
   gatherEase: 4
   showDebugLog: 1
+--- !u!114 &904823814
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cecb8c055976ed24584e93305271ed3b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallRuntimeStats
+  baseDirectDamage: 2
+  runDirectDamageBonus: 0
+  runDirectDamageMultiplierBonus: 0
+  criticalDamageMultiplierBonus: 0
 --- !u!1 &987057995
 GameObject:
   m_ObjectHideFlags: 0

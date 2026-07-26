@@ -25,7 +25,7 @@ public sealed class CriticalBallEffect :
             "CriticalBallEffect: " +
             "CriticalBallTraitDefinition이 " +
             "연결되지 않았습니다. " +
-            "기본 피해만 적용됩니다.",
+            "직접 피해만 적용됩니다.",
             this
         );
     }
@@ -45,7 +45,7 @@ public sealed class CriticalBallEffect :
                 ? context.Definition.StarGrade
                 : BallStarGrade.None;
 
-        float criticalMultiplier =
+        float gradeMultiplier =
             criticalDefinition != null
                 ? criticalDefinition
                     .GetMultiplier(
@@ -53,11 +53,19 @@ public sealed class CriticalBallEffect :
                     )
                 : 1f;
 
+        float finalCriticalMultiplier =
+            Mathf.Max(
+                gradeMultiplier +
+                context
+                    .CriticalDamageMultiplierBonus,
+                1f
+            );
+
         int criticalDamage =
             Mathf.Max(
                 Mathf.RoundToInt(
-                    context.BaseDamage *
-                    criticalMultiplier
+                    context.DirectDamage *
+                    finalCriticalMultiplier
                 ),
                 1
             );

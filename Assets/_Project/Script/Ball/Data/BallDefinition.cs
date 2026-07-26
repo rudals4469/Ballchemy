@@ -21,14 +21,17 @@ public sealed class BallDefinition :
         BallStarGrade.OneStar;
 
     [Header("Combat")]
+
     [Tooltip(
-        "공이 블록에 직접 충돌했을 때 " +
-        "기본으로 적용하는 피해량입니다."
+        "공통 기본 피해에 더해지는 " +
+        "이 공만의 직접 타격 피해 보너스입니다. " +
+        "기본 공처럼 직접 타격이 강한 공에 사용합니다."
     )]
-    [SerializeField, Min(1)]
-    private int baseDamage = 1;
+    [SerializeField]
+    private int directDamageBonus;
 
     [Header("Trait")]
+
     [Tooltip(
         "이 공이 보유한 단 하나의 특성입니다."
     )]
@@ -48,6 +51,7 @@ public sealed class BallDefinition :
         Vector3.one;
 
     [Header("Selection")]
+
     [Tooltip(
         "공 선택지에서 이 공이 등장할 " +
         "상대적인 가중치입니다."
@@ -64,8 +68,8 @@ public sealed class BallDefinition :
     public BallStarGrade StarGrade =>
         starGrade;
 
-    public int BaseDamage =>
-        baseDamage;
+    public int DirectDamageBonus =>
+        directDamageBonus;
 
     public BallTraitDefinition TraitDefinition =>
         traitDefinition;
@@ -92,12 +96,6 @@ public sealed class BallDefinition :
 
     private void OnValidate()
     {
-        baseDamage =
-            Mathf.Max(
-                baseDamage,
-                1
-            );
-
         visualScale.x =
             Mathf.Max(
                 visualScale.x,

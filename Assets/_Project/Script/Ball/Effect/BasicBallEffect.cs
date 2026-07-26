@@ -18,7 +18,7 @@ public sealed class BasicBallEffect :
         }
 
         context.Block.TakeDamage(
-            context.BaseDamage
+            context.DirectDamage
         );
 
         return BallHitResult
