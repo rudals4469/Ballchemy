@@ -251,14 +251,10 @@ public sealed class ShieldOnDestroyedEffect :
                 continue;
             }
 
-            EnsureShieldView(
+            EnsureOutlineView(
                 targetBlock
             );
 
-            /*
-             * 최대치를 int.MaxValue로 전달해
-             * 기존 쉴드가 있더라도 계속 중첩한다.
-             */
             int appliedShield =
                 targetBlock.AddShield(
                     shieldAmountPerTarget,
@@ -350,12 +346,6 @@ public sealed class ShieldOnDestroyedEffect :
             return false;
         }
 
-        /*
-         * 기존 쉴드 보유 여부는 검사하지 않는다.
-         * 이미 쉴드가 있는 블록도 다시 대상으로
-         * 선택되어 쉴드가 중첩될 수 있다.
-         */
-
         if (!includeSpecialBlocks &&
             targetBlock.BlockType ==
             BlockType.Special)
@@ -390,7 +380,7 @@ public sealed class ShieldOnDestroyedEffect :
         }
     }
 
-    private void EnsureShieldView(
+    private void EnsureOutlineView(
         Block targetBlock)
     {
         if (targetBlock == null)
@@ -398,17 +388,17 @@ public sealed class ShieldOnDestroyedEffect :
             return;
         }
 
-        BlockShieldView shieldView =
+        BlockOutlineView outlineView =
             targetBlock.GetComponent<
-                BlockShieldView
+                BlockOutlineView
             >();
 
-        if (shieldView != null)
+        if (outlineView != null)
         {
             return;
         }
 
         targetBlock.gameObject
-            .AddComponent<BlockShieldView>();
+            .AddComponent<BlockOutlineView>();
     }
 }

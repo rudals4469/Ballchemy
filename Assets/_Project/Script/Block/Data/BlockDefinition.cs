@@ -4,7 +4,8 @@ using UnityEngine;
     fileName = "BlockDefinition",
     menuName = "Ballchemy/Blocks/Block Definition"
 )]
-public sealed class BlockDefinition : ScriptableObject
+public sealed class BlockDefinition :
+    ScriptableObject
 {
     [Header("Identity")]
     [SerializeField]
@@ -21,6 +22,15 @@ public sealed class BlockDefinition : ScriptableObject
     [SerializeField]
     private BlockDestructionRule destructionRule =
         BlockDestructionRule.Breakable;
+
+    [Header("Special Feedback")]
+    [Tooltip(
+        "Special 블록의 시각적 분류입니다. " +
+        "일반 블록은 None을 사용합니다."
+    )]
+    [SerializeField]
+    private SpecialBlockCategory specialCategory =
+        SpecialBlockCategory.None;
 
     [Header("Grid")]
     [SerializeField]
@@ -54,6 +64,9 @@ public sealed class BlockDefinition : ScriptableObject
 
     public BlockDestructionRule DestructionRule =>
         destructionRule;
+
+    public SpecialBlockCategory SpecialCategory =>
+        specialCategory;
 
     public Vector2Int GridSize =>
         gridSize;
@@ -107,5 +120,16 @@ public sealed class BlockDefinition : ScriptableObject
                 selectionWeight,
                 0
             );
+
+        /*
+         * Special이 아닌 블록은
+         * 특수 분류를 사용하지 않는다.
+         */
+        if (blockType !=
+            BlockType.Special)
+        {
+            specialCategory =
+                SpecialBlockCategory.None;
+        }
     }
 }
