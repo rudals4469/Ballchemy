@@ -4,49 +4,25 @@ using UnityEngine;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Ball))]
 [RequireComponent(typeof(BallVisualView))]
-public sealed class BallCombatController :
-    MonoBehaviour
+public sealed class BallCombatController : MonoBehaviour
 {
     [Header("Ball Data")]
-
-    [Tooltip(
-        "현재 공에 적용된 공 Definition입니다."
-    )]
     [SerializeField]
     private BallDefinition definition;
 
     [Header("Runtime Stats")]
-
-    [Tooltip(
-        "현재 런에서 모든 공이 공유하는 " +
-        "전투 스탯입니다. BallCollection에서 주입합니다."
-    )]
     [SerializeField]
     private BallRuntimeStats runtimeStats;
 
     [Header("Individual Ball Bonuses")]
-
-    [Tooltip(
-        "이 공 하나에만 적용되는 " +
-        "추가 직접 피해입니다."
-    )]
     [SerializeField]
     private int individualDirectDamageBonus;
 
-    [Tooltip(
-        "이 공 하나에만 적용되는 " +
-        "치명타 피해 배율 추가량입니다."
-    )]
     [SerializeField, Min(0f)]
     private float
         individualCriticalDamageMultiplierBonus;
 
     [Header("Fallback")]
-
-    [Tooltip(
-        "BallRuntimeStats가 연결되지 않았을 때만 " +
-        "사용되는 임시 공통 직접 피해입니다."
-    )]
     [SerializeField, Min(1)]
     private int fallbackDirectDamage = 1;
 
@@ -323,11 +299,6 @@ public sealed class BallCombatController :
                 healthBeforeDamage
             );
 
-        /*
-         * 쉴드, 무적 등의 이유로 실제 체력이
-         * 전혀 감소하지 않았다면 일반 데미지 텍스트를
-         * 표시하지 않습니다.
-         */
         if (appliedHealthDamage <= 0)
         {
             return 0;
@@ -496,6 +467,11 @@ public sealed class BallCombatController :
             case BallTraitType.Explosion:
                 return typeof(
                     ExplosionBallEffect
+                );
+
+            case BallTraitType.Elemental:
+                return typeof(
+                    ElementalBallEffect
                 );
 
             default:

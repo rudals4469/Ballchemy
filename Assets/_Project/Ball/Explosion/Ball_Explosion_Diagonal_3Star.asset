@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d9e0bff485c42b4caf2b0f1e9155c9b, type: 3}
   m_Name: Ball_Explosion_Diagonal_3Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
-  ballId: explosion_cross_3
+  ballId: explosion_diagonal_3
   displayName: "\uB300\uAC013"
   starGrade: 3
   directDamageBonus: 0
-  traitDefinition: {fileID: 11400000, guid: de24924ef56b3304fb169c59ff1307a0, type: 2}
+  traitDefinition: {fileID: 11400000, guid: d6f89b8841a992f4b8643cdb0c336f9e, type: 2}
   sprite: {fileID: 0}
   color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}

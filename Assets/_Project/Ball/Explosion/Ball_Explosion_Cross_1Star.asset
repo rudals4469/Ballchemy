@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Ball_Explosion_Cross_1Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: explosion_cross_1
-  displayName: "\uB300\uAC011"
+  displayName: "\uC2ED\uC7901"
   starGrade: 1
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: de24924ef56b3304fb169c59ff1307a0, type: 2}

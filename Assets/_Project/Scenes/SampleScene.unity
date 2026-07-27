@@ -1669,6 +1669,9 @@ GameObject:
   - component: {fileID: 904823812}
   - component: {fileID: 904823813}
   - component: {fileID: 904823814}
+  - component: {fileID: 904823815}
+  - component: {fileID: 904823816}
+  - component: {fileID: 904823817}
   m_Layer: 0
   m_Name: Launcher
   m_TagString: Untagged
@@ -1692,6 +1695,8 @@ Transform:
   - {fileID: 435487107}
   - {fileID: 1965845130}
   - {fileID: 18714751}
+  - {fileID: 1901578435}
+  - {fileID: 2092661372}
   m_Father: {fileID: 1312074106}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &904823807
@@ -1808,9 +1813,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallCollection
   ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
-  startingBallCount: 10
-  startingBallDefinition: {fileID: 11400000, guid: bf5de3ebba911764ab25c7c82bf8b685, type: 2}
-  runtimeStats: {fileID: 0}
+  startingBallCount: 1
+  startingBallDefinition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
+  runtimeStats: {fileID: 904823814}
 --- !u!114 &904823812
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1858,6 +1863,81 @@ MonoBehaviour:
   runDirectDamageBonus: 0
   runDirectDamageMultiplierBonus: 0
   criticalDamageMultiplierBonus: 0
+--- !u!114 &904823815
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26f7b351537c8ca4b82597fe75c4597e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallDamageTextSpawner
+  defaultPopupPrefab: {fileID: 6125383673809832722, guid: d9cce5c180a2c32428377ab32eada818, type: 3}
+  fallbackStyle: {fileID: 11400000, guid: 41a972179d37305498bc7150b6c136d1, type: 2}
+  popupRoot: {fileID: 1901578435}
+  prewarmCount: 24
+  maximumPoolSizePerPrefab: 200
+  useTargetTextSlots: 1
+  targetSlotOffsets:
+  - {x: -0.22, y: 0.02}
+  - {x: 0.24, y: 0.06}
+  - {x: -0.12, y: 0.29}
+  - {x: 0.17, y: 0.27}
+  - {x: 0.02, y: -0.1}
+  overflowLayerSpacing: 0.12
+  slotDistanceMultiplierRange: {x: 0.85, y: 1.15}
+  slotRandomXRange: {x: -0.12, y: 0.12}
+  slotRandomYRange: {x: -0.04, y: 0.12}
+  hitPointInfluence: 0.25
+  slotJitterMultiplier: 0.15
+--- !u!114 &904823816
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2fb2842ca4a6cd4ea74c53095241737, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallDebugDrawController
+  ballCollection: {fileID: 904823811}
+  testDrawPool:
+  - {fileID: 11400000, guid: 63636733eacdb93438e2a244463993a5, type: 2}
+  randomDrawAmount: 1
+  enableDrawOneOfEach: 1
+  showDebugLog: 1
+--- !u!114 &904823817
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02a77325795c38a408069abf8a4cd4a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ExplosionPatternVfxSpawner
+  effectRoot: {fileID: 2092661372}
+  lineMaterial: {fileID: 0}
+  lineColor: {r: 1, g: 0.42, b: 0.06, a: 0.95}
+  duration: 0.22
+  beamWidth: 0.13
+  tipWidthRatio: 0.25
+  innerGap: 0.06
+  extendDurationRatio: 0.28
+  fadeStartRatio: 0.3
+  zOffset: -0.15
+  sortingLayerName: Default
+  sortingOrder: 220
+  capVertices: 2
+  prewarmCount: 16
+  maximumPoolSize: 64
 --- !u!1 &987057995
 GameObject:
   m_ObjectHideFlags: 0
@@ -2826,6 +2906,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1004609279}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1901578434
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1901578435}
+  m_Layer: 0
+  m_Name: DamageTextPool
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1901578435
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1901578434}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 904823806}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1965845129
 GameObject:
   m_ObjectHideFlags: 0
@@ -3026,6 +3137,37 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!1 &2092661371
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2092661372}
+  m_Layer: 0
+  m_Name: 'ExplosionVfxRoot  '
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2092661372
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2092661371}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 904823806}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2127719888
 GameObject:
   m_ObjectHideFlags: 0
