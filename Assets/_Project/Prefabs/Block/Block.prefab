@@ -194,21 +194,21 @@ MonoBehaviour:
   waterWeakSprite: {fileID: 0}
   waterMediumSprite: {fileID: 0}
   waterStrongSprite: {fileID: 0}
-  waterWeakColor: {r: 0.25, g: 0.65, b: 1, a: 0.18}
-  waterMediumColor: {r: 0.2, g: 0.6, b: 1, a: 0.28}
-  waterStrongColor: {r: 0.15, g: 0.55, b: 1, a: 0.42}
+  waterWeakColor: {r: 0.25, g: 0.65, b: 1, a: 0.101960786}
+  waterMediumColor: {r: 0.2, g: 0.6, b: 1, a: 0.16862746}
+  waterStrongColor: {r: 0.15, g: 0.55, b: 1, a: 0.25882354}
   electricWeakSprite: {fileID: 0}
   electricMediumSprite: {fileID: 0}
   electricStrongSprite: {fileID: 0}
-  electricWeakColor: {r: 1, g: 0.9, b: 0.25, a: 0.2}
-  electricMediumColor: {r: 1, g: 0.82, b: 0.15, a: 0.32}
-  electricStrongColor: {r: 1, g: 0.72, b: 0.05, a: 0.48}
+  electricWeakColor: {r: 1, g: 0.9, b: 0.25, a: 0.12156863}
+  electricMediumColor: {r: 1, g: 0.82, b: 0.15, a: 0.2}
+  electricStrongColor: {r: 1, g: 0.72, b: 0.05, a: 0.29803923}
   usePulseAnimation: 1
   waterPulseSpeed: 2.5
   electricPulseSpeed: 8
-  weakPulseAmount: 0.08
-  mediumPulseAmount: 0.16
-  strongPulseAmount: 0.25
+  weakPulseAmount: 0.05
+  mediumPulseAmount: 0.1
+  strongPulseAmount: 0.16
 --- !u!1 &1430352254046490565
 GameObject:
   m_ObjectHideFlags: 0
