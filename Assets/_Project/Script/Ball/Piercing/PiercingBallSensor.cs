@@ -8,6 +8,12 @@ using UnityEngine;
 public sealed class PiercingBallSensor :
     MonoBehaviour
 {
+    private const float
+        DefaultHitInterval = 0.04f;
+
+    private const int
+        DefaultMaxHitsPerEntry = 3;
+
     private sealed class PiercingContact
     {
         public Block TargetBlock;
@@ -18,6 +24,10 @@ public sealed class PiercingBallSensor :
         public readonly HashSet<Collider2D>
             SensorOverlaps =
                 new HashSet<Collider2D>();
+
+        public int HitCount;
+
+        public float NextHitTime;
     }
 
     [Header("References")]
@@ -127,6 +137,7 @@ public sealed class PiercingBallSensor :
         );
 
         CleanupInvalidContacts();
+        UpdateMultiHits();
     }
 
     private void OnDisable()
@@ -455,10 +466,6 @@ public sealed class PiercingBallSensor :
         float localDiameter =
             localRadius * 2f;
 
-        /*
-         * 캡슐의 왼쪽 끝은 현재 공 위치를 덮고,
-         * 오른쪽 끝은 진행 방향 앞쪽까지 뻗습니다.
-         */
         sensorCollider.size =
             new Vector2(
                 localDiameter +
@@ -486,13 +493,18 @@ public sealed class PiercingBallSensor :
         Vector3 lossyScale =
             targetTransform.lossyScale;
 
+        float maximumAxisScale =
+            Mathf.Max(
+                Mathf.Abs(
+                    lossyScale.x
+                ),
+                Mathf.Abs(
+                    lossyScale.y
+                )
+            );
+
         return Mathf.Max(
-            Mathf.Abs(
-                lossyScale.x
-            ),
-            Mathf.Abs(
-                lossyScale.y
-            ),
+            maximumAxisScale,
             0.0001f
         );
     }
@@ -518,13 +530,8 @@ public sealed class PiercingBallSensor :
     public void HandleSensorEnter(
         Collider2D other)
     {
-        if (!isPiercingEnabled ||
-            ball == null ||
-            !ball.IsMoving ||
-            combatController == null ||
-            combatController.TraitType !=
-            BallTraitType.Piercing ||
-            other == null)
+        if (!CanProcessSensorContact(
+                other))
         {
             return;
         }
@@ -541,10 +548,7 @@ public sealed class PiercingBallSensor :
         }
 
         /*
-         * 무적 블록은 센서가 감지해도
-         * 충돌을 무시하지 않는다.
-         *
-         * 실제 CircleCollider2D가 충돌한 뒤
+         * 무적 블록은 실제 공 Collider와 충돌하고
          * 기존 반사 로직을 사용한다.
          */
         if (targetBlock.IsIndestructible)
@@ -588,7 +592,12 @@ public sealed class PiercingBallSensor :
                 PhysicalColliders =
                     FindPhysicalColliders(
                         targetBlock
-                    )
+                    ),
+
+                HitCount = 0,
+
+                NextHitTime =
+                    Time.fixedTime
             };
 
         newContact.SensorOverlaps.Add(
@@ -596,8 +605,8 @@ public sealed class PiercingBallSensor :
         );
 
         /*
-         * 피해 계산보다 먼저 실제 공 콜라이더와
-         * 블록 콜라이더의 충돌을 무시한다.
+         * 실제 공 Collider가 블록과 접촉하기 전에
+         * 물리 충돌을 먼저 무시한다.
          */
         SetContactCollisionIgnored(
             newContact,
@@ -608,51 +617,26 @@ public sealed class PiercingBallSensor :
             newContact
         );
 
-        Vector2 hitPoint =
-            other.ClosestPoint(
-                solidCollider != null
-                    ? solidCollider.bounds.center
-                    : transform.position
+        bool initialHitSucceeded =
+            TryApplyContactHit(
+                newContact,
+                true
             );
 
-        BallHitResult hitResult =
-            combatController.ResolveBlockHit(
-                targetBlock,
-                hitPoint,
-                ball.Velocity
-            );
-
-        /*
-         * 예상과 달리 반사가 필요한 결과가 반환되면
-         * 충돌 무시를 즉시 취소한다.
-         */
-        if (!hitResult.WasHandled ||
-            hitResult.ShouldBounce)
+        if (initialHitSucceeded)
         {
-            int createdIndex =
-                FindContactIndex(
-                    targetBlock
-                );
-
-            if (createdIndex >= 0)
-            {
-                ReleaseContactAt(
-                    createdIndex
-                );
-            }
-
             return;
         }
 
-        ball.NotifyBlockHitHandled();
+        int createdIndex =
+            FindContactIndex(
+                targetBlock
+            );
 
-        if (showDebugLog)
+        if (createdIndex >= 0)
         {
-            Debug.Log(
-                "PiercingBallSensor: " +
-                $"{targetBlock.name} 선행 감지, " +
-                "피해 적용 후 충돌 무시",
-                this
+            ReleaseContactAt(
+                createdIndex
             );
         }
     }
@@ -697,12 +681,8 @@ public sealed class PiercingBallSensor :
             other
         );
 
-        /*
-         * 같은 블록이 여러 콜라이더를 가질 수 있으므로
-         * 모든 센서 겹침이 끝난 뒤 충돌을 복구한다.
-         */
-        if (contact.SensorOverlaps.Count >
-            0)
+        if (HasValidSensorOverlap(
+                contact))
         {
             return;
         }
@@ -710,6 +690,263 @@ public sealed class PiercingBallSensor :
         ReleaseContactAt(
             contactIndex
         );
+    }
+
+    private bool CanProcessSensorContact(
+        Collider2D other)
+    {
+        return
+            isPiercingEnabled &&
+            ball != null &&
+            ball.IsMoving &&
+            combatController != null &&
+            combatController.TraitType ==
+            BallTraitType.Piercing &&
+            other != null;
+    }
+
+    private void UpdateMultiHits()
+    {
+        if (activeContacts.Count <= 0)
+        {
+            return;
+        }
+
+        int maximumHitCount =
+            ResolveMaximumHitCount();
+
+        float currentTime =
+            Time.fixedTime;
+
+        for (int i =
+                 activeContacts.Count - 1;
+             i >= 0;
+             i--)
+        {
+            PiercingContact contact =
+                activeContacts[i];
+
+            if (contact == null ||
+                contact.HitCount >=
+                maximumHitCount ||
+                !HasValidSensorOverlap(
+                    contact))
+            {
+                continue;
+            }
+
+            if (currentTime +
+                0.0001f <
+                contact.NextHitTime)
+            {
+                continue;
+            }
+
+            bool hitSucceeded =
+                TryApplyContactHit(
+                    contact,
+                    false
+                );
+
+            if (hitSucceeded)
+            {
+                continue;
+            }
+
+            ReleaseContactAt(
+                i
+            );
+        }
+    }
+
+    private bool TryApplyContactHit(
+        PiercingContact contact,
+        bool isInitialHit)
+    {
+        if (contact == null ||
+            contact.TargetBlock == null ||
+            !contact.TargetBlock.IsAlive ||
+            combatController == null ||
+            ball == null ||
+            !ball.IsMoving)
+        {
+            return false;
+        }
+
+        Vector2 hitPoint =
+            ResolveContactHitPoint(
+                contact
+            );
+
+        BallHitResult hitResult =
+            combatController.ResolveBlockHit(
+                contact.TargetBlock,
+                hitPoint,
+                ball.Velocity
+            );
+
+        if (!hitResult.WasHandled ||
+            hitResult.ShouldBounce)
+        {
+            return false;
+        }
+
+        contact.HitCount++;
+
+        contact.NextHitTime =
+            Time.fixedTime +
+            ResolveHitInterval();
+
+        ball.NotifyBlockHitHandled();
+
+        if (showDebugLog)
+        {
+            string hitType =
+                isInitialHit
+                    ? "최초"
+                    : "추가";
+
+            Debug.Log(
+                "PiercingBallSensor: " +
+                $"{contact.TargetBlock.name} " +
+                $"{hitType} 타격, " +
+                $"횟수={contact.HitCount}/" +
+                $"{ResolveMaximumHitCount()}",
+                this
+            );
+        }
+
+        return true;
+    }
+
+    private Vector2 ResolveContactHitPoint(
+        PiercingContact contact)
+    {
+        Vector2 referencePosition =
+            solidCollider != null
+                ? solidCollider.bounds.center
+                : (Vector2)transform.position;
+
+        if (contact != null)
+        {
+            foreach (
+                Collider2D overlapCollider
+                in contact.SensorOverlaps)
+            {
+                if (overlapCollider == null ||
+                    !overlapCollider
+                        .isActiveAndEnabled ||
+                    !overlapCollider
+                        .gameObject
+                        .activeInHierarchy)
+                {
+                    continue;
+                }
+
+                return overlapCollider
+                    .ClosestPoint(
+                        referencePosition
+                    );
+            }
+
+            Collider2D[] physicalColliders =
+                contact.PhysicalColliders;
+
+            if (physicalColliders != null)
+            {
+                for (int i = 0;
+                     i <
+                     physicalColliders.Length;
+                     i++)
+                {
+                    Collider2D targetCollider =
+                        physicalColliders[i];
+
+                    if (targetCollider == null)
+                    {
+                        continue;
+                    }
+
+                    return targetCollider
+                        .ClosestPoint(
+                            referencePosition
+                        );
+                }
+            }
+
+            if (contact.TargetBlock != null)
+            {
+                return contact
+                    .TargetBlock
+                    .transform
+                    .position;
+            }
+        }
+
+        return referencePosition;
+    }
+
+    private float ResolveHitInterval()
+    {
+        PiercingBallTraitDefinition
+            definition =
+                GetPiercingDefinition();
+
+        return definition != null
+            ? definition.HitInterval
+            : DefaultHitInterval;
+    }
+
+    private int ResolveMaximumHitCount()
+    {
+        PiercingBallTraitDefinition
+            definition =
+                GetPiercingDefinition();
+
+        return definition != null
+            ? definition.MaxHitsPerEntry
+            : DefaultMaxHitsPerEntry;
+    }
+
+    private PiercingBallTraitDefinition
+        GetPiercingDefinition()
+    {
+        if (combatController == null)
+        {
+            return null;
+        }
+
+        return combatController
+            .TraitDefinition as
+                PiercingBallTraitDefinition;
+    }
+
+    private bool HasValidSensorOverlap(
+        PiercingContact contact)
+    {
+        if (contact == null ||
+            contact.SensorOverlaps.Count <=
+            0)
+        {
+            return false;
+        }
+
+        foreach (
+            Collider2D overlapCollider
+            in contact.SensorOverlaps)
+        {
+            if (overlapCollider != null &&
+                overlapCollider
+                    .isActiveAndEnabled &&
+                overlapCollider
+                    .gameObject
+                    .activeInHierarchy)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private Block FindBlock(
@@ -794,12 +1031,8 @@ public sealed class PiercingBallSensor :
             PiercingContact contact =
                 activeContacts[i];
 
-            if (contact == null)
-            {
-                continue;
-            }
-
-            if (contact.TargetBlock ==
+            if (contact != null &&
+                contact.TargetBlock ==
                 targetBlock)
             {
                 return i;
@@ -824,12 +1057,8 @@ public sealed class PiercingBallSensor :
             PiercingContact contact =
                 activeContacts[i];
 
-            if (contact == null)
-            {
-                continue;
-            }
-
-            if (contact.SensorOverlaps.Contains(
+            if (contact != null &&
+                contact.SensorOverlaps.Contains(
                     overlapCollider))
             {
                 return i;
@@ -905,7 +1134,7 @@ public sealed class PiercingBallSensor :
             Debug.Log(
                 "PiercingBallSensor: " +
                 $"{contact.TargetBlock.name} 통과 완료, " +
-                "충돌 복구",
+                $"총 타격={contact.HitCount}",
                 this
             );
         }
@@ -921,17 +1150,24 @@ public sealed class PiercingBallSensor :
             PiercingContact contact =
                 activeContacts[i];
 
-            if (contact == null ||
+            bool shouldRelease =
+                contact == null ||
                 contact.TargetBlock == null ||
                 !contact.TargetBlock.IsAlive ||
                 !contact.TargetBlock
                     .gameObject
-                    .activeInHierarchy)
+                    .activeInHierarchy ||
+                !HasValidSensorOverlap(
+                    contact);
+
+            if (!shouldRelease)
             {
-                ReleaseContactAt(
-                    i
-                );
+                continue;
             }
+
+            ReleaseContactAt(
+                i
+            );
         }
     }
 }

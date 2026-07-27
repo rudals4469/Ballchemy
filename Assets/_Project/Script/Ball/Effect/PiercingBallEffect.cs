@@ -8,6 +8,9 @@ public sealed class PiercingBallEffect :
     [SerializeField]
     private bool showDebugLog;
 
+    private PiercingBallTraitDefinition
+        piercingDefinition;
+
     private PiercingBallSensor
         piercingSensor;
 
@@ -16,6 +19,21 @@ public sealed class PiercingBallEffect :
 
     protected override void OnInitialized()
     {
+        piercingDefinition =
+            TraitDefinition as
+                PiercingBallTraitDefinition;
+
+        if (piercingDefinition == null)
+        {
+            Debug.LogWarning(
+                "PiercingBallEffect: " +
+                "PiercingBallTraitDefinition이 " +
+                "연결되지 않았습니다. " +
+                "기본 직접 피해로 처리합니다.",
+                this
+            );
+        }
+
         EnsurePiercingSensor();
 
         piercingSensor?.SetPiercingEnabled(
@@ -84,8 +102,8 @@ public sealed class PiercingBallEffect :
             context.Block;
 
         /*
-         * 무적 블록은 피해가 들어가지 않고
-         * 기존 공처럼 반사한다.
+         * 무적 블록은 관통하지 않고
+         * 기존 공과 동일하게 반사한다.
          */
         if (targetBlock.IsIndestructible)
         {
@@ -109,16 +127,24 @@ public sealed class PiercingBallEffect :
                 .HandledWithBounce();
         }
 
+        int resolvedDamage =
+            piercingDefinition != null
+                ? piercingDefinition
+                    .CalculateDamage(
+                        context.DirectDamage
+                    )
+                : Mathf.Max(
+                    context.DirectDamage,
+                    1
+                );
+
         /*
-         * 일반·특수·쉴드·TriggerOnly 블록은
-         * 피해 처리를 시도한 뒤 관통한다.
-         *
-         * 쉴드로 실제 체력 피해가 0이어도
-         * 관통 여부에는 영향을 주지 않는다.
+         * 센서의 최초 타격과 추가 타격 모두
+         * 이 메서드를 통과한다.
          */
         CombatController.ApplyDamage(
             targetBlock,
-            context.DirectDamage,
+            resolvedDamage,
             context.HitPoint
         );
 
@@ -126,7 +152,8 @@ public sealed class PiercingBallEffect :
         {
             Debug.Log(
                 "PiercingBallEffect: " +
-                $"{targetBlock.name}에 타격 처리 후 관통",
+                $"{targetBlock.name} 관통 타격, " +
+                $"피해={resolvedDamage}",
                 this
             );
         }
