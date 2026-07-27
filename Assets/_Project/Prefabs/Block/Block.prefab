@@ -174,6 +174,8 @@ MonoBehaviour:
   chargeStack: 0
   burnStack: 0
   frostStack: 0
+  isFrozen: 0
+  burnSourceDirectDamage: 0
 --- !u!114 &1462048097353144651
 MonoBehaviour:
   m_ObjectHideFlags: 0

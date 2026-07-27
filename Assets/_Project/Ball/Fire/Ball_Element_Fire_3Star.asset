@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d9e0bff485c42b4caf2b0f1e9155c9b, type: 3}
   m_Name: Ball_Element_Fire_3Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
-  ballId: electric_1
-  displayName: "\uC804\uAE30"
-  starGrade: 1
+  ballId: Fire_3
+  displayName: "\uBD88"
+  starGrade: 3
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: c4bf3b0cf2c5ba9469d761a2ed7d5bf8, type: 2}
   sprite: {fileID: 0}

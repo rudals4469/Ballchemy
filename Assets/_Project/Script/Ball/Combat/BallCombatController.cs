@@ -30,10 +30,37 @@ public sealed class BallCombatController : MonoBehaviour
     [SerializeField]
     private bool showDebugLog;
 
+    private static BlockElementSystem
+        cachedBlockElementSystem;
+
+    private static bool
+        hasWarnedMissingBlockElementSystem;
+
     private Ball ball;
 
     private BallTraitEffect
         activeTraitEffect;
+
+    /*
+     * 현재 ResolveBlockHit에서 처리 중인
+     * 직접 충돌을 추적합니다.
+     *
+     * 첫 번째로 충돌 대상 블록에 적용된 피해만
+     * 직접 피해로 인정합니다.
+     *
+     * 이후 같은 블록에 적용되는 감전, 열충격 등의
+     * 추가 피해는 동결 파쇄를 다시 일으키지 않습니다.
+     */
+    private bool isResolvingDirectBlockHit;
+
+    private Block resolvingDirectHitBlock;
+
+    private bool resolvingBlockWasFrozen;
+
+    private bool hasCapturedDirectDamage;
+
+    public Ball SourceBall =>
+        ball;
 
     public BallDefinition Definition =>
         definition;
@@ -119,6 +146,19 @@ public sealed class BallCombatController : MonoBehaviour
 
     public event Action<BallDefinition>
         DefinitionChanged;
+
+    [RuntimeInitializeOnLoadMethod(
+        RuntimeInitializeLoadType
+            .SubsystemRegistration
+    )]
+    private static void ResetStaticCache()
+    {
+        cachedBlockElementSystem =
+            null;
+
+        hasWarnedMissingBlockElementSystem =
+            false;
+    }
 
     private void Awake()
     {
@@ -299,6 +339,20 @@ public sealed class BallCombatController : MonoBehaviour
                 healthBeforeDamage
             );
 
+        /*
+         * 첫 직접 피해가 쉴드에 막혀 0이더라도
+         * 해당 충돌의 직접 피해 판정은 이미 끝난 것입니다.
+         *
+         * 같은 충돌에서 나중에 발생하는 추가 피해를
+         * 직접 피해로 오인하지 않도록 먼저 기록합니다.
+         */
+        bool shouldResolveFrozenShatter =
+            TryCaptureDirectHitDamage(
+                target,
+                calculatedDamage,
+                appliedHealthDamage
+            );
+
         if (appliedHealthDamage <= 0)
         {
             return 0;
@@ -325,6 +379,18 @@ public sealed class BallCombatController : MonoBehaviour
             )
         );
 
+        /*
+         * 직접 피해 숫자가 먼저 발행된 뒤
+         * 파쇄 추가 피해를 별도로 적용합니다.
+         */
+        if (shouldResolveFrozenShatter)
+        {
+            ResolveFrozenShatter(
+                target,
+                calculatedDamage
+            );
+        }
+
         return appliedHealthDamage;
     }
 
@@ -339,44 +405,201 @@ public sealed class BallCombatController : MonoBehaviour
             return BallHitResult.NotHandled();
         }
 
-        if (activeTraitEffect == null)
-        {
-            ConfigureTraitEffect();
-        }
-
-        if (activeTraitEffect == null)
-        {
-            Debug.LogWarning(
-                "BallCombatController: " +
-                "활성화된 공 특성 효과가 없어 " +
-                "직접 피해만 적용합니다.",
-                this
-            );
-
-            ApplyDamage(
-                hitBlock,
-                DirectDamage,
-                hitPoint
-            );
-
-            return BallHitResult
-                .HandledWithBounce();
-        }
-
-        BallHitContext context =
-            new BallHitContext(
-                ball,
-                hitBlock,
-                definition,
-                hitPoint,
-                incomingVelocity,
-                DirectDamage,
-                CriticalDamageMultiplierBonus
-            );
-
-        return activeTraitEffect.ResolveHit(
-            context
+        BeginDirectHitTracking(
+            hitBlock
         );
+
+        try
+        {
+            if (activeTraitEffect == null)
+            {
+                ConfigureTraitEffect();
+            }
+
+            if (activeTraitEffect == null)
+            {
+                Debug.LogWarning(
+                    "BallCombatController: " +
+                    "활성화된 공 특성 효과가 없어 " +
+                    "직접 피해만 적용합니다.",
+                    this
+                );
+
+                ApplyDamage(
+                    hitBlock,
+                    DirectDamage,
+                    hitPoint
+                );
+
+                return BallHitResult
+                    .HandledWithBounce();
+            }
+
+            BallHitContext context =
+                new BallHitContext(
+                    ball,
+                    hitBlock,
+                    definition,
+                    hitPoint,
+                    incomingVelocity,
+                    DirectDamage,
+                    CriticalDamageMultiplierBonus
+                );
+
+            return activeTraitEffect.ResolveHit(
+                context
+            );
+        }
+        finally
+        {
+            EndDirectHitTracking();
+        }
+    }
+
+    private void BeginDirectHitTracking(
+        Block hitBlock)
+    {
+        isResolvingDirectBlockHit =
+            true;
+
+        resolvingDirectHitBlock =
+            hitBlock;
+
+        hasCapturedDirectDamage =
+            false;
+
+        BlockElementStatus status =
+            hitBlock != null
+                ? hitBlock.GetComponent<
+                    BlockElementStatus
+                >()
+                : null;
+
+        resolvingBlockWasFrozen =
+            status != null &&
+            status.IsFrozen;
+    }
+
+    private void EndDirectHitTracking()
+    {
+        isResolvingDirectBlockHit =
+            false;
+
+        resolvingDirectHitBlock =
+            null;
+
+        resolvingBlockWasFrozen =
+            false;
+
+        hasCapturedDirectDamage =
+            false;
+    }
+
+    private bool TryCaptureDirectHitDamage(
+        Block target,
+        int calculatedDamage,
+        int appliedHealthDamage)
+    {
+        if (!isResolvingDirectBlockHit ||
+            hasCapturedDirectDamage ||
+            target == null ||
+            target != resolvingDirectHitBlock)
+        {
+            return false;
+        }
+
+        hasCapturedDirectDamage =
+            true;
+
+        /*
+         * 충돌 시작 시점에 동결 상태가 아니었다면
+         * 이번 직접 피해로 파쇄할 대상이 아닙니다.
+         */
+        if (!resolvingBlockWasFrozen)
+        {
+            return false;
+        }
+
+        /*
+         * 쉴드, 무적, 파괴 불가 등의 이유로
+         * 체력이 감소하지 않았다면 동결도 유지됩니다.
+         */
+        if (appliedHealthDamage <= 0)
+        {
+            if (showDebugLog)
+            {
+                Debug.Log(
+                    "BallCombatController: " +
+                    $"{target.name}의 직접 피해가 막혀 " +
+                    "동결 파쇄를 실행하지 않습니다.",
+                    target
+                );
+            }
+
+            return false;
+        }
+
+        /*
+         * 직접 피해 자체로 파괴된 경우에는
+         * 추가 피해와 주변 전파를 실행하지 않습니다.
+         */
+        if (!target.IsAlive)
+        {
+            return false;
+        }
+
+        return calculatedDamage > 0;
+    }
+
+    private void ResolveFrozenShatter(
+        Block targetBlock,
+        int calculatedDirectDamage)
+    {
+        BlockElementSystem elementSystem =
+            FindBlockElementSystem();
+
+        if (elementSystem != null)
+        {
+            elementSystem.ResolveFrozenShatter(
+                this,
+                targetBlock,
+                calculatedDirectDamage
+            );
+
+            return;
+        }
+
+        if (hasWarnedMissingBlockElementSystem)
+        {
+            return;
+        }
+
+        hasWarnedMissingBlockElementSystem =
+            true;
+
+        Debug.LogWarning(
+            "BallCombatController: " +
+            "BlockElementSystem을 찾지 못해 " +
+            "동결 파쇄를 실행하지 않습니다.",
+            this
+        );
+    }
+
+    private BlockElementSystem
+        FindBlockElementSystem()
+    {
+        if (cachedBlockElementSystem != null)
+        {
+            return cachedBlockElementSystem;
+        }
+
+        cachedBlockElementSystem =
+            UnityEngine.Object
+                .FindFirstObjectByType<
+                    BlockElementSystem
+                >();
+
+        return cachedBlockElementSystem;
     }
 
     private void ConfigureTraitEffect()

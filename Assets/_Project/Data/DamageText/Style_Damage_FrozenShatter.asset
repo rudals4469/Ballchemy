@@ -10,28 +10,28 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d687f18adc655de4fbe18e4290cee97f, type: 3}
-  m_Name: Style_Damage_Electrocution
+  m_Name: Style_Damage_FrozenShatter
   m_EditorClassIdentifier: Assembly-CSharp::BallDamageTextStyleDefinition
-  styleId: electrocution
+  styleId: 
   popupPrefabOverride: {fileID: 0}
   aggregationMode: 1
-  aggregationWindow: 0.25
+  aggregationWindow: 0.3
   fontAsset: {fileID: 0}
   fontMaterialPreset: {fileID: 0}
-  textColor: {r: 0, g: 1, b: 0, a: 1}
-  fontSize: 4.6
+  textColor: {r: 1, g: 1, b: 1, a: 1}
+  fontSize: 5
   fontStyle: 1
   prefix: 
   suffix: 
   spawnOffset: {x: 0, y: 0.15}
   horizontalJitter: 0.12
   worldZ: -1
-  duration: 0.5
-  riseDistance: 0.65
+  duration: 0.55
+  riseDistance: 0.7
   horizontalDriftRange: {x: -0.08, y: 0.08}
   moveEase: 9
-  startScale: 1
-  peakScale: 1.35
+  startScale: 0.9
+  peakScale: 1.15
   endScale: 1
   popDurationRatio: 0.25
   popEase: 27
