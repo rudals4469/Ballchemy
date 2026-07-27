@@ -13,6 +13,126 @@ public sealed class BlockElementSurfaceStatusView :
         Strong = 2
     }
 
+    /*
+     * 이전 버전 기본값입니다.
+     *
+     * 기존 프리팹이 이 값을 그대로 사용 중인 경우에만
+     * 새로운 진한 기본값으로 자동 교체합니다.
+     *
+     * 사용자가 직접 색을 수정한 경우에는
+     * 해당 설정을 덮어쓰지 않습니다.
+     */
+    private static readonly Color
+        LegacyFireWeakColor =
+            new Color(
+                1f,
+                0.38f,
+                0.08f,
+                0.16f
+            );
+
+    private static readonly Color
+        LegacyFireMediumColor =
+            new Color(
+                1f,
+                0.3f,
+                0.04f,
+                0.27f
+            );
+
+    private static readonly Color
+        LegacyFireStrongColor =
+            new Color(
+                1f,
+                0.2f,
+                0.02f,
+                0.4f
+            );
+
+    private static readonly Color
+        LegacyIceWeakColor =
+            new Color(
+                0.55f,
+                0.9f,
+                1f,
+                0.16f
+            );
+
+    private static readonly Color
+        LegacyIceMediumColor =
+            new Color(
+                0.4f,
+                0.82f,
+                1f,
+                0.27f
+            );
+
+    private static readonly Color
+        LegacyIceStrongColor =
+            new Color(
+                0.25f,
+                0.72f,
+                1f,
+                0.4f
+            );
+
+    /*
+     * 강화된 새로운 기본값입니다.
+     */
+    private static readonly Color
+        DefaultFireWeakColor =
+            new Color32(
+                255,
+                106,
+                46,
+                115
+            );
+
+    private static readonly Color
+        DefaultFireMediumColor =
+            new Color32(
+                255,
+                69,
+                28,
+                166
+            );
+
+    private static readonly Color
+        DefaultFireStrongColor =
+            new Color32(
+                233,
+                39,
+                18,
+                217
+            );
+
+    private static readonly Color
+        DefaultIceWeakColor =
+            new Color32(
+                99,
+                217,
+                255,
+                115
+            );
+
+    private static readonly Color
+        DefaultIceMediumColor =
+            new Color32(
+                40,
+                191,
+                255,
+                166
+            );
+
+    private static readonly Color
+        DefaultIceStrongColor =
+            new Color32(
+                7,
+                149,
+                232,
+                217
+            );
+
     [Header("References")]
     [SerializeField]
     private Block block;
@@ -29,7 +149,7 @@ public sealed class BlockElementSurfaceStatusView :
 
     [Tooltip(
         "불·얼음 표면 효과를 표시하는 SpriteRenderer입니다. " +
-        "비워두면 자동으로 자식 오브젝트를 생성합니다."
+        "플레이 시작 시 없으면 자동으로 생성합니다."
     )]
     [SerializeField]
     private SpriteRenderer surfaceRenderer;
@@ -41,11 +161,11 @@ public sealed class BlockElementSurfaceStatusView :
 
     [Tooltip(
         "표면 효과가 외곽 테두리를 가리지 않도록 " +
-        "기본 블록보다 작게 표시합니다."
+        "기본 블록보다 조금 작게 표시합니다."
     )]
     [SerializeField, Min(0.1f)]
     private float visualScaleMultiplier =
-        0.92f;
+        0.95f;
 
     [SerializeField]
     private int sortingOrderOffset = 2;
@@ -56,7 +176,7 @@ public sealed class BlockElementSurfaceStatusView :
     [Header("Fire Sprites")]
     [Tooltip(
         "전용 이미지가 없으면 기본 블록 이미지를 " +
-        "주황색으로 복제하여 표시합니다."
+        "불 색상으로 복제하여 표시합니다."
     )]
     [SerializeField]
     private Sprite fireWeakSprite;
@@ -70,35 +190,35 @@ public sealed class BlockElementSurfaceStatusView :
     [Header("Fire Colors")]
     [SerializeField]
     private Color fireWeakColor =
-        new Color(
-            1f,
-            0.38f,
-            0.08f,
-            0.16f
+        new Color32(
+            255,
+            106,
+            46,
+            115
         );
 
     [SerializeField]
     private Color fireMediumColor =
-        new Color(
-            1f,
-            0.3f,
-            0.04f,
-            0.27f
+        new Color32(
+            255,
+            69,
+            28,
+            166
         );
 
     [SerializeField]
     private Color fireStrongColor =
-        new Color(
-            1f,
-            0.2f,
-            0.02f,
-            0.4f
+        new Color32(
+            233,
+            39,
+            18,
+            217
         );
 
     [Header("Ice Sprites")]
     [Tooltip(
         "전용 이미지가 없으면 기본 블록 이미지를 " +
-        "하늘색으로 복제하여 표시합니다."
+        "얼음 색상으로 복제하여 표시합니다."
     )]
     [SerializeField]
     private Sprite iceWeakSprite;
@@ -112,29 +232,29 @@ public sealed class BlockElementSurfaceStatusView :
     [Header("Ice Colors")]
     [SerializeField]
     private Color iceWeakColor =
-        new Color(
-            0.55f,
-            0.9f,
-            1f,
-            0.16f
+        new Color32(
+            99,
+            217,
+            255,
+            115
         );
 
     [SerializeField]
     private Color iceMediumColor =
-        new Color(
-            0.4f,
-            0.82f,
-            1f,
-            0.27f
+        new Color32(
+            40,
+            191,
+            255,
+            166
         );
 
     [SerializeField]
     private Color iceStrongColor =
-        new Color(
-            0.25f,
-            0.72f,
-            1f,
-            0.4f
+        new Color32(
+            7,
+            149,
+            232,
+            217
         );
 
     [Header("Pulse Animation")]
@@ -167,6 +287,7 @@ public sealed class BlockElementSurfaceStatusView :
 
     private void Awake()
     {
+        UpgradeLegacyVisualDefaults();
         NormalizeSettings();
         FindReferences();
         EnsureSurfaceRenderer();
@@ -175,6 +296,18 @@ public sealed class BlockElementSurfaceStatusView :
 
     private void OnEnable()
     {
+        /*
+         * 편집 모드에서는 자식 생성이나
+         * AddComponent를 실행하지 않습니다.
+         *
+         * 프리팹 검사 과정에서 발생하던
+         * SendMessage 경고를 방지합니다.
+         */
+        if (!Application.isPlaying)
+        {
+            return;
+        }
+
         FindReferences();
         EnsureSurfaceRenderer();
 
@@ -192,6 +325,11 @@ public sealed class BlockElementSurfaceStatusView :
 
     private void OnDisable()
     {
+        if (!Application.isPlaying)
+        {
+            return;
+        }
+
         UnsubscribeEvents();
         HideSurfaceVisual();
     }
@@ -208,14 +346,96 @@ public sealed class BlockElementSurfaceStatusView :
 
     private void OnValidate()
     {
+        /*
+         * OnValidate에서는 값만 정리합니다.
+         *
+         * GameObject 생성, SetParent,
+         * AddComponent 같은 계층 구조 변경은
+         * 절대 실행하지 않습니다.
+         */
+        UpgradeLegacyVisualDefaults();
         NormalizeSettings();
+    }
 
-        if (!Application.isPlaying)
+    private void UpgradeLegacyVisualDefaults()
+    {
+        if (Mathf.Approximately(
+                visualScaleMultiplier,
+                0.92f))
         {
-            FindReferences();
-            EnsureSurfaceRenderer();
-            SynchronizeRendererLayout();
+            visualScaleMultiplier =
+                0.95f;
         }
+
+        if (AreColorsApproximatelyEqual(
+                fireWeakColor,
+                LegacyFireWeakColor))
+        {
+            fireWeakColor =
+                DefaultFireWeakColor;
+        }
+
+        if (AreColorsApproximatelyEqual(
+                fireMediumColor,
+                LegacyFireMediumColor))
+        {
+            fireMediumColor =
+                DefaultFireMediumColor;
+        }
+
+        if (AreColorsApproximatelyEqual(
+                fireStrongColor,
+                LegacyFireStrongColor))
+        {
+            fireStrongColor =
+                DefaultFireStrongColor;
+        }
+
+        if (AreColorsApproximatelyEqual(
+                iceWeakColor,
+                LegacyIceWeakColor))
+        {
+            iceWeakColor =
+                DefaultIceWeakColor;
+        }
+
+        if (AreColorsApproximatelyEqual(
+                iceMediumColor,
+                LegacyIceMediumColor))
+        {
+            iceMediumColor =
+                DefaultIceMediumColor;
+        }
+
+        if (AreColorsApproximatelyEqual(
+                iceStrongColor,
+                LegacyIceStrongColor))
+        {
+            iceStrongColor =
+                DefaultIceStrongColor;
+        }
+    }
+
+    private static bool
+        AreColorsApproximatelyEqual(
+            Color left,
+            Color right)
+    {
+        const float tolerance = 0.001f;
+
+        return
+            Mathf.Abs(
+                left.r - right.r
+            ) <= tolerance &&
+            Mathf.Abs(
+                left.g - right.g
+            ) <= tolerance &&
+            Mathf.Abs(
+                left.b - right.b
+            ) <= tolerance &&
+            Mathf.Abs(
+                left.a - right.a
+            ) <= tolerance;
     }
 
     private void NormalizeSettings()
@@ -338,6 +558,14 @@ public sealed class BlockElementSurfaceStatusView :
     private void EnsureSurfaceRenderer()
     {
         if (surfaceRenderer != null)
+        {
+            return;
+        }
+
+        /*
+         * 계층 구조 변경은 플레이 중에만 실행합니다.
+         */
+        if (!Application.isPlaying)
         {
             return;
         }
@@ -521,7 +749,11 @@ public sealed class BlockElementSurfaceStatusView :
     private void SynchronizeRendererLayout()
     {
         FindBaseRenderer();
-        EnsureSurfaceRenderer();
+
+        if (Application.isPlaying)
+        {
+            EnsureSurfaceRenderer();
+        }
 
         if (baseRenderer == null ||
             surfaceRenderer == null)

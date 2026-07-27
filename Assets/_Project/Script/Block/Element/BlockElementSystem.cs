@@ -24,13 +24,15 @@ public sealed class BlockElementSystem :
 
     [Header("Burn Spread")]
     [Tooltip(
-        "화상 전염이 시작되는 최소 잔여 스택입니다."
+        "화상 전염이 시작되는 최소 스택입니다. " +
+        "턴 감소 전 스택을 기준으로 판정합니다."
     )]
     [SerializeField, Min(1)]
     private int mediumSpreadMinimumStack = 3;
 
     [Tooltip(
-        "강한 화상 전염이 시작되는 최소 잔여 스택입니다."
+        "강한 화상 전염이 시작되는 최소 스택입니다. " +
+        "턴 감소 전 스택을 기준으로 판정합니다."
     )]
     [SerializeField, Min(1)]
     private int strongSpreadMinimumStack = 5;
@@ -41,6 +43,9 @@ public sealed class BlockElementSystem :
     [SerializeField, Min(0)]
     private int strongSpreadTargetCount = 2;
 
+    [Tooltip(
+        "전염 대상 하나에 부여하는 화상 스택입니다."
+    )]
     [SerializeField, Min(1)]
     private int spreadBurnStackAmount = 1;
 
@@ -221,6 +226,13 @@ public sealed class BlockElementSystem :
     public void ResolveTurnEffects(
         IReadOnlyList<Block> activeBlocks)
     {
+        /*
+         * 턴 시작 시점에 화상 블록 목록을 복사합니다.
+         *
+         * 이번 처리 중 새로 전염된 블록은
+         * 같은 턴에 화상 피해를 받거나
+         * 다시 화상을 퍼뜨리지 않습니다.
+         */
         CreateBurningBlockSnapshot(
             activeBlocks
         );
@@ -324,7 +336,7 @@ public sealed class BlockElementSystem :
          * 먼저 소비합니다.
          *
          * 이후 ElementalBallEffect가 계속 실행되면
-         * 불 또는 얼음 스택을 정상적으로 새로 적용할 수 있습니다.
+         * 불 또는 얼음 스택을 정상적으로 새로 적용합니다.
          */
         if (!targetStatus.ConsumeFrozen())
         {
@@ -373,7 +385,7 @@ public sealed class BlockElementSystem :
 
         /*
          * 파쇄 추가 피해로 중심 블록이 파괴돼도
-         * 파쇄 자체는 이미 발생했으므로 주변 전파는 실행합니다.
+         * 파쇄는 이미 발생했으므로 주변 전파를 실행합니다.
          */
         SpreadFrozenShatterElement(
             targetBlock,
@@ -501,9 +513,8 @@ public sealed class BlockElementSystem :
                 case ElementType.Ice:
                 {
                     /*
-                     * 파쇄 냉기 전파는 화상과 반응하지 않습니다.
-                     * 숨겨진 간접 열충격을 방지하기 위해
-                     * 화상 블록은 전파 대상에서 제외합니다.
+                     * 파쇄 냉기 전파는 화상과
+                     * 간접 열충격을 일으키지 않습니다.
                      */
                     if (targetStatus.HasBurn ||
                         targetStatus.IsFrozen)
@@ -628,6 +639,12 @@ public sealed class BlockElementSystem :
             return;
         }
 
+        /*
+         * 턴 시작 시점, 즉 감소 전 화상 스택입니다.
+         *
+         * 화상 피해량과 전염 대상 수 모두
+         * 이 값을 기준으로 계산합니다.
+         */
         int burnStackBefore =
             sourceStatus.BurnStack;
 
@@ -641,6 +658,17 @@ public sealed class BlockElementSystem :
         int burnDamage =
             CalculateBurnDamage(
                 sourceDirectDamage,
+                burnStackBefore
+            );
+
+        /*
+         * 핵심 변경점:
+         *
+         * 화상 스택을 감소시키기 전에
+         * 전염 대상 수를 미리 결정합니다.
+         */
+        int spreadTargetCount =
+            ResolveSpreadTargetCount(
                 burnStackBefore
             );
 
@@ -661,12 +689,20 @@ public sealed class BlockElementSystem :
             );
         }
 
+        /*
+         * 화상 피해로 블록이 파괴되면
+         * 스택 감소와 전염은 처리하지 않습니다.
+         */
         if (sourceBlock == null ||
             !sourceBlock.IsAlive)
         {
             return;
         }
 
+        /*
+         * 전염 대상 수를 이미 결정한 뒤
+         * 원본 블록의 화상을 감소시킵니다.
+         */
         sourceStatus.ConsumeBurn(
             burnStackDecayPerTurn
         );
@@ -674,28 +710,22 @@ public sealed class BlockElementSystem :
         int remainingBurnStack =
             sourceStatus.BurnStack;
 
-        int spreadTargetCount =
-            ResolveSpreadTargetCount(
-                remainingBurnStack
-            );
-
-        if (spreadTargetCount <= 0)
+        if (spreadTargetCount > 0)
         {
-            return;
+            SpreadBurn(
+                sourceBlock,
+                sourceDirectDamage,
+                activeBlocks,
+                spreadTargetCount
+            );
         }
-
-        SpreadBurn(
-            sourceBlock,
-            sourceStatus,
-            activeBlocks,
-            spreadTargetCount
-        );
 
         if (showDebugLog)
         {
             Debug.Log(
                 "BlockElementSystem: " +
                 $"{sourceBlock.name} 화상 처리, " +
+                $"감소 전 스택={burnStackBefore}, " +
                 $"피해={burnDamage}, " +
                 $"실제피해={appliedDamage}, " +
                 $"잔여스택={remainingBurnStack}, " +
@@ -727,15 +757,15 @@ public sealed class BlockElementSystem :
     }
 
     private int ResolveSpreadTargetCount(
-        int remainingBurnStack)
+        int burnStackBeforeDecay)
     {
-        if (remainingBurnStack >=
+        if (burnStackBeforeDecay >=
             strongSpreadMinimumStack)
         {
             return strongSpreadTargetCount;
         }
 
-        if (remainingBurnStack >=
+        if (burnStackBeforeDecay >=
             mediumSpreadMinimumStack)
         {
             return mediumSpreadTargetCount;
@@ -746,12 +776,11 @@ public sealed class BlockElementSystem :
 
     private void SpreadBurn(
         Block sourceBlock,
-        BlockElementStatus sourceStatus,
+        int sourceDirectDamage,
         IReadOnlyList<Block> activeBlocks,
         int maximumTargetCount)
     {
         if (sourceBlock == null ||
-            sourceStatus == null ||
             activeBlocks == null ||
             maximumTargetCount <= 0)
         {
@@ -793,6 +822,10 @@ public sealed class BlockElementSystem :
             );
         }
 
+        /*
+         * 화상이 없는 블록을 먼저 선택하고,
+         * 이후 그리드 위치 순서로 정렬합니다.
+         */
         spreadCandidates.Sort(
             CompareSpreadCandidates
         );
@@ -822,6 +855,10 @@ public sealed class BlockElementSystem :
                 continue;
             }
 
+            /*
+             * 일반 화상 전염은 냉기나 동결과
+             * 간접 열충격을 일으키지 않습니다.
+             */
             if (targetStatus.HasFrost ||
                 targetStatus.IsFrozen)
             {
@@ -831,8 +868,7 @@ public sealed class BlockElementSystem :
             int appliedStack =
                 targetStatus.AddBurn(
                     spreadBurnStackAmount,
-                    sourceStatus
-                        .BurnSourceDirectDamage
+                    sourceDirectDamage
                 );
 
             if (appliedStack <= 0)

@@ -199,15 +199,15 @@ MonoBehaviour:
   waterWeakSprite: {fileID: 0}
   waterMediumSprite: {fileID: 0}
   waterStrongSprite: {fileID: 0}
-  waterWeakColor: {r: 0.25, g: 0.65, b: 1, a: 0.101960786}
-  waterMediumColor: {r: 0.2, g: 0.6, b: 1, a: 0.16862746}
-  waterStrongColor: {r: 0.15, g: 0.55, b: 1, a: 0.25882354}
+  waterWeakColor: {r: 0.25, g: 0.65, b: 1, a: 0.4509804}
+  waterMediumColor: {r: 0.2, g: 0.6, b: 1, a: 0.6509804}
+  waterStrongColor: {r: 0.15, g: 0.55, b: 1, a: 0.8509804}
   electricWeakSprite: {fileID: 0}
   electricMediumSprite: {fileID: 0}
   electricStrongSprite: {fileID: 0}
-  electricWeakColor: {r: 1, g: 0.9, b: 0.25, a: 0.12156863}
-  electricMediumColor: {r: 1, g: 0.82, b: 0.15, a: 0.2}
-  electricStrongColor: {r: 1, g: 0.72, b: 0.05, a: 0.29803923}
+  electricWeakColor: {r: 1, g: 0.9, b: 0.25, a: 0.4509804}
+  electricMediumColor: {r: 1, g: 0.82, b: 0.15, a: 0.6509804}
+  electricStrongColor: {r: 1, g: 0.72, b: 0.05, a: 0.8509804}
   usePulseAnimation: 1
   waterPulseSpeed: 2.5
   electricPulseSpeed: 8
@@ -231,21 +231,21 @@ MonoBehaviour:
   baseRenderer: {fileID: 5051892278997693569}
   surfaceRenderer: {fileID: 0}
   surfaceVisualObjectName: ElementSurfaceVisual
-  visualScaleMultiplier: 0.92
+  visualScaleMultiplier: 0.95
   sortingOrderOffset: 2
   copyBaseMaterial: 1
   fireWeakSprite: {fileID: 0}
   fireMediumSprite: {fileID: 0}
   fireStrongSprite: {fileID: 0}
-  fireWeakColor: {r: 1, g: 0.38, b: 0.08, a: 0.16}
-  fireMediumColor: {r: 1, g: 0.3, b: 0.04, a: 0.27}
-  fireStrongColor: {r: 1, g: 0.2, b: 0.02, a: 0.4}
+  fireWeakColor: {r: 1, g: 0.38, b: 0.08, a: 0.4509804}
+  fireMediumColor: {r: 1, g: 0.3, b: 0.04, a: 0.6509804}
+  fireStrongColor: {r: 1, g: 0.2, b: 0.02, a: 0.8509804}
   iceWeakSprite: {fileID: 0}
   iceMediumSprite: {fileID: 0}
   iceStrongSprite: {fileID: 0}
-  iceWeakColor: {r: 0.55, g: 0.9, b: 1, a: 0.16}
-  iceMediumColor: {r: 0.4, g: 0.82, b: 1, a: 0.27}
-  iceStrongColor: {r: 0.25, g: 0.72, b: 1, a: 0.4}
+  iceWeakColor: {r: 0.55, g: 0.9, b: 1, a: 0.4509804}
+  iceMediumColor: {r: 0.4, g: 0.82, b: 1, a: 0.6509804}
+  iceStrongColor: {r: 0.25, g: 0.72, b: 1, a: 0.8509804}
   usePulseAnimation: 1
   firePulseSpeed: 5
   icePulseSpeed: 2
