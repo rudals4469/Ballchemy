@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d687f18adc655de4fbe18e4290cee97f, type: 3}
   m_Name: Style_Damage_FireFrozenShatter
   m_EditorClassIdentifier: Assembly-CSharp::BallDamageTextStyleDefinition
-  styleId: 
+  styleId: firefrozenshatter
   popupPrefabOverride: {fileID: 0}
   aggregationMode: 1
   aggregationWindow: 0.3
   fontAsset: {fileID: 0}
   fontMaterialPreset: {fileID: 0}
-  textColor: {r: 1, g: 1, b: 1, a: 1}
-  fontSize: 5
+  textColor: {r: 1, g: 0, b: 0, a: 1}
+  fontSize: 4
   fontStyle: 1
   prefix: 
   suffix: 

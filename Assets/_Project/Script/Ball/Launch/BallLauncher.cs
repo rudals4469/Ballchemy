@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(BallCollection))]
+[RequireComponent(typeof(BallTurnQueueController))]
 [RequireComponent(typeof(BallTurnTempoController))]
 [RequireComponent(typeof(BallSealController))]
 [RequireComponent(typeof(BallGatherAnimator))]
@@ -16,6 +17,10 @@ public sealed class BallLauncher :
 
     [SerializeField]
     private BallCollection ballCollection;
+
+    [SerializeField]
+    private BallTurnQueueController
+        turnQueueController;
 
     [SerializeField]
     private BallTurnTempoController
@@ -148,6 +153,9 @@ public sealed class BallLauncher :
             currentTurnLaunchPosition
         );
 
+        turnQueueController
+            ?.EnsureQueuePrepared();
+
         isInitialized = true;
         isAttackCompleted = true;
     }
@@ -167,6 +175,14 @@ public sealed class BallLauncher :
             ballCollection =
                 GetComponent<
                     BallCollection
+                >();
+        }
+
+        if (turnQueueController == null)
+        {
+            turnQueueController =
+                GetComponent<
+                    BallTurnQueueController
                 >();
         }
 
@@ -239,6 +255,15 @@ public sealed class BallLauncher :
             Debug.LogError(
                 "BallLauncher: " +
                 "BallCollection을 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (turnQueueController == null)
+        {
+            Debug.LogError(
+                "BallLauncher: " +
+                "BallTurnQueueController를 찾지 못했습니다.",
                 this
             );
         }
@@ -330,15 +355,20 @@ public sealed class BallLauncher :
 
         if (IsAttackInProgress ||
             ballCollection == null ||
+            turnQueueController == null ||
             turnManager == null)
         {
             return false;
         }
 
-        List<Ball> availableSnapshot =
-            ballCollection.CreateSnapshot();
+        turnQueueController
+            .EnsureQueuePrepared();
 
-        if (availableSnapshot.Count == 0)
+        int availableBallCount =
+            turnQueueController
+                .PreparedBallCount;
+
+        if (availableBallCount <= 0)
         {
             return false;
         }
@@ -356,14 +386,14 @@ public sealed class BallLauncher :
         }
 
         int launchableBallCount =
-            availableSnapshot.Count;
+            availableBallCount;
 
         if (ballSealController != null)
         {
             launchableBallCount =
                 ballSealController
                     .GetLaunchableBallCount(
-                        availableSnapshot.Count
+                        availableBallCount
                     );
         }
 
@@ -371,7 +401,7 @@ public sealed class BallLauncher :
             Mathf.Clamp(
                 launchableBallCount,
                 1,
-                availableSnapshot.Count
+                availableBallCount
             );
 
         currentTurnLaunchPosition =
@@ -387,12 +417,18 @@ public sealed class BallLauncher :
 
         currentLaunchSnapshot.Clear();
 
+        List<Ball> queueSnapshot =
+            turnQueueController
+                .CreateLaunchSnapshot(
+                    launchableBallCount
+                );
+
         for (int i = 0;
-             i < launchableBallCount;
+             i < queueSnapshot.Count;
              i++)
         {
             Ball ball =
-                availableSnapshot[i];
+                queueSnapshot[i];
 
             if (ball == null)
             {
@@ -431,6 +467,27 @@ public sealed class BallLauncher :
             currentLaunchSnapshot[
                 currentLaunchSnapshot.Count - 1
             ];
+
+        bool queueStarted =
+            turnQueueController.BeginLaunch(
+                plannedBallCount
+            );
+
+        if (!queueStarted)
+        {
+            Debug.LogError(
+                "BallLauncher: " +
+                "턴 발사 큐를 시작하지 못했습니다.",
+                this
+            );
+
+            isLaunching = false;
+            isAttackCompleted = true;
+
+            turnManager.NotifyAllBallsReturned();
+
+            return false;
+        }
 
         tempoController?.BeginAttack(
             plannedBallCount
@@ -478,6 +535,18 @@ public sealed class BallLauncher :
             );
 
             launchedBallCount++;
+
+            /*
+             * 실제 공을 발사한 직후
+             * 다음 공 큐를 한 칸 이동시킵니다.
+             *
+             * 이후 우측 하단 UI가 이 이벤트를 받아
+             * 오른쪽에서 왼쪽으로 이동하게 됩니다.
+             */
+            turnQueueController
+                ?.NotifyBallLaunched(
+                    ball
+                );
 
             NotifyRemainingBallsToLaunchChanged();
 
@@ -647,11 +716,6 @@ public sealed class BallLauncher :
 
         tempoController?.EndAttack();
 
-        /*
-         * 마지막 공이 복귀한 뒤
-         * 대기와 공 모으기 애니메이션을
-         * 하나의 종료 코루틴에서 처리한다.
-         */
         completeAttackCoroutine =
             StartCoroutine(
                 CompleteAttackAfterDelayRoutine()
@@ -728,13 +792,23 @@ public sealed class BallLauncher :
 
         currentLaunchSnapshot.Clear();
 
+        /*
+         * 다음 턴이 시작되기 전에
+         * 새로운 발사 순서를 미리 셔플합니다.
+         *
+         * 그래서 플레이어는 조준 전부터
+         * 다음 5개 공을 확인할 수 있습니다.
+         */
+        turnQueueController
+            ?.CompleteTurnAndPrepareNextQueue();
+
         LaunchCycleCompleted?.Invoke();
 
         turnManager?.NotifyAllBallsReturned();
 
         Debug.Log(
             "BallLauncher: 공 모으기 완료, " +
-            "다음 턴 처리를 시작합니다.",
+            "다음 턴 공 순서 셔플 완료",
             this
         );
     }
@@ -796,6 +870,9 @@ public sealed class BallLauncher :
                 launchBaselineY,
                 transform.position.z
             );
+
+        turnQueueController
+            ?.EnsureQueuePrepared();
 
         Debug.Log(
             "BallLauncher: 보스전 시작 상태 초기화, " +

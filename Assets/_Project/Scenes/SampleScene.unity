@@ -1661,17 +1661,20 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 904823806}
+  - component: {fileID: 904823816}
   - component: {fileID: 904823807}
   - component: {fileID: 904823809}
   - component: {fileID: 904823808}
   - component: {fileID: 904823811}
   - component: {fileID: 904823810}
+  - component: {fileID: 904823820}
   - component: {fileID: 904823812}
   - component: {fileID: 904823813}
   - component: {fileID: 904823814}
   - component: {fileID: 904823815}
-  - component: {fileID: 904823816}
   - component: {fileID: 904823817}
+  - component: {fileID: 904823818}
+  - component: {fileID: 904823819}
   m_Layer: 0
   m_Name: Launcher
   m_TagString: Untagged
@@ -1697,6 +1700,7 @@ Transform:
   - {fileID: 18714751}
   - {fileID: 1901578435}
   - {fileID: 2092661372}
+  - {fileID: 1980215018}
   m_Father: {fileID: 1312074106}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &904823807
@@ -1713,6 +1717,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallLauncher
   turnManager: {fileID: 1520316753}
   ballCollection: {fileID: 904823811}
+  turnQueueController: {fileID: 904823820}
   tempoController: {fileID: 904823810}
   ballSealController: {fileID: 904823812}
   gatherAnimator: {fileID: 904823813}
@@ -1813,7 +1818,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallCollection
   ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
-  startingBallCount: 1
+  startingBallCount: 5
   startingBallDefinition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
   runtimeStats: {fileID: 904823814}
 --- !u!114 &904823812
@@ -1907,7 +1912,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallDebugDrawController
   ballCollection: {fileID: 904823811}
   testDrawPool:
+  - {fileID: 11400000, guid: b42b339e0ba7ac9458fce3594b02f38f, type: 2}
   - {fileID: 11400000, guid: 63636733eacdb93438e2a244463993a5, type: 2}
+  - {fileID: 11400000, guid: ffbbcdb5fc72dda49903f540be0100b5, type: 2}
+  - {fileID: 11400000, guid: c8947fc0b1ab8fb4bb9a67a39d8acd32, type: 2}
+  - {fileID: 11400000, guid: e3d01e89eb05349489d0b121f09eda87, type: 2}
+  - {fileID: 11400000, guid: bf5de3ebba911764ab25c7c82bf8b685, type: 2}
   randomDrawAmount: 1
   enableDrawOneOfEach: 1
   showDebugLog: 1
@@ -1925,10 +1935,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ExplosionPatternVfxSpawner
   effectRoot: {fileID: 2092661372}
   lineMaterial: {fileID: 0}
-  lineColor: {r: 1, g: 0.42, b: 0.06, a: 0.95}
+  lineColor: {r: 1, g: 0.42, b: 0.06, a: 0.4}
   duration: 0.22
-  beamWidth: 0.13
-  tipWidthRatio: 0.25
+  beamWidth: 0.08
+  tipWidthRatio: 0.2
   innerGap: 0.06
   extendDurationRatio: 0.28
   fadeStartRatio: 0.3
@@ -1938,6 +1948,82 @@ MonoBehaviour:
   capVertices: 2
   prewarmCount: 16
   maximumPoolSize: 64
+--- !u!114 &904823818
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6efb8eafe3607af4a808303c26500c2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ElementReactionVfxSpawner
+  effectRoot: {fileID: 1980215018}
+  flashColor: {r: 1, g: 0.96, b: 0.5, a: 0.5019608}
+  flashScaleMultiplier: 1.08
+  lineMaterial: {fileID: 0}
+  boltColor: {r: 1, g: 0.88, b: 0.15, a: 0.69803923}
+  boltWidth: 0.055
+  boltJitter: 0.1
+  boundsPadding: 0.06
+  boltPointCount: 5
+  weakBoltCount: 2
+  mediumBoltCount: 3
+  strongBoltCount: 5
+  effectDuration: 0.22
+  boltRefreshInterval: 0.035
+  sortingOrderOffset: 5
+  zOffset: 0
+  prewarmCount: 8
+  maximumPoolCount: 32
+  maximumBoltCount: 8
+  showDebugLog: 0
+--- !u!114 &904823819
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 761987e852135ed4c98834d2ccdbf839, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ElementConductionVfxSpawner
+  effectRoot: {fileID: 1980215018}
+  lineMaterial: {fileID: 0}
+  lineColor: {r: 1, g: 0.88, b: 0.15, a: 1}
+  lineWidth: 0.12
+  linePointCount: 6
+  lineJitter: 0.12
+  targetFlashColor: {r: 1, g: 0.95, b: 0.4, a: 0.65}
+  targetFlashScale: 1.06
+  effectDuration: 0.7
+  lineRefreshInterval: 0.035
+  chainStepDelay: 0.12
+  sortingOrderOffset: 7
+  zOffset: 0
+  prewarmCount: 6
+  maximumPoolCount: 24
+  showDebugLog: 0
+--- !u!114 &904823820
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cd9e641ad086c4987f4f2ef394c08e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallTurnQueueController
+  ballCollection: {fileID: 904823811}
+  shuffleEveryTurn: 1
+  avoidIdenticalTurnOrder: 1
+  showDebugLog: 1
 --- !u!1 &987057995
 GameObject:
   m_ObjectHideFlags: 0
@@ -1952,6 +2038,8 @@ GameObject:
   - component: {fileID: 987057999}
   - component: {fileID: 987057998}
   - component: {fileID: 987058001}
+  - component: {fileID: 987058002}
+  - component: {fileID: 987058003}
   m_Layer: 0
   m_Name: BlockGridManager
   m_TagString: Untagged
@@ -1974,6 +2062,7 @@ Transform:
   m_Children:
   - {fileID: 568326274}
   - {fileID: 103751625}
+  - {fileID: 1909018867}
   m_Father: {fileID: 1312074106}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &987057997
@@ -1992,6 +2081,7 @@ MonoBehaviour:
   gridMover: {fileID: 987057999}
   enemyAttackCycle: {fileID: 987057998}
   enemyAttackSequence: {fileID: 987058001}
+  blockElementSystem: {fileID: 987058002}
   waveDirector:
     namedWaveInterval: 3
     namedHealthMultiplier: 3
@@ -2061,15 +2151,15 @@ MonoBehaviour:
       forcedSpecialDefinition: {fileID: 11400000, guid: 07a1e78f430ea7c48a1167689f7e7a9c, type: 2}
       forceSpawnEveryWaveInTestMode: 1
       forcedSpecialCount: 1
-    minimumRowsPerWave: 2
-    maximumRowsPerWave: 3
+    minimumRowsPerWave: 4
+    maximumRowsPerWave: 5
     minimumBlocksPerRow: 2
     maximumBlocksPerRow: 3
     minimumPillarColumns: 2
     maximumPillarColumns: 2
     extraColumnCarryChance: 0.65
   defaultWaveBlockType: 0
-  startingBlockHealth: 8
+  startingBlockHealth: 50
   healthIncreasePerWave: 2
   startingBlockAttack: 1
   attackIncreasePerWave: 0
@@ -2087,8 +2177,77 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAttackSequence
   attackLineEffect: {fileID: 103751623}
   playerHealth: {fileID: 858936749}
+  blockElementSystem: {fileID: 0}
   firstAttackDelay: 0.05
   intervalBetweenAttacks: 0.02
+--- !u!114 &987058002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987057995}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f66b046dce37d644b709fd83d32cbf0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlockElementSystem
+  burnDamageMultiplierPerStack: 0.25
+  burnStackDecayPerTurn: 1
+  burnDamageTextStyle: {fileID: 11400000, guid: 783d8a6f7319a71409347bb22f884535, type: 2}
+  mediumSpreadMinimumStack: 3
+  strongSpreadMinimumStack: 5
+  mediumSpreadTargetCount: 1
+  strongSpreadTargetCount: 2
+  spreadBurnStackAmount: 1
+  frozenShatterDamageMultiplier: 1
+  fireFrozenShatterDamageMultiplier: 1.5
+  frozenShatterDamageTextStyle: {fileID: 11400000, guid: ff69fc6f30fd4174db106d0f1fcc9df4, type: 2}
+  fireFrozenShatterDamageTextStyle: {fileID: 11400000, guid: dd3d075e5cb872844932784ddc03c78c, type: 2}
+  frozenShatterFrostSpreadAmount: 1
+  fireShatterBurnSpreadAmount: 1
+  blockGridManager: {fileID: 0}
+  showDebugLog: 0
+--- !u!114 &987058003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 987057995}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: abb74447ece90d542b2b01cc007195a1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FrozenShatterVfxSpawner
+  blockElementSystem: {fileID: 987058002}
+  effectRoot: {fileID: 1909018867}
+  lineMaterial: {fileID: 0}
+  normalShardStartColor: {r: 0.88235295, g: 0.98039216, b: 1, a: 1}
+  normalShardEndColor: {r: 0.19607843, g: 0.74509805, b: 1, a: 0.8627451}
+  normalFlashColor: {r: 0.7058824, g: 0.92156863, b: 1, a: 0.8235294}
+  normalShardCount: 7
+  fireShardStartColor: {r: 1, g: 0.96862745, b: 0.7058824, a: 1}
+  fireShardEndColor: {r: 1, g: 0.29411766, b: 0.078431375, a: 0.92156863}
+  fireFlashColor: {r: 1, g: 0.47058824, b: 0.13725491, a: 0.88235295}
+  fireShardCount: 9
+  playAttackCancelVfx: 1
+  attackCancelShardColor: {r: 0.78431374, g: 0.9607843, b: 1, a: 0.8039216}
+  attackCancelShardCount: 4
+  shardWidth: 0.055
+  shardRadiusMultiplier: 0.72
+  shardStartRadiusMultiplier: 0.12
+  shardJitter: 0.12
+  shardDuration: 0.28
+  flashStartScale: 0.88
+  flashEndScale: 1.16
+  flashDuration: 0.2
+  sortingOrderOffset: 12
+  prewarmLineCount: 24
+  maximumLineCount: 80
+  prewarmFlashCount: 4
+  maximumFlashCount: 16
+  showDebugLog: 0
 --- !u!1 &1004609278
 GameObject:
   m_ObjectHideFlags: 0
@@ -2937,6 +3096,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 904823806}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1909018866
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1909018867}
+  m_Layer: 0
+  m_Name: FrozenShatterVfxRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1909018867
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1909018866}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 987057996}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1965845129
 GameObject:
   m_ObjectHideFlags: 0
@@ -2960,6 +3150,37 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1965845129}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 904823806}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1980215017
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1980215018}
+  m_Layer: 0
+  m_Name: ElementReactionVfxRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1980215018
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1980215017}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
