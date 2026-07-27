@@ -8,6 +8,12 @@ public sealed class ElementalBallEffect :
     [SerializeField]
     private bool showDebugLog;
 
+    private static ElementReactionVfxSpawner
+        cachedReactionVfxSpawner;
+
+    private static bool
+        hasWarnedMissingVfxSpawner;
+
     private ElementalBallTraitDefinition
         elementalDefinition;
 
@@ -47,7 +53,7 @@ public sealed class ElementalBallEffect :
             context.Block;
 
         /*
-         * 1. 직접 피해부터 적용합니다.
+         * 1. 직접 피해를 적용합니다.
          *
          * ApplyDamage의 반환값은 실제로 감소한 체력입니다.
          * 쉴드에 막히면 0이 반환됩니다.
@@ -61,9 +67,9 @@ public sealed class ElementalBallEffect :
 
         /*
          * 쉴드나 무적 효과로 체력이 감소하지 않았다면
-         * 신규 스택과 감전을 모두 처리하지 않습니다.
+         * 신규 속성 스택과 감전을 처리하지 않습니다.
          *
-         * 기존에 있던 스택은 건드리지 않습니다.
+         * 기존에 있던 스택은 그대로 유지합니다.
          */
         if (appliedDirectDamage <= 0)
         {
@@ -84,9 +90,6 @@ public sealed class ElementalBallEffect :
         /*
          * 직접 피해로 블록이 파괴됐다면
          * 신규 스택을 적용하지 않습니다.
-         *
-         * 기존 스택은 BlockElementStatus가
-         * Block.Destroyed 이벤트를 받아 초기화합니다.
          */
         if (targetBlock == null ||
             !targetBlock.IsAlive)
@@ -123,9 +126,9 @@ public sealed class ElementalBallEffect :
             );
 
         /*
-         * 2. 속성 스택 추가
-         * 3. 젖음·전하 반응
-         * 4. 최종 잔여 스택 반영
+         * 2. 속성 스택을 추가합니다.
+         * 3. 젖음과 전하를 반응시킵니다.
+         * 4. 반응 후 남은 최종 스택을 반영합니다.
          */
         ElementReactionResult reactionResult =
             ElementReactionResolver
@@ -166,8 +169,19 @@ public sealed class ElementalBallEffect :
         }
 
         /*
-         * 감전 피해는 기존 직접 피해 숫자와 분리된
-         * Style_Damage_Electrocution을 사용합니다.
+         * 감전 피해를 적용하기 전에 시각 정보를 복사합니다.
+         *
+         * 감전 피해로 블록이 파괴되더라도
+         * VFX는 Spawner 아래에서 독립적으로 끝까지 재생됩니다.
+         */
+        PlayElectrocutionVfx(
+            targetBlock,
+            reactionResult.ReactionCount
+        );
+
+        /*
+         * 감전 추가 피해는 직접 피해와 구분하여
+         * Style_Damage_Electrocution으로 표시합니다.
          */
         CombatController.ApplyDamage(
             targetBlock,
@@ -177,13 +191,57 @@ public sealed class ElementalBallEffect :
                 .ElectrocutionDamageTextStyle
         );
 
-        /*
-         * 감전 피해로 블록이 파괴되면
-         * BlockElementStatus가 Destroyed 이벤트를 받아
-         * 남은 스택을 모두 초기화합니다.
-         */
         return BallHitResult
             .HandledWithBounce();
+    }
+
+    private void PlayElectrocutionVfx(
+        Block targetBlock,
+        int reactionCount)
+    {
+        if (targetBlock == null ||
+            reactionCount <= 0)
+        {
+            return;
+        }
+
+        if (cachedReactionVfxSpawner == null)
+        {
+            cachedReactionVfxSpawner =
+                Object.FindFirstObjectByType<
+                    ElementReactionVfxSpawner
+                >();
+        }
+
+        if (cachedReactionVfxSpawner != null)
+        {
+            cachedReactionVfxSpawner
+                .PlayElectrocution(
+                    targetBlock,
+                    reactionCount
+                );
+
+            return;
+        }
+
+        if (hasWarnedMissingVfxSpawner)
+        {
+            return;
+        }
+
+        hasWarnedMissingVfxSpawner =
+            true;
+
+        if (showDebugLog)
+        {
+            Debug.LogWarning(
+                "ElementalBallEffect: " +
+                "Scene에서 ElementReactionVfxSpawner를 " +
+                "찾지 못했습니다. 감전 계산과 피해는 " +
+                "정상 처리되지만 VFX는 재생되지 않습니다.",
+                this
+            );
+        }
     }
 
     private static BlockElementStatus
