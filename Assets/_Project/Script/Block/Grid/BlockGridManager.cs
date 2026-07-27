@@ -7,6 +7,7 @@ using UnityEngine;
 [RequireComponent(typeof(BlockGridMover))]
 [RequireComponent(typeof(EnemyAttackCycle))]
 [RequireComponent(typeof(EnemyAttackSequence))]
+[RequireComponent(typeof(BlockElementSystem))]
 public sealed class BlockGridManager :
     MonoBehaviour
 {
@@ -22,6 +23,9 @@ public sealed class BlockGridManager :
 
     [SerializeField]
     private EnemyAttackSequence enemyAttackSequence;
+
+    [SerializeField]
+    private BlockElementSystem blockElementSystem;
 
     [Header("Wave Progression")]
     [SerializeField]
@@ -115,6 +119,7 @@ public sealed class BlockGridManager :
     private void OnValidate()
     {
         EnsureServices();
+        FindComponents();
         NormalizeSettings();
     }
 
@@ -153,25 +158,41 @@ public sealed class BlockGridManager :
         if (waveGenerator == null)
         {
             waveGenerator =
-                GetComponent<BlockWaveGenerator>();
+                GetComponent<
+                    BlockWaveGenerator
+                >();
         }
 
         if (gridMover == null)
         {
             gridMover =
-                GetComponent<BlockGridMover>();
+                GetComponent<
+                    BlockGridMover
+                >();
         }
 
         if (enemyAttackCycle == null)
         {
             enemyAttackCycle =
-                GetComponent<EnemyAttackCycle>();
+                GetComponent<
+                    EnemyAttackCycle
+                >();
         }
 
         if (enemyAttackSequence == null)
         {
             enemyAttackSequence =
-                GetComponent<EnemyAttackSequence>();
+                GetComponent<
+                    EnemyAttackSequence
+                >();
+        }
+
+        if (blockElementSystem == null)
+        {
+            blockElementSystem =
+                GetComponent<
+                    BlockElementSystem
+                >();
         }
     }
 
@@ -212,6 +233,15 @@ public sealed class BlockGridManager :
                 this
             );
         }
+
+        if (blockElementSystem == null)
+        {
+            Debug.LogError(
+                "BlockGridManager: " +
+                "BlockElementSystem을 찾지 못했습니다.",
+                this
+            );
+        }
     }
 
     private void CreateEnemyPhaseResolver()
@@ -243,6 +273,7 @@ public sealed class BlockGridManager :
             gridMover == null ||
             enemyAttackCycle == null ||
             enemyAttackSequence == null ||
+            blockElementSystem == null ||
             enemyPhaseResolver == null)
         {
             return false;
@@ -321,6 +352,20 @@ public sealed class BlockGridManager :
         blockRegistry.RemoveInvalidBlocks();
 
         currentTurn++;
+
+        /*
+         * 화상은 적 공격 주기와 무관하게
+         * 매 플레이어 턴 종료 시 처리합니다.
+         */
+        blockElementSystem.ResolveTurnEffects(
+            blockRegistry.ActiveBlocks
+        );
+
+        /*
+         * 화상 피해로 파괴된 블록을
+         * 공격 및 이동 대상에서 제거합니다.
+         */
+        blockRegistry.RemoveInvalidBlocks();
 
         if (bossMode.IsActive)
         {

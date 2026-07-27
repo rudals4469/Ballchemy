@@ -12,6 +12,9 @@ public sealed class EnemyAttackSequence : MonoBehaviour
     [SerializeField]
     private PlayerHealth playerHealth;
 
+    [SerializeField]
+    private BlockElementSystem blockElementSystem;
+
     [Header("Sequence Timing")]
     [Tooltip(
         "적 공격 턴이 시작된 뒤 " +
@@ -31,7 +34,8 @@ public sealed class EnemyAttackSequence : MonoBehaviour
         playerHealth != null &&
         playerHealth.IsDead;
 
-    public event Action<Block, int> BlockAttackTriggered;
+    public event Action<Block, int>
+        BlockAttackTriggered;
 
     private void Awake()
     {
@@ -46,13 +50,41 @@ public sealed class EnemyAttackSequence : MonoBehaviour
             attackLineEffect =
                 GetComponentInChildren<
                     EnemyAttackLineEffect
-                >(true);
+                >(
+                    true
+                );
         }
 
         if (playerHealth == null)
         {
             playerHealth =
-                FindFirstObjectByType<PlayerHealth>();
+                FindFirstObjectByType<
+                    PlayerHealth
+                >();
+        }
+
+        if (blockElementSystem == null)
+        {
+            blockElementSystem =
+                GetComponent<
+                    BlockElementSystem
+                >();
+        }
+
+        if (blockElementSystem == null)
+        {
+            blockElementSystem =
+                GetComponentInParent<
+                    BlockElementSystem
+                >();
+        }
+
+        if (blockElementSystem == null)
+        {
+            blockElementSystem =
+                FindFirstObjectByType<
+                    BlockElementSystem
+                >();
         }
     }
 
@@ -73,6 +105,16 @@ public sealed class EnemyAttackSequence : MonoBehaviour
             Debug.LogWarning(
                 "EnemyAttackSequence: " +
                 "PlayerHealth가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (blockElementSystem == null)
+        {
+            Debug.LogWarning(
+                "EnemyAttackSequence: " +
+                "BlockElementSystem을 찾지 못했습니다. " +
+                "동결 공격 취소가 적용되지 않습니다.",
                 this
             );
         }
@@ -100,7 +142,8 @@ public sealed class EnemyAttackSequence : MonoBehaviour
             );
         }
 
-        foreach (Block attackingBlock in attackers)
+        foreach (Block attackingBlock
+                 in attackers)
         {
             if (IsTargetDead)
             {
@@ -130,6 +173,33 @@ public sealed class EnemyAttackSequence : MonoBehaviour
                 continue;
             }
 
+            /*
+             * 실제 공격력을 가진 블록이 공격하려는 순간
+             * 동결을 소비하고 해당 공격을 취소합니다.
+             */
+            if (blockElementSystem != null &&
+                blockElementSystem
+                    .TryConsumeFrozenAttack(
+                        attackingBlock
+                    ))
+            {
+                Debug.Log(
+                    "EnemyAttackSequence: " +
+                    $"{attackingBlock.name}이 동결되어 " +
+                    "이번 공격을 건너뜁니다.",
+                    attackingBlock
+                );
+
+                if (intervalBetweenAttacks > 0f)
+                {
+                    yield return new WaitForSeconds(
+                        intervalBetweenAttacks
+                    );
+                }
+
+                continue;
+            }
+
             bool damageApplied = false;
 
             if (attackLineEffect != null)
@@ -154,8 +224,6 @@ public sealed class EnemyAttackSequence : MonoBehaviour
                     );
             }
 
-            // 레이저 효과가 없거나 효과에서
-            // 충돌 콜백이 실행되지 않은 경우를 대비한다.
             if (!damageApplied)
             {
                 damageApplied = true;
@@ -204,6 +272,21 @@ public sealed class EnemyAttackSequence : MonoBehaviour
                 continue;
             }
 
+            /*
+             * 동결 블록은 다음 공격을 취소하므로
+             * 예상 총 공격력에서도 제외합니다.
+             */
+            BlockElementStatus status =
+                block.GetComponent<
+                    BlockElementStatus
+                >();
+
+            if (status != null &&
+                status.IsFrozen)
+            {
+                continue;
+            }
+
             totalAttackPower +=
                 Mathf.Max(
                     0,
@@ -234,7 +317,13 @@ public sealed class EnemyAttackSequence : MonoBehaviour
                 continue;
             }
 
-            result.Add(block);
+            /*
+             * 동결 블록도 스냅샷에는 포함해야
+             * 실제 차례에서 동결을 소비할 수 있습니다.
+             */
+            result.Add(
+                block
+            );
         }
 
         return result;

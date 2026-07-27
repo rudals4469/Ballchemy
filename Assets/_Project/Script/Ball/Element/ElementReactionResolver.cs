@@ -49,8 +49,13 @@ public static class ElementReactionResolver
         int burnStackBefore =
             status.BurnStack;
 
+        /*
+         * 동결 시 FrostStack은 시각 표현을 위해
+         * 최대 스택을 반환하므로 실제 반응 계산에는
+         * StoredFrostStack을 사용합니다.
+         */
         int frostStackBefore =
-            status.FrostStack;
+            status.StoredFrostStack;
 
         int resolvedWetStack =
             wetStackBefore;
@@ -130,6 +135,15 @@ public static class ElementReactionResolver
 
             case ElementType.Ice:
             {
+                /*
+                 * 이미 동결된 블록에는 냉기를 추가로
+                 * 누적하지 않습니다.
+                 */
+                if (status.IsFrozen)
+                {
+                    break;
+                }
+
                 int previousStack =
                     resolvedFrostStack;
 
@@ -208,6 +222,10 @@ public static class ElementReactionResolver
             case ElementType.Fire:
             case ElementType.Ice:
             {
+                /*
+                 * 동결은 일반 냉기 스택으로 취급하지 않습니다.
+                 * 동결 + 불은 추후 강화 파쇄에서 처리합니다.
+                 */
                 reactionCount =
                     Mathf.Min(
                         resolvedBurnStack,
@@ -261,16 +279,30 @@ public static class ElementReactionResolver
             resolvedFrostStack
         );
 
+        /*
+         * 반응 후 실제 화상이 남아 있을 때만
+         * 화상 피해 원본을 보존합니다.
+         */
+        if (appliedElement ==
+                ElementType.Fire &&
+            appliedElementStack > 0 &&
+            status.BurnStack > 0)
+        {
+            status.RegisterBurnSourceDamage(
+                directDamage
+            );
+        }
+
         return new ElementReactionResult(
             appliedElement,
             wetStackBefore,
             chargeStackBefore,
             burnStackBefore,
             frostStackBefore,
-            resolvedWetStack,
-            resolvedChargeStack,
-            resolvedBurnStack,
-            resolvedFrostStack,
+            status.WetStack,
+            status.ChargeStack,
+            status.BurnStack,
+            status.StoredFrostStack,
             appliedElementStack,
             reactionKind,
             reactionCount,

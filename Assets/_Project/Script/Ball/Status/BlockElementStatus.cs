@@ -23,6 +23,18 @@ public sealed class BlockElementStatus : MonoBehaviour
     [SerializeField, Min(0)]
     private int frostStack;
 
+    [Header("Frozen")]
+    [SerializeField]
+    private bool isFrozen;
+
+    [Header("Burn Runtime Data")]
+    [Tooltip(
+        "현재 화상 피해 계산에 사용하는 " +
+        "가장 강한 불 공의 직접 피해입니다."
+    )]
+    [SerializeField, Min(0)]
+    private int burnSourceDirectDamage;
+
     private Block block;
 
     public int MaximumStack =>
@@ -37,8 +49,27 @@ public sealed class BlockElementStatus : MonoBehaviour
     public int BurnStack =>
         burnStack;
 
+    /*
+     * 동결 상태에서는 기존 Surface View가
+     * 강한 얼음 효과를 표시할 수 있도록
+     * FrostStack을 최대치로 반환합니다.
+     *
+     * 실제 반응 계산에서는 StoredFrostStack을
+     * 사용해야 합니다.
+     */
     public int FrostStack =>
+        isFrozen
+            ? maximumStack
+            : frostStack;
+
+    public int StoredFrostStack =>
         frostStack;
+
+    public int BurnSourceDirectDamage =>
+        burnSourceDirectDamage;
+
+    public bool IsFrozen =>
+        isFrozen;
 
     public bool HasWet =>
         wetStack > 0;
@@ -50,6 +81,7 @@ public sealed class BlockElementStatus : MonoBehaviour
         burnStack > 0;
 
     public bool HasFrost =>
+        !isFrozen &&
         frostStack > 0;
 
     public bool HasBorderStack =>
@@ -58,7 +90,8 @@ public sealed class BlockElementStatus : MonoBehaviour
 
     public bool HasSurfaceStack =>
         burnStack > 0 ||
-        frostStack > 0;
+        frostStack > 0 ||
+        isFrozen;
 
     public bool HasAnyStack =>
         HasBorderStack ||
@@ -89,6 +122,11 @@ public sealed class BlockElementStatus : MonoBehaviour
     {
         get
         {
+            if (isFrozen)
+            {
+                return ElementType.Ice;
+            }
+
             if (!HasSurfaceStack)
             {
                 return null;
@@ -100,15 +138,24 @@ public sealed class BlockElementStatus : MonoBehaviour
         }
     }
 
-    public int SurfaceStack =>
-        Mathf.Max(
-            burnStack,
-            frostStack
-        );
+    public int SurfaceStack
+    {
+        get
+        {
+            if (isFrozen)
+            {
+                return maximumStack;
+            }
+
+            return Mathf.Max(
+                burnStack,
+                frostStack
+            );
+        }
+    }
 
     /*
-     * 기존 코드와의 호환성을 위해 유지합니다.
-     * 기존 Dominant 값은 물·전기 외곽 채널을 뜻합니다.
+     * 기존 물·번개 View와의 호환용 프로퍼티입니다.
      */
     public ElementType? DominantElement =>
         BorderElement;
@@ -121,6 +168,12 @@ public sealed class BlockElementStatus : MonoBehaviour
 
     public event Action<BlockElementStatus>
         StatusCleared;
+
+    public event Action<BlockElementStatus>
+        FrozenApplied;
+
+    public event Action<BlockElementStatus>
+        FrozenConsumed;
 
     private void Awake()
     {
@@ -194,6 +247,22 @@ public sealed class BlockElementStatus : MonoBehaviour
                 0,
                 maximumStack
             );
+
+        burnSourceDirectDamage =
+            Mathf.Max(
+                burnSourceDirectDamage,
+                0
+            );
+
+        if (isFrozen)
+        {
+            frostStack = 0;
+        }
+
+        if (burnStack <= 0)
+        {
+            burnSourceDirectDamage = 0;
+        }
     }
 
     private void SubscribeBlockEvents()
@@ -263,19 +332,73 @@ public sealed class BlockElementStatus : MonoBehaviour
     public int AddBurn(
         int amount)
     {
-        return AddStack(
-            ref burnStack,
-            amount
+        return AddBurn(
+            amount,
+            0
         );
+    }
+
+    public int AddBurn(
+        int amount,
+        int sourceDirectDamage)
+    {
+        int appliedAmount =
+            AddStack(
+                ref burnStack,
+                amount
+            );
+
+        if (appliedAmount > 0)
+        {
+            RegisterBurnSourceDamage(
+                sourceDirectDamage
+            );
+        }
+
+        return appliedAmount;
     }
 
     public int AddFrost(
         int amount)
     {
-        return AddStack(
-            ref frostStack,
-            amount
-        );
+        if (amount <= 0 ||
+            isFrozen)
+        {
+            return 0;
+        }
+
+        int previousStack =
+            frostStack;
+
+        frostStack =
+            Mathf.Clamp(
+                frostStack + amount,
+                0,
+                maximumStack
+            );
+
+        int appliedAmount =
+            frostStack -
+            previousStack;
+
+        if (appliedAmount <= 0)
+        {
+            return 0;
+        }
+
+        bool becameFrozen =
+            TryConvertFrostToFrozen();
+
+        NotifyStatusChanged();
+
+        if (becameFrozen)
+        {
+            FrozenApplied?.Invoke(
+                this
+            );
+        }
+
+        return appliedAmount;
     }
 
     public int ConsumeWet(
@@ -299,19 +422,67 @@ public sealed class BlockElementStatus : MonoBehaviour
     public int ConsumeBurn(
         int amount)
     {
-        return ConsumeStack(
-            ref burnStack,
-            amount
-        );
+        int consumedAmount =
+            ConsumeStack(
+                ref burnStack,
+                amount
+            );
+
+        if (burnStack <= 0)
+        {
+            burnSourceDirectDamage = 0;
+        }
+
+        return consumedAmount;
     }
 
     public int ConsumeFrost(
         int amount)
     {
+        if (isFrozen)
+        {
+            return 0;
+        }
+
         return ConsumeStack(
             ref frostStack,
             amount
         );
+    }
+
+    public void RegisterBurnSourceDamage(
+        int sourceDirectDamage)
+    {
+        if (burnStack <= 0 ||
+            sourceDirectDamage <= 0)
+        {
+            return;
+        }
+
+        burnSourceDirectDamage =
+            Mathf.Max(
+                burnSourceDirectDamage,
+                sourceDirectDamage
+            );
+    }
+
+    public bool ConsumeFrozen()
+    {
+        if (!isFrozen)
+        {
+            return false;
+        }
+
+        isFrozen = false;
+        frostStack = 0;
+
+        FrozenConsumed?.Invoke(
+            this
+        );
+
+        NotifyStatusChanged();
+
+        return true;
     }
 
     private int AddStack(
@@ -376,10 +547,6 @@ public sealed class BlockElementStatus : MonoBehaviour
         return consumedAmount;
     }
 
-    /*
-     * 모든 속성 추가와 반응 계산이 끝난 뒤
-     * 최종 상태를 한 번만 시각 시스템에 전달합니다.
-     */
     public void ApplyResolvedStacks(
         int resolvedWetStack,
         int resolvedChargeStack,
@@ -414,14 +581,38 @@ public sealed class BlockElementStatus : MonoBehaviour
                 maximumStack
             );
 
-        if (wetStack ==
-                resolvedWetStack &&
-            chargeStack ==
-                resolvedChargeStack &&
-            burnStack ==
-                resolvedBurnStack &&
-            frostStack ==
-                resolvedFrostStack)
+        /*
+         * 이미 동결된 동안 추가 냉기는 쌓이지 않습니다.
+         * 직접 타격 파쇄 기능이 붙으면 동결이 먼저 깨지고
+         * 이후 냉기 적용 여부를 다시 처리합니다.
+         */
+        if (isFrozen)
+        {
+            resolvedFrostStack = 0;
+        }
+
+        bool shouldBecomeFrozen =
+            !isFrozen &&
+            resolvedFrostStack >=
+            maximumStack;
+
+        if (shouldBecomeFrozen)
+        {
+            resolvedFrostStack = 0;
+        }
+
+        bool hasChanged =
+            wetStack !=
+                resolvedWetStack ||
+            chargeStack !=
+                resolvedChargeStack ||
+            burnStack !=
+                resolvedBurnStack ||
+            frostStack !=
+                resolvedFrostStack ||
+            shouldBecomeFrozen;
+
+        if (!hasChanged)
         {
             return;
         }
@@ -438,12 +629,26 @@ public sealed class BlockElementStatus : MonoBehaviour
         frostStack =
             resolvedFrostStack;
 
+        if (shouldBecomeFrozen)
+        {
+            isFrozen = true;
+        }
+
+        if (burnStack <= 0)
+        {
+            burnSourceDirectDamage = 0;
+        }
+
         NotifyStatusChanged();
+
+        if (shouldBecomeFrozen)
+        {
+            FrozenApplied?.Invoke(
+                this
+            );
+        }
     }
 
-    /*
-     * 기존 물·전기 코드와의 호환용 오버로드입니다.
-     */
     public void ApplyResolvedStacks(
         int resolvedWetStack,
         int resolvedChargeStack)
@@ -456,9 +661,25 @@ public sealed class BlockElementStatus : MonoBehaviour
         );
     }
 
+    private bool TryConvertFrostToFrozen()
+    {
+        if (isFrozen ||
+            frostStack <
+            maximumStack)
+        {
+            return false;
+        }
+
+        frostStack = 0;
+        isFrozen = true;
+
+        return true;
+    }
+
     public void Clear()
     {
-        if (!HasAnyStack)
+        if (!HasAnyStack &&
+            burnSourceDirectDamage <= 0)
         {
             return;
         }
@@ -467,6 +688,10 @@ public sealed class BlockElementStatus : MonoBehaviour
         chargeStack = 0;
         burnStack = 0;
         frostStack = 0;
+
+        isFrozen = false;
+
+        burnSourceDirectDamage = 0;
 
         StatusCleared?.Invoke(
             this
