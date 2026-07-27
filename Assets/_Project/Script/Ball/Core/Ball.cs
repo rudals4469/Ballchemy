@@ -393,8 +393,32 @@ public sealed class Ball :
         return true;
     }
 
+    /*
+     * 센서 기반 관통 적중도 기존 충돌 적중과 동일하게
+     * 전역 BlockHitOccurred 이벤트를 발생시킨다.
+     */
+    public void NotifyBlockHitHandled()
+    {
+        BlockHitOccurred?.Invoke(
+            this
+        );
+    }
+
+    private void ClearPiercingSensorRuntime()
+    {
+        PiercingBallSensor
+            piercingSensor =
+                GetComponent<
+                    PiercingBallSensor
+                >();
+
+        piercingSensor?.ClearRuntimeContacts();
+    }
+
     private void StopMovement()
     {
+        ClearPiercingSensorRuntime();
+
         if (isMoving)
         {
             activeMovingBallCount =
@@ -480,9 +504,7 @@ public sealed class Ball :
         if (hitBlock != null &&
             hitResult.WasHandled)
         {
-            BlockHitOccurred?.Invoke(
-                this
-            );
+            NotifyBlockHitHandled();
         }
     }
 
@@ -650,8 +672,15 @@ public sealed class Ball :
         );
     }
 
+    private void OnDisable()
+    {
+        ClearPiercingSensorRuntime();
+    }
+
     private void OnDestroy()
     {
+        ClearPiercingSensorRuntime();
+
         if (!isMoving)
         {
             return;

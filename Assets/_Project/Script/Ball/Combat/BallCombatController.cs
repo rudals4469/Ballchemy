@@ -474,12 +474,17 @@ public sealed class BallCombatController : MonoBehaviour
                     ElementalBallEffect
                 );
 
+            case BallTraitType.Piercing:
+                return typeof(
+                    PiercingBallEffect
+                );
+
             default:
                 if (showDebugLog)
                 {
                     Debug.LogWarning(
                         "BallCombatController: " +
-                        $"{traitType} 효과가 아직 구현되지 않아 " +
+                        $"{traitType} 효과가 구현되지 않아 " +
                         "BasicBallEffect를 사용합니다.",
                         this
                     );
