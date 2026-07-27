@@ -38,6 +38,26 @@ public sealed class ElementalBallTraitDefinition :
     private BallDamageTextStyleDefinition
         electrocutionDamageTextStyle;
 
+    [Header("Wet Conduction")]
+    [Tooltip(
+        "번개 공으로 감전을 발생시켰을 때 " +
+        "연결된 젖은 블록으로 전도할지 결정합니다."
+    )]
+    [SerializeField]
+    private bool enableWetConduction = true;
+
+    [Tooltip(
+        "한 번의 감전으로 전도할 수 있는 최대 블록 수입니다."
+    )]
+    [SerializeField, Range(1, 3)]
+    private int maximumConductionTargets = 3;
+
+    [Tooltip(
+        "전도 피해가 성공했을 때 대상에게서 소비할 젖음 스택입니다."
+    )]
+    [SerializeField, Min(1)]
+    private int wetStackCostPerTarget = 1;
+
     [Header("Thermal Shock")]
     [Tooltip(
         "열충격 한 쌍당 직접 피해에 곱하는 배율입니다."
@@ -65,6 +85,15 @@ public sealed class ElementalBallTraitDefinition :
     public BallDamageTextStyleDefinition
         ElectrocutionDamageTextStyle =>
             electrocutionDamageTextStyle;
+
+    public bool EnableWetConduction =>
+        enableWetConduction;
+
+    public int MaximumConductionTargets =>
+        maximumConductionTargets;
+
+    public int WetStackCostPerTarget =>
+        wetStackCostPerTarget;
 
     public float ThermalShockDamageMultiplier =>
         thermalShockDamageMultiplier;
@@ -116,6 +145,19 @@ public sealed class ElementalBallTraitDefinition :
             Mathf.Max(
                 electrocutionDamageMultiplier,
                 0f
+            );
+
+        maximumConductionTargets =
+            Mathf.Clamp(
+                maximumConductionTargets,
+                1,
+                3
+            );
+
+        wetStackCostPerTarget =
+            Mathf.Max(
+                wetStackCostPerTarget,
+                1
             );
 
         thermalShockDamageMultiplier =
