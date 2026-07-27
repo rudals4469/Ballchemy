@@ -18,7 +18,7 @@ MonoBehaviour:
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: de24924ef56b3304fb169c59ff1307a0, type: 2}
   sprite: {fileID: 0}
-  color: {r: 1, g: 1, b: 1, a: 1}
+  color: {r: 0.9137255, g: 0.58431375, b: 0.30588236, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
   damageTextStyle: {fileID: 11400000, guid: 2084ead34c5fbf24f94f69410684edaa, type: 2}
   selectionWeight: 1

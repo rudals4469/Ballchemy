@@ -9,12 +9,19 @@ public sealed class BlockElementStatus : MonoBehaviour
     [SerializeField, Min(1)]
     private int maximumStack = 6;
 
-    [Header("Runtime Status")]
+    [Header("Border Channel")]
     [SerializeField, Min(0)]
     private int wetStack;
 
     [SerializeField, Min(0)]
     private int chargeStack;
+
+    [Header("Surface Channel")]
+    [SerializeField, Min(0)]
+    private int burnStack;
+
+    [SerializeField, Min(0)]
+    private int frostStack;
 
     private Block block;
 
@@ -27,26 +34,41 @@ public sealed class BlockElementStatus : MonoBehaviour
     public int ChargeStack =>
         chargeStack;
 
+    public int BurnStack =>
+        burnStack;
+
+    public int FrostStack =>
+        frostStack;
+
     public bool HasWet =>
         wetStack > 0;
 
     public bool HasCharge =>
         chargeStack > 0;
 
-    public bool HasAnyStack =>
+    public bool HasBurn =>
+        burnStack > 0;
+
+    public bool HasFrost =>
+        frostStack > 0;
+
+    public bool HasBorderStack =>
         wetStack > 0 ||
         chargeStack > 0;
 
-    /*
-     * 반응 계산이 끝난 뒤에는 젖음과 전하 중
-     * 하나만 남거나 둘 다 0이 됩니다.
-     */
-    public ElementType? DominantElement
+    public bool HasSurfaceStack =>
+        burnStack > 0 ||
+        frostStack > 0;
+
+    public bool HasAnyStack =>
+        HasBorderStack ||
+        HasSurfaceStack;
+
+    public ElementType? BorderElement
     {
         get
         {
-            if (wetStack <= 0 &&
-                chargeStack <= 0)
+            if (!HasBorderStack)
             {
                 return null;
             }
@@ -57,22 +79,42 @@ public sealed class BlockElementStatus : MonoBehaviour
         }
     }
 
-    public int DominantStack
+    public int BorderStack =>
+        Mathf.Max(
+            wetStack,
+            chargeStack
+        );
+
+    public ElementType? SurfaceElement
     {
         get
         {
-            if (wetStack <= 0 &&
-                chargeStack <= 0)
+            if (!HasSurfaceStack)
             {
-                return 0;
+                return null;
             }
 
-            return Mathf.Max(
-                wetStack,
-                chargeStack
-            );
+            return burnStack >= frostStack
+                ? ElementType.Fire
+                : ElementType.Ice;
         }
     }
+
+    public int SurfaceStack =>
+        Mathf.Max(
+            burnStack,
+            frostStack
+        );
+
+    /*
+     * 기존 코드와의 호환성을 위해 유지합니다.
+     * 기존 Dominant 값은 물·전기 외곽 채널을 뜻합니다.
+     */
+    public ElementType? DominantElement =>
+        BorderElement;
+
+    public int DominantStack =>
+        BorderStack;
 
     public event Action<BlockElementStatus>
         StatusChanged;
@@ -94,10 +136,6 @@ public sealed class BlockElementStatus : MonoBehaviour
 
     private void OnDisable()
     {
-        /*
-         * 오브젝트가 비활성화되거나 풀로 돌아가는 경우에도
-         * 이전 블록의 속성 상태가 남지 않게 초기화합니다.
-         */
         Clear();
         UnsubscribeBlockEvents();
     }
@@ -139,6 +177,20 @@ public sealed class BlockElementStatus : MonoBehaviour
         chargeStack =
             Mathf.Clamp(
                 chargeStack,
+                0,
+                maximumStack
+            );
+
+        burnStack =
+            Mathf.Clamp(
+                burnStack,
+                0,
+                maximumStack
+            );
+
+        frostStack =
+            Mathf.Clamp(
+                frostStack,
                 0,
                 maximumStack
             );
@@ -193,53 +245,96 @@ public sealed class BlockElementStatus : MonoBehaviour
     public int AddWet(
         int amount)
     {
-        if (amount <= 0)
-        {
-            return 0;
-        }
-
-        int previousStack =
-            wetStack;
-
-        wetStack =
-            Mathf.Clamp(
-                wetStack + amount,
-                0,
-                maximumStack
-            );
-
-        int appliedAmount =
-            wetStack -
-            previousStack;
-
-        if (appliedAmount > 0)
-        {
-            NotifyStatusChanged();
-        }
-
-        return appliedAmount;
+        return AddStack(
+            ref wetStack,
+            amount
+        );
     }
 
     public int AddCharge(
         int amount)
     {
+        return AddStack(
+            ref chargeStack,
+            amount
+        );
+    }
+
+    public int AddBurn(
+        int amount)
+    {
+        return AddStack(
+            ref burnStack,
+            amount
+        );
+    }
+
+    public int AddFrost(
+        int amount)
+    {
+        return AddStack(
+            ref frostStack,
+            amount
+        );
+    }
+
+    public int ConsumeWet(
+        int amount)
+    {
+        return ConsumeStack(
+            ref wetStack,
+            amount
+        );
+    }
+
+    public int ConsumeCharge(
+        int amount)
+    {
+        return ConsumeStack(
+            ref chargeStack,
+            amount
+        );
+    }
+
+    public int ConsumeBurn(
+        int amount)
+    {
+        return ConsumeStack(
+            ref burnStack,
+            amount
+        );
+    }
+
+    public int ConsumeFrost(
+        int amount)
+    {
+        return ConsumeStack(
+            ref frostStack,
+            amount
+        );
+    }
+
+    private int AddStack(
+        ref int currentStack,
+        int amount)
+    {
         if (amount <= 0)
         {
             return 0;
         }
 
         int previousStack =
-            chargeStack;
+            currentStack;
 
-        chargeStack =
+        currentStack =
             Mathf.Clamp(
-                chargeStack + amount,
+                currentStack + amount,
                 0,
                 maximumStack
             );
 
         int appliedAmount =
-            chargeStack -
+            currentStack -
             previousStack;
 
         if (appliedAmount > 0)
@@ -250,57 +345,28 @@ public sealed class BlockElementStatus : MonoBehaviour
         return appliedAmount;
     }
 
-    public int ConsumeWet(
+    private int ConsumeStack(
+        ref int currentStack,
         int amount)
     {
         if (amount <= 0 ||
-            wetStack <= 0)
+            currentStack <= 0)
         {
             return 0;
         }
 
         int previousStack =
-            wetStack;
+            currentStack;
 
-        wetStack =
+        currentStack =
             Mathf.Max(
-                wetStack - amount,
+                currentStack - amount,
                 0
             );
 
         int consumedAmount =
             previousStack -
-            wetStack;
-
-        if (consumedAmount > 0)
-        {
-            NotifyStatusChanged();
-        }
-
-        return consumedAmount;
-    }
-
-    public int ConsumeCharge(
-        int amount)
-    {
-        if (amount <= 0 ||
-            chargeStack <= 0)
-        {
-            return 0;
-        }
-
-        int previousStack =
-            chargeStack;
-
-        chargeStack =
-            Mathf.Max(
-                chargeStack - amount,
-                0
-            );
-
-        int consumedAmount =
-            previousStack -
-            chargeStack;
+            currentStack;
 
         if (consumedAmount > 0)
         {
@@ -311,16 +377,14 @@ public sealed class BlockElementStatus : MonoBehaviour
     }
 
     /*
-     * 속성 추가와 감전 소비를 계산한 뒤
-     * 최종 결과를 한 번에 반영합니다.
-     *
-     * 나중에 테두리 연출을 추가했을 때
-     * 파랑 → 노랑 → 파랑처럼 중간 상태가
-     * 순간적으로 표시되는 것을 막기 위한 구조입니다.
+     * 모든 속성 추가와 반응 계산이 끝난 뒤
+     * 최종 상태를 한 번만 시각 시스템에 전달합니다.
      */
     public void ApplyResolvedStacks(
         int resolvedWetStack,
-        int resolvedChargeStack)
+        int resolvedChargeStack,
+        int resolvedBurnStack,
+        int resolvedFrostStack)
     {
         resolvedWetStack =
             Mathf.Clamp(
@@ -336,10 +400,28 @@ public sealed class BlockElementStatus : MonoBehaviour
                 maximumStack
             );
 
+        resolvedBurnStack =
+            Mathf.Clamp(
+                resolvedBurnStack,
+                0,
+                maximumStack
+            );
+
+        resolvedFrostStack =
+            Mathf.Clamp(
+                resolvedFrostStack,
+                0,
+                maximumStack
+            );
+
         if (wetStack ==
                 resolvedWetStack &&
             chargeStack ==
-                resolvedChargeStack)
+                resolvedChargeStack &&
+            burnStack ==
+                resolvedBurnStack &&
+            frostStack ==
+                resolvedFrostStack)
         {
             return;
         }
@@ -350,19 +432,41 @@ public sealed class BlockElementStatus : MonoBehaviour
         chargeStack =
             resolvedChargeStack;
 
+        burnStack =
+            resolvedBurnStack;
+
+        frostStack =
+            resolvedFrostStack;
+
         NotifyStatusChanged();
+    }
+
+    /*
+     * 기존 물·전기 코드와의 호환용 오버로드입니다.
+     */
+    public void ApplyResolvedStacks(
+        int resolvedWetStack,
+        int resolvedChargeStack)
+    {
+        ApplyResolvedStacks(
+            resolvedWetStack,
+            resolvedChargeStack,
+            burnStack,
+            frostStack
+        );
     }
 
     public void Clear()
     {
-        if (wetStack <= 0 &&
-            chargeStack <= 0)
+        if (!HasAnyStack)
         {
             return;
         }
 
         wetStack = 0;
         chargeStack = 0;
+        burnStack = 0;
+        frostStack = 0;
 
         StatusCleared?.Invoke(
             this

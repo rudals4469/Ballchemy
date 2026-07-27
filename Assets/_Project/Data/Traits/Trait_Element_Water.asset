@@ -17,4 +17,6 @@ MonoBehaviour:
   twoStarStackAmount: 2
   threeStarStackAmount: 3
   electrocutionDamageMultiplier: 0.5
-  electrocutionDamageTextStyle: {fileID: 0}
+  electrocutionDamageTextStyle: {fileID: 11400000, guid: 01cd2fc95f227d94291742c679b70700, type: 2}
+  thermalShockDamageMultiplier: 0.75
+  thermalShockDamageTextStyle: {fileID: 0}

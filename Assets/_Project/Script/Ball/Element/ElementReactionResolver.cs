@@ -8,7 +8,8 @@ public static class ElementReactionResolver
             ElementType appliedElement,
             int requestedStackAmount,
             int directDamage,
-            float electrocutionDamageMultiplier)
+            float electrocutionDamageMultiplier,
+            float thermalShockDamageMultiplier)
     {
         if (status == null)
         {
@@ -33,17 +34,35 @@ public static class ElementReactionResolver
                 0f
             );
 
+        thermalShockDamageMultiplier =
+            Mathf.Max(
+                thermalShockDamageMultiplier,
+                0f
+            );
+
         int wetStackBefore =
             status.WetStack;
 
         int chargeStackBefore =
             status.ChargeStack;
 
+        int burnStackBefore =
+            status.BurnStack;
+
+        int frostStackBefore =
+            status.FrostStack;
+
         int resolvedWetStack =
             wetStackBefore;
 
         int resolvedChargeStack =
             chargeStackBefore;
+
+        int resolvedBurnStack =
+            burnStackBefore;
+
+        int resolvedFrostStack =
+            frostStackBefore;
 
         int appliedElementStack = 0;
 
@@ -89,17 +108,60 @@ public static class ElementReactionResolver
                 break;
             }
 
+            case ElementType.Fire:
+            {
+                int previousStack =
+                    resolvedBurnStack;
+
+                resolvedBurnStack =
+                    Mathf.Clamp(
+                        resolvedBurnStack +
+                        requestedStackAmount,
+                        0,
+                        status.MaximumStack
+                    );
+
+                appliedElementStack =
+                    resolvedBurnStack -
+                    previousStack;
+
+                break;
+            }
+
+            case ElementType.Ice:
+            {
+                int previousStack =
+                    resolvedFrostStack;
+
+                resolvedFrostStack =
+                    Mathf.Clamp(
+                        resolvedFrostStack +
+                        requestedStackAmount,
+                        0,
+                        status.MaximumStack
+                    );
+
+                appliedElementStack =
+                    resolvedFrostStack -
+                    previousStack;
+
+                break;
+            }
+
             default:
             {
-                /*
-                 * 불과 얼음은 이후 단계에서 구현합니다.
-                 */
                 return new ElementReactionResult(
+                    appliedElement,
                     wetStackBefore,
                     chargeStackBefore,
+                    burnStackBefore,
+                    frostStackBefore,
                     wetStackBefore,
                     chargeStackBefore,
+                    burnStackBefore,
+                    frostStackBefore,
                     0,
+                    ElementReactionKind.None,
                     0,
                     0,
                     0
@@ -107,34 +169,81 @@ public static class ElementReactionResolver
             }
         }
 
-        int reactionCount =
-            Mathf.Min(
-                resolvedWetStack,
-                resolvedChargeStack
-            );
+        ElementReactionKind reactionKind =
+            ElementReactionKind.None;
 
-        resolvedWetStack -=
-            reactionCount;
+        int reactionCount = 0;
+        float reactionDamageMultiplier = 0f;
 
-        resolvedChargeStack -=
-            reactionCount;
+        switch (appliedElement)
+        {
+            case ElementType.Water:
+            case ElementType.Electric:
+            {
+                reactionCount =
+                    Mathf.Min(
+                        resolvedWetStack,
+                        resolvedChargeStack
+                    );
+
+                if (reactionCount > 0)
+                {
+                    resolvedWetStack -=
+                        reactionCount;
+
+                    resolvedChargeStack -=
+                        reactionCount;
+
+                    reactionKind =
+                        ElementReactionKind
+                            .Electrocution;
+
+                    reactionDamageMultiplier =
+                        electrocutionDamageMultiplier;
+                }
+
+                break;
+            }
+
+            case ElementType.Fire:
+            case ElementType.Ice:
+            {
+                reactionCount =
+                    Mathf.Min(
+                        resolvedBurnStack,
+                        resolvedFrostStack
+                    );
+
+                if (reactionCount > 0)
+                {
+                    resolvedBurnStack -=
+                        reactionCount;
+
+                    resolvedFrostStack -=
+                        reactionCount;
+
+                    reactionKind =
+                        ElementReactionKind
+                            .ThermalShock;
+
+                    reactionDamageMultiplier =
+                        thermalShockDamageMultiplier;
+                }
+
+                break;
+            }
+        }
 
         int damagePerReaction = 0;
         int totalDamage = 0;
 
         if (reactionCount > 0)
         {
-            /*
-             * 일반적인 반올림 방식으로 계산합니다.
-             *
-             * 직접 피해 3 × 0.5 = 1.5
-             * → 감전 1회당 2 피해
-             */
             damagePerReaction =
                 Mathf.Max(
                     Mathf.FloorToInt(
                         directDamage *
-                        electrocutionDamageMultiplier +
+                        reactionDamageMultiplier +
                         0.5f
                     ),
                     1
@@ -145,21 +254,25 @@ public static class ElementReactionResolver
                 damagePerReaction;
         }
 
-        /*
-         * 스택 추가와 반응 소비가 모두 끝난
-         * 최종 상태만 한 번에 반영합니다.
-         */
         status.ApplyResolvedStacks(
             resolvedWetStack,
-            resolvedChargeStack
+            resolvedChargeStack,
+            resolvedBurnStack,
+            resolvedFrostStack
         );
 
         return new ElementReactionResult(
+            appliedElement,
             wetStackBefore,
             chargeStackBefore,
+            burnStackBefore,
+            frostStackBefore,
             resolvedWetStack,
             resolvedChargeStack,
+            resolvedBurnStack,
+            resolvedFrostStack,
             appliedElementStack,
+            reactionKind,
             reactionCount,
             damagePerReaction,
             totalDamage

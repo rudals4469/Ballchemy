@@ -213,5 +213,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallCombatController
   definition: {fileID: 0}
-  fallbackDamage: 1
+  runtimeStats: {fileID: 0}
+  individualDirectDamageBonus: 0
+  individualCriticalDamageMultiplierBonus: 0
+  fallbackDirectDamage: 1
   showDebugLog: 0

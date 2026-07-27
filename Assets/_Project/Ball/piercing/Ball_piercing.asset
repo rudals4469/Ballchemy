@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d9e0bff485c42b4caf2b0f1e9155c9b, type: 3}
   m_Name: Ball_piercing
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
-  ballId: 
-  displayName: 
-  starGrade: 1
+  ballId: piercing
+  displayName: "\uAD00\uD1B5"
+  starGrade: 0
   directDamageBonus: 0
-  traitDefinition: {fileID: 0}
+  traitDefinition: {fileID: 11400000, guid: 403f4303eef8c4d4ab7afb544f8c1af9, type: 2}
   sprite: {fileID: 0}
-  color: {r: 1, g: 1, b: 1, a: 1}
+  color: {r: 0, g: 0.6874648, b: 0.735849, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
-  damageTextStyle: {fileID: 0}
+  damageTextStyle: {fileID: 11400000, guid: 41a972179d37305498bc7150b6c136d1, type: 2}
   selectionWeight: 1

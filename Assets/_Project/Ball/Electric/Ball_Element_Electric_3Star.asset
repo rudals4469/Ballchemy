@@ -12,13 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d9e0bff485c42b4caf2b0f1e9155c9b, type: 3}
   m_Name: Ball_Element_Electric_3Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
-  ballId: water_3
-  displayName: "\uBB3C"
+  ballId: electric_3
+  displayName: "\uC804\uAE30"
   starGrade: 3
   directDamageBonus: 0
-  traitDefinition: {fileID: 11400000, guid: 37d94c9445ab0804985c81cbf06247a7, type: 2}
+  traitDefinition: {fileID: 11400000, guid: 577ed8d3f71ba824fbd8a49356309efc, type: 2}
   sprite: {fileID: 0}
-  color: {r: 1, g: 1, b: 1, a: 1}
+  color: {r: 0.8980392, g: 0.7882353, b: 0.34117648, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
-  damageTextStyle: {fileID: 0}
+  damageTextStyle: {fileID: 11400000, guid: be5d5e6ce82223646b25c0728fa3ef96, type: 2}
   selectionWeight: 1

@@ -12,3 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab13c39c146bbc94089a78b904622a8d, type: 3}
   m_Name: Trait_Piercing
   m_EditorClassIdentifier: Assembly-CSharp::PiercingBallTraitDefinition
+  hitInterval: 0.1
+  maxHitsPerEntry: 3
+  damageMultiplier: 1

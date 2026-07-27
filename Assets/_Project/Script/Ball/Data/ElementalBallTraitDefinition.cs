@@ -38,6 +38,21 @@ public sealed class ElementalBallTraitDefinition :
     private BallDamageTextStyleDefinition
         electrocutionDamageTextStyle;
 
+    [Header("Thermal Shock")]
+    [Tooltip(
+        "열충격 한 쌍당 직접 피해에 곱하는 배율입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float thermalShockDamageMultiplier =
+        0.75f;
+
+    [Tooltip(
+        "열충격 추가 피해 숫자에 사용할 스타일입니다."
+    )]
+    [SerializeField]
+    private BallDamageTextStyleDefinition
+        thermalShockDamageTextStyle;
+
     public override BallTraitType TraitType =>
         BallTraitType.Elemental;
 
@@ -50,6 +65,13 @@ public sealed class ElementalBallTraitDefinition :
     public BallDamageTextStyleDefinition
         ElectrocutionDamageTextStyle =>
             electrocutionDamageTextStyle;
+
+    public float ThermalShockDamageMultiplier =>
+        thermalShockDamageMultiplier;
+
+    public BallDamageTextStyleDefinition
+        ThermalShockDamageTextStyle =>
+            thermalShockDamageTextStyle;
 
     public int GetStackAmount(
         BallStarGrade starGrade)
@@ -93,6 +115,12 @@ public sealed class ElementalBallTraitDefinition :
         electrocutionDamageMultiplier =
             Mathf.Max(
                 electrocutionDamageMultiplier,
+                0f
+            );
+
+        thermalShockDamageMultiplier =
+            Mathf.Max(
+                thermalShockDamageMultiplier,
                 0f
             );
     }

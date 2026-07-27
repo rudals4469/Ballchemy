@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 2706938483844556531}
   - component: {fileID: 2247165173588323862}
   - component: {fileID: 1462048097353144651}
+  - component: {fileID: 4243921714069551864}
   m_Layer: 0
   m_Name: Block
   m_TagString: Untagged
@@ -171,6 +172,8 @@ MonoBehaviour:
   maximumStack: 6
   wetStack: 0
   chargeStack: 0
+  burnStack: 0
+  frostStack: 0
 --- !u!114 &1462048097353144651
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -209,6 +212,44 @@ MonoBehaviour:
   weakPulseAmount: 0.05
   mediumPulseAmount: 0.1
   strongPulseAmount: 0.16
+--- !u!114 &4243921714069551864
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 568822364854027056}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e331e8db6718e0f4daf9c3ee03bdc39a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BlockElementSurfaceStatusView
+  block: {fileID: 5741669861215845034}
+  elementStatus: {fileID: 2247165173588323862}
+  baseRenderer: {fileID: 5051892278997693569}
+  surfaceRenderer: {fileID: 0}
+  surfaceVisualObjectName: ElementSurfaceVisual
+  visualScaleMultiplier: 0.92
+  sortingOrderOffset: 2
+  copyBaseMaterial: 1
+  fireWeakSprite: {fileID: 0}
+  fireMediumSprite: {fileID: 0}
+  fireStrongSprite: {fileID: 0}
+  fireWeakColor: {r: 1, g: 0.38, b: 0.08, a: 0.16}
+  fireMediumColor: {r: 1, g: 0.3, b: 0.04, a: 0.27}
+  fireStrongColor: {r: 1, g: 0.2, b: 0.02, a: 0.4}
+  iceWeakSprite: {fileID: 0}
+  iceMediumSprite: {fileID: 0}
+  iceStrongSprite: {fileID: 0}
+  iceWeakColor: {r: 0.55, g: 0.9, b: 1, a: 0.16}
+  iceMediumColor: {r: 0.4, g: 0.82, b: 1, a: 0.27}
+  iceStrongColor: {r: 0.25, g: 0.72, b: 1, a: 0.4}
+  usePulseAnimation: 1
+  firePulseSpeed: 5
+  icePulseSpeed: 2
+  weakPulseAmount: 0.06
+  mediumPulseAmount: 0.12
+  strongPulseAmount: 0.2
 --- !u!1 &1430352254046490565
 GameObject:
   m_ObjectHideFlags: 0

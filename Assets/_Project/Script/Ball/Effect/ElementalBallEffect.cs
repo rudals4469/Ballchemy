@@ -52,12 +52,6 @@ public sealed class ElementalBallEffect :
         Block targetBlock =
             context.Block;
 
-        /*
-         * 1. 직접 피해를 적용합니다.
-         *
-         * ApplyDamage의 반환값은 실제로 감소한 체력입니다.
-         * 쉴드에 막히면 0이 반환됩니다.
-         */
         int appliedDirectDamage =
             CombatController.ApplyDamage(
                 targetBlock,
@@ -66,10 +60,8 @@ public sealed class ElementalBallEffect :
             );
 
         /*
-         * 쉴드나 무적 효과로 체력이 감소하지 않았다면
-         * 신규 속성 스택과 감전을 처리하지 않습니다.
-         *
-         * 기존에 있던 스택은 그대로 유지합니다.
+         * 쉴드나 무적 효과로 체력이 감소하지 않으면
+         * 신규 속성 스택과 반응은 발생하지 않습니다.
          */
         if (appliedDirectDamage <= 0)
         {
@@ -87,10 +79,6 @@ public sealed class ElementalBallEffect :
                 .HandledWithBounce();
         }
 
-        /*
-         * 직접 피해로 블록이 파괴됐다면
-         * 신규 스택을 적용하지 않습니다.
-         */
         if (targetBlock == null ||
             !targetBlock.IsAlive)
         {
@@ -125,11 +113,6 @@ public sealed class ElementalBallEffect :
                 starGrade
             );
 
-        /*
-         * 2. 속성 스택을 추가합니다.
-         * 3. 젖음과 전하를 반응시킵니다.
-         * 4. 반응 후 남은 최종 스택을 반영합니다.
-         */
         ElementReactionResult reactionResult =
             ElementReactionResolver
                 .ApplyElementAndResolve(
@@ -138,7 +121,9 @@ public sealed class ElementalBallEffect :
                     requestedStackAmount,
                     context.DirectDamage,
                     elementalDefinition
-                        .ElectrocutionDamageMultiplier
+                        .ElectrocutionDamageMultiplier,
+                    elementalDefinition
+                        .ThermalShockDamageMultiplier
                 );
 
         if (showDebugLog)
@@ -148,9 +133,12 @@ public sealed class ElementalBallEffect :
                 $"{targetBlock.name}, " +
                 $"속성={elementalDefinition.ElementType}, " +
                 $"적용 스택={reactionResult.AppliedElementStack}, " +
-                $"감전 횟수={reactionResult.ReactionCount}, " +
-                $"남은 젖음={reactionResult.WetStackAfter}, " +
-                $"남은 전하={reactionResult.ChargeStackAfter}",
+                $"반응={reactionResult.ReactionKind}, " +
+                $"반응 횟수={reactionResult.ReactionCount}, " +
+                $"젖음={reactionResult.WetStackAfter}, " +
+                $"전하={reactionResult.ChargeStackAfter}, " +
+                $"화상={reactionResult.BurnStackAfter}, " +
+                $"냉기={reactionResult.FrostStackAfter}",
                 this
             );
         }
@@ -168,31 +156,88 @@ public sealed class ElementalBallEffect :
                 .HandledWithBounce();
         }
 
-        /*
-         * 감전 피해를 적용하기 전에 시각 정보를 복사합니다.
-         *
-         * 감전 피해로 블록이 파괴되더라도
-         * VFX는 Spawner 아래에서 독립적으로 끝까지 재생됩니다.
-         */
-        PlayElectrocutionVfx(
+        PlayReactionVfx(
             targetBlock,
-            reactionResult.ReactionCount
+            reactionResult
         );
 
-        /*
-         * 감전 추가 피해는 직접 피해와 구분하여
-         * Style_Damage_Electrocution으로 표시합니다.
-         */
+        BallDamageTextStyleDefinition
+            reactionDamageStyle =
+                ResolveReactionDamageStyle(
+                    reactionResult
+                );
+
         CombatController.ApplyDamage(
             targetBlock,
             reactionResult.TotalDamage,
             targetBlock.transform.position,
-            elementalDefinition
-                .ElectrocutionDamageTextStyle
+            reactionDamageStyle
         );
 
         return BallHitResult
             .HandledWithBounce();
+    }
+
+    private BallDamageTextStyleDefinition
+        ResolveReactionDamageStyle(
+            ElementReactionResult reactionResult)
+    {
+        if (elementalDefinition == null)
+        {
+            return null;
+        }
+
+        switch (reactionResult.ReactionKind)
+        {
+            case ElementReactionKind
+                .Electrocution:
+            {
+                return elementalDefinition
+                    .ElectrocutionDamageTextStyle;
+            }
+
+            case ElementReactionKind
+                .ThermalShock:
+            {
+                return elementalDefinition
+                    .ThermalShockDamageTextStyle;
+            }
+
+            default:
+                return null;
+        }
+    }
+
+    private void PlayReactionVfx(
+        Block targetBlock,
+        ElementReactionResult reactionResult)
+    {
+        switch (reactionResult.ReactionKind)
+        {
+            case ElementReactionKind
+                .Electrocution:
+            {
+                PlayElectrocutionVfx(
+                    targetBlock,
+                    reactionResult.ReactionCount
+                );
+
+                break;
+            }
+
+            case ElementReactionKind
+                .ThermalShock:
+            {
+                /*
+                 * 열충격 계산과 피해는 적용됩니다.
+                 *
+                 * 순간 VFX는 현재
+                 * ElementReactionVfxSpawner의 전체 API를
+                 * 확인한 뒤 다음 단계에서 연결합니다.
+                 */
+                break;
+            }
+        }
     }
 
     private void PlayElectrocutionVfx(
@@ -258,14 +303,42 @@ public sealed class ElementalBallEffect :
                 BlockElementStatus
             >();
 
-        if (status != null)
+        if (status == null)
         {
-            return status;
+            status =
+                targetBlock.gameObject
+                    .AddComponent<
+                        BlockElementStatus
+                    >();
         }
 
-        return targetBlock.gameObject
-            .AddComponent<
-                BlockElementStatus
-            >();
+        EnsureStatusViews(
+            targetBlock
+        );
+
+        return status;
+    }
+
+    private static void EnsureStatusViews(
+        Block targetBlock)
+    {
+        if (targetBlock == null)
+        {
+            return;
+        }
+
+        BlockElementSurfaceStatusView
+            surfaceStatusView =
+                targetBlock.GetComponent<
+                    BlockElementSurfaceStatusView
+                >();
+
+        if (surfaceStatusView == null)
+        {
+            targetBlock.gameObject
+                .AddComponent<
+                    BlockElementSurfaceStatusView
+                >();
+        }
     }
 }

@@ -14,10 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallDamageTextStyleDefinition
   styleId: basic
   popupPrefabOverride: {fileID: 0}
+  aggregationMode: 1
+  aggregationWindow: 0.3
   fontAsset: {fileID: 0}
   fontMaterialPreset: {fileID: 0}
   textColor: {r: 1, g: 1, b: 1, a: 1}
-  fontSize: 5
+  fontSize: 2.4
   fontStyle: 1
   prefix: 
   suffix: 
