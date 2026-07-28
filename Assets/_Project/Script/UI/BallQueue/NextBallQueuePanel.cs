@@ -16,77 +16,65 @@ public sealed class NextBallQueuePanel : MonoBehaviour
     [SerializeField]
     private RectTransform itemRoot;
 
-    [Tooltip(
-        "남은 공이 표시 제한 개수보다 많을 때 " +
-        "큐 상단에 표시할 세로 점 이미지입니다."
-    )]
     [SerializeField]
     private Image overflowMarkerImage;
 
     [Header("Queue Position Points")]
-    [Tooltip(
-        "새로운 공이 큐 위쪽에서 등장하는 시작 위치입니다."
-    )]
     [SerializeField]
     private RectTransform spawnPoint;
 
-    [Tooltip(
-        "큐에 표시되는 공들의 가장 위쪽 위치입니다."
-    )]
     [SerializeField]
     private RectTransform queueTopPoint;
 
-    [Tooltip(
-        "바로 다음에 발사될 공이 위치하는 가장 아래쪽 위치입니다."
-    )]
     [SerializeField]
     private RectTransform queueBottomPoint;
 
-    [Tooltip(
-        "발사된 공 UI가 아래쪽으로 빠져나가는 위치입니다."
-    )]
     [SerializeField]
     private RectTransform launchExitPoint;
 
     [Header("Display")]
-    [Tooltip(
-        "화면에 직접 표시할 최대 공 개수입니다. " +
-        "이 개수보다 남은 공이 많으면 오버플로 이미지를 표시합니다."
-    )]
     [SerializeField, Min(1)]
     private int maximumVisibleCount = 10;
 
     [Header("Star Display")]
-    [Tooltip(
-        "첫 번째 공이 발사되어 큐가 움직이기 시작하면 " +
-        "별 표시를 숨깁니다."
-    )]
     [SerializeField]
     private bool hideStarsAfterQueueStartsMoving = true;
 
-    [Header("Move Animation")]
-    [SerializeField, Min(0f)]
-    private float moveDuration = 0.18f;
+    [Header("Continuous Flow")]
+    [Tooltip(
+        "값이 커질수록 공이 목표 위치를 천천히 따라가며 " +
+        "아래로 흐르는 느낌이 강해집니다."
+    )]
+    [SerializeField, Min(0.01f)]
+    private float flowSmoothTime = 0.1f;
 
-    [SerializeField]
-    private Ease moveEase = Ease.OutCubic;
+    [Tooltip(
+        "공이 목표 위치를 따라갈 수 있는 최대 이동 속도입니다."
+    )]
+    [SerializeField, Min(1f)]
+    private float flowMaxSpeed = 2500f;
 
     [Header("Exit Animation")]
+    [Tooltip(
+        "맨 아래 공이 화면 아래로 빠지는 시간입니다."
+    )]
     [SerializeField, Min(0f)]
-    private float exitDuration = 0.12f;
+    private float exitDuration = 0.14f;
 
-    [SerializeField, Range(0f, 1f)]
-    private float exitScale = 0.7f;
-
+    [Tooltip(
+        "밑으로 내려갈수록 속도가 붙는 느낌을 위해 " +
+        "In Quad 또는 In Cubic을 권장합니다."
+    )]
     [SerializeField]
     private Ease exitEase = Ease.InQuad;
 
-    [Header("Turn Start Animation")]
+    [Header("Turn Start")]
+    [Tooltip(
+        "새 턴을 준비할 때 공이 시작 위치보다 " +
+        "조금 위에서 내려오는 거리입니다."
+    )]
     [SerializeField, Min(0f)]
-    private float turnStartOffsetY = 40f;
-
-    [SerializeField, Min(0f)]
-    private float turnStartDelayPerItem = 0.015f;
+    private float turnStartOffsetY = 10f;
 
     private readonly List<NextBallQueueItemView>
         activeItems =
@@ -103,7 +91,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
         FindReferences();
         NormalizeSettings();
         ValidateReferences();
-
         RefreshOverflowMarker();
     }
 
@@ -163,10 +150,16 @@ public sealed class NextBallQueuePanel : MonoBehaviour
                 100
             );
 
-        moveDuration =
+        flowSmoothTime =
             Mathf.Max(
-                moveDuration,
-                0f
+                flowSmoothTime,
+                0.01f
+            );
+
+        flowMaxSpeed =
+            Mathf.Max(
+                flowMaxSpeed,
+                1f
             );
 
         exitDuration =
@@ -178,12 +171,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
         turnStartOffsetY =
             Mathf.Max(
                 turnStartOffsetY,
-                0f
-            );
-
-        turnStartDelayPerItem =
-            Mathf.Max(
-                turnStartDelayPerItem,
                 0f
             );
     }
@@ -213,15 +200,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
             Debug.LogError(
                 "NextBallQueuePanel: " +
                 "Item Root가 연결되지 않았습니다.",
-                this
-            );
-        }
-
-        if (overflowMarkerImage == null)
-        {
-            Debug.LogError(
-                "NextBallQueuePanel: " +
-                "Overflow Marker Image가 연결되지 않았습니다.",
                 this
             );
         }
@@ -338,7 +316,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
                 launchExitPoint
             ),
             exitDuration,
-            exitScale,
             exitEase
         );
 
@@ -373,6 +350,13 @@ public sealed class NextBallQueuePanel : MonoBehaviour
             }
         }
 
+        /*
+         * 기존 공에는 새 Tween을 걸지 않습니다.
+         * 목표 위치만 한 칸 아래로 변경합니다.
+         *
+         * 공은 현재 속도를 유지한 채 새로운 목표 위치를
+         * 계속 따라가기 때문에 움직임이 끊기지 않습니다.
+         */
         for (int i = 0;
              i < activeItems.Count;
              i++)
@@ -389,14 +373,16 @@ public sealed class NextBallQueuePanel : MonoBehaviour
                 ShouldShowStars()
             );
 
-            item.PlayMove(
+            item.SetTargetState(
                 ResolveQueuePosition(i),
-                moveDuration,
-                moveEase,
                 i == 0
             );
         }
 
+        /*
+         * 상단에 새로 들어오는 공은 SpawnPoint에서 시작해서
+         * 자신의 큐 위치를 자연스럽게 따라갑니다.
+         */
         for (int i = activeItems.Count;
              i < upcomingBalls.Count;
              i++)
@@ -419,9 +405,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
                     spawnPoint
                 ),
                 ResolveQueuePosition(i),
-                moveDuration,
-                0f,
-                moveEase,
                 i == 0
             );
         }
@@ -475,9 +458,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
             item.PlayEnter(
                 startPosition,
                 targetPosition,
-                moveDuration,
-                i * turnStartDelayPerItem,
-                moveEase,
                 isNextBall
             );
         }
@@ -502,6 +482,11 @@ public sealed class NextBallQueuePanel : MonoBehaviour
             ball != null
                 ? $"QueueItem_{ball.name}"
                 : "QueueItem_None";
+
+        item.ConfigureFlow(
+            flowSmoothTime,
+            flowMaxSpeed
+        );
 
         item.Bind(ball);
 

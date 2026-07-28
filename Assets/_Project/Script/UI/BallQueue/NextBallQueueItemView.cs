@@ -31,14 +31,25 @@ public sealed class NextBallQueueItemView : MonoBehaviour
     private float normalScale = 1f;
 
     [Tooltip(
-        "맨 아래의 다음 발사 공에 적용할 확대 배율입니다."
+        "맨 아래 NEXT 슬롯에 있는 공의 크기입니다. " +
+        "고정 배경으로 강조한다면 1을 권장합니다."
     )]
     [SerializeField, Min(0.1f)]
-    private float nextBallScale = 1.05f;
+    private float nextBallScale = 1f;
 
     private RectTransform rectTransform;
     private Sequence activeSequence;
 
+    private Vector3 targetLocalPosition;
+    private Vector3 targetLocalScale;
+
+    private Vector3 positionVelocity;
+    private Vector3 scaleVelocity;
+
+    private float followSmoothTime = 0.1f;
+    private float followMaxSpeed = 2500f;
+
+    private bool isFollowingTarget;
     private bool hasStar;
     private bool isStarVisible = true;
 
@@ -54,6 +65,11 @@ public sealed class NextBallQueueItemView : MonoBehaviour
         ValidateReferences();
     }
 
+    private void LateUpdate()
+    {
+        UpdateFlowMovement();
+    }
+
     private void OnValidate()
     {
         normalScale =
@@ -65,7 +81,7 @@ public sealed class NextBallQueueItemView : MonoBehaviour
         nextBallScale =
             Mathf.Max(
                 nextBallScale,
-                normalScale
+                0.1f
             );
 
         FindReferences();
@@ -114,6 +130,23 @@ public sealed class NextBallQueueItemView : MonoBehaviour
                 this
             );
         }
+    }
+
+    public void ConfigureFlow(
+        float smoothTime,
+        float maxSpeed)
+    {
+        followSmoothTime =
+            Mathf.Max(
+                smoothTime,
+                0.01f
+            );
+
+        followMaxSpeed =
+            Mathf.Max(
+                maxSpeed,
+                1f
+            );
     }
 
     public void Bind(Ball ball)
@@ -236,28 +269,106 @@ public sealed class NextBallQueueItemView : MonoBehaviour
     }
 
     public void SetImmediateState(
-        Vector3 targetLocalPosition,
+        Vector3 localPosition,
         bool isNextBall)
     {
         KillActiveTween();
+
+        isFollowingTarget = true;
+
+        targetLocalPosition =
+            localPosition;
+
+        targetLocalScale =
+            Vector3.one *
+            ResolveScale(isNextBall);
 
         rectTransform.localPosition =
             targetLocalPosition;
 
         rectTransform.localScale =
-            Vector3.one *
-            ResolveScale(isNextBall);
+            targetLocalScale;
+
+        positionVelocity =
+            Vector3.zero;
+
+        scaleVelocity =
+            Vector3.zero;
 
         canvasGroup.alpha = 1f;
     }
 
-    public void PlayMove(
-        Vector3 targetLocalPosition,
-        float duration,
-        Ease ease,
+    public void SetTargetState(
+        Vector3 localPosition,
+        bool isNextBall)
+    {
+        if (rectTransform == null)
+        {
+            return;
+        }
+
+        targetLocalPosition =
+            localPosition;
+
+        targetLocalScale =
+            Vector3.one *
+            ResolveScale(isNextBall);
+
+        isFollowingTarget = true;
+
+        canvasGroup.alpha = 1f;
+    }
+
+    public void PlayEnter(
+        Vector3 startLocalPosition,
+        Vector3 targetPosition,
         bool isNextBall)
     {
         KillActiveTween();
+
+        rectTransform.localPosition =
+            startLocalPosition;
+
+        rectTransform.localScale =
+            Vector3.one *
+            normalScale;
+
+        targetLocalPosition =
+            targetPosition;
+
+        targetLocalScale =
+            Vector3.one *
+            ResolveScale(isNextBall);
+
+        positionVelocity =
+            Vector3.zero;
+
+        scaleVelocity =
+            Vector3.zero;
+
+        canvasGroup.alpha = 1f;
+
+        isFollowingTarget = true;
+    }
+
+    public void PlayExit(
+        Vector3 exitLocalPosition,
+        float duration,
+        Ease ease)
+    {
+        KillActiveTween();
+
+        isFollowingTarget = false;
+
+        positionVelocity =
+            Vector3.zero;
+
+        scaleVelocity =
+            Vector3.zero;
+
+        SetStarVisible(false);
+
+        canvasGroup.alpha = 1f;
 
         duration =
             Mathf.Max(
@@ -267,11 +378,10 @@ public sealed class NextBallQueueItemView : MonoBehaviour
 
         if (duration <= 0f)
         {
-            SetImmediateState(
-                targetLocalPosition,
-                isNextBall
-            );
+            rectTransform.localPosition =
+                exitLocalPosition;
 
+            Destroy(gameObject);
             return;
         }
 
@@ -281,133 +391,7 @@ public sealed class NextBallQueueItemView : MonoBehaviour
         activeSequence =
             sequence;
 
-        sequence.Join(
-            rectTransform
-                .DOLocalMove(
-                    targetLocalPosition,
-                    duration
-                )
-                .SetEase(ease)
-        );
-
-        sequence.Join(
-            rectTransform
-                .DOScale(
-                    ResolveScale(isNextBall),
-                    duration
-                )
-                .SetEase(ease)
-        );
-
-        sequence.Join(
-            DOTween.To(
-                () => canvasGroup.alpha,
-                value =>
-                    canvasGroup.alpha =
-                        value,
-                1f,
-                duration
-            )
-        );
-
-        sequence.OnComplete(
-            () =>
-            {
-                if (activeSequence ==
-                    sequence)
-                {
-                    activeSequence = null;
-                }
-            }
-        );
-    }
-
-    public void PlayEnter(
-        Vector3 startLocalPosition,
-        Vector3 targetLocalPosition,
-        float duration,
-        float delay,
-        Ease ease,
-        bool isNextBall)
-    {
-        KillActiveTween();
-
-        rectTransform.localPosition =
-            startLocalPosition;
-
-        rectTransform.localScale =
-            Vector3.one * 0.85f;
-
-        canvasGroup.alpha = 0f;
-
-        Sequence sequence =
-            DOTween.Sequence();
-
-        activeSequence =
-            sequence;
-
-        if (delay > 0f)
-        {
-            sequence.AppendInterval(delay);
-        }
-
-        sequence.Join(
-            rectTransform
-                .DOLocalMove(
-                    targetLocalPosition,
-                    duration
-                )
-                .SetEase(ease)
-        );
-
-        sequence.Join(
-            rectTransform
-                .DOScale(
-                    ResolveScale(isNextBall),
-                    duration
-                )
-                .SetEase(ease)
-        );
-
-        sequence.Join(
-            DOTween.To(
-                () => canvasGroup.alpha,
-                value =>
-                    canvasGroup.alpha =
-                        value,
-                1f,
-                duration
-            )
-        );
-
-        sequence.OnComplete(
-            () =>
-            {
-                if (activeSequence ==
-                    sequence)
-                {
-                    activeSequence = null;
-                }
-            }
-        );
-    }
-
-    public void PlayExit(
-        Vector3 exitLocalPosition,
-        float duration,
-        float exitScale,
-        Ease ease)
-    {
-        KillActiveTween();
-        SetStarVisible(false);
-
-        Sequence sequence =
-            DOTween.Sequence();
-
-        activeSequence =
-            sequence;
-
-        sequence.Join(
+        sequence.Append(
             rectTransform
                 .DOLocalMove(
                     exitLocalPosition,
@@ -416,42 +400,97 @@ public sealed class NextBallQueueItemView : MonoBehaviour
                 .SetEase(ease)
         );
 
-        sequence.Join(
-            rectTransform
-                .DOScale(
-                    Mathf.Max(
-                        exitScale,
-                        0f
-                    ),
-                    duration
-                )
-                .SetEase(ease)
-        );
-
-        sequence.Join(
-            DOTween.To(
-                () => canvasGroup.alpha,
-                value =>
-                    canvasGroup.alpha =
-                        value,
-                0f,
-                duration
+        sequence
+            .SetLink(
+                gameObject,
+                LinkBehaviour.KillOnDestroy
             )
-        );
+            .OnComplete(
+                () =>
+                {
+                    activeSequence = null;
 
-        sequence.OnComplete(
-            () =>
-            {
-                activeSequence = null;
-                Destroy(gameObject);
-            }
-        );
+                    Destroy(gameObject);
+                }
+            );
     }
 
     public void DisposeImmediate()
     {
         KillActiveTween();
+
         Destroy(gameObject);
+    }
+
+    private void UpdateFlowMovement()
+    {
+        if (!isFollowingTarget ||
+            rectTransform == null)
+        {
+            return;
+        }
+
+        float deltaTime =
+            Time.deltaTime;
+
+        if (deltaTime <= 0f)
+        {
+            return;
+        }
+
+        rectTransform.localPosition =
+            Vector3.SmoothDamp(
+                rectTransform.localPosition,
+                targetLocalPosition,
+                ref positionVelocity,
+                followSmoothTime,
+                followMaxSpeed,
+                deltaTime
+            );
+
+        float scaleSmoothTime =
+            Mathf.Max(
+                followSmoothTime * 0.7f,
+                0.01f
+            );
+
+        rectTransform.localScale =
+            Vector3.SmoothDamp(
+                rectTransform.localScale,
+                targetLocalScale,
+                ref scaleVelocity,
+                scaleSmoothTime,
+                followMaxSpeed,
+                deltaTime
+            );
+
+        if (
+            (
+                rectTransform.localPosition -
+                targetLocalPosition
+            ).sqrMagnitude <= 0.01f
+        )
+        {
+            rectTransform.localPosition =
+                targetLocalPosition;
+
+            positionVelocity =
+                Vector3.zero;
+        }
+
+        if (
+            (
+                rectTransform.localScale -
+                targetLocalScale
+            ).sqrMagnitude <= 0.0001f
+        )
+        {
+            rectTransform.localScale =
+                targetLocalScale;
+
+            scaleVelocity =
+                Vector3.zero;
+        }
     }
 
     private float ResolveScale(bool isNextBall)

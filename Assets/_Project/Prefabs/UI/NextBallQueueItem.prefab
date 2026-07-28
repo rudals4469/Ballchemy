@@ -35,7 +35,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -5}
-  m_SizeDelta: {x: 36, y: 36}
+  m_SizeDelta: {x: 24, y: 24}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &718683555174807602
 CanvasRenderer:
@@ -152,7 +152,10 @@ MonoBehaviour:
   canvasGroup: {fileID: 7501715053237499338}
   fallbackSprite: {fileID: -2413806693520163455, guid: ebe73ca9363db456bacf42c025bb4847, type: 3}
   normalScale: 1
-  nextBallScale: 1.05
+  nextBallScale: 1
+  launchSquashDuration: 0.018
+  launchSquashWidthMultiplier: 1.06
+  launchSquashHeightMultiplier: 0.94
 --- !u!1 &8785382825912323653
 GameObject:
   m_ObjectHideFlags: 0
