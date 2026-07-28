@@ -4,12 +4,16 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(CircleCollider2D))]
 [RequireComponent(typeof(BallCombatController))]
+[RequireComponent(typeof(BallLastStandBounce))]
 public sealed class Ball :
     MonoBehaviour
 {
     [Header("References")]
     [SerializeField]
     private BallCombatController combatController;
+
+    [SerializeField]
+    private BallLastStandBounce lastStandBounce;
 
     [Header("Movement")]
     [SerializeField, Min(0.1f)]
@@ -37,6 +41,14 @@ public sealed class Ball :
     )]
     [SerializeField, Min(0f)]
     private float bounceSeparationDistance = 0.02f;
+
+    [Header("Last Stand Floor")]
+    [Tooltip(
+        "마지막 저지선 튀기 직전에 공을 ReturnZone 윗면보다 " +
+        "조금 위에 배치하는 여유 거리입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float returnZoneSurfacePadding = 0.02f;
 
     private static int activeMovingBallCount;
 
@@ -79,6 +91,10 @@ public sealed class Ball :
 
     public bool IsMoving =>
         isMoving;
+
+    public bool IsLastStandBouncing =>
+        lastStandBounce != null &&
+        lastStandBounce.IsActive;
 
     public bool HasStartedDescending =>
         hasStartedDescending;
@@ -154,11 +170,20 @@ public sealed class Ball :
                 0f
             );
 
+        returnZoneSurfacePadding =
+            Mathf.Max(
+                returnZoneSurfacePadding,
+                0f
+            );
+
         FindReferences();
         EnsureHelpers();
 
         bounceResolver.Normalize();
         loopEscape.Normalize();
+
+        lastStandBounce
+            ?.NormalizeSettings();
     }
 
     private void FindReferences()
@@ -183,12 +208,29 @@ public sealed class Ball :
                 >();
         }
 
+        if (lastStandBounce == null)
+        {
+            lastStandBounce =
+                GetComponent<
+                    BallLastStandBounce
+                >();
+        }
+
         if (combatController == null &&
             Application.isPlaying)
         {
             combatController =
                 gameObject.AddComponent<
                     BallCombatController
+                >();
+        }
+
+        if (lastStandBounce == null &&
+            Application.isPlaying)
+        {
+            lastStandBounce =
+                gameObject.AddComponent<
+                    BallLastStandBounce
                 >();
         }
     }
@@ -230,6 +272,29 @@ public sealed class Ball :
         if (!isMoving ||
             body == null)
         {
+            return;
+        }
+
+        if (IsLastStandBouncing)
+        {
+            bool reachedMaximumDuration =
+                lastStandBounce.TickFixed(
+                    Time.fixedDeltaTime,
+                    runtimeSpeedMultiplier
+                );
+
+            lastPhysicsVelocity =
+                body.linearVelocity;
+
+            UpdateVerticalMovementState(
+                body.linearVelocity.y
+            );
+
+            if (reachedMaximumDuration)
+            {
+                CompleteLastStandReturn();
+            }
+
             return;
         }
 
@@ -298,6 +363,8 @@ public sealed class Ball :
             );
         }
 
+        lastStandBounce?.Cancel();
+
         hasMovedUpward = false;
         hasStartedDescending = false;
 
@@ -324,8 +391,11 @@ public sealed class Ball :
 
         runtimeSpeedMultiplier = 1f;
 
-        body.position =
-            position;
+        if (body != null)
+        {
+            body.position =
+                position;
+        }
 
         transform.position =
             position;
@@ -341,12 +411,15 @@ public sealed class Ball :
             );
 
         if (Mathf.Approximately(
-                runtimeSpeedMultiplier,
-                multiplier
-            ))
+            runtimeSpeedMultiplier,
+            multiplier
+        ))
         {
             return;
         }
+
+        float previousMultiplier =
+            runtimeSpeedMultiplier;
 
         runtimeSpeedMultiplier =
             multiplier;
@@ -354,6 +427,25 @@ public sealed class Ball :
         if (!isMoving ||
             body == null)
         {
+            return;
+        }
+
+        if (IsLastStandBouncing)
+        {
+            float scaleRatio =
+                runtimeSpeedMultiplier /
+                Mathf.Max(
+                    previousMultiplier,
+                    0.1f
+                );
+
+            lastStandBounce.RescaleVelocity(
+                scaleRatio
+            );
+
+            lastPhysicsVelocity =
+                body.linearVelocity;
+
             return;
         }
 
@@ -384,6 +476,13 @@ public sealed class Ball :
             return false;
         }
 
+        if (IsLastStandBouncing)
+        {
+            CompleteLastStandReturn();
+
+            return true;
+        }
+
         StopMovement();
 
         Returned?.Invoke(
@@ -393,10 +492,6 @@ public sealed class Ball :
         return true;
     }
 
-    /*
-     * 센서 기반 관통 적중도 기존 충돌 적중과 동일하게
-     * 전역 BlockHitOccurred 이벤트를 발생시킨다.
-     */
     public void NotifyBlockHitHandled()
     {
         BlockHitOccurred?.Invoke(
@@ -406,13 +501,11 @@ public sealed class Ball :
 
     private void ClearPiercingSensorRuntime()
     {
-        PiercingBallSensor
-            piercingSensor =
-                GetComponent<
-                    PiercingBallSensor
-                >();
+        PiercingBallSensor piercingSensor =
+            GetComponent<PiercingBallSensor>();
 
-        piercingSensor?.ClearRuntimeContacts();
+        piercingSensor
+            ?.ClearRuntimeContacts();
     }
 
     private void StopMovement()
@@ -441,6 +534,7 @@ public sealed class Ball :
             Vector2.zero;
 
         loopEscape?.ResetRuntime();
+        lastStandBounce?.Cancel();
 
         if (body == null)
         {
@@ -488,6 +582,22 @@ public sealed class Ball :
                 incomingVelocity
             );
 
+        if (IsLastStandBouncing)
+        {
+            ResolveLastStandCollision(
+                collision,
+                hitBlock
+            );
+
+            if (hitBlock != null &&
+                hitResult.WasHandled)
+            {
+                NotifyBlockHitHandled();
+            }
+
+            return;
+        }
+
         bool shouldResolveBounce =
             hitBlock == null ||
             hitResult.ShouldBounce;
@@ -506,6 +616,26 @@ public sealed class Ball :
         {
             NotifyBlockHitHandled();
         }
+    }
+
+    private void ResolveLastStandCollision(
+        Collision2D collision,
+        Block hitBlock)
+    {
+        if (lastStandBounce == null)
+        {
+            return;
+        }
+
+        Vector2 reboundVelocity =
+            lastStandBounce.ResolveCollision(
+                collision,
+                hitBlock != null,
+                runtimeSpeedMultiplier
+            );
+
+        lastPhysicsVelocity =
+            reboundVelocity;
     }
 
     private BallHitResult ResolveCombatHit(
@@ -659,12 +789,222 @@ public sealed class Ball :
         }
 
         if (!other.CompareTag(
-                "ReturnZone"
-            ))
+            "ReturnZone"
+        ))
         {
             return;
         }
 
+        if (IsLastStandBouncing)
+        {
+            if (!lastStandBounce
+                    .CanProcessReturnZoneEnter)
+            {
+                return;
+            }
+
+            /*
+             * ReturnZone 안쪽까지 내려온 공을
+             * 윗면 바로 위로 먼저 올려놓습니다.
+             */
+            Vector2 floorContactPosition =
+                ResolveReturnZoneSurfacePosition(
+                    other
+                );
+
+            ApplyPhysicsPosition(
+                floorContactPosition
+            );
+
+            bool bouncedAgain =
+                lastStandBounce
+                    .TryContinueFloorBounce(
+                        floorContactPosition,
+                        runtimeSpeedMultiplier
+                    );
+
+            if (bouncedAgain)
+            {
+                lastPhysicsVelocity =
+                    body.linearVelocity;
+
+                return;
+            }
+
+            CompleteLastStandReturn();
+
+            return;
+        }
+
+        BeginLastStandBounce(
+            other
+        );
+    }
+
+    private void OnTriggerExit2D(
+        Collider2D other)
+    {
+        if (!IsLastStandBouncing)
+        {
+            return;
+        }
+
+        if (!other.CompareTag(
+            "ReturnZone"
+        ))
+        {
+            return;
+        }
+
+        lastStandBounce
+            .NotifyReturnZoneExited();
+    }
+
+    private void BeginLastStandBounce(
+        Collider2D returnZone)
+    {
+        FindReferences();
+
+        if (lastStandBounce == null ||
+            body == null)
+        {
+            CompleteImmediateReturn();
+
+            return;
+        }
+
+        Vector2 incomingVelocity =
+            lastPhysicsVelocity;
+
+        if (incomingVelocity.sqrMagnitude <=
+            0.0001f)
+        {
+            incomingVelocity =
+                body.linearVelocity;
+        }
+
+        /*
+         * 튀기기 전에 공의 하단이 ReturnZone 윗면보다
+         * 아래로 내려가지 않도록 위치를 보정합니다.
+         */
+        Vector2 floorContactPosition =
+            ResolveReturnZoneSurfacePosition(
+                returnZone
+            );
+
+        ApplyPhysicsPosition(
+            floorContactPosition
+        );
+
+        bool started =
+            lastStandBounce.TryBegin(
+                floorContactPosition,
+                incomingVelocity,
+                runtimeSpeedMultiplier
+            );
+
+        if (!started)
+        {
+            CompleteImmediateReturn();
+
+            return;
+        }
+
+        lastPhysicsVelocity =
+            body.linearVelocity;
+    }
+
+    private Vector2 ResolveReturnZoneSurfacePosition(
+        Collider2D returnZone)
+    {
+        Vector2 resolvedPosition =
+            body != null
+                ? body.position
+                : (Vector2)transform.position;
+
+        if (returnZone == null)
+        {
+            return resolvedPosition;
+        }
+
+        float ballWorldRadius =
+            ResolveBallWorldRadius();
+
+        resolvedPosition.y =
+            returnZone.bounds.max.y +
+            ballWorldRadius +
+            returnZoneSurfacePadding;
+
+        return resolvedPosition;
+    }
+
+    private float ResolveBallWorldRadius()
+    {
+        if (circleCollider == null)
+        {
+            return 0f;
+        }
+
+        Vector3 colliderScale =
+            circleCollider.transform.lossyScale;
+
+        float largestScale =
+            Mathf.Max(
+                Mathf.Abs(
+                    colliderScale.x
+                ),
+                Mathf.Abs(
+                    colliderScale.y
+                )
+            );
+
+        return circleCollider.radius *
+               largestScale;
+    }
+
+    private void ApplyPhysicsPosition(
+        Vector2 position)
+    {
+        if (body != null)
+        {
+            body.position =
+                position;
+        }
+
+        transform.position =
+            new Vector3(
+                position.x,
+                position.y,
+                transform.position.z
+            );
+    }
+
+    private void CompleteLastStandReturn()
+    {
+        if (!isMoving)
+        {
+            return;
+        }
+
+        Vector2 returnPosition =
+            lastStandBounce != null
+                ? lastStandBounce
+                    .LastFloorContactPosition
+                : (Vector2)transform.position;
+
+        ApplyPhysicsPosition(
+            returnPosition
+        );
+
+        StopMovement();
+
+        Returned?.Invoke(
+            this
+        );
+    }
+
+    private void CompleteImmediateReturn()
+    {
         StopMovement();
 
         Returned?.Invoke(
