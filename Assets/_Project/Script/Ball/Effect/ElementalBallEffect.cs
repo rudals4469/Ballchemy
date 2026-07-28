@@ -93,7 +93,10 @@ public sealed class ElementalBallEffect :
 
         /*
          * 쉴드나 무적으로 직접 피해가 막히면
-         * 속성 스택과 반응도 발생하지 않습니다.
+         *Controller.ApplyDamage(
+                targetBlock,
+                context.DirectDamage,
+                context.Hit 속성 스택과 반응도 발생하지 않습니다.
          */
         if (appliedDirectDamage <= 0)
         {
@@ -644,17 +647,31 @@ public sealed class ElementalBallEffect :
             return;
         }
 
-        BlockElementSurfaceStatusView
-            surfaceStatusView =
+        BlockWetChargeStatusView
+            wetChargeStatusView =
                 targetBlock.GetComponent<
-                    BlockElementSurfaceStatusView
+                    BlockWetChargeStatusView
                 >();
 
-        if (surfaceStatusView == null)
+        if (wetChargeStatusView == null)
         {
             targetBlock.gameObject
                 .AddComponent<
-                    BlockElementSurfaceStatusView
+                    BlockWetChargeStatusView
+                >();
+        }
+
+        BlockBurnFrostStatusView
+            burnFrostStatusView =
+                targetBlock.GetComponent<
+                    BlockBurnFrostStatusView
+                >();
+
+        if (burnFrostStatusView == null)
+        {
+            targetBlock.gameObject
+                .AddComponent<
+                    BlockBurnFrostStatusView
                 >();
         }
     }

@@ -1032,17 +1032,16 @@ public sealed class BlockElementSystem :
                     >();
         }
 
-        BlockElementSurfaceStatusView
-            surfaceView =
-                targetBlock.GetComponent<
-                    BlockElementSurfaceStatusView
-                >();
+        BlockBurnFrostStatusView burnFrostView =
+            targetBlock.GetComponent<
+                BlockBurnFrostStatusView
+            >();
 
-        if (surfaceView == null)
+        if (burnFrostView == null)
         {
             targetBlock.gameObject
                 .AddComponent<
-                    BlockElementSurfaceStatusView
+                    BlockBurnFrostStatusView
                 >();
         }
 
