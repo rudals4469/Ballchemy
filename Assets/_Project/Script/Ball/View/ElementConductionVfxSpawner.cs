@@ -12,23 +12,17 @@ public sealed class ElementConductionVfxSpawner :
         public GameObject Root;
         public SpriteRenderer FlashRenderer;
         public LineRenderer LineRenderer;
+        public Vector3[] LinePoints;
         public Coroutine PlayingRoutine;
         public bool IsPlaying;
         public int PlaySequence;
     }
 
     [Header("Effect Root")]
-    [Tooltip(
-        "전도 VFX가 생성될 부모입니다. " +
-        "비워두면 이 오브젝트 아래에 생성됩니다."
-    )]
     [SerializeField]
     private Transform effectRoot;
 
     [Header("Line")]
-    [Tooltip(
-        "비워두면 실행 중 URP 2D용 Material을 생성합니다."
-    )]
     [SerializeField]
     private Material lineMaterial;
 
@@ -42,13 +36,16 @@ public sealed class ElementConductionVfxSpawner :
         );
 
     [SerializeField, Min(0.001f)]
-    private float lineWidth = 0.05f;
+    private float lineWidth = 0.095f;
+
+    [SerializeField, Range(0.1f, 1f)]
+    private float lineEndWidthRatio = 0.68f;
 
     [SerializeField, Range(3, 12)]
-    private int linePointCount = 6;
+    private int linePointCount = 7;
 
     [SerializeField, Min(0f)]
-    private float lineJitter = 0.12f;
+    private float lineJitter = 0.18f;
 
     [Header("Target Flash")]
     [SerializeField]
@@ -57,38 +54,50 @@ public sealed class ElementConductionVfxSpawner :
             1f,
             0.95f,
             0.4f,
-            0.65f
+            0.9f
         );
 
     [SerializeField, Min(1f)]
-    private float targetFlashScale = 1.06f;
+    private float targetFlashScale = 1.2f;
+
+    [SerializeField, Min(0f)]
+    private float targetFlashPadding = 0.12f;
 
     [Header("Timing")]
     [SerializeField, Min(0.05f)]
-    private float effectDuration = 0.2f;
-
-    [SerializeField, Min(0.01f)]
-    private float lineRefreshInterval = 0.035f;
+    private float effectDuration = 0.34f;
 
     [Tooltip(
-        "여러 대상에게 전도될 때 순서대로 번개가 뻗는 간격입니다."
+        "전체 시간 중 번개가 대상까지 뻗는 데 사용하는 비율입니다."
     )]
+    [SerializeField, Range(0.05f, 0.9f)]
+    private float extendDurationRatio = 0.36f;
+
+    [Tooltip(
+        "전체 시간 중 전도선 페이드아웃이 시작되는 시점입니다."
+    )]
+    [SerializeField, Range(0f, 0.95f)]
+    private float fadeStartRatio = 0.62f;
+
+    [SerializeField, Min(0.01f)]
+    private float lineRefreshInterval = 0.045f;
+
     [SerializeField, Min(0f)]
-    private float chainStepDelay = 0.035f;
+    private float chainStepDelay = 0.055f;
 
     [Header("Rendering")]
     [SerializeField]
-    private int sortingOrderOffset = 7;
+    private int sortingOrderOffset = 9;
 
     [SerializeField]
-    private float zOffset;
+    private float zOffset = -0.04f;
 
     [Header("Pool")]
     [SerializeField, Min(0)]
-    private int prewarmCount = 6;
+    private int prewarmCount = 8;
 
     [SerializeField, Min(1)]
-    private int maximumPoolCount = 24;
+    private int maximumPoolCount = 32;
 
     [Header("Debug")]
     [SerializeField]
@@ -106,6 +115,11 @@ public sealed class ElementConductionVfxSpawner :
         effectRoot != null
             ? effectRoot
             : transform;
+
+    private void Reset()
+    {
+        ApplyReadableVfxPreset();
+    }
 
     private void Awake()
     {
@@ -135,6 +149,30 @@ public sealed class ElementConductionVfxSpawner :
                 runtimeLineMaterial
             );
         }
+    }
+
+    [ContextMenu(
+        "Apply Readable VFX Preset"
+    )]
+    private void ApplyReadableVfxPreset()
+    {
+        lineWidth = 0.095f;
+        lineEndWidthRatio = 0.68f;
+        linePointCount = 7;
+        lineJitter = 0.18f;
+
+        targetFlashScale = 1.2f;
+        targetFlashPadding = 0.12f;
+
+        effectDuration = 0.34f;
+        extendDurationRatio = 0.36f;
+        fadeStartRatio = 0.62f;
+        lineRefreshInterval = 0.045f;
+        chainStepDelay = 0.055f;
+
+        sortingOrderOffset = 9;
+
+        NormalizeSettings();
     }
 
     public void Play(
@@ -193,7 +231,6 @@ public sealed class ElementConductionVfxSpawner :
         );
 
         effect.IsPlaying = true;
-
         effect.PlaySequence =
             ++nextPlaySequence;
 
@@ -229,6 +266,13 @@ public sealed class ElementConductionVfxSpawner :
                 0.001f
             );
 
+        lineEndWidthRatio =
+            Mathf.Clamp(
+                lineEndWidthRatio,
+                0.1f,
+                1f
+            );
+
         linePointCount =
             Mathf.Clamp(
                 linePointCount,
@@ -248,10 +292,30 @@ public sealed class ElementConductionVfxSpawner :
                 1f
             );
 
+        targetFlashPadding =
+            Mathf.Max(
+                targetFlashPadding,
+                0f
+            );
+
         effectDuration =
             Mathf.Max(
                 effectDuration,
                 0.05f
+            );
+
+        extendDurationRatio =
+            Mathf.Clamp(
+                extendDurationRatio,
+                0.05f,
+                0.9f
+            );
+
+        fadeStartRatio =
+            Mathf.Clamp(
+                fadeStartRatio,
+                0f,
+                0.95f
             );
 
         lineRefreshInterval =
@@ -462,6 +526,10 @@ public sealed class ElementConductionVfxSpawner :
             Root = rootObject,
             FlashRenderer = flashRenderer,
             LineRenderer = lineRenderer,
+            LinePoints =
+                new Vector3[
+                    linePointCount
+                ],
             PlayingRoutine = null,
             IsPlaying = false,
             PlaySequence = 0
@@ -471,16 +539,8 @@ public sealed class ElementConductionVfxSpawner :
     private void ConfigureNewLineRenderer(
         LineRenderer lineRenderer)
     {
-        if (lineRenderer == null)
-        {
-            return;
-        }
-
-        lineRenderer.useWorldSpace =
-            true;
-
-        lineRenderer.loop =
-            false;
+        lineRenderer.useWorldSpace = true;
+        lineRenderer.loop = false;
 
         lineRenderer.alignment =
             LineAlignment.View;
@@ -495,13 +555,11 @@ public sealed class ElementConductionVfxSpawner :
             lineWidth;
 
         lineRenderer.endWidth =
-            lineWidth * 0.45f;
+            lineWidth *
+            lineEndWidthRatio;
 
-        lineRenderer.numCapVertices =
-            2;
-
-        lineRenderer.numCornerVertices =
-            2;
+        lineRenderer.numCapVertices = 4;
+        lineRenderer.numCornerVertices = 4;
 
         lineRenderer.shadowCastingMode =
             ShadowCastingMode.Off;
@@ -523,27 +581,18 @@ public sealed class ElementConductionVfxSpawner :
         Vector3 sourcePosition,
         Vector3 targetPosition)
     {
-        if (effect == null ||
-            effect.Root == null)
-        {
-            return;
-        }
-
         SetLayerRecursively(
             effect.Root,
             targetBlock.gameObject.layer
         );
 
-        Transform rootTransform =
-            effect.Root.transform;
-
-        rootTransform.position =
+        effect.Root.transform.position =
             targetPosition;
 
-        rootTransform.rotation =
+        effect.Root.transform.rotation =
             Quaternion.identity;
 
-        rootTransform.localScale =
+        effect.Root.transform.localScale =
             Vector3.one;
 
         SpriteRenderer flashRenderer =
@@ -558,11 +607,13 @@ public sealed class ElementConductionVfxSpawner :
         flashRenderer.size =
             new Vector2(
                 Mathf.Max(
-                    targetRenderer.bounds.size.x,
+                    targetRenderer.bounds.size.x +
+                    targetFlashPadding * 2f,
                     0.05f
                 ),
                 Mathf.Max(
-                    targetRenderer.bounds.size.y,
+                    targetRenderer.bounds.size.y +
+                    targetFlashPadding * 2f,
                     0.05f
                 )
             );
@@ -605,7 +656,8 @@ public sealed class ElementConductionVfxSpawner :
             lineWidth;
 
         lineRenderer.endWidth =
-            lineWidth * 0.45f;
+            lineWidth *
+            lineEndWidthRatio;
 
         lineRenderer.sortingLayerID =
             targetRenderer.sortingLayerID;
@@ -627,10 +679,26 @@ public sealed class ElementConductionVfxSpawner :
         lineRenderer.endColor =
             Color.clear;
 
-        GenerateLine(
-            lineRenderer,
+        if (effect.LinePoints == null ||
+            effect.LinePoints.Length !=
+            linePointCount)
+        {
+            effect.LinePoints =
+                new Vector3[
+                    linePointCount
+                ];
+        }
+
+        GenerateLinePoints(
+            effect.LinePoints,
             sourcePosition,
             targetPosition
+        );
+
+        ApplyLineProgress(
+            lineRenderer,
+            effect.LinePoints,
+            0f
         );
     }
 
@@ -661,25 +729,19 @@ public sealed class ElementConductionVfxSpawner :
             true
         );
 
-        if (effect.FlashRenderer != null)
-        {
-            effect.FlashRenderer.enabled =
-                true;
-        }
+        effect.FlashRenderer.enabled =
+            true;
 
-        if (effect.LineRenderer != null)
-        {
-            effect.LineRenderer.gameObject
-                .SetActive(
-                    true
-                );
-        }
+        effect.LineRenderer.gameObject
+            .SetActive(
+                true
+            );
 
         float elapsed = 0f;
         float refreshTimer = 0f;
 
-        GenerateLine(
-            effect.LineRenderer,
+        GenerateLinePoints(
+            effect.LinePoints,
             sourcePosition,
             targetPosition
         );
@@ -693,9 +755,37 @@ public sealed class ElementConductionVfxSpawner :
                     effectDuration
                 );
 
+            float extensionProgress =
+                Mathf.Clamp01(
+                    normalizedTime /
+                    extendDurationRatio
+                );
+
+            extensionProgress =
+                SmoothStep01(
+                    extensionProgress
+                );
+
+            ApplyLineProgress(
+                effect.LineRenderer,
+                effect.LinePoints,
+                extensionProgress
+            );
+
+            float arrivalStart =
+                extendDurationRatio *
+                0.72f;
+
+            float targetFlashTime =
+                Mathf.InverseLerp(
+                    arrivalStart,
+                    1f,
+                    normalizedTime
+                );
+
             float flashPulse =
                 Mathf.Sin(
-                    normalizedTime *
+                    targetFlashTime *
                     Mathf.PI
                 );
 
@@ -708,11 +798,8 @@ public sealed class ElementConductionVfxSpawner :
                     flashPulse
                 );
 
-            if (effect.FlashRenderer != null)
-            {
-                effect.FlashRenderer.color =
-                    animatedFlash;
-            }
+            effect.FlashRenderer.color =
+                animatedFlash;
 
             float flashScale =
                 Mathf.Lerp(
@@ -725,27 +812,40 @@ public sealed class ElementConductionVfxSpawner :
                 Vector3.one *
                 flashScale;
 
-            float lineAlpha =
+            float appearanceAlpha =
                 Mathf.Clamp01(
-                    1f -
+                    normalizedTime /
+                    0.05f
+                );
+
+            float fadeProgress =
+                Mathf.InverseLerp(
+                    fadeStartRatio,
+                    1f,
                     normalizedTime
+                );
+
+            float lineAlpha =
+                appearanceAlpha *
+                (
+                    1f -
+                    fadeProgress
                 );
 
             Color animatedLineColor =
                 lineColor;
 
             animatedLineColor.a =
-                lineColor.a *
-                lineAlpha;
+                Mathf.Clamp01(
+                    lineColor.a *
+                    lineAlpha
+                );
 
-            if (effect.LineRenderer != null)
-            {
-                effect.LineRenderer.startColor =
-                    animatedLineColor;
+            effect.LineRenderer.startColor =
+                animatedLineColor;
 
-                effect.LineRenderer.endColor =
-                    animatedLineColor;
-            }
+            effect.LineRenderer.endColor =
+                animatedLineColor;
 
             refreshTimer +=
                 Time.deltaTime;
@@ -755,8 +855,8 @@ public sealed class ElementConductionVfxSpawner :
             {
                 refreshTimer = 0f;
 
-                GenerateLine(
-                    effect.LineRenderer,
+                GenerateLinePoints(
+                    effect.LinePoints,
                     sourcePosition,
                     targetPosition
                 );
@@ -773,21 +873,20 @@ public sealed class ElementConductionVfxSpawner :
         );
     }
 
-    private void GenerateLine(
-        LineRenderer lineRenderer,
+    private void GenerateLinePoints(
+        Vector3[] points,
         Vector3 sourcePosition,
         Vector3 targetPosition)
     {
-        if (lineRenderer == null)
+        if (points == null ||
+            points.Length <= 0)
         {
             return;
         }
 
         Vector2 direction =
-            (Vector2)(
-                targetPosition -
-                sourcePosition
-            );
+            targetPosition -
+            sourcePosition;
 
         Vector2 perpendicular =
             direction.sqrMagnitude >
@@ -798,19 +897,19 @@ public sealed class ElementConductionVfxSpawner :
                 ).normalized
                 : Vector2.up;
 
-        lineRenderer.positionCount =
-            linePointCount;
+        int pointCount =
+            points.Length;
 
         for (int i = 0;
-             i < linePointCount;
+             i < pointCount;
              i++)
         {
             float t =
-                linePointCount <= 1
+                pointCount <= 1
                     ? 0f
                     : i /
                     (float)(
-                        linePointCount - 1
+                        pointCount - 1
                     );
 
             Vector3 point =
@@ -821,7 +920,7 @@ public sealed class ElementConductionVfxSpawner :
                 );
 
             if (i > 0 &&
-                i < linePointCount - 1)
+                i < pointCount - 1)
             {
                 float centerStrength =
                     Mathf.Sin(
@@ -829,28 +928,127 @@ public sealed class ElementConductionVfxSpawner :
                         Mathf.PI
                     );
 
-                float randomOffset =
-                    Random.Range(
-                        -lineJitter,
-                        lineJitter
-                    ) *
-                    centerStrength;
-
                 point +=
                     (Vector3)(
                         perpendicular *
-                        randomOffset
+                        Random.Range(
+                            -lineJitter,
+                            lineJitter
+                        ) *
+                        centerStrength
                     );
             }
 
             point.z =
                 sourcePosition.z;
 
+            points[i] =
+                point;
+        }
+    }
+
+    private void ApplyLineProgress(
+        LineRenderer lineRenderer,
+        Vector3[] points,
+        float progress)
+    {
+        if (lineRenderer == null ||
+            points == null ||
+            points.Length <= 0)
+        {
+            return;
+        }
+
+        progress =
+            Mathf.Clamp01(
+                progress
+            );
+
+        int pointCount =
+            points.Length;
+
+        lineRenderer.positionCount =
+            pointCount;
+
+        if (progress >= 1f)
+        {
+            for (int i = 0;
+                 i < pointCount;
+                 i++)
+            {
+                lineRenderer.SetPosition(
+                    i,
+                    points[i]
+                );
+            }
+
+            return;
+        }
+
+        float scaledProgress =
+            progress *
+            (
+                pointCount -
+                1
+            );
+
+        int segmentIndex =
+            Mathf.Clamp(
+                Mathf.FloorToInt(
+                    scaledProgress
+                ),
+                0,
+                pointCount - 1
+            );
+
+        int nextIndex =
+            Mathf.Min(
+                segmentIndex + 1,
+                pointCount - 1
+            );
+
+        float segmentProgress =
+            scaledProgress -
+            segmentIndex;
+
+        Vector3 currentTip =
+            Vector3.Lerp(
+                points[segmentIndex],
+                points[nextIndex],
+                segmentProgress
+            );
+
+        for (int i = 0;
+             i < pointCount;
+             i++)
+        {
+            Vector3 position =
+                i <= segmentIndex
+                    ? points[i]
+                    : currentTip;
+
             lineRenderer.SetPosition(
                 i,
-                point
+                position
             );
         }
+    }
+
+    private static float SmoothStep01(
+        float value)
+    {
+        value =
+            Mathf.Clamp01(
+                value
+            );
+
+        return value *
+               value *
+               (
+                   3f -
+                   2f *
+                   value
+               );
     }
 
     private SpriteRenderer FindBaseRenderer(
@@ -912,16 +1110,8 @@ public sealed class ElementConductionVfxSpawner :
     private void ReturnEffectInstance(
         EffectInstance effect)
     {
-        if (effect == null)
-        {
-            return;
-        }
-
-        effect.PlayingRoutine =
-            null;
-
-        effect.IsPlaying =
-            false;
+        effect.PlayingRoutine = null;
+        effect.IsPlaying = false;
 
         if (effect.FlashRenderer != null)
         {
@@ -940,15 +1130,12 @@ public sealed class ElementConductionVfxSpawner :
                 );
         }
 
-        if (effect.Root != null)
-        {
-            effect.Root.transform.localScale =
-                Vector3.one;
+        effect.Root.transform.localScale =
+            Vector3.one;
 
-            effect.Root.SetActive(
-                false
-            );
-        }
+        effect.Root.SetActive(
+            false
+        );
     }
 
     private void StopEffectInstance(
@@ -987,11 +1174,6 @@ public sealed class ElementConductionVfxSpawner :
         GameObject targetObject,
         int targetLayer)
     {
-        if (targetObject == null)
-        {
-            return;
-        }
-
         targetObject.layer =
             targetLayer;
 

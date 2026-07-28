@@ -18,10 +18,6 @@ public sealed class ElementReactionVfxSpawner :
     }
 
     [Header("Effect Root")]
-    [Tooltip(
-        "생성된 감전 효과가 들어갈 부모입니다. " +
-        "비워두면 이 오브젝트 아래에 생성됩니다."
-    )]
     [SerializeField]
     private Transform effectRoot;
 
@@ -32,19 +28,19 @@ public sealed class ElementReactionVfxSpawner :
             1f,
             0.96f,
             0.5f,
-            0.8f
+            0.95f
         );
 
-    [Tooltip(
-        "감전 플래시가 순간적으로 커지는 비율입니다."
-    )]
     [SerializeField, Min(1f)]
-    private float flashScaleMultiplier = 1.08f;
+    private float flashScaleMultiplier = 1.22f;
+
+    [Tooltip(
+        "블록 크기보다 플래시가 더 크게 표시되는 여백입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float flashBoundsPadding = 0.12f;
 
     [Header("Electric Bolts")]
-    [Tooltip(
-        "비워두면 실행 중에 URP 2D용 Material을 생성합니다."
-    )]
     [SerializeField]
     private Material lineMaterial;
 
@@ -58,49 +54,43 @@ public sealed class ElementReactionVfxSpawner :
         );
 
     [SerializeField, Min(0.001f)]
-    private float boltWidth = 0.055f;
+    private float boltWidth = 0.09f;
 
-    [Tooltip(
-        "번개 선이 꺾이는 정도입니다."
-    )]
-    [SerializeField, Min(0f)]
-    private float boltJitter = 0.1f;
+    [SerializeField, Range(0.1f, 1f)]
+    private float boltEndWidthRatio = 0.68f;
 
-    [Tooltip(
-        "블록 바깥쪽으로 번개 범위를 확장하는 거리입니다."
-    )]
     [SerializeField, Min(0f)]
-    private float boundsPadding = 0.06f;
+    private float boltJitter = 0.16f;
+
+    [SerializeField, Min(0f)]
+    private float boundsPadding = 0.15f;
 
     [SerializeField, Range(3, 10)]
-    private int boltPointCount = 5;
+    private int boltPointCount = 6;
 
     [Header("Bolt Count")]
     [SerializeField, Range(1, 8)]
-    private int weakBoltCount = 2;
+    private int weakBoltCount = 3;
 
     [SerializeField, Range(1, 8)]
-    private int mediumBoltCount = 3;
+    private int mediumBoltCount = 5;
 
     [SerializeField, Range(1, 8)]
-    private int strongBoltCount = 5;
+    private int strongBoltCount = 7;
 
     [Header("Timing")]
     [SerializeField, Min(0.05f)]
-    private float effectDuration = 0.22f;
+    private float effectDuration = 0.32f;
 
-    [Tooltip(
-        "이 간격마다 번개 모양을 새로 만들어 깜빡이는 느낌을 냅니다."
-    )]
     [SerializeField, Min(0.01f)]
-    private float boltRefreshInterval = 0.035f;
+    private float boltRefreshInterval = 0.04f;
 
     [Header("Rendering")]
     [SerializeField]
-    private int sortingOrderOffset = 5;
+    private int sortingOrderOffset = 8;
 
     [SerializeField]
-    private float zOffset = 0f;
+    private float zOffset = -0.03f;
 
     [Header("Pool")]
     [SerializeField, Min(0)]
@@ -128,6 +118,11 @@ public sealed class ElementReactionVfxSpawner :
         effectRoot != null
             ? effectRoot
             : transform;
+
+    private void Reset()
+    {
+        ApplyReadableVfxPreset();
+    }
 
     private void Awake()
     {
@@ -159,6 +154,31 @@ public sealed class ElementReactionVfxSpawner :
         }
     }
 
+    [ContextMenu(
+        "Apply Readable VFX Preset"
+    )]
+    private void ApplyReadableVfxPreset()
+    {
+        flashScaleMultiplier = 1.22f;
+        flashBoundsPadding = 0.12f;
+
+        boltWidth = 0.09f;
+        boltEndWidthRatio = 0.68f;
+        boltJitter = 0.16f;
+        boundsPadding = 0.15f;
+        boltPointCount = 6;
+
+        weakBoltCount = 3;
+        mediumBoltCount = 5;
+        strongBoltCount = 7;
+
+        effectDuration = 0.32f;
+        boltRefreshInterval = 0.04f;
+        sortingOrderOffset = 8;
+
+        NormalizeSettings();
+    }
+
     private void NormalizeSettings()
     {
         flashScaleMultiplier =
@@ -167,10 +187,23 @@ public sealed class ElementReactionVfxSpawner :
                 1f
             );
 
+        flashBoundsPadding =
+            Mathf.Max(
+                flashBoundsPadding,
+                0f
+            );
+
         boltWidth =
             Mathf.Max(
                 boltWidth,
                 0.001f
+            );
+
+        boltEndWidthRatio =
+            Mathf.Clamp(
+                boltEndWidthRatio,
+                0.1f,
+                1f
             );
 
         boltJitter =
@@ -282,8 +315,7 @@ public sealed class ElementReactionVfxSpawner :
         {
             Debug.LogWarning(
                 "ElementReactionVfxSpawner: " +
-                "번개 선에 사용할 Shader를 " +
-                "찾지 못했습니다.",
+                "번개 선에 사용할 Shader를 찾지 못했습니다.",
                 this
             );
 
@@ -332,16 +364,6 @@ public sealed class ElementReactionVfxSpawner :
         if (baseRenderer == null ||
             baseRenderer.sprite == null)
         {
-            if (showDebugLog)
-            {
-                Debug.LogWarning(
-                    "ElementReactionVfxSpawner: " +
-                    $"{targetBlock.name}의 기본 " +
-                    "SpriteRenderer를 찾지 못했습니다.",
-                    targetBlock
-                );
-            }
-
             return;
         }
 
@@ -359,7 +381,8 @@ public sealed class ElementReactionVfxSpawner :
         Vector3 center =
             targetBounds.center;
 
-        center.z += zOffset;
+        center.z +=
+            zOffset;
 
         Vector2 halfSize =
             new Vector2(
@@ -368,12 +391,19 @@ public sealed class ElementReactionVfxSpawner :
                     boundsPadding,
                     0.05f
                 ),
-
                 Mathf.Max(
                     targetBounds.extents.y +
                     boundsPadding,
                     0.05f
                 )
+            );
+
+        Vector3 expandedFlashSize =
+            targetBounds.size +
+            new Vector3(
+                flashBoundsPadding * 2f,
+                flashBoundsPadding * 2f,
+                0f
             );
 
         int boltCount =
@@ -386,7 +416,7 @@ public sealed class ElementReactionVfxSpawner :
             targetBlock,
             baseRenderer,
             center,
-            targetBounds.size,
+            expandedFlashSize,
             boltCount
         );
 
@@ -413,9 +443,8 @@ public sealed class ElementReactionVfxSpawner :
         {
             Debug.Log(
                 "ElementReactionVfxSpawner: " +
-                $"{targetBlock.name} 감전 VFX 재생, " +
-                $"반응 횟수={reactionCount}, " +
-                $"번개 개수={boltCount}",
+                $"{targetBlock.name} 감전 VFX, " +
+                $"반응={reactionCount}, 번개={boltCount}",
                 targetBlock
             );
         }
@@ -453,9 +482,14 @@ public sealed class ElementReactionVfxSpawner :
                 continue;
             }
 
-            if (candidate.gameObject.name ==
+            string objectName =
+                candidate.gameObject.name;
+
+            if (objectName ==
                     "ElementStatusVisual" ||
-                candidate.gameObject.name ==
+                objectName ==
+                    "ElementSurfaceVisual" ||
+                objectName ==
                     "ElectrocutionFlash")
             {
                 continue;
@@ -652,13 +686,11 @@ public sealed class ElementReactionVfxSpawner :
             boltWidth;
 
         lineRenderer.endWidth =
-            boltWidth * 0.45f;
+            boltWidth *
+            boltEndWidthRatio;
 
-        lineRenderer.numCapVertices =
-            2;
-
-        lineRenderer.numCornerVertices =
-            2;
+        lineRenderer.numCapVertices = 4;
+        lineRenderer.numCornerVertices = 4;
 
         lineRenderer.shadowCastingMode =
             ShadowCastingMode.Off;
@@ -681,27 +713,18 @@ public sealed class ElementReactionVfxSpawner :
         Vector3 worldSize,
         int activeBoltCount)
     {
-        if (effect == null ||
-            effect.Root == null)
-        {
-            return;
-        }
-
         SetLayerRecursively(
             effect.Root,
             targetBlock.gameObject.layer
         );
 
-        Transform rootTransform =
-            effect.Root.transform;
-
-        rootTransform.position =
+        effect.Root.transform.position =
             center;
 
-        rootTransform.rotation =
+        effect.Root.transform.rotation =
             Quaternion.identity;
 
-        rootTransform.localScale =
+        effect.Root.transform.localScale =
             Vector3.one;
 
         SpriteRenderer flashRenderer =
@@ -719,7 +742,6 @@ public sealed class ElementReactionVfxSpawner :
                     worldSize.x,
                     0.05f
                 ),
-
                 Mathf.Max(
                     worldSize.y,
                     0.05f
@@ -761,11 +783,6 @@ public sealed class ElementReactionVfxSpawner :
             LineRenderer boltRenderer =
                 effect.BoltRenderers[i];
 
-            if (boltRenderer == null)
-            {
-                continue;
-            }
-
             bool shouldEnable =
                 i < activeBoltCount;
 
@@ -785,7 +802,8 @@ public sealed class ElementReactionVfxSpawner :
                 boltWidth;
 
             boltRenderer.endWidth =
-                boltWidth * 0.45f;
+                boltWidth *
+                boltEndWidthRatio;
 
             boltRenderer.sortingLayerID =
                 baseRenderer.sortingLayerID;
@@ -818,19 +836,21 @@ public sealed class ElementReactionVfxSpawner :
     {
         float strengthMultiplier =
             Mathf.Clamp(
-                0.85f +
-                reactionCount * 0.12f,
+                0.9f +
+                reactionCount *
+                0.14f,
                 1f,
-                1.45f
+                1.55f
             );
 
         float resolvedDuration =
             effectDuration *
             Mathf.Clamp(
-                0.9f +
-                reactionCount * 0.05f,
+                0.95f +
+                reactionCount *
+                0.06f,
                 1f,
-                1.25f
+                1.3f
             );
 
         GenerateAllBolts(
@@ -868,11 +888,8 @@ public sealed class ElementReactionVfxSpawner :
                     strengthMultiplier
                 );
 
-            if (effect.FlashRenderer != null)
-            {
-                effect.FlashRenderer.color =
-                    animatedFlashColor;
-            }
+            effect.FlashRenderer.color =
+                animatedFlashColor;
 
             float flashScale =
                 Mathf.Lerp(
@@ -886,17 +903,28 @@ public sealed class ElementReactionVfxSpawner :
                 flashScale;
 
             float boltFlicker =
-                0.72f +
+                0.78f +
                 Mathf.Abs(
                     Mathf.Sin(
-                        elapsed * 65f
+                        elapsed *
+                        58f
                     )
                 ) *
-                0.28f;
+                0.22f;
+
+            float fadeProgress =
+                Mathf.InverseLerp(
+                    0.62f,
+                    1f,
+                    normalizedTime
+                );
 
             float boltAlpha =
                 Mathf.Clamp01(
-                    (1f - normalizedTime) *
+                    (
+                        1f -
+                        fadeProgress
+                    ) *
                     boltFlicker
                 );
 
@@ -939,11 +967,6 @@ public sealed class ElementReactionVfxSpawner :
         Vector2 halfSize,
         int activeBoltCount)
     {
-        if (effect == null)
-        {
-            return;
-        }
-
         for (int i = 0;
              i < activeBoltCount;
              i++)
@@ -967,11 +990,6 @@ public sealed class ElementReactionVfxSpawner :
         Vector3 center,
         Vector2 halfSize)
     {
-        if (lineRenderer == null)
-        {
-            return;
-        }
-
         int startSide =
             Random.Range(
                 0,
@@ -979,7 +997,13 @@ public sealed class ElementReactionVfxSpawner :
             );
 
         int endSide =
-            (startSide + 2) %
+            (
+                startSide +
+                Random.Range(
+                    1,
+                    4
+                )
+            ) %
             4;
 
         Vector3 startPosition =
@@ -997,10 +1021,8 @@ public sealed class ElementReactionVfxSpawner :
             );
 
         Vector2 direction =
-            (Vector2)(
-                endPosition -
-                startPosition
-            );
+            endPosition -
+            startPosition;
 
         Vector2 perpendicular =
             direction.sqrMagnitude >
@@ -1019,12 +1041,11 @@ public sealed class ElementReactionVfxSpawner :
              i++)
         {
             float t =
-                boltPointCount <= 1
-                    ? 0f
-                    : i /
-                    (float)(
-                        boltPointCount - 1
-                    );
+                i /
+                (float)(
+                    boltPointCount -
+                    1
+                );
 
             Vector3 point =
                 Vector3.Lerp(
@@ -1042,17 +1063,14 @@ public sealed class ElementReactionVfxSpawner :
                         Mathf.PI
                     );
 
-                float randomOffset =
-                    Random.Range(
-                        -boltJitter,
-                        boltJitter
-                    ) *
-                    centerStrength;
-
                 point +=
                     (Vector3)(
                         perpendicular *
-                        randomOffset
+                        Random.Range(
+                            -boltJitter,
+                            boltJitter
+                        ) *
+                        centerStrength
                     );
             }
 
@@ -1150,11 +1168,6 @@ public sealed class ElementReactionVfxSpawner :
             LineRenderer lineRenderer =
                 effect.BoltRenderers[i];
 
-            if (lineRenderer == null)
-            {
-                continue;
-            }
-
             lineRenderer.startColor =
                 animatedBoltColor;
 
@@ -1166,11 +1179,6 @@ public sealed class ElementReactionVfxSpawner :
     private void ReturnEffectInstance(
         EffectInstance effect)
     {
-        if (effect == null)
-        {
-            return;
-        }
-
         effect.PlayingRoutine = null;
         effect.IsPlaying = false;
 
@@ -1183,35 +1191,22 @@ public sealed class ElementReactionVfxSpawner :
                 Color.clear;
         }
 
-        if (effect.BoltRenderers != null)
+        for (int i = 0;
+             i < effect.BoltRenderers.Length;
+             i++)
         {
-            for (int i = 0;
-                 i < effect.BoltRenderers.Length;
-                 i++)
-            {
-                LineRenderer lineRenderer =
-                    effect.BoltRenderers[i];
-
-                if (lineRenderer == null)
-                {
-                    continue;
-                }
-
-                lineRenderer.gameObject.SetActive(
+            effect.BoltRenderers[i]
+                .gameObject.SetActive(
                     false
                 );
-            }
         }
 
-        if (effect.Root != null)
-        {
-            effect.Root.transform.localScale =
-                Vector3.one;
+        effect.Root.transform.localScale =
+            Vector3.one;
 
-            effect.Root.SetActive(
-                false
-            );
-        }
+        effect.Root.SetActive(
+            false
+        );
     }
 
     private void StopEffectInstance(
@@ -1250,11 +1245,6 @@ public sealed class ElementReactionVfxSpawner :
         GameObject targetObject,
         int targetLayer)
     {
-        if (targetObject == null)
-        {
-            return;
-        }
-
         targetObject.layer =
             targetLayer;
 

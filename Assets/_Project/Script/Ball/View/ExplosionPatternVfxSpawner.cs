@@ -7,7 +7,6 @@ public sealed class ExplosionPatternVfxSpawner :
     MonoBehaviour
 {
     [Header("References")]
-
     [Tooltip(
         "생성된 폭발 범위 선이 들어갈 부모입니다. " +
         "비어 있으면 현재 오브젝트를 사용합니다."
@@ -23,7 +22,6 @@ public sealed class ExplosionPatternVfxSpawner :
     private Material lineMaterial;
 
     [Header("Presentation")]
-
     [ColorUsage(
         true,
         true
@@ -32,46 +30,66 @@ public sealed class ExplosionPatternVfxSpawner :
     private Color lineColor =
         new Color(
             1f,
-            0.42f,
-            0.06f,
-            0.95f
+            0.48f,
+            0.08f,
+            1f
         );
 
     [Tooltip(
         "폭발 범위 선이 유지되는 시간입니다."
     )]
     [SerializeField, Min(0.01f)]
-    private float duration = 0.22f;
+    private float duration = 0.34f;
 
     [Tooltip(
-        "폭발 선의 최대 두께입니다."
+        "중심 폭발 선의 최대 두께입니다."
     )]
     [SerializeField, Min(0.001f)]
-    private float beamWidth = 0.13f;
+    private float beamWidth = 0.2f;
 
     [Tooltip(
         "선 끝부분의 두께 배율입니다."
     )]
     [SerializeField, Range(0f, 1f)]
-    private float tipWidthRatio = 0.25f;
+    private float tipWidthRatio = 0.52f;
 
     [Tooltip(
         "충돌 지점 중앙에서 선이 시작되는 간격입니다."
     )]
     [SerializeField, Min(0f)]
-    private float innerGap = 0.06f;
+    private float innerGap = 0.015f;
+
+    [Tooltip(
+        "마지막 대상 블록 중심을 넘어 블록 바깥쪽까지 " +
+        "선이 뻗는 추가 셀 거리입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float beamLengthPaddingInCells = 0.55f;
 
     [Tooltip(
         "전체 시간 중 선이 끝까지 뻗는 데 사용하는 비율입니다."
     )]
     [SerializeField, Range(0.05f, 1f)]
-    private float extendDurationRatio = 0.28f;
+    private float extendDurationRatio = 0.32f;
 
     [Tooltip(
         "전체 시간 중 페이드아웃이 시작되는 시점입니다."
     )]
     [SerializeField, Range(0f, 0.95f)]
-    private float fadeStartRatio = 0.3f;
+    private float fadeStartRatio = 0.55f;
+
+    [Header("Outer Glow")]
+    [Tooltip(
+        "중심 선 뒤에 더 굵고 흐린 광선을 추가합니다."
+    )]
+    [SerializeField]
+    private bool useOuterGlow = true;
+
+    [SerializeField, Min(1f)]
+    private float outerGlowWidthMultiplier = 2.2f;
+
+    [SerializeField, Range(0f, 1f)]
+    private float outerGlowAlphaMultiplier = 0.28f;
 
     [Tooltip(
         "블록보다 카메라 쪽으로 얼마나 이동시킬지 결정합니다. " +
@@ -81,7 +99,6 @@ public sealed class ExplosionPatternVfxSpawner :
     private float zOffset = -0.15f;
 
     [Header("Renderer")]
-
     [SerializeField]
     private string sortingLayerName =
         "Default";
@@ -90,15 +107,14 @@ public sealed class ExplosionPatternVfxSpawner :
     private int sortingOrder = 150;
 
     [SerializeField, Range(0, 8)]
-    private int capVertices = 2;
+    private int capVertices = 6;
 
     [Header("Pool")]
+    [SerializeField, Min(1)]
+    private int prewarmCount = 32;
 
     [SerializeField, Min(1)]
-    private int prewarmCount = 16;
-
-    [SerializeField, Min(1)]
-    private int maximumPoolSize = 64;
+    private int maximumPoolSize = 128;
 
     private readonly Queue<LineRenderer>
         availableLines =
@@ -119,6 +135,11 @@ public sealed class ExplosionPatternVfxSpawner :
 
     private Material runtimeMaterial;
     private int createdLineCount;
+
+    private void Reset()
+    {
+        ApplyReadableVfxPreset();
+    }
 
     private void Awake()
     {
@@ -156,6 +177,30 @@ public sealed class ExplosionPatternVfxSpawner :
         }
     }
 
+    [ContextMenu(
+        "Apply Readable VFX Preset"
+    )]
+    private void ApplyReadableVfxPreset()
+    {
+        duration = 0.34f;
+        beamWidth = 0.2f;
+        tipWidthRatio = 0.52f;
+        innerGap = 0.015f;
+        beamLengthPaddingInCells = 0.55f;
+        extendDurationRatio = 0.32f;
+        fadeStartRatio = 0.55f;
+
+        useOuterGlow = true;
+        outerGlowWidthMultiplier = 2.2f;
+        outerGlowAlphaMultiplier = 0.28f;
+
+        capVertices = 6;
+        prewarmCount = 32;
+        maximumPoolSize = 128;
+
+        NormalizeSettings();
+    }
+
     private void NormalizeSettings()
     {
         duration =
@@ -181,6 +226,12 @@ public sealed class ExplosionPatternVfxSpawner :
                 0f
             );
 
+        beamLengthPaddingInCells =
+            Mathf.Max(
+                beamLengthPaddingInCells,
+                0f
+            );
+
         extendDurationRatio =
             Mathf.Clamp(
                 extendDurationRatio,
@@ -193,6 +244,17 @@ public sealed class ExplosionPatternVfxSpawner :
                 fadeStartRatio,
                 0f,
                 0.95f
+            );
+
+        outerGlowWidthMultiplier =
+            Mathf.Max(
+                outerGlowWidthMultiplier,
+                1f
+            );
+
+        outerGlowAlphaMultiplier =
+            Mathf.Clamp01(
+                outerGlowAlphaMultiplier
             );
 
         prewarmCount =
@@ -266,12 +328,14 @@ public sealed class ExplosionPatternVfxSpawner :
 
         Vector3 boardRight =
             boardGrid != null
-                ? boardGrid.transform.right.normalized
+                ? boardGrid.transform
+                    .right.normalized
                 : Vector3.right;
 
         Vector3 boardUp =
             boardGrid != null
-                ? boardGrid.transform.up.normalized
+                ? boardGrid.transform
+                    .up.normalized
                 : Vector3.up;
 
         float cellSize =
@@ -288,14 +352,10 @@ public sealed class ExplosionPatternVfxSpawner :
         Vector2Int gridSize =
             sourceBlock.GridSize;
 
-        /*
-         * 1×1 블록:
-         * range 1이면 중심에서 한 셀 떨어진 위치까지 표시
-         *
-         * 2×2 블록:
-         * 블록 중심에서 바깥쪽 첫 번째 셀 중심까지의 거리를
-         * 추가로 반영합니다.
-         */
+        float paddedRange =
+            range +
+            beamLengthPaddingInCells;
+
         float horizontalDistance =
             (
                 (
@@ -306,7 +366,7 @@ public sealed class ExplosionPatternVfxSpawner :
                     1
                 ) *
                 0.5f +
-                range
+                paddedRange
             ) *
             cellSize;
 
@@ -320,7 +380,7 @@ public sealed class ExplosionPatternVfxSpawner :
                     1
                 ) *
                 0.5f +
-                range
+                paddedRange
             ) *
             cellSize;
 
@@ -417,6 +477,33 @@ public sealed class ExplosionPatternVfxSpawner :
             return;
         }
 
+        if (useOuterGlow)
+        {
+            SpawnSingleBeam(
+                center,
+                targetOffset,
+                outerGlowWidthMultiplier,
+                outerGlowAlphaMultiplier,
+                0
+            );
+        }
+
+        SpawnSingleBeam(
+            center,
+            targetOffset,
+            1f,
+            1f,
+            1
+        );
+    }
+
+    private void SpawnSingleBeam(
+        Vector3 center,
+        Vector3 targetOffset,
+        float widthMultiplier,
+        float alphaMultiplier,
+        int sortingOrderOffset)
+    {
         LineRenderer line =
             AcquireLine();
 
@@ -436,6 +523,10 @@ public sealed class ExplosionPatternVfxSpawner :
         Vector3 endPosition =
             center +
             targetOffset;
+
+        line.sortingOrder =
+            sortingOrder +
+            sortingOrderOffset;
 
         line.gameObject.SetActive(
             true
@@ -458,7 +549,8 @@ public sealed class ExplosionPatternVfxSpawner :
 
         SetLineAlpha(
             line,
-            0f
+            0f,
+            alphaMultiplier
         );
 
         activeLines.Add(
@@ -470,7 +562,9 @@ public sealed class ExplosionPatternVfxSpawner :
                 PlayBeamRoutine(
                     line,
                     startPosition,
-                    endPosition
+                    endPosition,
+                    widthMultiplier,
+                    alphaMultiplier
                 )
             );
 
@@ -483,7 +577,9 @@ public sealed class ExplosionPatternVfxSpawner :
     private IEnumerator PlayBeamRoutine(
         LineRenderer line,
         Vector3 startPosition,
-        Vector3 endPosition)
+        Vector3 endPosition,
+        float widthMultiplier,
+        float alphaMultiplier)
     {
         float elapsed = 0f;
 
@@ -531,7 +627,7 @@ public sealed class ExplosionPatternVfxSpawner :
             float appearanceAlpha =
                 Mathf.Clamp01(
                     normalizedTime /
-                    0.08f
+                    0.06f
                 );
 
             float fadeProgress =
@@ -555,16 +651,19 @@ public sealed class ExplosionPatternVfxSpawner :
 
             line.startWidth =
                 beamWidth *
+                widthMultiplier *
                 widthFactor;
 
             line.endWidth =
                 beamWidth *
+                widthMultiplier *
                 tipWidthRatio *
                 widthFactor;
 
             SetLineAlpha(
                 line,
-                alpha
+                alpha,
+                alphaMultiplier
             );
 
             elapsed +=
@@ -582,7 +681,8 @@ public sealed class ExplosionPatternVfxSpawner :
 
             SetLineAlpha(
                 line,
-                0f
+                0f,
+                alphaMultiplier
             );
         }
 
@@ -594,7 +694,7 @@ public sealed class ExplosionPatternVfxSpawner :
     private float CalculateWidthFactor(
         float normalizedTime)
     {
-        const float peakTime = 0.18f;
+        const float peakTime = 0.16f;
 
         if (normalizedTime <= peakTime)
         {
@@ -631,7 +731,8 @@ public sealed class ExplosionPatternVfxSpawner :
 
     private void SetLineAlpha(
         LineRenderer line,
-        float alpha)
+        float alpha,
+        float alphaMultiplier)
     {
         if (line == null)
         {
@@ -640,7 +741,8 @@ public sealed class ExplosionPatternVfxSpawner :
 
         alpha =
             Mathf.Clamp01(
-                alpha
+                alpha *
+                alphaMultiplier
             );
 
         Color startColor =
@@ -654,7 +756,7 @@ public sealed class ExplosionPatternVfxSpawner :
 
         endColor.a *=
             alpha *
-            0.55f;
+            0.75f;
 
         line.startColor =
             startColor;
