@@ -46,6 +46,7 @@ public sealed class BlockGridManager :
         enemyPhaseResolver;
 
     private int currentTurn;
+    private bool isCurrentRoomCleared;
 
     public int CurrentTurn =>
         currentTurn;
@@ -93,6 +94,12 @@ public sealed class BlockGridManager :
     public int ActiveBlockCount =>
         blockRegistry.Count;
 
+    public int RequiredEnemyCount =>
+        blockRegistry.RequiredEnemyCount;
+
+    public bool IsCurrentRoomCleared =>
+        isCurrentRoomCleared;
+
     public IReadOnlyList<Block> ActiveBlocks =>
         blockRegistry.ActiveBlocks;
 
@@ -127,6 +134,9 @@ public sealed class BlockGridManager :
 
     public event Action<int>
         StageStarted;
+
+    public event Action
+        RoomCleared;
 
     public event Action
         BossEncounterRequested;
@@ -165,6 +175,7 @@ public sealed class BlockGridManager :
         }
 
         currentTurn = 0;
+        isCurrentRoomCleared = false;
 
         bossMode.Reset();
         waveDirector.Initialize();
@@ -387,6 +398,8 @@ public sealed class BlockGridManager :
 
     private void GenerateInitialWave()
     {
+        isCurrentRoomCleared = false;
+
         List<Block> generatedBlocks =
             waveDirector.GenerateInitialWave(
                 waveGenerator
@@ -412,7 +425,8 @@ public sealed class BlockGridManager :
     public IEnumerator AdvanceTurnRoutine()
     {
         if (!CanInitialize() ||
-            IsRunCompleted)
+            IsRunCompleted ||
+            isCurrentRoomCleared)
         {
             yield break;
         }
@@ -426,6 +440,12 @@ public sealed class BlockGridManager :
         );
 
         blockRegistry.RemoveInvalidBlocks();
+
+        if (!bossMode.IsActive &&
+            TryCompleteCurrentRoom())
+        {
+            yield break;
+        }
 
         if (bossMode.IsActive)
         {
@@ -449,6 +469,43 @@ public sealed class BlockGridManager :
 
         yield return enemyPhaseResolver
             .ResolveRoutine();
+
+        blockRegistry.RemoveInvalidBlocks();
+
+        if (!bossMode.IsActive)
+        {
+            TryCompleteCurrentRoom();
+        }
+    }
+
+    private bool TryCompleteCurrentRoom()
+    {
+        if (isCurrentRoomCleared)
+        {
+            return true;
+        }
+
+        blockRegistry.RemoveInvalidBlocks();
+
+        if (blockRegistry.HasAliveRequiredEnemies)
+        {
+            return false;
+        }
+
+        isCurrentRoomCleared = true;
+
+        ballSealController?.ClearPendingSeal();
+
+        Debug.Log(
+            "BlockGridManager: " +
+            "필수 적 블록이 모두 파괴되어 " +
+            "현재 방을 클리어했습니다.",
+            this
+        );
+
+        RoomCleared?.Invoke();
+
+        return true;
     }
 
     public bool BeginBossEncounterMode()
@@ -459,11 +516,9 @@ public sealed class BlockGridManager :
             return false;
         }
 
-        /*
-         * 이전 일반 웨이브에서 남은 공 봉인은
-         * 보스전으로 가져가지 않는다.
-         */
         ballSealController?.ClearPendingSeal();
+
+        isCurrentRoomCleared = false;
 
         bool started =
             bossMode.Begin(
@@ -521,6 +576,8 @@ public sealed class BlockGridManager :
 
             return false;
         }
+
+        isCurrentRoomCleared = false;
 
         blockRegistry.AddRange(
             generatedBlocks

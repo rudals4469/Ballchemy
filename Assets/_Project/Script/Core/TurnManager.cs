@@ -250,6 +250,28 @@ public sealed class TurnManager :
             yield break;
         }
 
+        if (blockGridManager != null &&
+            blockGridManager.IsCurrentRoomCleared)
+        {
+            resolveCoroutine = null;
+
+            ChangeState(
+                TurnState.Aiming
+            );
+
+            SetInputLocked(
+                true
+            );
+
+            Debug.Log(
+                "TurnManager: 방 클리어로 " +
+                "조준과 발사를 잠급니다.",
+                this
+            );
+
+            yield break;
+        }
+
         if (nextTurnDelay > 0f)
         {
             yield return

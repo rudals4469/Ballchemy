@@ -23,6 +23,14 @@ public sealed class BlockDefinition :
     private BlockDestructionRule destructionRule =
         BlockDestructionRule.Breakable;
 
+    [Tooltip(
+        "방 클리어 판정에서 이 블록이 맡는 역할입니다. " +
+        "Auto는 BlockType에 따라 자동 결정합니다."
+    )]
+    [SerializeField]
+    private BlockClearRole clearRole =
+        BlockClearRole.Auto;
+
     [Header("Special Feedback")]
     [Tooltip(
         "Special 블록의 시각적 분류입니다. " +
@@ -65,6 +73,9 @@ public sealed class BlockDefinition :
     public BlockDestructionRule DestructionRule =>
         destructionRule;
 
+    public BlockClearRole ClearRole =>
+        ResolveClearRole();
+
     public SpecialBlockCategory SpecialCategory =>
         specialCategory;
 
@@ -82,6 +93,29 @@ public sealed class BlockDefinition :
 
     public int SelectionWeight =>
         selectionWeight;
+
+    private BlockClearRole ResolveClearRole()
+    {
+        if (clearRole != BlockClearRole.Auto)
+        {
+            return clearRole;
+        }
+
+        switch (blockType)
+        {
+            case BlockType.Normal:
+            case BlockType.Named:
+            case BlockType.Boss:
+                return BlockClearRole.RequiredEnemy;
+
+            case BlockType.Special:
+                return BlockClearRole.Optional;
+
+            case BlockType.Pattern:
+            default:
+                return BlockClearRole.Ignore;
+        }
+    }
 
     private void OnValidate()
     {
@@ -121,10 +155,6 @@ public sealed class BlockDefinition :
                 0
             );
 
-        /*
-         * Special이 아닌 블록은
-         * 특수 분류를 사용하지 않는다.
-         */
         if (blockType !=
             BlockType.Special)
         {

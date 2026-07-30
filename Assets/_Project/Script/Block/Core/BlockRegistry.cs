@@ -9,6 +9,40 @@ public sealed class BlockRegistry
     public IReadOnlyList<Block> ActiveBlocks =>
         activeBlocks;
 
+    public int RequiredEnemyCount
+    {
+        get
+        {
+            RemoveInvalidBlocks();
+
+            int count = 0;
+
+            for (int i = 0;
+                 i < activeBlocks.Count;
+                 i++)
+            {
+                Block block =
+                    activeBlocks[i];
+
+                if (block == null ||
+                    !block.IsAlive ||
+                    block.Definition == null ||
+                    block.Definition.ClearRole !=
+                    BlockClearRole.RequiredEnemy)
+                {
+                    continue;
+                }
+
+                count++;
+            }
+
+            return count;
+        }
+    }
+
+    public bool HasAliveRequiredEnemies =>
+        RequiredEnemyCount > 0;
+
     public int Count
     {
         get
@@ -86,12 +120,6 @@ public sealed class BlockRegistry
                 continue;
             }
 
-            /*
-             * 먼저 Registry에서 제거한다.
-             * Destroy는 프레임 종료 시 처리되므로,
-             * 참조가 다음 이동 및 웨이브 생성 과정에
-             * 남지 않도록 즉시 목록에서 제외한다.
-             */
             activeBlocks.RemoveAt(
                 i
             );

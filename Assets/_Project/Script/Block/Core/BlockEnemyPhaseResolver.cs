@@ -1,10 +1,18 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class BlockEnemyPhaseResolver
 {
+    /*
+     * 기존 BlockGridManager 생성자 연결을 유지하기 위한 참조다.
+     *
+     * 고정형 방 전투 1-1단계에서는
+     * 웨이브 생성과 블록 하강에 사용하지 않는다.
+     *
+     * 이후 기존 웨이브 시스템 참조가 완전히 제거되는 단계에서
+     * 생성자와 함께 정리한다.
+     */
     private readonly BlockWaveGenerator
         waveGenerator;
 
@@ -26,12 +34,22 @@ public sealed class BlockEnemyPhaseResolver
     private readonly Func<bool>
         isBossEncounterActive;
 
+    /*
+     * 기존 생성자와 참조 관계를 유지하기 위한 콜백이다.
+     *
+     * 고정형 방 전투에서는 적 공격 단계가
+     * 보스 조우를 자동으로 요청하지 않는다.
+     */
     private readonly Func<bool>
         tryStartBossEncounter;
 
-    private BallSealController
-        ballSealController;
-
+    /*
+     * 기존 BlockGridManager의 이벤트 구독을
+     * 깨뜨리지 않기 위해 현재 단계에서는 유지한다.
+     *
+     * 고정형 방 전투 중에는 새 웨이브를 생성하지 않으므로
+     * 이 이벤트는 호출되지 않는다.
+     */
     public event Action<int>
         WaveGenerated;
 
@@ -85,7 +103,17 @@ public sealed class BlockEnemyPhaseResolver
         blockRegistry.RemoveInvalidBlocks();
 
         /*
-         * 먼저 현재 일반 적 블록의 공격을 처리한다.
+         * 보스전은 BossEncounterController가 별도로 진행한다.
+         * 일반 방 적 공격 처리와 섞지 않는다.
+         */
+        if (IsBossEncounterActive())
+        {
+            yield break;
+        }
+
+        /*
+         * 현재 방에서 살아 있는 공격 가능 적들의
+         * 공격을 순차적으로 처리한다.
          */
         yield return enemyAttackSequence
             .ResolveAttackRoutine(
@@ -93,8 +121,19 @@ public sealed class BlockEnemyPhaseResolver
             );
 
         /*
-         * 적 공격이 끝나면 남아 있는
-         * 모든 Special 블록을 보상 없이 만료시킨다.
+         * 공격이 발동한 뒤 다음 공격까지의 카운트를
+         * 다시 기본 간격으로 초기화한다.
+         *
+         * 이 처리가 없으면 turnsUntilAttack이 0에 머물러
+         * 이후 모든 턴마다 적 공격이 실행된다.
+         */
+        enemyAttackCycle.ResetCycle();
+
+        /*
+         * 기존 특수 블록 규칙은 이번 단계에서 유지한다.
+         *
+         * 적 공격 단계가 끝났을 때 남아 있는
+         * Special 블록을 보상 없이 만료시킨다.
          */
         int expiredSpecialBlockCount =
             blockRegistry
@@ -112,119 +151,44 @@ public sealed class BlockEnemyPhaseResolver
 
         blockRegistry.RemoveInvalidBlocks();
 
-        if (enemyAttackSequence.IsTargetDead ||
-            IsBossEncounterActive() ||
-            waveDirector.IsRunCompleted)
+        if (enemyAttackSequence.IsTargetDead)
         {
             yield break;
         }
 
         /*
-         * 스테이지의 9번째 일반 웨이브가 끝났다면
-         * 다음 일반 웨이브를 생성하지 않고
-         * 10번째 전투인 보스전을 요청한다.
+         * 고정형 방 전투 전환 1-1단계
+         *
+         * 기존 처리:
+         * - 다음 웨이브 계획 생성
+         * - 블록 한 행 하강
+         * - 다음 웨이브 생성
+         * - 보스 웨이브 자동 요청
+         * - BallSealController 웨이브 갱신
+         *
+         * 현재 처리:
+         * - 현재 방의 배치를 그대로 유지
+         * - 다음 플레이어 턴으로 복귀
+         *
+         * 방 클리어 판정은 다음 구현 단계에서
+         * 별도 책임으로 추가한다.
          */
-        if (waveDirector
-                .ShouldStartBossAfterCurrentWave())
-        {
-            bool bossStarted =
-                TryStartBossEncounter();
-
-            if (!bossStarted)
-            {
-                Debug.LogWarning(
-                    "BlockEnemyPhaseResolver: " +
-                    $"스테이지 " +
-                    $"{waveDirector.CurrentStageNumber}의 " +
-                    "보스전 시작 요청에 실패했습니다."
-                );
-            }
-
-            yield break;
-        }
-
-        BlockWavePlan nextWavePlan =
-            waveDirector.CreateNextWavePlan(
-                waveGenerator
-            );
-
-        if (nextWavePlan == null)
-        {
-            yield break;
-        }
-
-        yield return gridMover.MoveDownRoutine(
-            blockRegistry.ActiveBlocks,
-            nextWavePlan.RequiredRowCount
-        );
-
-        if (IsBossEncounterActive() ||
-            waveDirector.IsRunCompleted)
-        {
-            yield break;
-        }
-
-        List<Block> generatedBlocks =
-            waveDirector.GeneratePlannedWave(
-                waveGenerator,
-                nextWavePlan
-            );
-
-        blockRegistry.AddRange(
-            generatedBlocks
-        );
-
-        enemyAttackCycle.ResetCycle();
-
-        blockRegistry.RemoveInvalidBlocks();
-
-        NotifyWaveGeneratedToSealController();
-
-        WaveGenerated?.Invoke(
-            waveDirector.CurrentWaveNumber
-        );
-
         Debug.Log(
             "BlockEnemyPhaseResolver: " +
-            $"스테이지 " +
-            $"{waveDirector.CurrentStageNumber}, " +
-            $"웨이브 " +
-            $"{waveDirector.CurrentWaveNumber} 생성 완료"
+            "적 공격 단계 완료. " +
+            "고정형 방 전투이므로 블록 하강과 " +
+            "다음 웨이브 생성을 실행하지 않습니다."
         );
-    }
-
-    private void
-        NotifyWaveGeneratedToSealController()
-    {
-        if (ballSealController == null)
-        {
-            ballSealController =
-                UnityEngine.Object
-                    .FindFirstObjectByType<
-                        BallSealController
-                    >();
-        }
-
-        if (ballSealController == null)
-        {
-            return;
-        }
-
-        ballSealController
-            .NotifyWaveGenerated();
-    }
-
-    private bool TryStartBossEncounter()
-    {
-        return tryStartBossEncounter != null &&
-               tryStartBossEncounter.Invoke();
     }
 
     private bool HasRequiredReferences()
     {
-        return waveGenerator != null &&
-               gridMover != null &&
-               enemyAttackCycle != null &&
+        /*
+         * waveGenerator와 gridMover는 기존 생성자 연결을
+         * 유지하기 위해 보관하지만 현재 단계 실행에는
+         * 필요하지 않다.
+         */
+        return enemyAttackCycle != null &&
                enemyAttackSequence != null &&
                waveDirector != null &&
                blockRegistry != null;
