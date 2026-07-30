@@ -18,7 +18,7 @@ MonoBehaviour:
   aggregationWindow: 0.35
   fontAsset: {fileID: 0}
   fontMaterialPreset: {fileID: 0}
-  textColor: {r: 1, g: 0, b: 0, a: 1}
+  textColor: {r: 1, g: 0.42, b: 0.06, a: 1}
   fontSize: 4.5
   fontStyle: 1
   prefix: 

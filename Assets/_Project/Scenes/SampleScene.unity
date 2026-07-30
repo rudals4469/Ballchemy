@@ -2170,6 +2170,39 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 776094120}
   m_CullTransparentMesh: 1
+--- !u!1 &812937565
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 812937566}
+  m_Layer: 0
+  m_Name: "\uBE14\uB7ED \uC0DD\uC131\uC2DC \uD295\uAE38\uC218 \uC788\uB294 \uD648\uC774
+    \uC0DD\uC131\uB420 \uC218 \uC788\uB3C4\uB85D \uBCF4\uC7A5 \uD560 \uC218 \uC788\uB294
+    \uB85C\uC9C1 \uCD94\uAC00"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &812937566
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 812937565}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 748.2384, y: 697.8423, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &822549489
 GameObject:
   m_ObjectHideFlags: 0
@@ -2763,7 +2796,9 @@ MonoBehaviour:
   ballCollection: {fileID: 904823811}
   testDrawPool:
   - {fileID: 11400000, guid: c8947fc0b1ab8fb4bb9a67a39d8acd32, type: 2}
-  - {fileID: 11400000, guid: b439394112f3fa54e8410e3df233c864, type: 2}
+  - {fileID: 11400000, guid: 9496ff8c69203b2459df8b4ce8405f66, type: 2}
+  - {fileID: 11400000, guid: ffbbcdb5fc72dda49903f540be0100b5, type: 2}
+  - {fileID: 11400000, guid: e3d01e89eb05349489d0b121f09eda87, type: 2}
   randomDrawAmount: 1
   enableDrawOneOfEach: 1
   showDebugLog: 1
@@ -2781,19 +2816,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ExplosionPatternVfxSpawner
   effectRoot: {fileID: 2092661372}
   lineMaterial: {fileID: 0}
-  lineColor: {r: 1, g: 0.42, b: 0.06, a: 0.4}
-  duration: 0.22
-  beamWidth: 0.08
-  tipWidthRatio: 0.2
-  innerGap: 0.06
-  extendDurationRatio: 0.28
-  fadeStartRatio: 0.3
+  lineColor: {r: 1, g: 0.42, b: 0.06, a: 0.2509804}
+  duration: 0.28
+  beamWidth: 0.14
+  tipWidthRatio: 0.52
+  innerGap: 0.015
+  beamLengthPaddingInCells: 0.15
+  extendDurationRatio: 0.32
+  fadeStartRatio: 0.55
+  useOuterGlow: 1
+  outerGlowWidthMultiplier: 1.6
+  outerGlowAlphaMultiplier: 0.12
   zOffset: -0.15
   sortingLayerName: Default
   sortingOrder: 220
-  capVertices: 2
-  prewarmCount: 16
-  maximumPoolSize: 64
+  capVertices: 6
+  prewarmCount: 32
+  maximumPoolSize: 128
 --- !u!114 &904823818
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2807,20 +2846,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ElementReactionVfxSpawner
   effectRoot: {fileID: 1980215018}
-  flashColor: {r: 1, g: 0.96, b: 0.5, a: 0.5019608}
+  flashColor: {r: 1, g: 0.96, b: 0.5, a: 0.2}
   flashScaleMultiplier: 1.08
+  flashBoundsPadding: 0.03
   lineMaterial: {fileID: 0}
-  boltColor: {r: 1, g: 0.88, b: 0.15, a: 0.69803923}
-  boltWidth: 0.055
-  boltJitter: 0.1
-  boundsPadding: 0.06
-  boltPointCount: 5
-  weakBoltCount: 2
-  mediumBoltCount: 3
-  strongBoltCount: 5
-  effectDuration: 0.22
-  boltRefreshInterval: 0.035
-  sortingOrderOffset: 5
+  boltColor: {r: 1, g: 0.88, b: 0.15, a: 0.6509804}
+  boltWidth: 0.075
+  boltEndWidthRatio: 0.68
+  boltJitter: 0.16
+  boundsPadding: 0.15
+  boltPointCount: 6
+  weakBoltCount: 3
+  mediumBoltCount: 5
+  strongBoltCount: 7
+  effectDuration: 0.32
+  boltRefreshInterval: 0.04
+  sortingOrderOffset: 8
   zOffset: 0
   prewarmCount: 8
   maximumPoolCount: 32
@@ -2840,16 +2881,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ElementConductionVfxSpawner
   effectRoot: {fileID: 1980215018}
   lineMaterial: {fileID: 0}
-  lineColor: {r: 1, g: 0.88, b: 0.15, a: 1}
-  lineWidth: 0.12
-  linePointCount: 6
-  lineJitter: 0.12
-  targetFlashColor: {r: 1, g: 0.95, b: 0.4, a: 0.65}
+  lineColor: {r: 1, g: 0.88, b: 0.15, a: 0.6509804}
+  lineWidth: 0.075
+  lineEndWidthRatio: 0.68
+  linePointCount: 7
+  lineJitter: 0.18
+  targetFlashColor: {r: 1, g: 0.95, b: 0.4, a: 0}
   targetFlashScale: 1.06
-  effectDuration: 0.7
-  lineRefreshInterval: 0.035
-  chainStepDelay: 0.12
-  sortingOrderOffset: 7
+  targetFlashPadding: 0.12
+  effectDuration: 0.28
+  extendDurationRatio: 0.36
+  fadeStartRatio: 0.62
+  lineRefreshInterval: 0.045
+  chainStepDelay: 0.06
+  sortingOrderOffset: 9
   zOffset: 0
   prewarmCount: 6
   maximumPoolCount: 24
@@ -4519,3 +4564,4 @@ SceneRoots:
   - {fileID: 445980720}
   - {fileID: 1806855582}
   - {fileID: 1029362623}
+  - {fileID: 812937566}
