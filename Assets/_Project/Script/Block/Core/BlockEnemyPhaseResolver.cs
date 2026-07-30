@@ -77,10 +77,15 @@ public sealed class BlockEnemyPhaseResolver
             yield break;
         }
 
+        if (waveDirector.IsRunCompleted)
+        {
+            yield break;
+        }
+
         blockRegistry.RemoveInvalidBlocks();
 
         /*
-         * 먼저 일반 적 블록의 공격을 모두 처리한다.
+         * 먼저 현재 일반 적 블록의 공격을 처리한다.
          */
         yield return enemyAttackSequence
             .ResolveAttackRoutine(
@@ -88,14 +93,8 @@ public sealed class BlockEnemyPhaseResolver
             );
 
         /*
-         * 공격 주기가 실행된 직후
-         * 기존의 모든 Special 블록을 제거한다.
-         *
-         * Block.Destroyed 이벤트를 발생시키지 않으므로
-         * 공 추가, 회복 등의 보상은 지급되지 않는다.
-         *
-         * 봉인 블록은 이 과정에서
-         * BallSealController에 봉인을 적용한다.
+         * 적 공격이 끝나면 남아 있는
+         * 모든 Special 블록을 보상 없이 만료시킨다.
          */
         int expiredSpecialBlockCount =
             blockRegistry
@@ -114,21 +113,33 @@ public sealed class BlockEnemyPhaseResolver
         blockRegistry.RemoveInvalidBlocks();
 
         if (enemyAttackSequence.IsTargetDead ||
-            IsBossEncounterActive())
+            IsBossEncounterActive() ||
+            waveDirector.IsRunCompleted)
         {
             yield break;
         }
 
         /*
-         * 보스전 진입 시에는 일반 웨이브를 생성하지 않는다.
-         *
-         * 보스전 시작 과정에서 BallLauncher가
-         * 남아 있는 봉인을 즉시 해제한다.
+         * 스테이지의 9번째 일반 웨이브가 끝났다면
+         * 다음 일반 웨이브를 생성하지 않고
+         * 10번째 전투인 보스전을 요청한다.
          */
         if (waveDirector
-                .ShouldStartBossAfterCurrentWave() &&
-            TryStartBossEncounter())
+                .ShouldStartBossAfterCurrentWave())
         {
+            bool bossStarted =
+                TryStartBossEncounter();
+
+            if (!bossStarted)
+            {
+                Debug.LogWarning(
+                    "BlockEnemyPhaseResolver: " +
+                    $"스테이지 " +
+                    $"{waveDirector.CurrentStageNumber}의 " +
+                    "보스전 시작 요청에 실패했습니다."
+                );
+            }
+
             yield break;
         }
 
@@ -147,16 +158,12 @@ public sealed class BlockEnemyPhaseResolver
             nextWavePlan.RequiredRowCount
         );
 
-        if (IsBossEncounterActive())
+        if (IsBossEncounterActive() ||
+            waveDirector.IsRunCompleted)
         {
             yield break;
         }
 
-        /*
-         * 특수 블록 제거 이후 새 웨이브를 생성하므로,
-         * 여기서 새로 등장한 특수 블록은
-         * 이번 공격 주기에 제거되지 않는다.
-         */
         List<Block> generatedBlocks =
             waveDirector.GeneratePlannedWave(
                 waveGenerator,
@@ -171,17 +178,18 @@ public sealed class BlockEnemyPhaseResolver
 
         blockRegistry.RemoveInvalidBlocks();
 
-        /*
-         * 실제 블록 생성이 끝난 시점을
-         * 봉인 시스템에 전달한다.
-         *
-         * 봉인 적용 직후 발생한 첫 알림에서는 유지되고,
-         * 다음 공격 주기의 웨이브 생성 알림에서 해제된다.
-         */
         NotifyWaveGeneratedToSealController();
 
         WaveGenerated?.Invoke(
             waveDirector.CurrentWaveNumber
+        );
+
+        Debug.Log(
+            "BlockEnemyPhaseResolver: " +
+            $"스테이지 " +
+            $"{waveDirector.CurrentStageNumber}, " +
+            $"웨이브 " +
+            $"{waveDirector.CurrentWaveNumber} 생성 완료"
         );
     }
 

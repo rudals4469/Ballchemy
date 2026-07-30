@@ -27,6 +27,10 @@ public sealed class BlockGridManager :
     [SerializeField]
     private BlockElementSystem blockElementSystem;
 
+    [Header("Optional References")]
+    [SerializeField]
+    private BallSealController ballSealController;
+
     [Header("Wave Progression")]
     [SerializeField]
     private BlockWaveDirector waveDirector =
@@ -46,10 +50,25 @@ public sealed class BlockGridManager :
     public int CurrentTurn =>
         currentTurn;
 
+    public int CurrentStageNumber =>
+        waveDirector != null
+            ? waveDirector.CurrentStageNumber
+            : 1;
+
+    public int TotalStageCount =>
+        waveDirector != null
+            ? waveDirector.TotalStageCount
+            : 1;
+
     public int CurrentWaveNumber =>
         waveDirector != null
             ? waveDirector.CurrentWaveNumber
             : 1;
+
+    public int CurrentBossWaveNumber =>
+        waveDirector != null
+            ? waveDirector.BossWaveNumber
+            : 10;
 
     public int TurnsUntilAttack =>
         enemyAttackCycle != null
@@ -63,6 +82,14 @@ public sealed class BlockGridManager :
         waveDirector != null &&
         waveDirector.IsCurrentNamedWave;
 
+    public bool IsFinalStage =>
+        waveDirector != null &&
+        waveDirector.IsFinalStage;
+
+    public bool IsRunCompleted =>
+        waveDirector != null &&
+        waveDirector.IsRunCompleted;
+
     public int ActiveBlockCount =>
         blockRegistry.Count;
 
@@ -74,7 +101,8 @@ public sealed class BlockGridManager :
         get
         {
             if (enemyAttackSequence == null ||
-                bossMode.IsActive)
+                bossMode.IsActive ||
+                IsRunCompleted)
             {
                 return 0;
             }
@@ -97,8 +125,14 @@ public sealed class BlockGridManager :
     public event Action<int>
         WaveGenerated;
 
+    public event Action<int>
+        StageStarted;
+
     public event Action
         BossEncounterRequested;
+
+    public event Action
+        RunCompleted;
 
     public event Action<IReadOnlyList<Block>>
         BlocksReachedBottom;
@@ -136,7 +170,13 @@ public sealed class BlockGridManager :
         waveDirector.Initialize();
         enemyAttackCycle.InitializeCycle();
 
+        ballSealController?.ClearPendingSeal();
+
         GenerateInitialWave();
+
+        StageStarted?.Invoke(
+            CurrentStageNumber
+        );
     }
 
     private void EnsureServices()
@@ -194,6 +234,14 @@ public sealed class BlockGridManager :
                     BlockElementSystem
                 >();
         }
+
+        if (ballSealController == null)
+        {
+            ballSealController =
+                FindFirstObjectByType<
+                    BallSealController
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -239,6 +287,17 @@ public sealed class BlockGridManager :
             Debug.LogError(
                 "BlockGridManager: " +
                 "BlockElementSystem을 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (ballSealController == null)
+        {
+            Debug.LogWarning(
+                "BlockGridManager: " +
+                "BallSealController를 찾지 못했습니다. " +
+                "보스전 및 스테이지 전환 시 " +
+                "봉인을 자동 해제할 수 없습니다.",
                 this
             );
         }
@@ -340,11 +399,20 @@ public sealed class BlockGridManager :
         WaveGenerated?.Invoke(
             CurrentWaveNumber
         );
+
+        Debug.Log(
+            "BlockGridManager: " +
+            $"스테이지 {CurrentStageNumber}/" +
+            $"{TotalStageCount}, " +
+            $"웨이브 {CurrentWaveNumber} 시작",
+            this
+        );
     }
 
     public IEnumerator AdvanceTurnRoutine()
     {
-        if (!CanInitialize())
+        if (!CanInitialize() ||
+            IsRunCompleted)
         {
             yield break;
         }
@@ -353,24 +421,17 @@ public sealed class BlockGridManager :
 
         currentTurn++;
 
-        /*
-         * 화상은 적 공격 주기와 무관하게
-         * 매 플레이어 턴 종료 시 처리합니다.
-         */
         blockElementSystem.ResolveTurnEffects(
             blockRegistry.ActiveBlocks
         );
 
-        /*
-         * 화상 피해로 파괴된 블록을
-         * 공격 및 이동 대상에서 제거합니다.
-         */
         blockRegistry.RemoveInvalidBlocks();
 
         if (bossMode.IsActive)
         {
             Debug.Log(
                 "BlockGridManager: " +
+                $"스테이지 {CurrentStageNumber}, " +
                 $"보스전 턴 {currentTurn} 종료",
                 this
             );
@@ -392,10 +453,17 @@ public sealed class BlockGridManager :
 
     public bool BeginBossEncounterMode()
     {
-        if (bossMode.IsActive)
+        if (bossMode.IsActive ||
+            IsRunCompleted)
         {
             return false;
         }
+
+        /*
+         * 이전 일반 웨이브에서 남은 공 봉인은
+         * 보스전으로 가져가지 않는다.
+         */
+        ballSealController?.ClearPendingSeal();
 
         bool started =
             bossMode.Begin(
@@ -409,27 +477,50 @@ public sealed class BlockGridManager :
 
         Debug.Log(
             "BlockGridManager: " +
-            "일반 웨이브를 정지하고 " +
-            "보스전으로 전환합니다.",
+            $"스테이지 {CurrentStageNumber}, " +
+            $"웨이브 {CurrentBossWaveNumber} 보스전으로 전환",
             this
         );
 
         return true;
     }
 
-    public void CompleteBossEncounterMode()
+    public bool CompleteBossEncounterMode()
     {
         if (!bossMode.IsActive)
         {
-            return;
+            return false;
         }
+
+        int completedStageNumber =
+            CurrentStageNumber;
 
         List<Block> generatedBlocks =
             bossMode.Complete(
                 waveDirector,
                 waveGenerator,
-                enemyAttackCycle
+                enemyAttackCycle,
+                out bool runCompleted
             );
+
+        blockRegistry.RemoveInvalidBlocks();
+
+        if (runCompleted)
+        {
+            ballSealController?.ClearPendingSeal();
+
+            Debug.Log(
+                "BlockGridManager: " +
+                $"최종 스테이지 " +
+                $"{completedStageNumber} 완료, " +
+                "런 종료",
+                this
+            );
+
+            RunCompleted?.Invoke();
+
+            return false;
+        }
 
         blockRegistry.AddRange(
             generatedBlocks
@@ -437,22 +528,31 @@ public sealed class BlockGridManager :
 
         blockRegistry.RemoveInvalidBlocks();
 
+        ballSealController?.ClearPendingSeal();
+
+        StageStarted?.Invoke(
+            CurrentStageNumber
+        );
+
         WaveGenerated?.Invoke(
             CurrentWaveNumber
         );
 
         Debug.Log(
             "BlockGridManager: " +
-            $"보스전 종료, 웨이브 " +
-            $"{CurrentWaveNumber}부터 " +
-            "일반 진행 재개",
+            $"스테이지 {completedStageNumber} 종료, " +
+            $"스테이지 {CurrentStageNumber}의 " +
+            $"웨이브 {CurrentWaveNumber} 시작",
             this
         );
+
+        return true;
     }
 
     private bool TryRequestBossEncounter()
     {
         if (bossMode.IsActive ||
+            IsRunCompleted ||
             BossEncounterRequested == null)
         {
             return false;
