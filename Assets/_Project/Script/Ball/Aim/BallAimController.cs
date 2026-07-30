@@ -1,6 +1,9 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
-public sealed class BallAimController : MonoBehaviour
+public sealed class BallAimController :
+    MonoBehaviour
 {
     [Header("References")]
     [SerializeField]
@@ -35,6 +38,10 @@ public sealed class BallAimController : MonoBehaviour
     [SerializeField, Min(0f)]
     private float stableAimDelay = 1.2f;
 
+    private static readonly List<RaycastResult>
+        UiRaycastResults =
+            new List<RaycastResult>();
+
     private Camera mainCamera;
 
     private Vector2 currentAimDirection =
@@ -66,19 +73,25 @@ public sealed class BallAimController : MonoBehaviour
         if (turnManager == null)
         {
             turnManager =
-                FindFirstObjectByType<TurnManager>();
+                FindFirstObjectByType<
+                    TurnManager
+                >();
         }
 
         if (ballLauncher == null)
         {
             ballLauncher =
-                GetComponent<BallLauncher>();
+                GetComponent<
+                    BallLauncher
+                >();
         }
 
         if (trajectoryPreview == null)
         {
             trajectoryPreview =
-                GetComponent<BallTrajectoryPreview>();
+                GetComponent<
+                    BallTrajectoryPreview
+                >();
         }
 
         ValidateReferences();
@@ -86,9 +99,14 @@ public sealed class BallAimController : MonoBehaviour
 
     private void Start()
     {
-        currentAimDirection = Vector2.up;
-        targetAimDirection = Vector2.up;
-        stableReferenceDirection = Vector2.up;
+        currentAimDirection =
+            Vector2.up;
+
+        targetAimDirection =
+            Vector2.up;
+
+        stableReferenceDirection =
+            Vector2.up;
 
         hasValidAim = true;
         hasStableReference = true;
@@ -113,6 +131,7 @@ public sealed class BallAimController : MonoBehaviour
         if (!turnManager.CanAim)
         {
             HandleAimingDisabled();
+
             return;
         }
 
@@ -126,7 +145,13 @@ public sealed class BallAimController : MonoBehaviour
                 mouseScreenPosition
             );
 
-        if (isPointerInsideGameView)
+        bool isPointerOverUi =
+            IsPointerOverUserInterface(
+                mouseScreenPosition
+            );
+
+        if (isPointerInsideGameView &&
+            !isPointerOverUi)
         {
             UpdateAimInput(
                 mouseScreenPosition
@@ -136,6 +161,7 @@ public sealed class BallAimController : MonoBehaviour
         UpdateAimVisual();
 
         if (isPointerInsideGameView &&
+            !isPointerOverUi &&
             Input.GetMouseButtonDown(0) &&
             hasValidAim)
         {
@@ -449,6 +475,56 @@ public sealed class BallAimController : MonoBehaviour
         {
             trajectoryPreview.Hide();
         }
+    }
+
+    private static bool IsPointerOverUserInterface(
+        Vector3 screenPosition)
+    {
+        EventSystem eventSystem =
+            EventSystem.current;
+
+        if (eventSystem == null)
+        {
+            return false;
+        }
+
+        /*
+         * 기본 IsPointerOverGameObject 검사도 먼저 사용합니다.
+         */
+        if (eventSystem.IsPointerOverGameObject())
+        {
+            return true;
+        }
+
+        /*
+         * 입력 모듈의 갱신 순서에 따라 위 검사가 false를
+         * 반환하는 경우를 대비해 현재 마우스 위치에서
+         * UI Graphic Raycast를 직접 실행합니다.
+         */
+        PointerEventData pointerData =
+            new PointerEventData(
+                eventSystem
+            );
+
+        pointerData.position =
+            new Vector2(
+                screenPosition.x,
+                screenPosition.y
+            );
+
+        UiRaycastResults.Clear();
+
+        eventSystem.RaycastAll(
+            pointerData,
+            UiRaycastResults
+        );
+
+        bool hasUiHit =
+            UiRaycastResults.Count > 0;
+
+        UiRaycastResults.Clear();
+
+        return hasUiHit;
     }
 
     private static bool IsValidPointerPosition(

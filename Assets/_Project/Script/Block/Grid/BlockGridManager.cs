@@ -46,7 +46,11 @@ public sealed class BlockGridManager :
         enemyPhaseResolver;
 
     private int currentTurn;
+
     private bool isCurrentRoomCleared;
+
+    private RoomCombatState currentRoomState =
+        RoomCombatState.Unvisited;
 
     public int CurrentTurn =>
         currentTurn;
@@ -100,6 +104,18 @@ public sealed class BlockGridManager :
     public bool IsCurrentRoomCleared =>
         isCurrentRoomCleared;
 
+    public RoomCombatState CurrentRoomState =>
+        currentRoomState;
+
+    public bool CanResetCurrentRoomCombat =>
+        !bossMode.IsActive &&
+        !IsRunCompleted &&
+        !isCurrentRoomCleared &&
+        currentRoomState ==
+        RoomCombatState.InCombat &&
+        waveGenerator != null &&
+        waveGenerator.HasLastGeneratedWave;
+
     public IReadOnlyList<Block> ActiveBlocks =>
         blockRegistry.ActiveBlocks;
 
@@ -137,6 +153,12 @@ public sealed class BlockGridManager :
 
     public event Action
         RoomCleared;
+
+    public event Action<RoomCombatState>
+        RoomStateChanged;
+
+    public event Action
+        RoomCombatReset;
 
     public event Action
         BossEncounterRequested;
@@ -400,6 +422,10 @@ public sealed class BlockGridManager :
     {
         isCurrentRoomCleared = false;
 
+        ChangeRoomState(
+            RoomCombatState.InCombat
+        );
+
         List<Block> generatedBlocks =
             waveDirector.GenerateInitialWave(
                 waveGenerator
@@ -494,6 +520,10 @@ public sealed class BlockGridManager :
 
         isCurrentRoomCleared = true;
 
+        ChangeRoomState(
+            RoomCombatState.Cleared
+        );
+
         ballSealController?.ClearPendingSeal();
 
         Debug.Log(
@@ -504,6 +534,77 @@ public sealed class BlockGridManager :
         );
 
         RoomCleared?.Invoke();
+
+        return true;
+    }
+
+    public bool TryResetCurrentRoomCombat()
+    {
+        if (!CanResetCurrentRoomCombat)
+        {
+            Debug.LogWarning(
+                "BlockGridManager: 현재 상태에서는 " +
+                "방 전투를 초기화할 수 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        /*
+         * 먼저 복원 블록을 생성한다.
+         *
+         * 복원 생성에 실패했을 때 기존 방까지
+         * 제거되는 상황을 방지하기 위해서다.
+         */
+        List<Block> restoredBlocks =
+            waveGenerator.RegenerateLastWave();
+
+        if (restoredBlocks == null ||
+            restoredBlocks.Count == 0)
+        {
+            Debug.LogError(
+                "BlockGridManager: 저장된 최초 배치를 " +
+                "복원하지 못했습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        /*
+         * Registry에는 기존 방 블록만 들어 있다.
+         * 새로 생성한 복원 블록은 아직 등록하지 않았으므로
+         * 기존 블록만 제거된다.
+         */
+        blockRegistry.ClearAndDestroy();
+
+        blockRegistry.AddRange(
+            restoredBlocks
+        );
+
+        currentTurn = 0;
+        isCurrentRoomCleared = false;
+
+        enemyAttackCycle.InitializeCycle();
+
+        ballSealController?.ClearPendingSeal();
+
+        ChangeRoomState(
+            RoomCombatState.InCombat
+        );
+
+        WaveGenerated?.Invoke(
+            CurrentWaveNumber
+        );
+
+        RoomCombatReset?.Invoke();
+
+        Debug.Log(
+            "BlockGridManager: 미클리어 방을 " +
+            "최초 입장 상태로 초기화했습니다.",
+            this
+        );
 
         return true;
     }
@@ -519,6 +620,10 @@ public sealed class BlockGridManager :
         ballSealController?.ClearPendingSeal();
 
         isCurrentRoomCleared = false;
+
+        ChangeRoomState(
+            RoomCombatState.InCombat
+        );
 
         bool started =
             bossMode.Begin(
@@ -578,6 +683,11 @@ public sealed class BlockGridManager :
         }
 
         isCurrentRoomCleared = false;
+        currentTurn = 0;
+
+        ChangeRoomState(
+            RoomCombatState.InCombat
+        );
 
         blockRegistry.AddRange(
             generatedBlocks
@@ -641,6 +751,12 @@ public sealed class BlockGridManager :
     private void HandleWaveGenerated(
         int waveNumber)
     {
+        isCurrentRoomCleared = false;
+
+        ChangeRoomState(
+            RoomCombatState.InCombat
+        );
+
         WaveGenerated?.Invoke(
             waveNumber
         );
@@ -685,6 +801,29 @@ public sealed class BlockGridManager :
 
         BlocksExceededBottom?.Invoke(
             blocks
+        );
+    }
+
+    private void ChangeRoomState(
+        RoomCombatState nextState)
+    {
+        if (currentRoomState ==
+            nextState)
+        {
+            return;
+        }
+
+        currentRoomState =
+            nextState;
+
+        Debug.Log(
+            "BlockGridManager: 방 상태 변경, " +
+            $"{currentRoomState}",
+            this
+        );
+
+        RoomStateChanged?.Invoke(
+            currentRoomState
         );
     }
 

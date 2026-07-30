@@ -67,10 +67,6 @@ public sealed class BlockSpawnRequest
         Definition =
             definition;
 
-        /*
-         * Definition이 있다면 Definition의 타입을
-         * 최종 타입으로 사용한다.
-         */
         RequestedBlockType =
             definition != null
                 ? definition.BlockType
@@ -94,13 +90,6 @@ public sealed class BlockSpawnRequest
                 1
             );
 
-        /*
-         * 일반 스테이지의 모든 Special 블록은
-         * 플레이어를 공격하지 않는다.
-         *
-         * 생성 측에서 공격력을 잘못 전달하더라도
-         * SpawnRequest 단계에서 0으로 고정한다.
-         */
         Attack =
             RequestedBlockType ==
             BlockType.Special
@@ -109,5 +98,43 @@ public sealed class BlockSpawnRequest
                     attack,
                     0
                 );
+    }
+
+    public BlockSpawnRequest(
+        BlockSpawnRequest source)
+        : this(
+            source != null
+                ? source.StartColumn
+                : 0,
+            source != null
+                ? source.StartRow
+                : 0,
+            source != null
+                ? source.WaveIndex
+                : 0,
+            source != null
+                ? source.Definition
+                : null,
+            source != null
+                ? source.RequestedBlockType
+                : BlockType.Normal,
+            source != null
+                ? source.GridSize
+                : Vector2Int.one,
+            source != null
+                ? source.Health
+                : 1,
+            source != null
+                ? source.Attack
+                : 0
+        )
+    {
+    }
+
+    public BlockSpawnRequest CreateCopy()
+    {
+        return new BlockSpawnRequest(
+            this
+        );
     }
 }

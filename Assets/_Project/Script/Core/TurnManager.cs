@@ -42,6 +42,12 @@ public sealed class TurnManager :
         TurnState.Aiming &&
         !isInputLocked;
 
+    public bool CanRetreat =>
+        CurrentState ==
+        TurnState.Aiming &&
+        !isInputLocked &&
+        !IsGameOver;
+
     public bool IsGameOver =>
         CurrentState ==
         TurnState.GameOver;
@@ -192,17 +198,40 @@ public sealed class TurnManager :
             TurnState.Resolving
         );
 
-        if (resolveCoroutine != null)
-        {
-            StopCoroutine(
-                resolveCoroutine
-            );
-        }
+        StopResolveCoroutine();
 
         resolveCoroutine =
             StartCoroutine(
                 ResolveTurnRoutine()
             );
+    }
+
+    public void ResetToAiming(
+        bool unlockInput = true)
+    {
+        if (IsGameOver)
+        {
+            return;
+        }
+
+        StopResolveCoroutine();
+
+        ChangeState(
+            TurnState.Aiming
+        );
+
+        if (unlockInput)
+        {
+            SetInputLocked(
+                false
+            );
+        }
+
+        Debug.Log(
+            "TurnManager: 전투 전환 후 " +
+            "조준 상태로 재설정했습니다.",
+            this
+        );
     }
 
     private IEnumerator ResolveTurnRoutine()
@@ -316,8 +345,14 @@ public sealed class TurnManager :
             return;
         }
 
+        StopResolveCoroutine();
+
         ChangeState(
             TurnState.GameOver
+        );
+
+        SetInputLocked(
+            true
         );
 
         Debug.Log(
@@ -350,14 +385,23 @@ public sealed class TurnManager :
         );
     }
 
+    private void StopResolveCoroutine()
+    {
+        if (resolveCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(
+            resolveCoroutine
+        );
+
+        resolveCoroutine = null;
+    }
+
     private void OnDestroy()
     {
-        if (resolveCoroutine != null)
-        {
-            StopCoroutine(
-                resolveCoroutine
-            );
-        }
+        StopResolveCoroutine();
 
         if (playerHealth != null)
         {

@@ -36,6 +36,10 @@ public sealed class BlockWaveGenerator : MonoBehaviour
     [SerializeField, Min(0)]
     private int attackIncreasePerWave;
 
+    private readonly List<BlockSpawnRequest>
+        lastGeneratedRequests =
+            new List<BlockSpawnRequest>();
+
     public BoardGrid BoardGrid =>
         boardGrid;
 
@@ -58,6 +62,9 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         boardGrid != null &&
         blockSpawner != null &&
         blockSpawner.IsReady;
+
+    public bool HasLastGeneratedWave =>
+        lastGeneratedRequests.Count > 0;
 
     public BlockCatalog BlockCatalog =>
         patternBuilder != null
@@ -275,6 +282,54 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         );
     }
 
+    public List<Block> RegenerateLastWave()
+    {
+        List<Block> generatedBlocks =
+            new List<Block>();
+
+        if (!IsReady)
+        {
+            Debug.LogError(
+                "BlockWaveGenerator: " +
+                "필수 참조가 없어 마지막 배치를 " +
+                "다시 생성할 수 없습니다.",
+                this
+            );
+
+            return generatedBlocks;
+        }
+
+        if (!HasLastGeneratedWave)
+        {
+            Debug.LogWarning(
+                "BlockWaveGenerator: " +
+                "저장된 최초 블록 배치가 없습니다.",
+                this
+            );
+
+            return generatedBlocks;
+        }
+
+        List<BlockSpawnRequest> requests =
+            CreateRequestCopies(
+                lastGeneratedRequests
+            );
+
+        generatedBlocks =
+            SpawnRequests(
+                requests
+            );
+
+        Debug.Log(
+            "BlockWaveGenerator: " +
+            $"저장된 최초 배치로 블록 " +
+            $"{generatedBlocks.Count}개를 복원했습니다.",
+            this
+        );
+
+        return generatedBlocks;
+    }
+
     private List<Block> GenerateWaveInternal(
         int rowCount,
         int waveIndex,
@@ -337,25 +392,14 @@ public sealed class BlockWaveGenerator : MonoBehaviour
                 featuredAttackMultiplier
             );
 
-        for (int i = 0;
-             i < requests.Count;
-             i++)
-        {
-            Block generatedBlock =
-                blockSpawner.Spawn(
-                    boardGrid,
-                    requests[i]
-                );
+        SaveLastGeneratedRequests(
+            requests
+        );
 
-            if (generatedBlock == null)
-            {
-                continue;
-            }
-
-            generatedBlocks.Add(
-                generatedBlock
+        generatedBlocks =
+            SpawnRequests(
+                requests
             );
-        }
 
         string featuredTypeText =
             featuredDefinition != null
@@ -377,6 +421,108 @@ public sealed class BlockWaveGenerator : MonoBehaviour
         );
 
         return generatedBlocks;
+    }
+
+    private List<Block> SpawnRequests(
+        IReadOnlyList<BlockSpawnRequest> requests)
+    {
+        List<Block> generatedBlocks =
+            new List<Block>();
+
+        if (requests == null)
+        {
+            return generatedBlocks;
+        }
+
+        for (int i = 0;
+             i < requests.Count;
+             i++)
+        {
+            BlockSpawnRequest request =
+                requests[i];
+
+            if (request == null)
+            {
+                continue;
+            }
+
+            Block generatedBlock =
+                blockSpawner.Spawn(
+                    boardGrid,
+                    request
+                );
+
+            if (generatedBlock == null)
+            {
+                continue;
+            }
+
+            generatedBlocks.Add(
+                generatedBlock
+            );
+        }
+
+        return generatedBlocks;
+    }
+
+    private void SaveLastGeneratedRequests(
+        IReadOnlyList<BlockSpawnRequest> requests)
+    {
+        lastGeneratedRequests.Clear();
+
+        if (requests == null)
+        {
+            return;
+        }
+
+        for (int i = 0;
+             i < requests.Count;
+             i++)
+        {
+            BlockSpawnRequest request =
+                requests[i];
+
+            if (request == null)
+            {
+                continue;
+            }
+
+            lastGeneratedRequests.Add(
+                request.CreateCopy()
+            );
+        }
+    }
+
+    private List<BlockSpawnRequest>
+        CreateRequestCopies(
+            IReadOnlyList<BlockSpawnRequest> requests)
+    {
+        List<BlockSpawnRequest> copies =
+            new List<BlockSpawnRequest>();
+
+        if (requests == null)
+        {
+            return copies;
+        }
+
+        for (int i = 0;
+             i < requests.Count;
+             i++)
+        {
+            BlockSpawnRequest request =
+                requests[i];
+
+            if (request == null)
+            {
+                continue;
+            }
+
+            copies.Add(
+                request.CreateCopy()
+            );
+        }
+
+        return copies;
     }
 
     private int CalculateWaveHealth(
