@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
@@ -63,6 +64,24 @@ public sealed class Ball :
     private bool hasMovedUpward;
     private bool hasStartedDescending;
 
+    private bool isPresentationVisible = true;
+
+    private Renderer[]
+        cachedRenderers =
+            Array.Empty<Renderer>();
+
+    private Collider2D[]
+        cachedColliders =
+            Array.Empty<Collider2D>();
+
+    private readonly Dictionary<Renderer, bool>
+        rendererEnabledStates =
+            new Dictionary<Renderer, bool>();
+
+    private readonly Dictionary<Collider2D, bool>
+        colliderEnabledStates =
+            new Dictionary<Collider2D, bool>();
+
     public static int ActiveMovingBallCount =>
         activeMovingBallCount;
 
@@ -98,6 +117,9 @@ public sealed class Ball :
 
     public bool HasStartedDescending =>
         hasStartedDescending;
+
+    public bool IsPresentationVisible =>
+        isPresentationVisible;
 
     public float RuntimeSpeedMultiplier =>
         runtimeSpeedMultiplier;
@@ -142,6 +164,7 @@ public sealed class Ball :
 
         EnsureHelpers();
         ConfigureRigidbody();
+        CachePresentationComponents();
 
         loopEscape.Initialize(
             GetInstanceID()
@@ -267,6 +290,163 @@ public sealed class Ball :
             RigidbodyInterpolation2D.Interpolate;
     }
 
+    private void CachePresentationComponents()
+    {
+        cachedRenderers =
+            GetComponentsInChildren<
+                Renderer
+            >(
+                true
+            );
+
+        cachedColliders =
+            GetComponentsInChildren<
+                Collider2D
+            >(
+                true
+            );
+
+        rendererEnabledStates.Clear();
+        colliderEnabledStates.Clear();
+
+        for (int i = 0;
+             i < cachedRenderers.Length;
+             i++)
+        {
+            Renderer targetRenderer =
+                cachedRenderers[i];
+
+            if (targetRenderer == null)
+            {
+                continue;
+            }
+
+            rendererEnabledStates[
+                targetRenderer
+            ] = targetRenderer.enabled;
+        }
+
+        for (int i = 0;
+             i < cachedColliders.Length;
+             i++)
+        {
+            Collider2D targetCollider =
+                cachedColliders[i];
+
+            if (targetCollider == null)
+            {
+                continue;
+            }
+
+            colliderEnabledStates[
+                targetCollider
+            ] = targetCollider.enabled;
+        }
+    }
+
+    public void SetPresentationVisible(
+        bool shouldShow)
+    {
+        if (isPresentationVisible ==
+            shouldShow)
+        {
+            return;
+        }
+
+        if (!shouldShow)
+        {
+            StopMovement();
+        }
+
+        isPresentationVisible =
+            shouldShow;
+
+        EnsurePresentationCache();
+
+        for (int i = 0;
+             i < cachedRenderers.Length;
+             i++)
+        {
+            Renderer targetRenderer =
+                cachedRenderers[i];
+
+            if (targetRenderer == null)
+            {
+                continue;
+            }
+
+            if (!shouldShow)
+            {
+                targetRenderer.enabled =
+                    false;
+
+                if (targetRenderer is
+                    TrailRenderer trailRenderer)
+                {
+                    trailRenderer.Clear();
+                }
+
+                continue;
+            }
+
+            bool originalState =
+                rendererEnabledStates
+                    .TryGetValue(
+                        targetRenderer,
+                        out bool storedState
+                    )
+                    ? storedState
+                    : true;
+
+            targetRenderer.enabled =
+                originalState;
+        }
+
+        for (int i = 0;
+             i < cachedColliders.Length;
+             i++)
+        {
+            Collider2D targetCollider =
+                cachedColliders[i];
+
+            if (targetCollider == null)
+            {
+                continue;
+            }
+
+            if (!shouldShow)
+            {
+                targetCollider.enabled =
+                    false;
+
+                continue;
+            }
+
+            bool originalState =
+                colliderEnabledStates
+                    .TryGetValue(
+                        targetCollider,
+                        out bool storedState
+                    )
+                    ? storedState
+                    : true;
+
+            targetCollider.enabled =
+                originalState;
+        }
+    }
+
+    private void EnsurePresentationCache()
+    {
+        if (cachedRenderers == null ||
+            cachedRenderers.Length == 0 ||
+            cachedColliders == null ||
+            cachedColliders.Length == 0)
+        {
+            CachePresentationComponents();
+        }
+    }
+
     private void FixedUpdate()
     {
         if (!isMoving ||
@@ -348,6 +528,11 @@ public sealed class Ball :
     public void Launch(
         Vector2 direction)
     {
+        if (!isPresentationVisible)
+        {
+            return;
+        }
+
         if (direction.sqrMagnitude <=
             0.001f)
         {
@@ -803,10 +988,6 @@ public sealed class Ball :
                 return;
             }
 
-            /*
-             * ReturnZone 안쪽까지 내려온 공을
-             * 윗면 바로 위로 먼저 올려놓습니다.
-             */
             Vector2 floorContactPosition =
                 ResolveReturnZoneSurfacePosition(
                     other
@@ -883,10 +1064,6 @@ public sealed class Ball :
                 body.linearVelocity;
         }
 
-        /*
-         * 튀기기 전에 공의 하단이 ReturnZone 윗면보다
-         * 아래로 내려가지 않도록 위치를 보정합니다.
-         */
         Vector2 floorContactPosition =
             ResolveReturnZoneSurfacePosition(
                 returnZone

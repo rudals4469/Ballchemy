@@ -17,6 +17,9 @@ public sealed class StageRoomNavigator :
 
     [SerializeField]
     private BallLauncher ballLauncher;
+    
+    [SerializeField]
+    private BallCollection ballCollection;
 
     private StageMap currentMap;
 
@@ -189,6 +192,14 @@ public sealed class StageRoomNavigator :
                     BallLauncher
                 >();
         }
+        
+        if (ballCollection == null)
+        {
+            ballCollection =
+                FindFirstObjectByType<
+                    BallCollection
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -227,6 +238,15 @@ public sealed class StageRoomNavigator :
                 "BallLauncher를 찾지 못했습니다. " +
                 "방 이동 시 발사 위치를 중앙으로 " +
                 "초기화할 수 없습니다.",
+                this
+            );
+        }
+        
+        if (ballCollection == null)
+        {
+            Debug.LogError(
+                "StageRoomNavigator: " +
+                "BallCollection을 찾지 못했습니다.",
                 this
             );
         }
@@ -717,14 +737,26 @@ public sealed class StageRoomNavigator :
             return;
         }
 
-        if (currentRoom.RoomType ==
+        bool isSupportedCombatRoom =
+            currentRoom.RoomType ==
             RoomType.NormalCombat ||
             currentRoom.RoomType ==
-            RoomType.NamedCombat)
+            RoomType.NamedCombat;
+
+        if (isSupportedCombatRoom)
         {
             if (IsRoomCleared(
                     currentRoom.RoomId))
             {
+                /*
+                 * 이미 클리어한 전투방은 빈 이동 경로로
+                 * 사용하므로 공을 표시하지 않습니다.
+                 */
+                ballCollection
+                    ?.SetBallsVisible(
+                        false
+                    );
+
                 blockGridManager
                     .PrepareEmptyRoom();
 
@@ -735,6 +767,15 @@ public sealed class StageRoomNavigator :
                 return;
             }
 
+            /*
+             * 아직 클리어하지 않은 전투방에서만
+             * 공을 화면에 표시하고 전투를 시작합니다.
+             */
+            ballCollection
+                ?.SetBallsVisible(
+                    true
+                );
+
             bool started =
                 blockGridManager
                     .StartRoomCombat(
@@ -743,6 +784,11 @@ public sealed class StageRoomNavigator :
 
             if (!started)
             {
+                ballCollection
+                    ?.SetBallsVisible(
+                        false
+                    );
+
                 Debug.LogError(
                     "StageRoomNavigator: " +
                     $"{GetRoomDescription(currentRoom)}의 " +
@@ -761,12 +807,14 @@ public sealed class StageRoomNavigator :
         }
 
         /*
-         * 현재 구현 단계에서는 Start와 특수방을
-         * 빈 방으로 처리한다.
-         *
-         * 보스방, 상점방, 보상방, 이벤트방의
-         * 실제 동작은 각 구현 단계에서 연결한다.
+         * 시작방과 현재 구현되지 않은 특수방에서는
+         * 공 보유 데이터는 유지하되 화면에는 표시하지 않습니다.
          */
+        ballCollection
+            ?.SetBallsVisible(
+                false
+            );
+
         blockGridManager.PrepareEmptyRoom();
 
         turnManager?.ResetToAiming(
@@ -831,6 +879,18 @@ public sealed class StageRoomNavigator :
             clearedCombatRoomIds.Add(
                 currentRoom.RoomId
             );
+
+            /*
+             * 전투가 끝난 즉시 공을 숨깁니다.
+             *
+             * 이후 보상으로 새 공을 받아도
+             * BallCollection의 현재 표시 상태를 따라
+             * 숨김 상태로 생성됩니다.
+             */
+            ballCollection
+                ?.SetBallsVisible(
+                    false
+                );
 
             Debug.Log(
                 "StageRoomNavigator: " +

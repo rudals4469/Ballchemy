@@ -41,6 +41,15 @@ public sealed class BallCollection :
 
     private bool isInitialized;
 
+    /*
+     * 시작방과 클리어한 방에서도
+     * 보유 공 목록은 유지하되 화면에는 숨기기 위한 상태입니다.
+     *
+     * 숨김 중 보상으로 새 공이 추가되면
+     * 새 공에도 동일한 숨김 상태를 적용합니다.
+     */
+    private bool areBallsVisible = true;
+
     public Ball BallPrefab =>
         ballPrefab;
 
@@ -65,6 +74,9 @@ public sealed class BallCollection :
     public bool IsInitialized =>
         isInitialized;
 
+    public bool AreBallsVisible =>
+        areBallsVisible;
+
     public Vector2 StandbyPosition =>
         standbyPosition;
 
@@ -76,6 +88,9 @@ public sealed class BallCollection :
 
     public event Action<int>
         BallsAdded;
+
+    public event Action<bool>
+        BallsVisibilityChanged;
 
     private void Awake()
     {
@@ -163,6 +178,8 @@ public sealed class BallCollection :
                 standbyPosition
             );
 
+            ApplyCurrentVisibilityToAll();
+
             return;
         }
 
@@ -179,6 +196,8 @@ public sealed class BallCollection :
         );
 
         isInitialized = true;
+
+        ApplyCurrentVisibilityToAll();
 
         Debug.Log(
             "BallCollection: " +
@@ -274,6 +293,63 @@ public sealed class BallCollection :
         return addedCount;
     }
 
+    public void SetBallsVisible(
+        bool shouldShow)
+    {
+        bool visibilityChanged =
+            areBallsVisible !=
+            shouldShow;
+
+        areBallsVisible =
+            shouldShow;
+
+        /*
+         * 같은 값이 다시 들어오더라도
+         * 런타임 중 새로 생성된 공이나 개별 상태가
+         * 달라졌을 수 있으므로 전체에 다시 적용합니다.
+         */
+        ApplyCurrentVisibilityToAll();
+
+        if (!visibilityChanged)
+        {
+            return;
+        }
+
+        BallsVisibilityChanged?.Invoke(
+            areBallsVisible
+        );
+
+        Debug.Log(
+            "BallCollection: 공 표시 상태 " +
+            (
+                areBallsVisible
+                    ? "활성화"
+                    : "비활성화"
+            ),
+            this
+        );
+    }
+
+    private void ApplyCurrentVisibilityToAll()
+    {
+        for (int i = 0;
+             i < balls.Count;
+             i++)
+        {
+            Ball ball =
+                balls[i];
+
+            if (ball == null)
+            {
+                continue;
+            }
+
+            ball.SetPresentationVisible(
+                areBallsVisible
+            );
+        }
+    }
+
     private void CreateBalls(
         int amount,
         BallDefinition definition)
@@ -352,6 +428,14 @@ public sealed class BallCollection :
 
         balls.Add(
             newBall
+        );
+
+        /*
+         * 보상 선택 중처럼 기존 공이 숨겨져 있다면
+         * 새로 지급된 공도 즉시 같은 상태로 맞춥니다.
+         */
+        newBall.SetPresentationVisible(
+            areBallsVisible
         );
 
         BallCreated?.Invoke(

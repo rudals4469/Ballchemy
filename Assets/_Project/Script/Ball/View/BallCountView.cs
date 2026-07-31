@@ -31,6 +31,13 @@ public sealed class BallCountView :
     [SerializeField]
     private bool hideWhenZero = true;
 
+    [Tooltip(
+        "BallCollection의 공 표시 상태가 꺼져 있으면 " +
+        "공 개수 텍스트도 함께 숨깁니다."
+    )]
+    [SerializeField]
+    private bool followBallVisibility = true;
+
     [Header("Debug")]
     [SerializeField]
     private bool showDebugLog;
@@ -48,12 +55,12 @@ public sealed class BallCountView :
     {
         FindReferences();
         SubscribeEvents();
-        RefreshIdleDisplay();
+        RefreshCurrentDisplay();
     }
 
     private void Start()
     {
-        RefreshIdleDisplay();
+        RefreshCurrentDisplay();
     }
 
     private void OnDisable()
@@ -68,7 +75,7 @@ public sealed class BallCountView :
 
         if (!Application.isPlaying)
         {
-            RefreshIdleDisplay();
+            RefreshCurrentDisplay();
         }
     }
 
@@ -198,6 +205,12 @@ public sealed class BallCountView :
 
             ballCollection.BallCountChanged +=
                 HandleBallCountChanged;
+
+            ballCollection.BallsVisibilityChanged -=
+                HandleBallsVisibilityChanged;
+
+            ballCollection.BallsVisibilityChanged +=
+                HandleBallsVisibilityChanged;
         }
 
         if (ballLauncher != null)
@@ -239,6 +252,9 @@ public sealed class BallCountView :
         {
             ballCollection.BallCountChanged -=
                 HandleBallCountChanged;
+
+            ballCollection.BallsVisibilityChanged -=
+                HandleBallsVisibilityChanged;
         }
 
         if (ballLauncher != null)
@@ -270,6 +286,25 @@ public sealed class BallCountView :
         }
 
         RefreshIdleDisplay();
+    }
+
+    private void HandleBallsVisibilityChanged(
+        bool areBallsVisible)
+    {
+        RefreshCurrentDisplay();
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "BallCountView: 공 표시 상태 변경, " +
+                (
+                    areBallsVisible
+                        ? "개수 텍스트 표시 가능"
+                        : "개수 텍스트 숨김"
+                ),
+                this
+            );
+        }
     }
 
     private void HandleRemainingBallsChanged(
@@ -326,10 +361,10 @@ public sealed class BallCountView :
     {
         /*
          * TryLaunch 내부에서 이 이벤트 직후
-         * RemainingBallsToLaunchChanged가 호출된다.
+         * RemainingBallsToLaunchChanged가 호출됩니다.
          *
          * 우선 현재 상태를 갱신하고,
-         * 같은 프레임에 발사 대기 숫자로 덮어쓴다.
+         * 같은 프레임에 발사 대기 숫자로 덮어씁니다.
          */
         if (!isShowingLaunchQueue)
         {
@@ -337,11 +372,39 @@ public sealed class BallCountView :
         }
     }
 
+    private void RefreshCurrentDisplay()
+    {
+        if (isShowingLaunchQueue)
+        {
+            int remainingBallCount =
+                ballLauncher != null
+                    ? ballLauncher
+                        .RemainingBallsToLaunch
+                    : 0;
+
+            SetNormalCount(
+                remainingBallCount
+            );
+
+            return;
+        }
+
+        RefreshIdleDisplay();
+    }
+
     private void RefreshIdleDisplay()
     {
         if (countLabel == null ||
             ballCollection == null)
         {
+            return;
+        }
+
+        if (!ShouldShowCount())
+        {
+            countLabel.enabled =
+                false;
+
             return;
         }
 
@@ -384,6 +447,14 @@ public sealed class BallCountView :
             return;
         }
 
+        if (!ShouldShowCount())
+        {
+            countLabel.enabled =
+                false;
+
+            return;
+        }
+
         if (hideWhenZero &&
             count <= 0)
         {
@@ -423,6 +494,14 @@ public sealed class BallCountView :
             return;
         }
 
+        if (!ShouldShowCount())
+        {
+            countLabel.enabled =
+                false;
+
+            return;
+        }
+
         if (hideWhenZero &&
             launchableBallCount <= 0)
         {
@@ -440,6 +519,21 @@ public sealed class BallCountView :
                 launchableBallCount,
                 totalBallCount
             );
+    }
+
+    private bool ShouldShowCount()
+    {
+        if (!followBallVisibility)
+        {
+            return true;
+        }
+
+        if (ballCollection == null)
+        {
+            return false;
+        }
+
+        return ballCollection.AreBallsVisible;
     }
 
     private string FormatNormalCount(
