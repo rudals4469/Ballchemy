@@ -15,6 +15,9 @@ public sealed class BallAimController :
     [SerializeField]
     private BallTrajectoryPreview trajectoryPreview;
 
+    [SerializeField]
+    private StageRoomNavigator roomNavigator;
+
     [Header("Aim Direction")]
     [SerializeField, Range(0.01f, 1f)]
     private float minimumUpwardDirection = 0.15f;
@@ -70,30 +73,7 @@ public sealed class BallAimController :
     {
         mainCamera = Camera.main;
 
-        if (turnManager == null)
-        {
-            turnManager =
-                FindFirstObjectByType<
-                    TurnManager
-                >();
-        }
-
-        if (ballLauncher == null)
-        {
-            ballLauncher =
-                GetComponent<
-                    BallLauncher
-                >();
-        }
-
-        if (trajectoryPreview == null)
-        {
-            trajectoryPreview =
-                GetComponent<
-                    BallTrajectoryPreview
-                >();
-        }
-
+        FindReferences();
         ValidateReferences();
     }
 
@@ -128,7 +108,16 @@ public sealed class BallAimController :
             return;
         }
 
-        if (!turnManager.CanAim)
+        /*
+         * 방 이동 화살표가 하나라도 표시될 수 있는 상태면
+         * 조준과 발사 입력을 모두 비활성화한다.
+         *
+         * RoomNavigationUI와 동일하게
+         * StageRoomNavigator.CanMove()를 사용하므로
+         * 실제 표시되는 이동 방향과 조건이 일치한다.
+         */
+        if (!turnManager.CanAim ||
+            ShouldSuppressAimForNavigation())
         {
             HandleAimingDisabled();
 
@@ -169,6 +158,41 @@ public sealed class BallAimController :
         }
     }
 
+    private void FindReferences()
+    {
+        if (turnManager == null)
+        {
+            turnManager =
+                FindFirstObjectByType<
+                    TurnManager
+                >();
+        }
+
+        if (ballLauncher == null)
+        {
+            ballLauncher =
+                GetComponent<
+                    BallLauncher
+                >();
+        }
+
+        if (trajectoryPreview == null)
+        {
+            trajectoryPreview =
+                GetComponent<
+                    BallTrajectoryPreview
+                >();
+        }
+
+        if (roomNavigator == null)
+        {
+            roomNavigator =
+                FindFirstObjectByType<
+                    StageRoomNavigator
+                >();
+        }
+    }
+
     private void ValidateReferences()
     {
         if (mainCamera == null)
@@ -204,6 +228,45 @@ public sealed class BallAimController :
                 this
             );
         }
+
+        if (roomNavigator == null)
+        {
+            Debug.LogWarning(
+                "BallAimController: " +
+                "StageRoomNavigator를 찾지 못했습니다. " +
+                "방 이동 화살표 표시 중에도 " +
+                "에임이 표시될 수 있습니다.",
+                this
+            );
+        }
+    }
+
+    private bool ShouldSuppressAimForNavigation()
+    {
+        if (roomNavigator == null)
+        {
+            return false;
+        }
+
+        /*
+         * RoomNavigationUI가 hideUnavailableButtons=true일 때
+         * 표시하는 조건과 동일하다.
+         *
+         * 연결된 방향 중 실제로 이동 가능한 방향이
+         * 하나라도 있으면 이동 선택 상태로 판단한다.
+         */
+        return roomNavigator.CanMove(
+                   RoomDirection.Up
+               ) ||
+               roomNavigator.CanMove(
+                   RoomDirection.Right
+               ) ||
+               roomNavigator.CanMove(
+                   RoomDirection.Down
+               ) ||
+               roomNavigator.CanMove(
+                   RoomDirection.Left
+               );
     }
 
     private void HandleAimingEnabled()
@@ -243,8 +306,18 @@ public sealed class BallAimController :
 
     private void HandleAimingDisabled()
     {
+        /*
+         * 이미 비활성 상태더라도 예상 경로가
+         * 외부 상태 변경으로 남아 있을 수 있으므로
+         * 항상 Hide를 호출한다.
+         */
         if (!wasAimingLastFrame)
         {
+            if (trajectoryPreview != null)
+            {
+                trajectoryPreview.Hide();
+            }
+
             return;
         }
 
@@ -457,6 +530,17 @@ public sealed class BallAimController :
 
     private void TryLaunch()
     {
+        /*
+         * Update 중간에 방 이동 가능 상태가 변경될 가능성까지
+         * 방어하기 위해 발사 직전에도 다시 검사한다.
+         */
+        if (ShouldSuppressAimForNavigation())
+        {
+            HandleAimingDisabled();
+
+            return;
+        }
+
         bool didLaunch =
             ballLauncher.TryLaunch(
                 currentAimDirection
@@ -488,19 +572,11 @@ public sealed class BallAimController :
             return false;
         }
 
-        /*
-         * 기본 IsPointerOverGameObject 검사도 먼저 사용합니다.
-         */
         if (eventSystem.IsPointerOverGameObject())
         {
             return true;
         }
 
-        /*
-         * 입력 모듈의 갱신 순서에 따라 위 검사가 false를
-         * 반환하는 경우를 대비해 현재 마우스 위치에서
-         * UI Graphic Raycast를 직접 실행합니다.
-         */
         PointerEventData pointerData =
             new PointerEventData(
                 eventSystem

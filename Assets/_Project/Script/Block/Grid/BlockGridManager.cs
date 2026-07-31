@@ -48,6 +48,7 @@ public sealed class BlockGridManager :
     private int currentTurn;
 
     private bool isCurrentRoomCleared;
+    private bool isRuntimeInitialized;
 
     private RoomCombatState currentRoomState =
         RoomCombatState.Unvisited;
@@ -191,25 +192,16 @@ public sealed class BlockGridManager :
 
     private void Start()
     {
-        if (!CanInitialize())
-        {
-            return;
-        }
+        InitializeRuntimeIfNeeded();
 
-        currentTurn = 0;
-        isCurrentRoomCleared = false;
-
-        bossMode.Reset();
-        waveDirector.Initialize();
-        enemyAttackCycle.InitializeCycle();
-
-        ballSealController?.ClearPendingSeal();
-
-        GenerateInitialWave();
-
-        StageStarted?.Invoke(
-            CurrentStageNumber
-        );
+        /*
+         * 고정형 방 전투 전환:
+         *
+         * 게임 시작과 동시에 블록을 생성하지 않는다.
+         * 실제 블록 생성은 StageRoomNavigator가
+         * 전투방 입장을 알렸을 때 실행한다.
+         */
+        PrepareEmptyRoom();
     }
 
     private void EnsureServices()
@@ -386,6 +378,36 @@ public sealed class BlockGridManager :
         return true;
     }
 
+    private bool InitializeRuntimeIfNeeded()
+    {
+        if (isRuntimeInitialized)
+        {
+            return true;
+        }
+
+        if (!CanInitialize())
+        {
+            return false;
+        }
+
+        currentTurn = 0;
+        isCurrentRoomCleared = false;
+
+        bossMode.Reset();
+        waveDirector.Initialize();
+        enemyAttackCycle.InitializeCycle();
+
+        ballSealController?.ClearPendingSeal();
+
+        isRuntimeInitialized = true;
+
+        StageStarted?.Invoke(
+            CurrentStageNumber
+        );
+
+        return true;
+    }
+
     private void SubscribeEvents()
     {
         if (enemyAttackCycle != null)
@@ -418,21 +440,74 @@ public sealed class BlockGridManager :
         }
     }
 
-    private void GenerateInitialWave()
+    /*
+     * StageRoomNavigator가 일반 또는 네임드
+     * 전투방에 입장했을 때 호출한다.
+     */
+    public bool StartRoomCombat(
+        RoomType roomType)
     {
+        if (roomType !=
+                RoomType.NormalCombat &&
+            roomType !=
+                RoomType.NamedCombat)
+        {
+            Debug.LogWarning(
+                "BlockGridManager: " +
+                $"{roomType}은 현재 단계의 " +
+                "전투 생성 대상이 아닙니다.",
+                this
+            );
+
+            return false;
+        }
+
+        if (!InitializeRuntimeIfNeeded() ||
+            IsRunCompleted ||
+            bossMode.IsActive)
+        {
+            return false;
+        }
+
+        blockRegistry.ClearAndDestroy();
+
+        currentTurn = 0;
         isCurrentRoomCleared = false;
 
-        ChangeRoomState(
-            RoomCombatState.InCombat
-        );
+        enemyAttackCycle.InitializeCycle();
+
+        ballSealController?.ClearPendingSeal();
 
         List<Block> generatedBlocks =
-            waveDirector.GenerateInitialWave(
-                waveGenerator
+            waveDirector.GenerateRoomWave(
+                waveGenerator,
+                roomType
             );
 
         blockRegistry.AddRange(
             generatedBlocks
+        );
+
+        blockRegistry.RemoveInvalidBlocks();
+
+        if (blockRegistry.Count <= 0)
+        {
+            Debug.LogError(
+                "BlockGridManager: " +
+                $"{roomType} 방의 블록을 " +
+                "생성하지 못했습니다.",
+                this
+            );
+
+            ChangeRoomState(
+                RoomCombatState.Unvisited
+            );
+
+            return false;
+        }
+
+        ChangeRoomState(
+            RoomCombatState.InCombat
         );
 
         WaveGenerated?.Invoke(
@@ -441,18 +516,72 @@ public sealed class BlockGridManager :
 
         Debug.Log(
             "BlockGridManager: " +
-            $"스테이지 {CurrentStageNumber}/" +
-            $"{TotalStageCount}, " +
-            $"웨이브 {CurrentWaveNumber} 시작",
+            $"{roomType} 방 전투 시작, " +
+            $"블록 {blockRegistry.Count}개, " +
+            $"필수 적 {blockRegistry.RequiredEnemyCount}개",
+            this
+        );
+
+        /*
+         * RequiredEnemy가 없는 잘못된 배치가 생성됐다면
+         * 이동 불가 상태로 남기지 않고 즉시 클리어한다.
+         */
+        if (!blockRegistry.HasAliveRequiredEnemies)
+        {
+            TryCompleteCurrentRoom();
+        }
+
+        return true;
+    }
+
+    /*
+     * 시작방 또는 이미 클리어한 방에 들어갈 때 호출한다.
+     *
+     * 기존 블록을 제거하고 이동 가능한 빈 방 상태로 만든다.
+     */
+    public void PrepareEmptyRoom()
+    {
+        InitializeRuntimeIfNeeded();
+
+        if (bossMode.IsActive)
+        {
+            Debug.LogWarning(
+                "BlockGridManager: " +
+                "보스전 진행 중에는 일반 빈 방으로 " +
+                "전환할 수 없습니다.",
+                this
+            );
+
+            return;
+        }
+
+        blockRegistry.ClearAndDestroy();
+
+        currentTurn = 0;
+        isCurrentRoomCleared = true;
+
+        enemyAttackCycle?.InitializeCycle();
+
+        ballSealController?.ClearPendingSeal();
+
+        ChangeRoomState(
+            RoomCombatState.Cleared
+        );
+
+        Debug.Log(
+            "BlockGridManager: " +
+            "현재 보드를 빈 방 상태로 전환했습니다.",
             this
         );
     }
 
     public IEnumerator AdvanceTurnRoutine()
     {
-        if (!CanInitialize() ||
+        if (!InitializeRuntimeIfNeeded() ||
             IsRunCompleted ||
-            isCurrentRoomCleared)
+            isCurrentRoomCleared ||
+            currentRoomState !=
+            RoomCombatState.InCombat)
         {
             yield break;
         }
@@ -511,6 +640,12 @@ public sealed class BlockGridManager :
             return true;
         }
 
+        if (currentRoomState !=
+            RoomCombatState.InCombat)
+        {
+            return false;
+        }
+
         blockRegistry.RemoveInvalidBlocks();
 
         if (blockRegistry.HasAliveRequiredEnemies)
@@ -551,12 +686,6 @@ public sealed class BlockGridManager :
             return false;
         }
 
-        /*
-         * 먼저 복원 블록을 생성한다.
-         *
-         * 복원 생성에 실패했을 때 기존 방까지
-         * 제거되는 상황을 방지하기 위해서다.
-         */
         List<Block> restoredBlocks =
             waveGenerator.RegenerateLastWave();
 
@@ -564,7 +693,7 @@ public sealed class BlockGridManager :
             restoredBlocks.Count == 0)
         {
             Debug.LogError(
-                "BlockGridManager: 저장된 최초 배치를 " +
+                "BlockGridManager: 저장된 최초 블록 배치를 " +
                 "복원하지 못했습니다.",
                 this
             );
@@ -572,11 +701,6 @@ public sealed class BlockGridManager :
             return false;
         }
 
-        /*
-         * Registry에는 기존 방 블록만 들어 있다.
-         * 새로 생성한 복원 블록은 아직 등록하지 않았으므로
-         * 기존 블록만 제거된다.
-         */
         blockRegistry.ClearAndDestroy();
 
         blockRegistry.AddRange(
@@ -611,7 +735,8 @@ public sealed class BlockGridManager :
 
     public bool BeginBossEncounterMode()
     {
-        if (bossMode.IsActive ||
+        if (!InitializeRuntimeIfNeeded() ||
+            bossMode.IsActive ||
             IsRunCompleted)
         {
             return false;

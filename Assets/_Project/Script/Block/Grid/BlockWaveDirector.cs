@@ -149,6 +149,99 @@ public sealed class BlockWaveDirector
                regularWaveCountPerStage;
     }
 
+    /*
+     * 고정형 방 전투용 생성 메서드다.
+     *
+     * RoomType에 따라 일반 전투방과
+     * 네임드 전투방의 초기 배치를 생성한다.
+     *
+     * 기존 웨이브 진행 인덱스는 변경하지 않는다.
+     */
+    public List<Block> GenerateRoomWave(
+        BlockWaveGenerator waveGenerator,
+        RoomType roomType)
+    {
+        if (waveGenerator == null ||
+            isRunCompleted)
+        {
+            return new List<Block>();
+        }
+
+        Normalize();
+
+        int rowCount =
+            waveGenerator
+                .GetRandomWaveRowCount();
+
+        switch (roomType)
+        {
+            case RoomType.NormalCombat:
+                return waveGenerator
+                    .GenerateWave(
+                        rowCount,
+                        currentWaveIndex,
+                        BlockType.Normal
+                    );
+
+            case RoomType.NamedCombat:
+                return GenerateNamedRoomWave(
+                    waveGenerator,
+                    rowCount
+                );
+
+            default:
+                Debug.LogWarning(
+                    "BlockWaveDirector: " +
+                    $"{roomType}은 고정형 일반 전투방 " +
+                    "생성 대상이 아닙니다."
+                );
+
+                return new List<Block>();
+        }
+    }
+
+    private List<Block> GenerateNamedRoomWave(
+        BlockWaveGenerator waveGenerator,
+        int baseRowCount)
+    {
+        BlockDefinition namedDefinition =
+            waveGenerator.GetRandomDefinition(
+                BlockType.Named
+            );
+
+        if (namedDefinition == null)
+        {
+            Debug.LogWarning(
+                "BlockWaveDirector: " +
+                "Named BlockDefinition이 없어 " +
+                "네임드 전투방을 일반 배치로 생성합니다."
+            );
+
+            return waveGenerator.GenerateWave(
+                baseRowCount,
+                currentWaveIndex,
+                BlockType.Normal
+            );
+        }
+
+        int requiredRowCount =
+            waveGenerator.GetRequiredRowCount(
+                baseRowCount,
+                namedDefinition
+            );
+
+        return waveGenerator.GenerateFeaturedWave(
+            requiredRowCount,
+            currentWaveIndex,
+            namedDefinition,
+            namedHealthMultiplier,
+            namedAttackMultiplier
+        );
+    }
+
+    /*
+     * 기존 웨이브 시스템의 참조 호환성을 위해 유지한다.
+     */
     public List<Block> GenerateInitialWave(
         BlockWaveGenerator waveGenerator)
     {
@@ -174,13 +267,6 @@ public sealed class BlockWaveDirector
             return null;
         }
 
-        /*
-         * 현재 웨이브가 스테이지의 마지막 일반 웨이브라면
-         * 다음 일반 웨이브를 만들지 않는다.
-         *
-         * 이후 BlockEnemyPhaseResolver가
-         * 보스전 진입을 요청한다.
-         */
         if (CurrentWaveNumber >=
             regularWaveCountPerStage)
         {

@@ -16,6 +16,8 @@ MonoBehaviour:
   displayName: add_ball
   blockType: 1
   destructionRule: 0
+  clearRole: 0
+  specialCategory: 4
   gridSize: {x: 1, y: 1}
   sprite: {fileID: 0}
   color: {r: 1, g: 0.84705883, b: 0.2901961, a: 1}

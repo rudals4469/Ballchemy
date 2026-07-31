@@ -18,15 +18,6 @@ public sealed class StageRoomNavigator :
     [SerializeField]
     private BallLauncher ballLauncher;
 
-    [Header("Temporary Navigation Test")]
-    [Tooltip(
-        "현재는 방별 전투 연결 전 단계입니다.\n" +
-        "활성화하면 전투 상태와 관계없이 방 이동 UI를 테스트할 수 있습니다.\n" +
-        "실제 방 전투 연결 단계에서 제거할 예정입니다."
-    )]
-    [SerializeField]
-    private bool enableNavigationTestMode = true;
-
     private StageMap currentMap;
 
     private RoomNode currentRoom;
@@ -34,6 +25,10 @@ public sealed class StageRoomNavigator :
 
     private readonly HashSet<int>
         visitedRoomIds =
+            new HashSet<int>();
+
+    private readonly HashSet<int>
+        clearedCombatRoomIds =
             new HashSet<int>();
 
     public StageMap CurrentMap =>
@@ -68,11 +63,6 @@ public sealed class StageRoomNavigator :
                 return false;
             }
 
-            if (enableNavigationTestMode)
-            {
-                return true;
-            }
-
             if (turnManager == null ||
                 blockGridManager == null ||
                 ballLauncher == null)
@@ -92,8 +82,13 @@ public sealed class StageRoomNavigator :
                 return false;
             }
 
-            if (currentRoom.RoomType ==
-                RoomType.Start)
+            if (!currentRoom.IsCombatRoom)
+            {
+                return true;
+            }
+
+            if (IsRoomCleared(
+                    currentRoom.RoomId))
             {
                 return true;
             }
@@ -128,14 +123,6 @@ public sealed class StageRoomNavigator :
 
     private void Start()
     {
-        /*
-         * StageMapDebugView와 Start 실행 순서가
-         * 보장되지 않으므로, 실제 방이 들어 있는 맵만
-         * 초기화합니다.
-         *
-         * 아직 생성되지 않았다면 MapGenerated 이벤트를
-         * 기다립니다.
-         */
         TryInitializeFromCurrentMap();
     }
 
@@ -197,20 +184,18 @@ public sealed class StageRoomNavigator :
 
         if (turnManager == null)
         {
-            Debug.LogWarning(
+            Debug.LogError(
                 "StageRoomNavigator: " +
-                "TurnManager를 찾지 못했습니다. " +
-                "테스트 모드를 해제하면 이동할 수 없습니다.",
+                "TurnManager를 찾지 못했습니다.",
                 this
             );
         }
 
         if (blockGridManager == null)
         {
-            Debug.LogWarning(
+            Debug.LogError(
                 "StageRoomNavigator: " +
-                "BlockGridManager를 찾지 못했습니다. " +
-                "테스트 모드를 해제하면 이동할 수 없습니다.",
+                "BlockGridManager를 찾지 못했습니다.",
                 this
             );
         }
@@ -306,10 +291,6 @@ public sealed class StageRoomNavigator :
         StageMap generatedMap =
             mapGenerator.CurrentMap;
 
-        /*
-         * Inspector에 남아 있는 빈 직렬화 데이터는
-         * 유효한 런타임 맵으로 처리하지 않습니다.
-         */
         if (generatedMap == null ||
             generatedMap.RoomCount <= 0)
         {
@@ -355,10 +336,6 @@ public sealed class StageRoomNavigator :
             return;
         }
 
-        /*
-         * 동일한 맵과 동일한 시작방으로 이미 초기화된
-         * 경우 중복 이벤트를 발생시키지 않습니다.
-         */
         if (currentMap == generatedMap &&
             currentRoom != null &&
             currentRoom.RoomId ==
@@ -377,10 +354,16 @@ public sealed class StageRoomNavigator :
             null;
 
         visitedRoomIds.Clear();
+        clearedCombatRoomIds.Clear();
 
         visitedRoomIds.Add(
             currentRoom.RoomId
         );
+
+        /*
+         * 시작방은 전투가 없는 빈 방이다.
+         */
+        ConfigureCurrentRoomOnEntry();
 
         Debug.Log(
             "StageRoomNavigator: 맵 이동 상태 초기화, " +
@@ -410,10 +393,6 @@ public sealed class StageRoomNavigator :
             return null;
         }
 
-        /*
-         * 정상적인 생성 경로에서는 StartRoom 프로퍼티가
-         * 바로 반환됩니다.
-         */
         RoomNode startRoom =
             map.StartRoom;
 
@@ -422,10 +401,6 @@ public sealed class StageRoomNavigator :
             return startRoom;
         }
 
-        /*
-         * 이전 직렬화 데이터 때문에 startRoomId가
-         * 유실된 경우를 대비해 타입으로 한 번 더 찾습니다.
-         */
         IReadOnlyList<RoomNode> rooms =
             map.Rooms;
 
@@ -458,6 +433,14 @@ public sealed class StageRoomNavigator :
         int roomId)
     {
         return visitedRoomIds.Contains(
+            roomId
+        );
+    }
+
+    public bool IsRoomCleared(
+        int roomId)
+    {
+        return clearedCombatRoomIds.Contains(
             roomId
         );
     }
@@ -616,6 +599,8 @@ public sealed class StageRoomNavigator :
             currentRoom.RoomId
         );
 
+        ConfigureCurrentRoomOnEntry();
+
         Debug.Log(
             "StageRoomNavigator: 방 이동, " +
             $"{GetRoomDescription(departedRoom)} -> " +
@@ -632,6 +617,71 @@ public sealed class StageRoomNavigator :
             ?.Invoke();
 
         return true;
+    }
+
+    private void ConfigureCurrentRoomOnEntry()
+    {
+        if (currentRoom == null ||
+            blockGridManager == null)
+        {
+            return;
+        }
+
+        if (currentRoom.RoomType ==
+            RoomType.NormalCombat ||
+            currentRoom.RoomType ==
+            RoomType.NamedCombat)
+        {
+            if (IsRoomCleared(
+                    currentRoom.RoomId))
+            {
+                blockGridManager
+                    .PrepareEmptyRoom();
+
+                turnManager?.ResetToAiming(
+                    true
+                );
+
+                return;
+            }
+
+            bool started =
+                blockGridManager
+                    .StartRoomCombat(
+                        currentRoom.RoomType
+                    );
+
+            if (!started)
+            {
+                Debug.LogError(
+                    "StageRoomNavigator: " +
+                    $"{GetRoomDescription(currentRoom)}의 " +
+                    "전투를 시작하지 못했습니다.",
+                    this
+                );
+
+                return;
+            }
+
+            turnManager?.ResetToAiming(
+                true
+            );
+
+            return;
+        }
+
+        /*
+         * 현재 구현 단계에서는 Start와 특수방을
+         * 빈 방으로 처리한다.
+         *
+         * 보스방, 상점방, 보상방, 이벤트방의
+         * 실제 동작은 각 구현 단계에서 연결한다.
+         */
+        blockGridManager.PrepareEmptyRoom();
+
+        turnManager?.ResetToAiming(
+            true
+        );
     }
 
     public void MoveUp()
@@ -685,6 +735,20 @@ public sealed class StageRoomNavigator :
 
     private void HandleRoomCleared()
     {
+        if (currentRoom != null &&
+            currentRoom.IsCombatRoom)
+        {
+            clearedCombatRoomIds.Add(
+                currentRoom.RoomId
+            );
+
+            Debug.Log(
+                "StageRoomNavigator: " +
+                $"방 {currentRoom.RoomId} 클리어 상태 저장",
+                this
+            );
+        }
+
         NavigationAvailabilityChanged
             ?.Invoke();
     }

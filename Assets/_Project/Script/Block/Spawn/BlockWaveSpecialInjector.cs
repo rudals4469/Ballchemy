@@ -206,6 +206,17 @@ public sealed class BlockWaveSpecialInjector
                 );
             }
 
+            if (IsLegacyAddBallDefinition(
+                    forcedSpecialDefinition))
+            {
+                Debug.LogWarning(
+                    "BlockWaveSpecialInjector: " +
+                    "Forced Special Definition에 기존 공 추가 " +
+                    "블록이 지정되어 있어 생성하지 않습니다.",
+                    forcedSpecialDefinition
+                );
+            }
+
             return;
         }
 
@@ -231,7 +242,7 @@ public sealed class BlockWaveSpecialInjector
             Debug.LogWarning(
                 "BlockWaveSpecialInjector: " +
                 "Guaranteed Reward Count가 1 이상이지만 " +
-                "Reward Special Definitions가 비어 있습니다.",
+                "생성 가능한 Reward Special Definition이 없습니다.",
                 context
             );
         }
@@ -332,9 +343,6 @@ public sealed class BlockWaveSpecialInjector
                 requestedSpecialCount
             );
 
-        /*
-         * 먼저 보상 슬롯을 채운다.
-         */
         for (int i = 0;
              i < requestedRewardCount;
              i++)
@@ -369,9 +377,6 @@ public sealed class BlockWaveSpecialInjector
             rewardInjectedCount++;
         }
 
-        /*
-         * 나머지 슬롯은 랜덤 특수 블록으로 채운다.
-         */
         List<BlockDefinition> randomPool =
             GetRandomSpecialPool(
                 blockCatalog
@@ -426,6 +431,7 @@ public sealed class BlockWaveSpecialInjector
             $"웨이브 {waveNumber}에 " +
             $"특수 블록 {injectedCount}개 추가, " +
             $"보상 블록 {rewardInjectedCount}개, " +
+            $"기존 공 추가 블록 제외, " +
             $"일반 블록 교체 없음"
         );
     }
@@ -437,9 +443,8 @@ public sealed class BlockWaveSpecialInjector
         int baseHealth,
         int waveNumber)
     {
-        if (forcedSpecialDefinition == null ||
-            forcedSpecialDefinition.BlockType !=
-            BlockType.Special)
+        if (!IsValidSpecialDefinition(
+                forcedSpecialDefinition))
         {
             return;
         }
@@ -477,13 +482,8 @@ public sealed class BlockWaveSpecialInjector
     {
         if (enableTestMode)
         {
-            if (forcedSpecialDefinition == null)
-            {
-                return false;
-            }
-
-            if (forcedSpecialDefinition.BlockType !=
-                BlockType.Special)
+            if (!IsValidSpecialDefinition(
+                    forcedSpecialDefinition))
             {
                 return false;
             }
@@ -678,6 +678,12 @@ public sealed class BlockWaveSpecialInjector
         int waveIndex,
         int baseHealth)
     {
+        if (!IsValidSpecialDefinition(
+                definition))
+        {
+            return false;
+        }
+
         if (!TryGetRandomFittingPosition(
                 definition,
                 occupancyMap,
@@ -908,7 +914,17 @@ public sealed class BlockWaveSpecialInjector
         return definition != null &&
                definition.BlockType ==
                BlockType.Special &&
-               definition.SelectionWeight > 0;
+               definition.SelectionWeight > 0 &&
+               !IsLegacyAddBallDefinition(
+                   definition);
+    }
+
+    private bool IsLegacyAddBallDefinition(
+        BlockDefinition definition)
+    {
+        return definition != null &&
+               definition.SpecialCategory ==
+               SpecialBlockCategory.LegacyAddBall;
     }
 
     private void ValidateDefinitionList(
@@ -950,6 +966,17 @@ public sealed class BlockWaveSpecialInjector
                     "BlockWaveSpecialInjector: " +
                     $"{listName}의 {definition.name}은 " +
                     "Selection Weight가 0 이하입니다.",
+                    context
+                );
+            }
+
+            if (IsLegacyAddBallDefinition(
+                    definition))
+            {
+                Debug.LogWarning(
+                    "BlockWaveSpecialInjector: " +
+                    $"{listName}의 {definition.name}은 " +
+                    "기존 공 추가 블록이므로 생성 대상에서 제외됩니다.",
                     context
                 );
             }

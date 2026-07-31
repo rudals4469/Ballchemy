@@ -1947,7 +1947,6 @@ MonoBehaviour:
   turnManager: {fileID: 1520316753}
   blockGridManager: {fileID: 987057997}
   ballLauncher: {fileID: 904823807}
-  enableNavigationTestMode: 0
 --- !u!1 &419463413
 GameObject:
   m_ObjectHideFlags: 0
@@ -3408,6 +3407,7 @@ MonoBehaviour:
   turnManager: {fileID: 1520316753}
   ballLauncher: {fileID: 904823807}
   trajectoryPreview: {fileID: 904823808}
+  roomNavigator: {fileID: 372114439}
   minimumUpwardDirection: 0.15
   aimSmoothSpeed: 14
   aimMovementThresholdDegrees: 1.5
