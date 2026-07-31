@@ -6787,6 +6787,7 @@ Transform:
   - {fileID: 1429675587}
   - {fileID: 372114436}
   - {fileID: 990971180}
+  - {fileID: 1816328242}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1339770546
@@ -7892,7 +7893,7 @@ MonoBehaviour:
   - {fileID: 378993472}
   - {fileID: 523030772}
   - {fileID: 1819681430}
-  hideOnAwake: 1
+  hideOnAwake: 0
 --- !u!224 &1593605053
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7968,7 +7969,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1674863230
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7983,8 +7984,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RewardSelectionDebugBinder
   rewardGenerator: {fileID: 990971181}
   rewardSelectionUI: {fileID: 1593605052}
+  ballCollection: {fileID: 904823811}
   testRewardTier: 1
-  showOnStart: 1
+  showOnStart: 0
+  hideAfterApply: 1
 --- !u!4 &1674863231
 Transform:
   m_ObjectHideFlags: 0
@@ -8505,6 +8508,57 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!1 &1816328241
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1816328242}
+  - component: {fileID: 1816328243}
+  m_Layer: 0
+  m_Name: RoomRewardController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1816328242
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1816328241}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1312074106}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1816328243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1816328241}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ced1eb955b7f12d40a8a6fac8773c29d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RoomRewardController
+  blockGridManager: {fileID: 987057997}
+  roomNavigator: {fileID: 372114439}
+  turnManager: {fileID: 1520316753}
+  rewardGenerator: {fileID: 990971181}
+  rewardSelectionUI: {fileID: 1593605052}
+  ballCollection: {fileID: 904823811}
+  showDebugLog: 1
 --- !u!1 &1819681429
 GameObject:
   m_ObjectHideFlags: 0

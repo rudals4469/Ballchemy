@@ -31,6 +31,15 @@ public sealed class StageRoomNavigator :
         clearedCombatRoomIds =
             new HashSet<int>();
 
+    /*
+     * 보상 선택, 연출, 맵 전환 등 외부 시스템이
+     * 방 이동 자체를 잠글 때 사용합니다.
+     *
+     * UI를 숨기는 것과 별개로 TryMove와
+     * MoveToRoom 실행을 시스템 수준에서 막습니다.
+     */
+    private bool isNavigationLocked;
+
     public StageMap CurrentMap =>
         currentMap;
 
@@ -53,10 +62,18 @@ public sealed class StageRoomNavigator :
     public bool HasCurrentRoom =>
         currentRoom != null;
 
+    public bool IsNavigationLocked =>
+        isNavigationLocked;
+
     public bool CanNavigate
     {
         get
         {
+            if (isNavigationLocked)
+            {
+                return false;
+            }
+
             if (currentMap == null ||
                 currentRoom == null)
             {
@@ -114,6 +131,9 @@ public sealed class StageRoomNavigator :
     {
         FindReferences();
         ValidateReferences();
+
+        isNavigationLocked =
+            false;
     }
 
     private void OnEnable()
@@ -281,6 +301,39 @@ public sealed class StageRoomNavigator :
         }
     }
 
+    public void SetNavigationLocked(
+        bool shouldLock)
+    {
+        if (isNavigationLocked ==
+            shouldLock)
+        {
+            return;
+        }
+
+        isNavigationLocked =
+            shouldLock;
+
+        Debug.Log(
+            "StageRoomNavigator: 방 이동 잠금 " +
+            (
+                isNavigationLocked
+                    ? "활성화"
+                    : "해제"
+            ),
+            this
+        );
+
+        /*
+         * RoomNavigationUI는 이 이벤트를 받아
+         * CanMove 결과에 따라 화살표를 갱신합니다.
+         *
+         * 따라서 잠금 중에는 버튼이 숨고,
+         * 잠금 해제 후에만 연결된 방향 버튼이 나타납니다.
+         */
+        NavigationAvailabilityChanged
+            ?.Invoke();
+    }
+
     private void TryInitializeFromCurrentMap()
     {
         if (mapGenerator == null)
@@ -352,6 +405,9 @@ public sealed class StageRoomNavigator :
 
         previousRoom =
             null;
+
+        isNavigationLocked =
+            false;
 
         visitedRoomIds.Clear();
         clearedCombatRoomIds.Clear();
@@ -507,8 +563,11 @@ public sealed class StageRoomNavigator :
         {
             Debug.LogWarning(
                 "StageRoomNavigator: " +
-                "현재 상태에서는 일반 방 이동을 " +
-                "할 수 없습니다.",
+                (
+                    isNavigationLocked
+                        ? "방 이동이 외부 시스템에 의해 잠겨 있습니다."
+                        : "현재 상태에서는 일반 방 이동을 할 수 없습니다."
+                ),
                 this
             );
 
@@ -538,6 +597,25 @@ public sealed class StageRoomNavigator :
 
     public bool TryMoveToPreviousRoom()
     {
+        /*
+         * 후퇴는 일반 CanNavigate 조건을 사용하지 않습니다.
+         * 미클리어 전투 중에도 허용되어야 하기 때문입니다.
+         *
+         * 단, 보상 선택처럼 외부 이동 잠금이 걸린 동안에는
+         * 후퇴를 포함한 모든 방 이동을 차단합니다.
+         */
+        if (isNavigationLocked)
+        {
+            Debug.LogWarning(
+                "StageRoomNavigator: " +
+                "방 이동이 외부 시스템에 의해 잠겨 있어 " +
+                "직전 방으로 이동할 수 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
         if (currentMap == null ||
             currentRoom == null ||
             previousRoom == null)
@@ -565,6 +643,18 @@ public sealed class StageRoomNavigator :
     private bool MoveToRoom(
         RoomNode targetRoom)
     {
+        /*
+         * 모든 이동 경로의 마지막 진입점에서도
+         * 외부 잠금을 검사합니다.
+         *
+         * 이후 맵 노드 클릭 이동 같은 새로운 호출처가
+         * 추가되어도 잠금을 우회할 수 없습니다.
+         */
+        if (isNavigationLocked)
+        {
+            return false;
+        }
+
         if (targetRoom == null ||
             currentRoom == null ||
             targetRoom.RoomId ==

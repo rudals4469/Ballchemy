@@ -33,16 +33,6 @@ public sealed class RoomRewardController :
     private BallCollection
         ballCollection;
 
-    [Header("Navigation UI")]
-
-    [Tooltip(
-        "상하좌우 방 이동 버튼을 감싸는 " +
-        "부모 오브젝트를 연결합니다. " +
-        "보상 선택 중에는 이 오브젝트를 숨깁니다."
-    )]
-    [SerializeField]
-    private GameObject navigationUiRoot;
-
     [Header("Debug")]
 
     [SerializeField]
@@ -72,6 +62,7 @@ public sealed class RoomRewardController :
     private void OnDisable()
     {
         UnsubscribeEvents();
+        ReleaseLocksOnDisable();
     }
 
     private void OnDestroy()
@@ -224,6 +215,10 @@ public sealed class RoomRewardController :
                 this
             );
 
+            /*
+             * 보상을 생성하지 못했다면 플레이어가
+             * 방에 갇히지 않도록 잠금을 남기지 않습니다.
+             */
             ReleaseRoomAfterReward();
 
             return;
@@ -237,12 +232,19 @@ public sealed class RoomRewardController :
         isRewardPending =
             true;
 
-        turnManager?.SetInputLocked(
+        /*
+         * 먼저 네비게이터 자체를 잠급니다.
+         *
+         * RoomNavigationUI는 CanMove가 false가 되면서
+         * 화살표를 숨깁니다. 이후 맵 노드 클릭 이동이
+         * 추가되어도 같은 잠금으로 차단됩니다.
+         */
+        roomNavigator.SetNavigationLocked(
             true
         );
 
-        SetNavigationUiActive(
-            false
+        turnManager?.SetInputLocked(
+            true
         );
 
         rewardSelectionUI.ShowChoices(
@@ -381,12 +383,16 @@ public sealed class RoomRewardController :
 
     private void RestorePendingChoices()
     {
-        turnManager?.SetInputLocked(
+        /*
+         * 적용 실패 시 보상 선택을 다시 열어야 하므로
+         * 입력과 이동 잠금을 유지합니다.
+         */
+        roomNavigator?.SetNavigationLocked(
             true
         );
 
-        SetNavigationUiActive(
-            false
+        turnManager?.SetInputLocked(
+            true
         );
 
         if (pendingChoices.Count > 0 &&
@@ -417,27 +423,44 @@ public sealed class RoomRewardController :
 
     private void ReleaseRoomAfterReward()
     {
+        /*
+         * 네비게이터 잠금을 마지막에 해제합니다.
+         *
+         * 먼저 TurnManager 입력 잠금을 풀어도
+         * 네비게이터 잠금이 유지되므로 화살표는
+         * 아직 나타나지 않습니다.
+         *
+         * 마지막 SetNavigationLocked(false)가
+         * NavigationAvailabilityChanged를 발생시키며
+         * 이때 이동 가능한 화살표가 표시됩니다.
+         */
         turnManager?.SetInputLocked(
             false
         );
 
-        SetNavigationUiActive(
-            true
+        roomNavigator?.SetNavigationLocked(
+            false
         );
     }
 
-    private void SetNavigationUiActive(
-        bool shouldActivate)
+    private void ReleaseLocksOnDisable()
     {
-        if (navigationUiRoot == null ||
-            navigationUiRoot.activeSelf ==
-            shouldActivate)
+        if (!isRewardPending)
         {
             return;
         }
 
-        navigationUiRoot.SetActive(
-            shouldActivate
+        isRewardPending =
+            false;
+
+        pendingChoices.Clear();
+
+        turnManager?.SetInputLocked(
+            false
+        );
+
+        roomNavigator?.SetNavigationLocked(
+            false
         );
     }
 
@@ -493,17 +516,6 @@ public sealed class RoomRewardController :
             Debug.LogError(
                 "RoomRewardController: " +
                 "BallCollection이 연결되지 않았습니다.",
-                this
-            );
-        }
-
-        if (navigationUiRoot == null)
-        {
-            Debug.LogWarning(
-                "RoomRewardController: " +
-                "Navigation UI Root가 연결되지 않았습니다. " +
-                "보상 선택 중 이동 화살표를 자동으로 " +
-                "숨기지 못합니다.",
                 this
             );
         }
