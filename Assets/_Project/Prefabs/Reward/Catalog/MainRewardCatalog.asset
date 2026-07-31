@@ -12,4 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 129cb5940943f9345a07dcb479411d7c, type: 3}
   m_Name: MainRewardCatalog
   m_EditorClassIdentifier: Assembly-CSharp::RewardCatalog
-  rewardDefinitions: []
+  rewardDefinitions:
+  - {fileID: 11400000, guid: 6824e6527924f4e4d92848141bf4f581, type: 2}
+  - {fileID: 11400000, guid: f9f14e7c0257f644aba77a50e16fadb5, type: 2}
+  - {fileID: 11400000, guid: 1ba0dd854378630499d7f8caebd0d5ae, type: 2}
+  - {fileID: 11400000, guid: 1f82ec796602f9b47a04a4a603eeb9b7, type: 2}
+  - {fileID: 11400000, guid: f7253064d2628c5478e6b0e042baead2, type: 2}
+  - {fileID: 11400000, guid: e1788cf345cdedd40b1282c06e7bd1ab, type: 2}
+  - {fileID: 11400000, guid: d637b400ef214a140975d3ee858506c2, type: 2}
+  - {fileID: 11400000, guid: ad6fd26481bd69943ac9a924fcad18ba, type: 2}
+  - {fileID: 11400000, guid: 3974df10ed212494cb3ca3d0a0c216dd, type: 2}

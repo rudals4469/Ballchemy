@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b509a70cfd2d0a14bb0c8c97c40810f7, type: 3}
   m_Name: Reward_T1_FireBall_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
-  rewardId: t1_basic_ball_x2
-  displayName: "\uAE30\uBCF8 \uACF5 2\uAC1C"
-  description: "1\uC131 \uC5BC\uC74C \uACF5 \uD55C \uAC1C\uB97C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
+  rewardId: t1_fire_ball_x1
+  displayName: "\uBD88 \uACF5 1\uAC1C"
+  description: "1\uC131 \uBD88 \uACF5 1\uAC1C\uB97C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 1
   selectionWeight: 1
-  ballDefinition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
+  ballDefinition: {fileID: 11400000, guid: 70c03fb27c2d8f6489b82ceec901a30b, type: 2}
   amount: 1
