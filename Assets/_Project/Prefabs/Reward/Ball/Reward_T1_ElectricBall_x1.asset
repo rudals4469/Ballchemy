@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Reward_T1_ElectricBall_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t1_electric_ball_x1
-  displayName: "\uBC88\uAC1C \uACF5 1\uAC1C"
-  description: "1\uC131 \uBC88\uAC1C \uACF5 1\uAC1C\uB97C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
+  displayName: "\uBC88\uAC1C \uACF5 x1"
+  description: "\uC804\uD558\uB97C \uBD80\uC5EC\uD558\uBA70, \n\uC816\uC740 \uC801\uC5D0\uAC8C
+    \uAC10\uC804\uC744 \uC77C\uC73C\uD0B5\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 1
   selectionWeight: 1

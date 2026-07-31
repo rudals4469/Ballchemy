@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Ball_Element_Water_3Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: water_3
-  displayName: "\uBB3C"
+  displayName: "\uBB3C \uACF5"
   starGrade: 3
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: 37d94c9445ab0804985c81cbf06247a7, type: 2}

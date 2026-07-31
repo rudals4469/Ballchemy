@@ -92,7 +92,7 @@ public static class RewardDescriptionBuilder
                     ballReward
                 ),
                 string.Empty,
-                ResolveFallbackDescription(
+                ResolveDescription(
                     ballReward
                 ),
                 ballReward.Icon
@@ -111,9 +111,16 @@ public static class RewardDescriptionBuilder
                 ballReward.Amount
             );
 
+        /*
+         * 모든 공 보상의 효과 설명은
+         * BallRewardDefinition이 상속받은
+         * RewardDefinition.Description을 사용합니다.
+         *
+         * 실제 지급 수량은 Description과 분리하여
+         * BallRewardDefinition.Amount로 관리합니다.
+         */
         string effectText =
-            BuildBallEffectText(
-                ballDefinition,
+            ResolveDescription(
                 ballReward
             );
 
@@ -139,7 +146,7 @@ public static class RewardDescriptionBuilder
                 ballDefinition.DisplayName
             ))
         {
-            return ballDefinition.DisplayName;
+            return ballDefinition.DisplayName.Trim();
         }
 
         return ResolveRewardTitle(
@@ -155,7 +162,7 @@ public static class RewardDescriptionBuilder
                 rewardDefinition.DisplayName
             ))
         {
-            return rewardDefinition.DisplayName;
+            return rewardDefinition.DisplayName.Trim();
         }
 
         return "이름 없는 보상";
@@ -183,7 +190,7 @@ public static class RewardDescriptionBuilder
             !string.IsNullOrWhiteSpace(
                 ballDefinition.DisplayName
             )
-                ? ballDefinition.DisplayName
+                ? ballDefinition.DisplayName.Trim()
                 : "공";
 
         if (string.IsNullOrWhiteSpace(
@@ -197,210 +204,6 @@ public static class RewardDescriptionBuilder
         return
             $"{gradeText} {ballName} " +
             $"{amount}개를 획득합니다.";
-    }
-
-    private static string BuildBallEffectText(
-        BallDefinition ballDefinition,
-        RewardDefinition rewardDefinition)
-    {
-        if (ballDefinition == null)
-        {
-            return ResolveFallbackDescription(
-                rewardDefinition
-            );
-        }
-
-        switch (ballDefinition.TraitType)
-        {
-            case BallTraitType.Basic:
-                return string.Empty;
-
-            case BallTraitType.Explosion:
-                return BuildExplosionEffectText(
-                    ballDefinition,
-                    rewardDefinition
-                );
-
-            case BallTraitType.Elemental:
-                return BuildElementalEffectText(
-                    ballDefinition,
-                    rewardDefinition
-                );
-
-            /*
-             * Critical과 Piercing은 현재 제공된 코드만으로
-             * 실제 수치와 규칙을 정확하게 만들 수 없습니다.
-             *
-             * 임의의 설명을 생성하지 않고
-             * RewardDefinition에 작성된 설명을 사용합니다.
-             */
-            case BallTraitType.Critical:
-            case BallTraitType.Piercing:
-                return ResolveFallbackDescription(
-                    rewardDefinition
-                );
-
-            default:
-                return ResolveFallbackDescription(
-                    rewardDefinition
-                );
-        }
-    }
-
-    private static string BuildExplosionEffectText(
-        BallDefinition ballDefinition,
-        RewardDefinition rewardDefinition)
-    {
-        ExplosionBallTraitDefinition
-            explosionDefinition =
-                ballDefinition.TraitDefinition as
-                    ExplosionBallTraitDefinition;
-
-        if (explosionDefinition == null)
-        {
-            return ResolveFallbackDescription(
-                rewardDefinition
-            );
-        }
-
-        int range =
-            explosionDefinition.GetRange(
-                ballDefinition.StarGrade
-            );
-
-        range =
-            Mathf.Max(
-                range,
-                1
-            );
-
-        string patternText =
-            ResolveExplosionPatternText(
-                explosionDefinition.PatternType
-            );
-
-        string damageText =
-            BuildExplosionDamageText(
-                explosionDefinition
-            );
-
-        return
-            $"적중 지점을 중심으로 {patternText},\n" +
-            $"각 방향으로 {range}칸까지 폭발합니다.\n" +
-            damageText;
-    }
-
-    private static string
-        ResolveExplosionPatternText(
-            ExplosionPatternType patternType)
-    {
-        switch (patternType)
-        {
-            case ExplosionPatternType.Cross:
-                return "상하좌우 4방향";
-
-            case ExplosionPatternType.Diagonal:
-                return "대각선 4방향";
-
-            case ExplosionPatternType.AllDirections:
-                return "상하좌우와 대각선 8방향";
-
-            default:
-                return "주변 방향";
-        }
-    }
-
-    private static string BuildExplosionDamageText(
-        ExplosionBallTraitDefinition definition)
-    {
-        if (definition == null)
-        {
-            return string.Empty;
-        }
-
-        string multiplierText =
-            FormatPercentage(
-                definition
-                    .ExplosionDamageMultiplier
-            );
-
-        int flatBonus =
-            Mathf.Max(
-                definition
-                    .FlatExplosionDamageBonus,
-                0
-            );
-
-        if (flatBonus > 0)
-        {
-            return
-                $"주변 피해: 직접 피해의 " +
-                $"{multiplierText} + {flatBonus}";
-        }
-
-        return
-            $"주변 피해: 직접 피해의 " +
-            $"{multiplierText}";
-    }
-
-    private static string BuildElementalEffectText(
-        BallDefinition ballDefinition,
-        RewardDefinition rewardDefinition)
-    {
-        ElementalBallTraitDefinition
-            elementalDefinition =
-                ballDefinition.TraitDefinition as
-                    ElementalBallTraitDefinition;
-
-        if (elementalDefinition == null)
-        {
-            return ResolveFallbackDescription(
-                rewardDefinition
-            );
-        }
-
-        int stackAmount =
-            elementalDefinition.GetStackAmount(
-                ballDefinition.StarGrade
-            );
-
-        stackAmount =
-            Mathf.Max(
-                stackAmount,
-                1
-            );
-
-        switch (elementalDefinition.ElementType)
-        {
-            case ElementType.Water:
-                return
-                    $"적중 시 젖음 {stackAmount}스택을 " +
-                    "부여합니다.";
-
-            case ElementType.Electric:
-                return
-                    $"적중 시 전하 {stackAmount}스택을 " +
-                    "부여합니다.\n" +
-                    "젖음과 만나면 감전을 일으킵니다.";
-
-            case ElementType.Fire:
-                return
-                    $"적중 시 화상 {stackAmount}스택을 " +
-                    "부여합니다.\n" +
-                    "냉기와 만나면 열충격을 일으킵니다.";
-
-            case ElementType.Ice:
-                return
-                    $"적중 시 냉기 {stackAmount}스택을 " +
-                    "부여합니다.\n" +
-                    "냉기가 최대치에 도달하면 " +
-                    "동결시킵니다.";
-
-            default:
-                return ResolveFallbackDescription(
-                    rewardDefinition
-                );
-        }
     }
 
     private static string ResolveStarGradeText(
@@ -423,34 +226,6 @@ public static class RewardDescriptionBuilder
         }
     }
 
-    private static string FormatPercentage(
-        float multiplier)
-    {
-        multiplier =
-            Mathf.Max(
-                multiplier,
-                0f
-            );
-
-        float percentage =
-            multiplier *
-            100f;
-
-        if (Mathf.Approximately(
-                percentage,
-                Mathf.Round(
-                    percentage
-                )
-            ))
-        {
-            return
-                $"{Mathf.RoundToInt(percentage)}%";
-        }
-
-        return
-            $"{percentage:0.#}%";
-    }
-
     private static RewardCardContent
         BuildFallbackReward(
             RewardDefinition rewardDefinition)
@@ -460,7 +235,7 @@ public static class RewardDescriptionBuilder
                 rewardDefinition
             ),
             string.Empty,
-            ResolveFallbackDescription(
+            ResolveDescription(
                 rewardDefinition
             ),
             rewardDefinition != null
@@ -469,9 +244,8 @@ public static class RewardDescriptionBuilder
         );
     }
 
-    private static string
-        ResolveFallbackDescription(
-            RewardDefinition rewardDefinition)
+    private static string ResolveDescription(
+        RewardDefinition rewardDefinition)
     {
         if (rewardDefinition == null ||
             string.IsNullOrWhiteSpace(

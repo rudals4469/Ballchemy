@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Reward_T1_BasicBall_x2
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t1_basic_ball_x2
-  displayName: "\uAE30\uBCF8 \uACF5 2\uAC1C"
-  description: "1\uC131 \uAE30\uBCF8 \uACF5\uC744 2\uAC1C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
+  displayName: "\uAE30\uBCF8 \uACF5 x2"
+  description: 
   icon: {fileID: 0}
   rewardTier: 1
   selectionWeight: 1

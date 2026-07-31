@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Definition_Ball_Basic_2Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: basic_2
-  displayName: "\uAE30\uBCF82"
+  displayName: "\uAE30\uBCF8 \uACF5"
   starGrade: 2
   directDamageBonus: 1
   traitDefinition: {fileID: 11400000, guid: 4348aa1698c867746a98094f357792b6, type: 2}

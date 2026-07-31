@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Definition_Ball_Critical_3Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: critical_3
-  displayName: "\uCE58\uBA85\uD0C03"
+  displayName: "\uCE58\uBA85\uD0C0 \uACF5"
   starGrade: 3
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: e2631926fec21c846b6b06e6614519f0, type: 2}

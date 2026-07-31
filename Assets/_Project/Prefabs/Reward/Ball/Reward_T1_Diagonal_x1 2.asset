@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Reward_T1_Diagonal_x1 2
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t1_diagonal_ball_x1
-  displayName: "\uB300\uAC01 \uD3ED\uBC1C \uACF5 1\uAC1C"
-  description: "1\uC131 \uAE30\uBCF8 \uACF5 1\uAC1C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
+  displayName: "\uB300\uAC01 \uD3ED\uBC1C \uACF5 x1"
+  description: "\uC801\uC911 \uC9C0\uC810 \uC8FC\uBCC0 \uB300\uAC01\uC758 \uBE14\uB85D\uC5D0\uB3C4
+    \n\uD53C\uD574\uB97C \uC90D\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 1
   selectionWeight: 1

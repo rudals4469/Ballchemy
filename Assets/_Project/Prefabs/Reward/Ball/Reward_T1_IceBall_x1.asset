@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Reward_T1_IceBall_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t1_ice_ball_x1
-  displayName: "\uC5BC\uC74C \uACF5 1\uAC1C"
-  description: "1\uC131 \uC5BC\uC74C \uACF5 1\uAC1C\uB97C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
+  displayName: "\uC5BC\uC74C \uACF5 x1"
+  description: "\uB0C9\uAE30\uB97C \uBD80\uC5EC\uD558\uBA70, \n\uCD5C\uB300 \uC911\uCCA9
+    \uC2DC \uC801\uC744 \uB3D9\uACB0\uC2DC\uD0B5\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 1
   selectionWeight: 1

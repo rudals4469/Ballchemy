@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Ball_Element_Electric_3Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: electric_3
-  displayName: "\uC804\uAE30"
+  displayName: "\uBC88\uAC1C \uACF5"
   starGrade: 3
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: 577ed8d3f71ba824fbd8a49356309efc, type: 2}

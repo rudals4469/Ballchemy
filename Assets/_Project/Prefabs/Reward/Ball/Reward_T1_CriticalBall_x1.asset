@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: Reward_T1_CriticalBall_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t1_critical_ball_x1
-  displayName: "\uCE58\uBA85 \uACF5 1\uAC1C"
-  description: "1\uC131 \uCE58\uBA85\uD0C0 \uACF5 1\uAC1C\uB97C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
+  displayName: "\uCE58\uBA85 \uACF5 x1"
+  description: "\uC9C1\uC811 \uD53C\uD574\uAC00 \uC77C\uC815 \uD655\uB960\uB85C \uCE58\uBA85\uD0C0\uAC00
+    \uB429\uB2C8\uB2E4.\n"
   icon: {fileID: 0}
   rewardTier: 1
   selectionWeight: 1

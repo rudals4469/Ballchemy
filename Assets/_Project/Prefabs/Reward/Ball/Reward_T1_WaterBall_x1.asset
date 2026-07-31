@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Reward_T1_WaterBall_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t1_water_ball_x1
-  displayName: "\uAE30\uBCF8 \uBB3C 1\uAC1C"
-  description: "1\uC131 \uBB3C \uACF5 1\uAC1C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
+  displayName: "\uAE30\uBCF8 \uBB3C x1"
+  description: "\uC801\uC911\uD55C \uC801\uC5D0\uAC8C \uC816\uC74C\uC744 \uBD80\uC5EC\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 1
   selectionWeight: 1

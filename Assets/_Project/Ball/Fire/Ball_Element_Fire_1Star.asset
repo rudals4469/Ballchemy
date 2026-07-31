@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Ball_Element_Fire_1Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: Fire_1
-  displayName: "\uBD88"
+  displayName: "\uBD88\uAF43 \uACF5"
   starGrade: 1
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: c4bf3b0cf2c5ba9469d761a2ed7d5bf8, type: 2}

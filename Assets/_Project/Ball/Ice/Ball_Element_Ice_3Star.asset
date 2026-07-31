@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Ball_Element_Ice_3Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: Ice_3
-  displayName: "\uC5BC\uC74C"
+  displayName: "\uC11C\uB9AC \uACF5"
   starGrade: 3
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: 292d316b6c041704484533463fc45605, type: 2}

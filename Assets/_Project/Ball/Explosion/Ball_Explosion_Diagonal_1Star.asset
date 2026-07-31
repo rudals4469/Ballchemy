@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Ball_Explosion_Diagonal_1Star
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: explosion_diagonal_1
-  displayName: "\uB300\uAC011"
+  displayName: "\uD3ED\uBC1C \uACF5"
   starGrade: 1
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: d6f89b8841a992f4b8643cdb0c336f9e, type: 2}

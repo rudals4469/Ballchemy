@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Ball_piercing
   m_EditorClassIdentifier: Assembly-CSharp::BallDefinition
   ballId: piercing
-  displayName: "\uAD00\uD1B5"
+  displayName: "\uAD00\uD1B5 \uACF5"
   starGrade: 0
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: 403f4303eef8c4d4ab7afb544f8c1af9, type: 2}
