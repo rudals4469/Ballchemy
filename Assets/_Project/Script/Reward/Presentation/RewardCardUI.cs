@@ -105,6 +105,20 @@ public sealed class RewardCardUI :
     public void Bind(
         RewardDefinition rewardDefinition)
     {
+        /*
+         * 카드가 비활성화된 상태라면 먼저 활성화합니다.
+         *
+         * 기존처럼 보상을 먼저 연결한 뒤 활성화하면,
+         * 최초 활성화 시 Awake()의 Clear()가 실행되어
+         * 연결한 보상이 다시 지워질 수 있습니다.
+         */
+        if (!gameObject.activeSelf)
+        {
+            gameObject.SetActive(
+                true
+            );
+        }
+
         boundRewardDefinition =
             rewardDefinition;
 
@@ -130,13 +144,6 @@ public sealed class RewardCardUI :
         SetSelectionEnabled(
             true
         );
-
-        if (!gameObject.activeSelf)
-        {
-            gameObject.SetActive(
-                true
-            );
-        }
     }
 
     public void SetSelectionEnabled(
