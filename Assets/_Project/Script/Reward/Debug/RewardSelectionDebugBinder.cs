@@ -14,6 +14,10 @@ public sealed class RewardSelectionDebugBinder :
     private RewardSelectionUI
         rewardSelectionUI;
 
+    [SerializeField]
+    private BallCollection
+        ballCollection;
+
     [Header("Test Settings")]
 
     [SerializeField]
@@ -25,6 +29,17 @@ public sealed class RewardSelectionDebugBinder :
     )]
     [SerializeField]
     private bool showOnStart = true;
+
+    [Tooltip(
+        "보상 적용에 성공하면 보상 선택 패널을 닫습니다."
+    )]
+    [SerializeField]
+    private bool hideAfterApply = true;
+
+    private void Awake()
+    {
+        FindReferences();
+    }
 
     private void Start()
     {
@@ -41,9 +56,40 @@ public sealed class RewardSelectionDebugBinder :
         UnsubscribeSelection();
     }
 
+    private void FindReferences()
+    {
+        if (rewardGenerator == null)
+        {
+            rewardGenerator =
+                FindFirstObjectByType<
+                    RoomRewardGenerator
+                >();
+        }
+
+        if (rewardSelectionUI == null)
+        {
+            rewardSelectionUI =
+                FindFirstObjectByType<
+                    RewardSelectionUI
+                >(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (ballCollection == null)
+        {
+            ballCollection =
+                FindFirstObjectByType<
+                    BallCollection
+                >();
+        }
+    }
+
     [ContextMenu("Show Test Choices")]
     public void ShowTestChoices()
     {
+        FindReferences();
+
         if (!ValidateReferences())
         {
             return;
@@ -90,11 +136,66 @@ public sealed class RewardSelectionDebugBinder :
             return;
         }
 
+        if (ballCollection == null)
+        {
+            Debug.LogError(
+                "RewardSelectionDebugBinder: " +
+                "BallCollection이 없어 보상을 적용할 수 없습니다.",
+                this
+            );
+
+            RestoreSelection();
+
+            return;
+        }
+
+        RewardApplyContext applyContext =
+            new RewardApplyContext(
+                ballCollection
+            );
+
+        bool applied =
+            selectedReward.Apply(
+                applyContext
+            );
+
+        if (!applied)
+        {
+            Debug.LogWarning(
+                "RewardSelectionDebugBinder: " +
+                $"{selectedReward.DisplayName} 보상 적용에 " +
+                "실패했습니다.",
+                this
+            );
+
+            RestoreSelection();
+
+            return;
+        }
+
         Debug.Log(
             "RewardSelectionDebugBinder: " +
             $"{selectedReward.DisplayName} 보상이 " +
-            "선택되었습니다.",
+            "실제로 적용되었습니다. " +
+            $"현재 공 개수={ballCollection.Count}",
             this
+        );
+
+        if (hideAfterApply)
+        {
+            rewardSelectionUI.Hide();
+        }
+    }
+
+    private void RestoreSelection()
+    {
+        if (rewardSelectionUI == null)
+        {
+            return;
+        }
+
+        rewardSelectionUI.SetCardsInteractable(
+            true
         );
     }
 
@@ -150,6 +251,27 @@ public sealed class RewardSelectionDebugBinder :
 
             isValid =
                 false;
+        }
+
+        if (ballCollection == null)
+        {
+            Debug.LogError(
+                "RewardSelectionDebugBinder: " +
+                "BallCollection이 연결되지 않았습니다.",
+                this
+            );
+
+            isValid =
+                false;
+        }
+        else if (!ballCollection.IsInitialized)
+        {
+            Debug.LogWarning(
+                "RewardSelectionDebugBinder: " +
+                "BallCollection이 아직 초기화되지 않았습니다. " +
+                "보상 선택 시점에는 초기화가 끝나 있어야 합니다.",
+                this
+            );
         }
 
         if (testRewardTier ==
