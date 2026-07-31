@@ -6,10 +6,12 @@ public sealed class StageMapGenerator :
     MonoBehaviour
 {
     [Header("Stage")]
+
     [SerializeField, Min(1)]
     private int testStageNumber = 1;
 
     [Header("Room Count")]
+
     [Tooltip(
         "첫 번째 스테이지의 최소 방 개수입니다. " +
         "필수 방 구성을 위해 최소 7 이상을 권장합니다."
@@ -27,6 +29,7 @@ public sealed class StageMapGenerator :
     private int maximumRoomCount = 20;
 
     [Header("Named Rooms")]
+
     [SerializeField, Min(1)]
     private int baseNamedRoomCount = 1;
 
@@ -34,6 +37,7 @@ public sealed class StageMapGenerator :
     private int stagesPerAdditionalNamedRoom = 2;
 
     [Header("Shape")]
+
     [Tooltip(
         "맵 중심에서 방이 생성될 수 있는 최대 거리입니다."
     )]
@@ -41,13 +45,28 @@ public sealed class StageMapGenerator :
     private int maximumDistanceFromCenter = 6;
 
     [Tooltip(
-        "새 방을 생성할 때 기존 방 중 연결 수가 적은 방을 " +
-        "우선할 확률입니다."
+        "일반 방 하나가 가질 수 있는 최대 연결 수입니다. " +
+        "3으로 설정하면 지나치게 복잡한 십자 교차로를 막습니다."
+    )]
+    [SerializeField, Range(2, 4)]
+    private int maximumConnectionsPerRoom = 3;
+
+    [Tooltip(
+        "새 방을 생성할 때 기존 통로를 연장하기보다 " +
+        "분기점에서 새 가지를 만들 확률입니다."
     )]
     [SerializeField, Range(0f, 1f)]
     private float branchPreference = 0.75f;
 
+    [Tooltip(
+        "보스·상점·보상·이벤트방에 필요한 막다른 방이 " +
+        "부족할 때 맵 생성을 다시 시도하는 최대 횟수입니다."
+    )]
+    [SerializeField, Min(1)]
+    private int maximumLayoutGenerationAttempts = 100;
+
     [Header("Random")]
+
     [Tooltip(
         "활성화하면 아래 고정 Seed를 사용합니다."
     )]
@@ -58,8 +77,11 @@ public sealed class StageMapGenerator :
     private int fixedSeed = 12345;
 
     [Header("Runtime Debug")]
+
     [SerializeField]
     private StageMap currentMap;
+
+    private const int RequiredSpecialLeafCount = 4;
 
     private static readonly RoomDirection[]
         Directions =
@@ -112,15 +134,194 @@ public sealed class StageMapGenerator :
                 stageNumber
             );
 
-        int seed =
+        int baseSeed =
             useFixedSeed
                 ? fixedSeed
                 : Environment.TickCount;
 
-        System.Random random =
-            new System.Random(
-                seed
+        StageMap generatedMap =
+            null;
+
+        StageMap bestFallbackMap =
+            null;
+
+        int bestFallbackLeafCount = -1;
+
+        int successfulAttemptIndex = -1;
+
+        for (int attemptIndex = 0;
+             attemptIndex <
+             maximumLayoutGenerationAttempts;
+             attemptIndex++)
+        {
+            int attemptSeed =
+                CreateAttemptSeed(
+                    baseSeed,
+                    attemptIndex
+                );
+
+            System.Random layoutRandom =
+                new System.Random(
+                    attemptSeed
+                );
+
+            StageMap attemptMap =
+                GenerateLayout(
+                    stageNumber,
+                    targetRoomCount,
+                    layoutRandom
+                );
+
+            if (attemptMap == null)
+            {
+                continue;
+            }
+
+            int leafCount =
+                CountAvailableSpecialLeaves(
+                    attemptMap
+                );
+
+            if (attemptMap.RoomCount ==
+                    targetRoomCount &&
+                leafCount >=
+                    RequiredSpecialLeafCount)
+            {
+                generatedMap =
+                    attemptMap;
+
+                successfulAttemptIndex =
+                    attemptIndex;
+
+                break;
+            }
+
+            if (attemptMap.RoomCount >
+                    (
+                        bestFallbackMap != null
+                            ? bestFallbackMap.RoomCount
+                            : -1
+                    ) ||
+                (
+                    bestFallbackMap != null &&
+                    attemptMap.RoomCount ==
+                    bestFallbackMap.RoomCount &&
+                    leafCount >
+                    bestFallbackLeafCount
+                ))
+            {
+                bestFallbackMap =
+                    attemptMap;
+
+                bestFallbackLeafCount =
+                    leafCount;
+            }
+        }
+
+        if (generatedMap == null)
+        {
+            generatedMap =
+                bestFallbackMap;
+
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "필수 특수방을 모두 막다른 방에 배치할 수 있는 " +
+                "맵 생성에 실패했습니다. " +
+                $"시도 횟수={maximumLayoutGenerationAttempts}, " +
+                $"최고 막다른 방 수={bestFallbackLeafCount}",
+                this
             );
+        }
+
+        if (generatedMap == null)
+        {
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "맵 레이아웃을 생성하지 못했습니다.",
+                this
+            );
+
+            return null;
+        }
+
+        int typeAssignmentSeed =
+            CreateAttemptSeed(
+                baseSeed,
+                Mathf.Max(
+                    successfulAttemptIndex,
+                    0
+                ) +
+                maximumLayoutGenerationAttempts
+            );
+
+        System.Random typeRandom =
+            new System.Random(
+                typeAssignmentSeed
+            );
+
+        bool assignedRoomTypes =
+            AssignRoomTypes(
+                generatedMap,
+                stageNumber,
+                typeRandom
+            );
+
+        if (!assignedRoomTypes)
+        {
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "필수 방 타입을 모두 배치하지 못했습니다.",
+                this
+            );
+        }
+
+        generatedMap.RebuildLookup();
+
+        currentMap =
+            generatedMap;
+
+        if (currentMap.Validate(
+                out string validationMessage))
+        {
+            Debug.Log(
+                "StageMapGenerator: " +
+                $"스테이지 {stageNumber} 맵 생성 완료. " +
+                $"Base Seed={baseSeed}, " +
+                $"Layout Attempt={successfulAttemptIndex + 1}, " +
+                $"{validationMessage}",
+                this
+            );
+        }
+        else
+        {
+            Debug.LogError(
+                "StageMapGenerator: 생성된 맵이 " +
+                $"유효하지 않습니다. " +
+                $"{validationMessage}",
+                this
+            );
+        }
+
+        LogRoomTypeCounts(
+            currentMap
+        );
+
+        MapGenerated?.Invoke(
+            currentMap
+        );
+
+        return currentMap;
+    }
+
+    private StageMap GenerateLayout(
+        int stageNumber,
+        int targetRoomCount,
+        System.Random random)
+    {
+        if (random == null)
+        {
+            return null;
+        }
 
         StageMap generatedMap =
             new StageMap(
@@ -134,24 +335,29 @@ public sealed class StageMapGenerator :
                 RoomType.Start
             );
 
-        generatedMap.AddRoom(
-            startRoom
-        );
+        if (!generatedMap.AddRoom(
+                startRoom
+            ))
+        {
+            return null;
+        }
 
         generatedMap.SetStartRoom(
             startRoom.RoomId
         );
 
         int nextRoomId = 1;
+
         int failedAttempts = 0;
-        int maximumAttempts =
+
+        int maximumPlacementAttempts =
             targetRoomCount *
-            100;
+            200;
 
         while (generatedMap.RoomCount <
                    targetRoomCount &&
                failedAttempts <
-                   maximumAttempts)
+                   maximumPlacementAttempts)
         {
             RoomNode parentRoom =
                 SelectExpansionRoom(
@@ -190,10 +396,9 @@ public sealed class StageMapGenerator :
 
             Vector2Int newPosition =
                 parentRoom.GridPosition +
-                RoomDirectionUtility
-                    .ToOffset(
-                        direction
-                    );
+                RoomDirectionUtility.ToOffset(
+                    direction
+                );
 
             RoomNode newRoom =
                 new RoomNode(
@@ -202,91 +407,59 @@ public sealed class StageMapGenerator :
                     RoomType.NormalCombat
                 );
 
-            bool roomAdded =
-                generatedMap.AddRoom(
+            if (!generatedMap.AddRoom(
                     newRoom
-                );
-
-            if (!roomAdded)
+                ))
             {
                 failedAttempts++;
 
                 continue;
             }
 
-            generatedMap.ConnectRooms(
-                parentRoom.RoomId,
-                newRoom.RoomId
-            );
-
             /*
-             * 새 방이 이미 존재하는 다른 방과도
-             * 상하좌우로 맞닿아 있다면 연결한다.
+             * 새 방은 생성 기준이 된 부모 방 하나와만
+             * 연결합니다.
              *
-             * 이렇게 하면 일부 맵에 순환 경로가 생긴다.
+             * 후보 위치를 선택할 때 다른 방과의 인접을
+             * 이미 차단했으므로 맵 전체는 순환 없는
+             * 트리 구조를 유지합니다.
              */
-            ConnectAdjacentRooms(
-                generatedMap,
-                newRoom
-            );
+            bool connected =
+                generatedMap.ConnectRooms(
+                    parentRoom.RoomId,
+                    newRoom.RoomId
+                );
+
+            if (!connected)
+            {
+                Debug.LogError(
+                    "StageMapGenerator: " +
+                    "새 방을 부모 방과 연결하지 못했습니다.",
+                    this
+                );
+
+                return generatedMap;
+            }
 
             nextRoomId++;
+
             failedAttempts = 0;
         }
 
-        if (generatedMap.RoomCount <
-            targetRoomCount)
+        return generatedMap;
+    }
+
+    private static int CreateAttemptSeed(
+        int baseSeed,
+        int attemptIndex)
+    {
+        unchecked
         {
-            Debug.LogWarning(
-                "StageMapGenerator: 목표 방 수를 " +
-                "모두 생성하지 못했습니다. " +
-                $"목표={targetRoomCount}, " +
-                $"실제={generatedMap.RoomCount}",
-                this
-            );
+            return
+                baseSeed +
+                attemptIndex *
+                7919;
         }
-
-        AssignRoomTypes(
-            generatedMap,
-            stageNumber,
-            random
-        );
-
-        generatedMap.RebuildLookup();
-
-        currentMap =
-            generatedMap;
-
-        if (currentMap.Validate(
-                out string validationMessage))
-        {
-            Debug.Log(
-                "StageMapGenerator: " +
-                $"스테이지 {stageNumber} 맵 생성 완료. " +
-                $"Seed={seed}, " +
-                $"{validationMessage}",
-                this
-            );
-        }
-        else
-        {
-            Debug.LogError(
-                "StageMapGenerator: 생성된 맵이 " +
-                $"유효하지 않습니다. " +
-                $"{validationMessage}",
-                this
-            );
-        }
-
-        LogRoomTypeCounts(
-            currentMap
-        );
-
-        MapGenerated?.Invoke(
-            currentMap
-        );
-
-        return currentMap;
     }
 
     private int CalculateRoomCount(
@@ -312,6 +485,7 @@ public sealed class StageMapGenerator :
         System.Random random)
     {
         if (map == null ||
+            random == null ||
             map.RoomCount <= 0)
         {
             return null;
@@ -319,9 +493,6 @@ public sealed class StageMapGenerator :
 
         List<RoomNode> candidates =
             new List<RoomNode>();
-
-        int lowestConnectionCount =
-            int.MaxValue;
 
         IReadOnlyList<RoomNode> rooms =
             map.Rooms;
@@ -333,7 +504,9 @@ public sealed class StageMapGenerator :
             RoomNode room =
                 rooms[i];
 
-            if (room == null)
+            if (room == null ||
+                room.ConnectionCount >=
+                maximumConnectionsPerRoom)
             {
                 continue;
             }
@@ -344,13 +517,6 @@ public sealed class StageMapGenerator :
                 ).Count == 0)
             {
                 continue;
-            }
-
-            if (room.ConnectionCount <
-                lowestConnectionCount)
-            {
-                lowestConnectionCount =
-                    room.ConnectionCount;
             }
 
             candidates.Add(
@@ -376,6 +542,28 @@ public sealed class StageMapGenerator :
             ];
         }
 
+        int highestConnectionCount =
+            int.MinValue;
+
+        for (int i = 0;
+             i < candidates.Count;
+             i++)
+        {
+            RoomNode candidate =
+                candidates[i];
+
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            highestConnectionCount =
+                Mathf.Max(
+                    highestConnectionCount,
+                    candidate.ConnectionCount
+                );
+        }
+
         List<RoomNode> branchCandidates =
             new List<RoomNode>();
 
@@ -386,8 +574,9 @@ public sealed class StageMapGenerator :
             RoomNode candidate =
                 candidates[i];
 
-            if (candidate.ConnectionCount !=
-                lowestConnectionCount)
+            if (candidate == null ||
+                candidate.ConnectionCount !=
+                highestConnectionCount)
             {
                 continue;
             }
@@ -415,15 +604,17 @@ public sealed class StageMapGenerator :
 
     private List<RoomDirection>
         GetAvailableDirections(
-        StageMap map,
-        RoomNode originRoom)
+            StageMap map,
+            RoomNode originRoom)
     {
         List<RoomDirection>
             availableDirections =
                 new List<RoomDirection>();
 
         if (map == null ||
-            originRoom == null)
+            originRoom == null ||
+            originRoom.ConnectionCount >=
+            maximumConnectionsPerRoom)
         {
             return availableDirections;
         }
@@ -437,25 +628,29 @@ public sealed class StageMapGenerator :
 
             Vector2Int targetPosition =
                 originRoom.GridPosition +
-                RoomDirectionUtility
-                    .ToOffset(
-                        direction
-                    );
+                RoomDirectionUtility.ToOffset(
+                    direction
+                );
 
-            if (Mathf.Abs(
-                    targetPosition.x
-                ) >
-                maximumDistanceFromCenter ||
-                Mathf.Abs(
-                    targetPosition.y
-                ) >
-                maximumDistanceFromCenter)
+            if (!IsInsideMapBounds(
+                    targetPosition
+                ))
             {
                 continue;
             }
 
             if (map.ContainsPosition(
-                    targetPosition))
+                    targetPosition
+                ))
+            {
+                continue;
+            }
+
+            if (!HasOnlyExpectedAdjacentRoom(
+                    map,
+                    originRoom,
+                    targetPosition
+                ))
             {
                 continue;
             }
@@ -468,55 +663,92 @@ public sealed class StageMapGenerator :
         return availableDirections;
     }
 
-    private void ConnectAdjacentRooms(
-        StageMap map,
-        RoomNode newRoom)
+    private bool IsInsideMapBounds(
+        Vector2Int position)
+    {
+        return
+            Mathf.Abs(
+                position.x
+            ) <=
+            maximumDistanceFromCenter &&
+            Mathf.Abs(
+                position.y
+            ) <=
+            maximumDistanceFromCenter;
+    }
+
+    private static bool
+        HasOnlyExpectedAdjacentRoom(
+            StageMap map,
+            RoomNode expectedParent,
+            Vector2Int targetPosition)
     {
         if (map == null ||
-            newRoom == null)
+            expectedParent == null)
         {
-            return;
+            return false;
         }
+
+        int adjacentRoomCount = 0;
+
+        bool isParentAdjacent =
+            false;
 
         for (int i = 0;
              i < Directions.Length;
              i++)
         {
             Vector2Int adjacentPosition =
-                newRoom.GridPosition +
-                RoomDirectionUtility
-                    .ToOffset(
-                        Directions[i]
-                    );
+                targetPosition +
+                RoomDirectionUtility.ToOffset(
+                    Directions[i]
+                );
 
             RoomNode adjacentRoom =
                 map.GetRoomAt(
                     adjacentPosition
                 );
 
-            if (adjacentRoom == null ||
-                adjacentRoom.RoomId ==
-                newRoom.RoomId)
+            if (adjacentRoom == null)
             {
                 continue;
             }
 
-            map.ConnectRooms(
-                newRoom.RoomId,
-                adjacentRoom.RoomId
-            );
+            adjacentRoomCount++;
+
+            if (adjacentRoom.RoomId ==
+                expectedParent.RoomId)
+            {
+                isParentAdjacent =
+                    true;
+            }
         }
+
+        /*
+         * 후보 위치는 부모 방 하나하고만
+         * 상하좌우로 맞닿아 있어야 합니다.
+         *
+         * 이 규칙으로 다음을 동시에 막습니다.
+         *
+         * - 연결되지 않은 방끼리 바로 붙는 구조
+         * - 2x2 형태의 밀집 배치
+         * - 의도하지 않은 순환 경로
+         */
+        return
+            adjacentRoomCount == 1 &&
+            isParentAdjacent;
     }
 
-    private void AssignRoomTypes(
+    private bool AssignRoomTypes(
         StageMap map,
         int stageNumber,
         System.Random random)
     {
         if (map == null ||
+            random == null ||
             map.RoomCount <= 1)
         {
-            return;
+            return false;
         }
 
         RoomNode startRoom =
@@ -539,72 +771,92 @@ public sealed class StageMapGenerator :
 
         if (bossRoom == null)
         {
-            bossRoom =
-                FindFarthestRoom(
-                    map,
-                    distances,
-                    startRoom != null
-                        ? startRoom.RoomId
-                        : -1,
-                    false
-                );
-        }
-
-        if (bossRoom != null)
-        {
-            map.SetBossRoom(
-                bossRoom.RoomId
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "보스방으로 사용할 막다른 방이 없습니다.",
+                this
             );
+
+            return false;
         }
 
-        List<RoomNode> availableRooms =
+        map.SetBossRoom(
+            bossRoom.RoomId
+        );
+
+        List<RoomNode> specialLeafRooms =
             BuildSpecialRoomCandidates(
-                map
+                map,
+                true
             );
 
-        AssignOneRoomType(
-            availableRooms,
-            RoomType.Shop,
-            random,
-            true
-        );
+        bool shopAssigned =
+            AssignOneRoomType(
+                specialLeafRooms,
+                RoomType.Shop,
+                random
+            );
 
-        AssignOneRoomType(
-            availableRooms,
-            RoomType.Reward,
-            random,
-            true
-        );
+        bool rewardAssigned =
+            AssignOneRoomType(
+                specialLeafRooms,
+                RoomType.Reward,
+                random
+            );
 
-        AssignOneRoomType(
-            availableRooms,
-            RoomType.Event,
-            random,
-            true
-        );
+        bool eventAssigned =
+            AssignOneRoomType(
+                specialLeafRooms,
+                RoomType.Event,
+                random
+            );
+
+        if (!shopAssigned ||
+            !rewardAssigned ||
+            !eventAssigned)
+        {
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "상점·보상·이벤트방을 모두 막다른 방에 " +
+                "배치하지 못했습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        List<RoomNode> namedCandidates =
+            BuildSpecialRoomCandidates(
+                map,
+                false
+            );
 
         int namedRoomCount =
             CalculateNamedRoomCount(
                 stageNumber,
-                availableRooms.Count
+                namedCandidates.Count
             );
 
         for (int i = 0;
              i < namedRoomCount;
              i++)
         {
-            AssignOneRoomType(
-                availableRooms,
-                RoomType.NamedCombat,
-                random,
-                false
-            );
+            if (!AssignOneRoomType(
+                    namedCandidates,
+                    RoomType.NamedCombat,
+                    random
+                ))
+            {
+                break;
+            }
         }
+
+        return true;
     }
 
     private Dictionary<int, int>
         CalculateDistancesFromStart(
-        StageMap map)
+            StageMap map)
     {
         Dictionary<int, int> distances =
             new Dictionary<int, int>();
@@ -674,6 +926,12 @@ public sealed class StageMapGenerator :
         int excludedRoomId,
         bool requireLeaf)
     {
+        if (map == null ||
+            distances == null)
+        {
+            return null;
+        }
+
         RoomNode farthestRoom =
             null;
 
@@ -692,7 +950,9 @@ public sealed class StageMapGenerator :
 
             if (room == null ||
                 room.RoomId ==
-                excludedRoomId)
+                excludedRoomId ||
+                room.RoomType !=
+                RoomType.NormalCombat)
             {
                 continue;
             }
@@ -728,10 +988,16 @@ public sealed class StageMapGenerator :
 
     private List<RoomNode>
         BuildSpecialRoomCandidates(
-        StageMap map)
+            StageMap map,
+            bool requireLeaf)
     {
         List<RoomNode> candidates =
             new List<RoomNode>();
+
+        if (map == null)
+        {
+            return candidates;
+        }
 
         IReadOnlyList<RoomNode> rooms =
             map.Rooms;
@@ -750,6 +1016,12 @@ public sealed class StageMapGenerator :
                 continue;
             }
 
+            if (requireLeaf &&
+                room.ConnectionCount != 1)
+            {
+                continue;
+            }
+
             candidates.Add(
                 room
             );
@@ -761,10 +1033,10 @@ public sealed class StageMapGenerator :
     private bool AssignOneRoomType(
         List<RoomNode> availableRooms,
         RoomType roomType,
-        System.Random random,
-        bool preferLeaf)
+        System.Random random)
     {
         if (availableRooms == null ||
+            random == null ||
             availableRooms.Count == 0)
         {
             Debug.LogWarning(
@@ -777,41 +1049,17 @@ public sealed class StageMapGenerator :
             return false;
         }
 
-        List<RoomNode> preferredRooms =
-            new List<RoomNode>();
-
-        if (preferLeaf)
-        {
-            for (int i = 0;
-                 i < availableRooms.Count;
-                 i++)
-            {
-                RoomNode room =
-                    availableRooms[i];
-
-                if (room == null ||
-                    room.ConnectionCount != 1)
-                {
-                    continue;
-                }
-
-                preferredRooms.Add(
-                    room
-                );
-            }
-        }
-
-        List<RoomNode> source =
-            preferredRooms.Count > 0
-                ? preferredRooms
-                : availableRooms;
-
         RoomNode selectedRoom =
-            source[
+            availableRooms[
                 random.Next(
-                    source.Count
+                    availableRooms.Count
                 )
             ];
+
+        if (selectedRoom == null)
+        {
+            return false;
+        }
 
         selectedRoom.SetRoomType(
             roomType
@@ -844,6 +1092,41 @@ public sealed class StageMapGenerator :
             0,
             availableRoomCount
         );
+    }
+
+    private static int
+        CountAvailableSpecialLeaves(
+            StageMap map)
+    {
+        if (map == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+
+        IReadOnlyList<RoomNode> rooms =
+            map.Rooms;
+
+        for (int i = 0;
+             i < rooms.Count;
+             i++)
+        {
+            RoomNode room =
+                rooms[i];
+
+            if (room == null ||
+                room.RoomType !=
+                RoomType.NormalCombat ||
+                room.ConnectionCount != 1)
+            {
+                continue;
+            }
+
+            count++;
+        }
+
+        return count;
     }
 
     private void LogRoomTypeCounts(
@@ -911,9 +1194,22 @@ public sealed class StageMapGenerator :
                 2
             );
 
+        maximumConnectionsPerRoom =
+            Mathf.Clamp(
+                maximumConnectionsPerRoom,
+                2,
+                4
+            );
+
         branchPreference =
             Mathf.Clamp01(
                 branchPreference
+            );
+
+        maximumLayoutGenerationAttempts =
+            Mathf.Max(
+                maximumLayoutGenerationAttempts,
+                1
             );
     }
 }

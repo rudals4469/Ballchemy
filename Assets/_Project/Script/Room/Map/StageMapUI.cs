@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -22,36 +23,42 @@ public sealed class StageMapUI :
         "맵 좌표 한 칸당 UI에서 떨어질 거리입니다."
     )]
     [SerializeField, Min(1f)]
-    private float nodeSpacing = 36f;
+    private float nodeSpacing = 52f;
 
     [Tooltip(
-        "생성된 전체 맵의 중심을 MapContent 중앙에 " +
-        "맞출지 결정합니다."
+        "현재 방을 MapContent 부모 영역의 중앙에 " +
+        "고정하도록 맵 전체를 이동합니다."
     )]
     [SerializeField]
-    private bool centerGeneratedMap = true;
+    private bool centerOnCurrentRoom = true;
+
+    [Header("Follow Movement")]
+
+    [Tooltip(
+        "방 이동 시 맵이 현재 방 중심으로 " +
+        "부드럽게 이동할지 결정합니다."
+    )]
+    [SerializeField]
+    private bool animateMapMovement = true;
+
+    [Tooltip(
+        "현재 방 중심으로 이동하는 데 걸리는 시간입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float mapMovementDuration = 0.15f;
 
     [Header("Room Colors")]
 
-    [SerializeField]
-    private Color hiddenRoomColor =
-        new Color(
-            0.08f,
-            0.08f,
-            0.08f,
-            1f
-        );
-
     [Tooltip(
         "처음부터 공개됐지만 아직 방문하지 않은 " +
-        "특수방에 사용하는 색입니다."
+        "특수방의 배경색입니다."
     )]
     [SerializeField]
-    private Color undiscoveredRoomColor =
+    private Color unvisitedRoomColor =
         new Color(
-            0.2f,
-            0.2f,
-            0.2f,
+            0.18f,
+            0.18f,
+            0.18f,
             1f
         );
 
@@ -59,11 +66,11 @@ public sealed class StageMapUI :
         "방문했지만 아직 클리어하지 않은 방의 색입니다."
     )]
     [SerializeField]
-    private Color discoveredRoomColor =
+    private Color visitedRoomColor =
         new Color(
-            0.35f,
-            0.35f,
-            0.35f,
+            0.38f,
+            0.38f,
+            0.38f,
             1f
         );
 
@@ -73,9 +80,9 @@ public sealed class StageMapUI :
     [SerializeField]
     private Color clearedRoomColor =
         new Color(
-            0.8f,
-            0.8f,
-            0.8f,
+            0.82f,
+            0.82f,
+            0.82f,
             1f
         );
 
@@ -85,14 +92,45 @@ public sealed class StageMapUI :
     [SerializeField]
     private Color currentRoomColor =
         new Color(
-            1f,
-            0.8f,
-            0.25f,
+            0.95f,
+            0.72f,
+            0.2f,
             1f
         );
 
-    [Header("Room Type Icons")]
+    [SerializeField]
+    private Color symbolColor =
+        Color.white;
 
+    [Header("Temporary Room Symbols")]
+
+    [SerializeField]
+    private string startRoomSymbol = "S";
+
+    [SerializeField]
+    private string normalRoomSymbol = "";
+
+    [SerializeField]
+    private string namedRoomSymbol = "★";
+
+    [SerializeField]
+    private string bossRoomSymbol = "B";
+
+    [SerializeField]
+    private string shopRoomSymbol = "$";
+
+    [SerializeField]
+    private string rewardRoomSymbol = "G";
+
+    [SerializeField]
+    private string eventRoomSymbol = "?";
+
+    [Header("Optional Room Icons")]
+
+    [Tooltip(
+        "Sprite가 연결되어 있으면 텍스트 대신 " +
+        "해당 Sprite를 표시합니다."
+    )]
     [SerializeField]
     private Sprite startRoomIcon;
 
@@ -116,11 +154,18 @@ public sealed class StageMapUI :
     [SerializeField]
     private bool showDebugLog;
 
-    private readonly Dictionary<int, MapRoomNodeUI>
-        nodeByRoomId =
-            new Dictionary<int, MapRoomNodeUI>();
+    private readonly Dictionary<
+        int,
+        MapRoomNodeUI
+    > nodeByRoomId =
+        new Dictionary<
+            int,
+            MapRoomNodeUI
+        >();
 
     private StageMap displayedMap;
+
+    private Coroutine mapMovementCoroutine;
 
     private void Awake()
     {
@@ -133,7 +178,6 @@ public sealed class StageMapUI :
     {
         FindReferences();
         SubscribeEvents();
-
         TryBuildFromCurrentMap();
     }
 
@@ -145,11 +189,13 @@ public sealed class StageMapUI :
     private void OnDisable()
     {
         UnsubscribeEvents();
+        StopMapMovement();
     }
 
     private void OnDestroy()
     {
         UnsubscribeEvents();
+        StopMapMovement();
     }
 
     private void OnValidate()
@@ -183,6 +229,59 @@ public sealed class StageMapUI :
                 nodeSpacing,
                 1f
             );
+
+        mapMovementDuration =
+            Mathf.Max(
+                mapMovementDuration,
+                0f
+            );
+
+        startRoomSymbol =
+            NormalizeSymbol(
+                startRoomSymbol,
+                "S"
+            );
+
+        namedRoomSymbol =
+            NormalizeSymbol(
+                namedRoomSymbol,
+                "★"
+            );
+
+        bossRoomSymbol =
+            NormalizeSymbol(
+                bossRoomSymbol,
+                "B"
+            );
+
+        shopRoomSymbol =
+            NormalizeSymbol(
+                shopRoomSymbol,
+                "$"
+            );
+
+        rewardRoomSymbol =
+            NormalizeSymbol(
+                rewardRoomSymbol,
+                "G"
+            );
+
+        eventRoomSymbol =
+            NormalizeSymbol(
+                eventRoomSymbol,
+                "?"
+            );
+    }
+
+    private static string NormalizeSymbol(
+        string symbol,
+        string fallback)
+    {
+        return string.IsNullOrWhiteSpace(
+                symbol
+            )
+            ? fallback
+            : symbol;
     }
 
     private void ValidateReferences()
@@ -287,15 +386,14 @@ public sealed class StageMapUI :
         RoomNode currentRoom)
     {
         RefreshAllNodes();
+        FocusCurrentRoom(
+            animateMapMovement
+        );
     }
 
     private void
         HandleNavigationAvailabilityChanged()
     {
-        /*
-         * 이 이벤트는 방 클리어 때도 호출되므로
-         * 클리어 방의 밝기 갱신에 사용할 수 있습니다.
-         */
         RefreshAllNodes();
     }
 
@@ -314,6 +412,9 @@ public sealed class StageMapUI :
             map.RoomCount)
         {
             RefreshAllNodes();
+            FocusCurrentRoom(
+                false
+            );
 
             return;
         }
@@ -331,13 +432,6 @@ public sealed class StageMapUI :
         {
             return;
         }
-
-        Vector2 mapCenter =
-            centerGeneratedMap
-                ? CalculateMapCenter(
-                    rooms
-                )
-                : Vector2.zero;
 
         for (int i = 0;
              i < rooms.Count;
@@ -372,18 +466,13 @@ public sealed class StageMapUI :
 
             if (nodeRect != null)
             {
-                Vector2 roomPosition =
-                    new Vector2(
-                        room.GridPosition.x,
-                        room.GridPosition.y
-                    );
-
                 nodeRect.anchoredPosition =
-                    (
-                        roomPosition -
-                        mapCenter
-                    ) *
-                    nodeSpacing;
+                    new Vector2(
+                        room.GridPosition.x *
+                        nodeSpacing,
+                        room.GridPosition.y *
+                        nodeSpacing
+                    );
             }
 
             nodeByRoomId.Add(
@@ -393,6 +482,14 @@ public sealed class StageMapUI :
         }
 
         RefreshAllNodes();
+
+        /*
+         * 생성 직후 시작방을 즉시 중앙에 놓습니다.
+         * 첫 프레임에는 이동 연출을 사용하지 않습니다.
+         */
+        FocusCurrentRoom(
+            false
+        );
 
         if (showDebugLog)
         {
@@ -414,8 +511,10 @@ public sealed class StageMapUI :
         }
 
         foreach (
-            KeyValuePair<int, MapRoomNodeUI>
-                pair in nodeByRoomId)
+            KeyValuePair<
+                int,
+                MapRoomNodeUI
+            > pair in nodeByRoomId)
         {
             MapRoomNodeUI node =
                 pair.Value;
@@ -438,6 +537,11 @@ public sealed class StageMapUI :
                 navigator.CurrentRoomId ==
                 room.RoomId;
 
+            bool isVisited =
+                navigator.IsRoomVisited(
+                    room.RoomId
+                );
+
             bool isCleared =
                 IsRoomDisplayedAsCleared(
                     room
@@ -448,18 +552,141 @@ public sealed class StageMapUI :
                     room.RoomType
                 );
 
+            string symbol =
+                icon == null
+                    ? ResolveRoomSymbol(
+                        room.RoomType
+                    )
+                    : string.Empty;
+
             node.SetDisplayState(
                 isVisible,
                 isCurrentRoom,
+                isVisited,
                 isCleared,
-                hiddenRoomColor,
-                undiscoveredRoomColor,
-                discoveredRoomColor,
+                unvisitedRoomColor,
+                visitedRoomColor,
                 clearedRoomColor,
                 currentRoomColor,
-                icon
+                symbolColor,
+                icon,
+                symbol
             );
         }
+    }
+
+    public void FocusCurrentRoom(
+        bool animate)
+    {
+        if (!centerOnCurrentRoom ||
+            navigator == null ||
+            mapContent == null)
+        {
+            return;
+        }
+
+        RoomNode currentRoom =
+            navigator.CurrentRoom;
+
+        if (currentRoom == null)
+        {
+            return;
+        }
+
+        Vector2 targetContentPosition =
+            new Vector2(
+                -currentRoom.GridPosition.x *
+                nodeSpacing,
+                -currentRoom.GridPosition.y *
+                nodeSpacing
+            );
+
+        StopMapMovement();
+
+        if (!animate ||
+            !animateMapMovement ||
+            mapMovementDuration <= 0f ||
+            !isActiveAndEnabled)
+        {
+            mapContent.anchoredPosition =
+                targetContentPosition;
+
+            return;
+        }
+
+        mapMovementCoroutine =
+            StartCoroutine(
+                MoveMapContentRoutine(
+                    targetContentPosition
+                )
+            );
+    }
+
+    private IEnumerator MoveMapContentRoutine(
+        Vector2 targetPosition)
+    {
+        Vector2 startPosition =
+            mapContent.anchoredPosition;
+
+        float elapsedTime = 0f;
+
+        while (elapsedTime <
+               mapMovementDuration)
+        {
+            elapsedTime +=
+                Time.unscaledDeltaTime;
+
+            float normalizedTime =
+                mapMovementDuration > 0f
+                    ? Mathf.Clamp01(
+                        elapsedTime /
+                        mapMovementDuration
+                    )
+                    : 1f;
+
+            /*
+             * 부드럽게 출발하고 멈추도록
+             * SmoothStep 보간을 사용합니다.
+             */
+            float smoothedTime =
+                normalizedTime *
+                normalizedTime *
+                (
+                    3f -
+                    2f *
+                    normalizedTime
+                );
+
+            mapContent.anchoredPosition =
+                Vector2.LerpUnclamped(
+                    startPosition,
+                    targetPosition,
+                    smoothedTime
+                );
+
+            yield return null;
+        }
+
+        mapContent.anchoredPosition =
+            targetPosition;
+
+        mapMovementCoroutine =
+            null;
+    }
+
+    private void StopMapMovement()
+    {
+        if (mapMovementCoroutine == null)
+        {
+            return;
+        }
+
+        StopCoroutine(
+            mapMovementCoroutine
+        );
+
+        mapMovementCoroutine =
+            null;
     }
 
     private bool ShouldShowRoom(
@@ -500,10 +727,6 @@ public sealed class StageMapUI :
             return false;
         }
 
-        /*
-         * 시작방은 전투가 없는 이동 거점이므로
-         * 처음부터 밝은 방으로 표시합니다.
-         */
         if (room.RoomType ==
             RoomType.Start)
         {
@@ -518,6 +741,37 @@ public sealed class StageMapUI :
         return navigator.IsRoomCleared(
             room.RoomId
         );
+    }
+
+    private string ResolveRoomSymbol(
+        RoomType roomType)
+    {
+        switch (roomType)
+        {
+            case RoomType.Start:
+                return startRoomSymbol;
+
+            case RoomType.NormalCombat:
+                return normalRoomSymbol;
+
+            case RoomType.NamedCombat:
+                return namedRoomSymbol;
+
+            case RoomType.Boss:
+                return bossRoomSymbol;
+
+            case RoomType.Shop:
+                return shopRoomSymbol;
+
+            case RoomType.Reward:
+                return rewardRoomSymbol;
+
+            case RoomType.Event:
+                return eventRoomSymbol;
+
+            default:
+                return string.Empty;
+        }
     }
 
     private Sprite ResolveRoomIcon(
@@ -549,91 +803,15 @@ public sealed class StageMapUI :
         }
     }
 
-    private static Vector2 CalculateMapCenter(
-        IReadOnlyList<RoomNode> rooms)
-    {
-        if (rooms == null ||
-            rooms.Count == 0)
-        {
-            return Vector2.zero;
-        }
-
-        int minimumX =
-            int.MaxValue;
-
-        int maximumX =
-            int.MinValue;
-
-        int minimumY =
-            int.MaxValue;
-
-        int maximumY =
-            int.MinValue;
-
-        for (int i = 0;
-             i < rooms.Count;
-             i++)
-        {
-            RoomNode room =
-                rooms[i];
-
-            if (room == null)
-            {
-                continue;
-            }
-
-            minimumX =
-                Mathf.Min(
-                    minimumX,
-                    room.GridPosition.x
-                );
-
-            maximumX =
-                Mathf.Max(
-                    maximumX,
-                    room.GridPosition.x
-                );
-
-            minimumY =
-                Mathf.Min(
-                    minimumY,
-                    room.GridPosition.y
-                );
-
-            maximumY =
-                Mathf.Max(
-                    maximumY,
-                    room.GridPosition.y
-                );
-        }
-
-        if (minimumX ==
-                int.MaxValue ||
-            minimumY ==
-                int.MaxValue)
-        {
-            return Vector2.zero;
-        }
-
-        return new Vector2(
-            (
-                minimumX +
-                maximumX
-            ) *
-            0.5f,
-            (
-                minimumY +
-                maximumY
-            ) *
-            0.5f
-        );
-    }
-
     private void ClearGeneratedNodes()
     {
+        StopMapMovement();
+
         foreach (
-            KeyValuePair<int, MapRoomNodeUI>
-                pair in nodeByRoomId)
+            KeyValuePair<
+                int,
+                MapRoomNodeUI
+            > pair in nodeByRoomId)
         {
             MapRoomNodeUI node =
                 pair.Value;
@@ -656,5 +834,11 @@ public sealed class StageMapUI :
 
         displayedMap =
             null;
+
+        if (mapContent != null)
+        {
+            mapContent.anchoredPosition =
+                Vector2.zero;
+        }
     }
 }

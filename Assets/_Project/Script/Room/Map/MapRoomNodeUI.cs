@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -18,6 +19,9 @@ public sealed class MapRoomNodeUI :
 
     [SerializeField]
     private Image roomIcon;
+
+    [SerializeField]
+    private TMP_Text roomSymbolText;
 
     [SerializeField]
     private GameObject currentRoomOutline;
@@ -73,6 +77,22 @@ public sealed class MapRoomNodeUI :
             }
         }
 
+        if (roomSymbolText == null)
+        {
+            Transform symbolTransform =
+                transform.Find(
+                    "RoomSymbolText"
+                );
+
+            if (symbolTransform != null)
+            {
+                roomSymbolText =
+                    symbolTransform.GetComponent<
+                        TMP_Text
+                    >();
+            }
+        }
+
         if (currentRoomOutline == null)
         {
             Transform outlineTransform =
@@ -103,16 +123,16 @@ public sealed class MapRoomNodeUI :
         {
             Debug.LogError(
                 "MapRoomNodeUI: " +
-                "Button이 연결되지 않았습니다.",
+                "Room Button이 연결되지 않았습니다.",
                 this
             );
         }
 
-        if (roomIcon == null)
+        if (roomSymbolText == null)
         {
-            Debug.LogWarning(
+            Debug.LogError(
                 "MapRoomNodeUI: " +
-                "Room Icon이 연결되지 않았습니다.",
+                "Room Symbol Text가 연결되지 않았습니다.",
                 this
             );
         }
@@ -135,12 +155,13 @@ public sealed class MapRoomNodeUI :
 
         name =
             room != null
-                ? $"MapRoomNode_{room.RoomId}_{room.RoomType}"
+                ? $"MapRoomNode_" +
+                  $"{room.RoomId}_" +
+                  $"{room.RoomType}"
                 : "MapRoomNode_None";
 
         /*
-         * 맵 노드 클릭 이동은 다음 구현 단계에서
-         * 연결합니다.
+         * 클릭 이동은 다음 단계에서 연결합니다.
          */
         if (roomButton != null)
         {
@@ -152,13 +173,15 @@ public sealed class MapRoomNodeUI :
     public void SetDisplayState(
         bool isVisible,
         bool isCurrentRoom,
+        bool isVisited,
         bool isCleared,
-        Color hiddenColor,
-        Color undiscoveredColor,
-        Color discoveredColor,
+        Color unvisitedColor,
+        Color visitedColor,
         Color clearedColor,
         Color currentRoomColor,
-        Sprite iconSprite)
+        Color symbolColor,
+        Sprite iconSprite,
+        string symbol)
     {
         gameObject.SetActive(
             isVisible
@@ -174,26 +197,23 @@ public sealed class MapRoomNodeUI :
             backgroundImage.color =
                 ResolveBackgroundColor(
                     isCurrentRoom,
+                    isVisited,
                     isCleared,
-                    undiscoveredColor,
-                    discoveredColor,
+                    unvisitedColor,
+                    visitedColor,
                     clearedColor,
                     currentRoomColor
                 );
         }
 
-        if (roomIcon != null)
-        {
-            bool hasIcon =
-                iconSprite != null;
+        ApplyIcon(
+            iconSprite
+        );
 
-            roomIcon.gameObject.SetActive(
-                hasIcon
-            );
-
-            roomIcon.sprite =
-                iconSprite;
-        }
+        ApplySymbol(
+            symbol,
+            symbolColor
+        );
 
         if (currentRoomOutline != null)
         {
@@ -203,13 +223,67 @@ public sealed class MapRoomNodeUI :
         }
     }
 
-    private Color ResolveBackgroundColor(
-        bool isCurrentRoom,
-        bool isCleared,
-        Color undiscoveredColor,
-        Color discoveredColor,
-        Color clearedColor,
-        Color currentRoomColor)
+    private void ApplyIcon(
+        Sprite iconSprite)
+    {
+        if (roomIcon == null)
+        {
+            return;
+        }
+
+        bool hasIcon =
+            iconSprite != null;
+
+        roomIcon.gameObject.SetActive(
+            hasIcon
+        );
+
+        roomIcon.sprite =
+            iconSprite;
+    }
+
+    private void ApplySymbol(
+        string symbol,
+        Color symbolColor)
+    {
+        if (roomSymbolText == null)
+        {
+            return;
+        }
+
+        bool hasSymbol =
+            !string.IsNullOrWhiteSpace(
+                symbol
+            );
+
+        roomSymbolText.gameObject.SetActive(
+            hasSymbol
+        );
+
+        if (!hasSymbol)
+        {
+            roomSymbolText.text =
+                string.Empty;
+
+            return;
+        }
+
+        roomSymbolText.text =
+            symbol;
+
+        roomSymbolText.color =
+            symbolColor;
+    }
+
+    private static Color
+        ResolveBackgroundColor(
+            bool isCurrentRoom,
+            bool isVisited,
+            bool isCleared,
+            Color unvisitedColor,
+            Color visitedColor,
+            Color clearedColor,
+            Color currentRoomColor)
     {
         if (isCurrentRoom)
         {
@@ -221,20 +295,11 @@ public sealed class MapRoomNodeUI :
             return clearedColor;
         }
 
-        /*
-         * 현재 단계에서 UI에 표시되는 일반·네임드 방은
-         * 이미 방문한 방입니다.
-         *
-         * 특수방은 처음부터 공개되므로 아직 방문하지
-         * 않았을 수 있습니다.
-         */
-        bool isVisited =
-            room != null &&
-            room.RoomType !=
-                RoomType.Start;
+        if (isVisited)
+        {
+            return visitedColor;
+        }
 
-        return isVisited
-            ? discoveredColor
-            : undiscoveredColor;
+        return unvisitedColor;
     }
 }
