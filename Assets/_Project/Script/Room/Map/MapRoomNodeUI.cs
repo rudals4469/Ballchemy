@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -28,6 +29,9 @@ public sealed class MapRoomNodeUI :
 
     private RoomNode room;
 
+    private Action<RoomNode>
+        clickedHandler;
+
     public RoomNode Room =>
         room;
 
@@ -40,6 +44,15 @@ public sealed class MapRoomNodeUI :
     {
         FindReferences();
         ValidateReferences();
+        BindButton();
+    }
+
+    private void OnDestroy()
+    {
+        UnbindButton();
+
+        clickedHandler =
+            null;
     }
 
     private void OnValidate()
@@ -147,11 +160,43 @@ public sealed class MapRoomNodeUI :
         }
     }
 
+    private void BindButton()
+    {
+        if (roomButton == null)
+        {
+            return;
+        }
+
+        roomButton.onClick.RemoveListener(
+            HandleClicked
+        );
+
+        roomButton.onClick.AddListener(
+            HandleClicked
+        );
+    }
+
+    private void UnbindButton()
+    {
+        if (roomButton == null)
+        {
+            return;
+        }
+
+        roomButton.onClick.RemoveListener(
+            HandleClicked
+        );
+    }
+
     public void Bind(
-        RoomNode targetRoom)
+        RoomNode targetRoom,
+        Action<RoomNode> onClicked)
     {
         room =
             targetRoom;
+
+        clickedHandler =
+            onClicked;
 
         name =
             room != null
@@ -160,9 +205,6 @@ public sealed class MapRoomNodeUI :
                   $"{room.RoomType}"
                 : "MapRoomNode_None";
 
-        /*
-         * 클릭 이동은 다음 단계에서 연결합니다.
-         */
         if (roomButton != null)
         {
             roomButton.interactable =
@@ -175,6 +217,7 @@ public sealed class MapRoomNodeUI :
         bool isCurrentRoom,
         bool isVisited,
         bool isCleared,
+        bool canInteract,
         Color unvisitedColor,
         Color visitedColor,
         Color clearedColor,
@@ -206,6 +249,12 @@ public sealed class MapRoomNodeUI :
                 );
         }
 
+        if (roomButton != null)
+        {
+            roomButton.interactable =
+                canInteract;
+        }
+
         ApplyIcon(
             iconSprite
         );
@@ -221,6 +270,20 @@ public sealed class MapRoomNodeUI :
                 isCurrentRoom
             );
         }
+    }
+
+    private void HandleClicked()
+    {
+        if (room == null ||
+            roomButton == null ||
+            !roomButton.interactable)
+        {
+            return;
+        }
+
+        clickedHandler?.Invoke(
+            room
+        );
     }
 
     private void ApplyIcon(

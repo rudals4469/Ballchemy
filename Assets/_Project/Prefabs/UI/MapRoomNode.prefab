@@ -99,7 +99,7 @@ MonoBehaviour:
     m_SelectOnDown: {fileID: 0}
     m_SelectOnLeft: {fileID: 0}
     m_SelectOnRight: {fileID: 0}
-  m_Transition: 0
+  m_Transition: 1
   m_Colors:
     m_NormalColor: {r: 1, g: 1, b: 1, a: 1}
     m_HighlightedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
@@ -139,6 +139,7 @@ MonoBehaviour:
   backgroundImage: {fileID: 6839620371548628675}
   roomButton: {fileID: 4086146418158499842}
   roomIcon: {fileID: 7424153015610470247}
+  roomSymbolText: {fileID: 1794529320047486881}
   currentRoomOutline: {fileID: 7527647990497694610}
 --- !u!1 &2111605428689438951
 GameObject:

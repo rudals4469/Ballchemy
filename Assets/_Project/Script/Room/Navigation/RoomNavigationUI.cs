@@ -5,10 +5,16 @@ public sealed class RoomNavigationUI :
     MonoBehaviour
 {
     [Header("References")]
+
     [SerializeField]
     private StageRoomNavigator navigator;
 
+    [SerializeField]
+    private RoomTransitionController
+        transitionController;
+
     [Header("Direction Buttons")]
+
     [SerializeField]
     private Button upButton;
 
@@ -22,6 +28,7 @@ public sealed class RoomNavigationUI :
     private Button leftButton;
 
     [Header("Display")]
+
     [Tooltip(
         "활성화하면 현재 이동할 수 없는 방향의 버튼을 숨깁니다.\n" +
         "전투방에서는 방을 클리어한 뒤에만 이동 버튼이 표시됩니다.\n" +
@@ -73,6 +80,14 @@ public sealed class RoomNavigationUI :
                     StageRoomNavigator
                 >();
         }
+
+        if (transitionController == null)
+        {
+            transitionController =
+                FindFirstObjectByType<
+                    RoomTransitionController
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -82,6 +97,15 @@ public sealed class RoomNavigationUI :
             Debug.LogError(
                 "RoomNavigationUI: " +
                 "StageRoomNavigator가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (transitionController == null)
+        {
+            Debug.LogError(
+                "RoomNavigationUI: " +
+                "RoomTransitionController가 연결되지 않았습니다.",
                 this
             );
         }
@@ -165,45 +189,62 @@ public sealed class RoomNavigationUI :
 
     private void SubscribeEvents()
     {
-        if (navigator == null)
+        if (navigator != null)
         {
-            return;
+            navigator.MapInitialized -=
+                HandleMapInitialized;
+
+            navigator.MapInitialized +=
+                HandleMapInitialized;
+
+            navigator.RoomChanged -=
+                HandleRoomChanged;
+
+            navigator.RoomChanged +=
+                HandleRoomChanged;
+
+            navigator
+                .NavigationAvailabilityChanged -=
+                HandleNavigationAvailabilityChanged;
+
+            navigator
+                .NavigationAvailabilityChanged +=
+                HandleNavigationAvailabilityChanged;
         }
 
-        navigator.MapInitialized -=
-            HandleMapInitialized;
+        if (transitionController != null)
+        {
+            transitionController
+                .TransitionStateChanged -=
+                HandleTransitionStateChanged;
 
-        navigator.MapInitialized +=
-            HandleMapInitialized;
-
-        navigator.RoomChanged -=
-            HandleRoomChanged;
-
-        navigator.RoomChanged +=
-            HandleRoomChanged;
-
-        navigator.NavigationAvailabilityChanged -=
-            HandleNavigationAvailabilityChanged;
-
-        navigator.NavigationAvailabilityChanged +=
-            HandleNavigationAvailabilityChanged;
+            transitionController
+                .TransitionStateChanged +=
+                HandleTransitionStateChanged;
+        }
     }
 
     private void UnsubscribeEvents()
     {
-        if (navigator == null)
+        if (navigator != null)
         {
-            return;
+            navigator.MapInitialized -=
+                HandleMapInitialized;
+
+            navigator.RoomChanged -=
+                HandleRoomChanged;
+
+            navigator
+                .NavigationAvailabilityChanged -=
+                HandleNavigationAvailabilityChanged;
         }
 
-        navigator.MapInitialized -=
-            HandleMapInitialized;
-
-        navigator.RoomChanged -=
-            HandleRoomChanged;
-
-        navigator.NavigationAvailabilityChanged -=
-            HandleNavigationAvailabilityChanged;
+        if (transitionController != null)
+        {
+            transitionController
+                .TransitionStateChanged -=
+                HandleTransitionStateChanged;
+        }
     }
 
     public void Refresh()
@@ -245,19 +286,16 @@ public sealed class RoomNavigationUI :
             );
 
         bool canMove =
-            navigator != null &&
-            navigator.CanMove(
-                direction
-            );
+            transitionController != null
+                ? transitionController
+                    .CanRequestDirectionalMove(
+                        direction
+                    )
+                : navigator != null &&
+                  navigator.CanMove(
+                      direction
+                  );
 
-        /*
-         * 숨김 모드에서는 실제 이동 가능한 경우에만
-         * 버튼을 표시합니다.
-         *
-         * 따라서 미클리어 전투방에서는 모든 버튼이
-         * 사라지고, 클리어 이벤트가 발생하면 연결된
-         * 방향 버튼이 다시 표시됩니다.
-         */
         if (hideUnavailableButtons)
         {
             button.gameObject.SetActive(
@@ -277,30 +315,34 @@ public sealed class RoomNavigationUI :
 
     private void HandleUpClicked()
     {
-        navigator?.TryMove(
-            RoomDirection.Up
-        );
+        transitionController
+            ?.TryMoveFromDirectionButton(
+                RoomDirection.Up
+            );
     }
 
     private void HandleRightClicked()
     {
-        navigator?.TryMove(
-            RoomDirection.Right
-        );
+        transitionController
+            ?.TryMoveFromDirectionButton(
+                RoomDirection.Right
+            );
     }
 
     private void HandleDownClicked()
     {
-        navigator?.TryMove(
-            RoomDirection.Down
-        );
+        transitionController
+            ?.TryMoveFromDirectionButton(
+                RoomDirection.Down
+            );
     }
 
     private void HandleLeftClicked()
     {
-        navigator?.TryMove(
-            RoomDirection.Left
-        );
+        transitionController
+            ?.TryMoveFromDirectionButton(
+                RoomDirection.Left
+            );
     }
 
     private void HandleMapInitialized(
@@ -318,6 +360,12 @@ public sealed class RoomNavigationUI :
 
     private void
         HandleNavigationAvailabilityChanged()
+    {
+        Refresh();
+    }
+
+    private void HandleTransitionStateChanged(
+        bool isTransitioning)
     {
         Refresh();
     }

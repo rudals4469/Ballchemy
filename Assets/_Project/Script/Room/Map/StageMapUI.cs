@@ -12,6 +12,10 @@ public sealed class StageMapUI :
     private StageRoomNavigator navigator;
 
     [SerializeField]
+    private RoomTransitionController
+        transitionController;
+
+    [SerializeField]
     private RectTransform mapContent;
 
     [SerializeField]
@@ -49,10 +53,6 @@ public sealed class StageMapUI :
 
     [Header("Room Colors")]
 
-    [Tooltip(
-        "처음부터 공개됐지만 아직 방문하지 않은 " +
-        "특수방의 배경색입니다."
-    )]
     [SerializeField]
     private Color unvisitedRoomColor =
         new Color(
@@ -62,9 +62,6 @@ public sealed class StageMapUI :
             1f
         );
 
-    [Tooltip(
-        "방문했지만 아직 클리어하지 않은 방의 색입니다."
-    )]
     [SerializeField]
     private Color visitedRoomColor =
         new Color(
@@ -74,9 +71,6 @@ public sealed class StageMapUI :
             1f
         );
 
-    [Tooltip(
-        "클리어한 방의 밝은 색입니다."
-    )]
     [SerializeField]
     private Color clearedRoomColor =
         new Color(
@@ -86,9 +80,6 @@ public sealed class StageMapUI :
             1f
         );
 
-    [Tooltip(
-        "현재 위치한 방의 배경색입니다."
-    )]
     [SerializeField]
     private Color currentRoomColor =
         new Color(
@@ -127,10 +118,6 @@ public sealed class StageMapUI :
 
     [Header("Optional Room Icons")]
 
-    [Tooltip(
-        "Sprite가 연결되어 있으면 텍스트 대신 " +
-        "해당 Sprite를 표시합니다."
-    )]
     [SerializeField]
     private Sprite startRoomIcon;
 
@@ -211,6 +198,14 @@ public sealed class StageMapUI :
             navigator =
                 FindFirstObjectByType<
                     StageRoomNavigator
+                >();
+        }
+
+        if (transitionController == null)
+        {
+            transitionController =
+                FindFirstObjectByType<
+                    RoomTransitionController
                 >();
         }
 
@@ -295,6 +290,15 @@ public sealed class StageMapUI :
             );
         }
 
+        if (transitionController == null)
+        {
+            Debug.LogError(
+                "StageMapUI: " +
+                "RoomTransitionController가 연결되지 않았습니다.",
+                this
+            );
+        }
+
         if (mapContent == null)
         {
             Debug.LogError(
@@ -316,48 +320,62 @@ public sealed class StageMapUI :
 
     private void SubscribeEvents()
     {
-        if (navigator == null)
+        if (navigator != null)
         {
-            return;
+            navigator.MapInitialized -=
+                HandleMapInitialized;
+
+            navigator.MapInitialized +=
+                HandleMapInitialized;
+
+            navigator.RoomChanged -=
+                HandleRoomChanged;
+
+            navigator.RoomChanged +=
+                HandleRoomChanged;
+
+            navigator
+                .NavigationAvailabilityChanged -=
+                HandleNavigationAvailabilityChanged;
+
+            navigator
+                .NavigationAvailabilityChanged +=
+                HandleNavigationAvailabilityChanged;
         }
 
-        navigator.MapInitialized -=
-            HandleMapInitialized;
+        if (transitionController != null)
+        {
+            transitionController
+                .TransitionStateChanged -=
+                HandleTransitionStateChanged;
 
-        navigator.MapInitialized +=
-            HandleMapInitialized;
-
-        navigator.RoomChanged -=
-            HandleRoomChanged;
-
-        navigator.RoomChanged +=
-            HandleRoomChanged;
-
-        navigator
-            .NavigationAvailabilityChanged -=
-            HandleNavigationAvailabilityChanged;
-
-        navigator
-            .NavigationAvailabilityChanged +=
-            HandleNavigationAvailabilityChanged;
+            transitionController
+                .TransitionStateChanged +=
+                HandleTransitionStateChanged;
+        }
     }
 
     private void UnsubscribeEvents()
     {
-        if (navigator == null)
+        if (navigator != null)
         {
-            return;
+            navigator.MapInitialized -=
+                HandleMapInitialized;
+
+            navigator.RoomChanged -=
+                HandleRoomChanged;
+
+            navigator
+                .NavigationAvailabilityChanged -=
+                HandleNavigationAvailabilityChanged;
         }
 
-        navigator.MapInitialized -=
-            HandleMapInitialized;
-
-        navigator.RoomChanged -=
-            HandleRoomChanged;
-
-        navigator
-            .NavigationAvailabilityChanged -=
-            HandleNavigationAvailabilityChanged;
+        if (transitionController != null)
+        {
+            transitionController
+                .TransitionStateChanged -=
+                HandleTransitionStateChanged;
+        }
     }
 
     private void TryBuildFromCurrentMap()
@@ -386,6 +404,7 @@ public sealed class StageMapUI :
         RoomNode currentRoom)
     {
         RefreshAllNodes();
+
         FocusCurrentRoom(
             animateMapMovement
         );
@@ -395,6 +414,26 @@ public sealed class StageMapUI :
         HandleNavigationAvailabilityChanged()
     {
         RefreshAllNodes();
+    }
+
+    private void HandleTransitionStateChanged(
+        bool isTransitioning)
+    {
+        RefreshAllNodes();
+    }
+
+    private void HandleRoomNodeClicked(
+        RoomNode selectedRoom)
+    {
+        if (transitionController == null)
+        {
+            return;
+        }
+
+        transitionController
+            .TryMoveFromMap(
+                selectedRoom
+            );
     }
 
     public void BuildMap(
@@ -412,6 +451,7 @@ public sealed class StageMapUI :
             map.RoomCount)
         {
             RefreshAllNodes();
+
             FocusCurrentRoom(
                 false
             );
@@ -457,7 +497,8 @@ public sealed class StageMapUI :
             }
 
             node.Bind(
-                room
+                room,
+                HandleRoomNodeClicked
             );
 
             RectTransform nodeRect =
@@ -483,10 +524,6 @@ public sealed class StageMapUI :
 
         RefreshAllNodes();
 
-        /*
-         * 생성 직후 시작방을 즉시 중앙에 놓습니다.
-         * 첫 프레임에는 이동 연출을 사용하지 않습니다.
-         */
         FocusCurrentRoom(
             false
         );
@@ -547,6 +584,14 @@ public sealed class StageMapUI :
                     room
                 );
 
+            bool canInteract =
+                isVisible &&
+                transitionController != null &&
+                transitionController
+                    .CanRequestMapMove(
+                        room
+                    );
+
             Sprite icon =
                 ResolveRoomIcon(
                     room.RoomType
@@ -564,6 +609,7 @@ public sealed class StageMapUI :
                 isCurrentRoom,
                 isVisited,
                 isCleared,
+                canInteract,
                 unvisitedRoomColor,
                 visitedRoomColor,
                 clearedRoomColor,
@@ -644,10 +690,6 @@ public sealed class StageMapUI :
                     )
                     : 1f;
 
-            /*
-             * 부드럽게 출발하고 멈추도록
-             * SmoothStep 보간을 사용합니다.
-             */
             float smoothedTime =
                 normalizedTime *
                 normalizedTime *
