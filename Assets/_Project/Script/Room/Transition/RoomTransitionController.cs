@@ -17,15 +17,6 @@ public sealed class RoomTransitionController :
     [SerializeField]
     private RoomFadePresenter fadePresenter;
 
-    [Header("Map Movement Rules")]
-
-    [Tooltip(
-        "활성화하면 맵 클릭으로 전투방에 이동할 때 " +
-        "클리어한 전투방만 허용합니다."
-    )]
-    [SerializeField]
-    private bool requireClearedCombatRoom = true;
-
     [Header("Debug")]
 
     [SerializeField]
@@ -145,10 +136,9 @@ public sealed class RoomTransitionController :
             return false;
         }
 
-        StartFadeTransition(
-            direction,
-            null,
-            false
+        StartTransition(
+            ExecuteDirectionalMove,
+            direction
         );
 
         return true;
@@ -164,57 +154,10 @@ public sealed class RoomTransitionController :
             return false;
         }
 
-        if (!navigator.CanNavigate)
-        {
-            return false;
-        }
-
-        RoomNode currentRoom =
-            navigator.CurrentRoom;
-
-        if (currentRoom == null ||
-            currentRoom.RoomId ==
-            targetRoom.RoomId)
-        {
-            return false;
-        }
-
-        /*
-         * 현재 단계에서는 맵 클릭도
-         * 직접 연결된 인접 방만 허용합니다.
-         */
-        if (!currentRoom.HasConnection(
+        return navigator
+            .CanFastTravelToRoom(
                 targetRoom.RoomId
-            ))
-        {
-            return false;
-        }
-
-        /*
-         * 아직 방문하지 않은 방은
-         * 방향 버튼을 통해 처음 진입합니다.
-         */
-        if (!navigator.IsRoomVisited(
-                targetRoom.RoomId
-            ))
-        {
-            return false;
-        }
-
-        if (requireClearedCombatRoom &&
-            targetRoom.IsCombatRoom &&
-            !navigator.IsRoomCleared(
-                targetRoom.RoomId
-            ))
-        {
-            return false;
-        }
-
-        return TryResolveDirection(
-            currentRoom,
-            targetRoom,
-            out _
-        );
+            );
     }
 
     public bool TryMoveFromMap(
@@ -227,125 +170,212 @@ public sealed class RoomTransitionController :
             return false;
         }
 
-        if (!TryResolveDirection(
-                navigator.CurrentRoom,
-                targetRoom,
-                out RoomDirection direction
-            ))
-        {
-            return false;
-        }
+        StopTransitionCoroutine();
 
-        StartFadeTransition(
-            direction,
-            targetRoom,
-            true
-        );
+        transitionCoroutine =
+            StartCoroutine(
+                FastTravelRoutine(
+                    targetRoom
+                )
+            );
 
         return true;
     }
 
-    private void StartFadeTransition(
-        RoomDirection direction,
-        RoomNode requestedRoom,
-        bool requestedFromMap)
+    public bool TryRetreat(
+        RoomRetreatController
+            retreatController)
+    {
+        if (isTransitioning ||
+            retreatController == null ||
+            !retreatController.CanRetreat)
+        {
+            return false;
+        }
+
+        StopTransitionCoroutine();
+
+        transitionCoroutine =
+            StartCoroutine(
+                RetreatRoutine(
+                    retreatController
+                )
+            );
+
+        return true;
+    }
+
+    private void StartTransition(
+        Func<RoomDirection, bool>
+            movementAction,
+        RoomDirection direction)
     {
         StopTransitionCoroutine();
 
         transitionCoroutine =
             StartCoroutine(
-                FadeTransitionRoutine(
-                    direction,
-                    requestedRoom,
-                    requestedFromMap
+                DirectionalMoveRoutine(
+                    movementAction,
+                    direction
                 )
             );
     }
 
-    private IEnumerator FadeTransitionRoutine(
-        RoomDirection direction,
-        RoomNode requestedRoom,
-        bool requestedFromMap)
+    private IEnumerator DirectionalMoveRoutine(
+        Func<RoomDirection, bool>
+            movementAction,
+        RoomDirection direction)
     {
-        SetTransitioning(
-            true
-        );
+        BeginTransition();
 
-        LockTransitionInput();
+        yield return FadeOut();
 
-        /*
-         * 화면이 완전히 어두워진 뒤에만
-         * 실제 방을 변경합니다.
-         *
-         * 따라서 새 블록과 공이 생성되는 과정은
-         * 플레이어에게 보이지 않습니다.
-         */
-        if (fadePresenter != null)
+        bool moved = false;
+
+        UnlockNavigatorForMove();
+
+        if (movementAction != null)
         {
-            yield return
-                fadePresenter
-                    .FadeOutRoutine();
+            moved =
+                movementAction(
+                    direction
+                );
         }
 
-        bool moved =
-            ExecuteNavigatorMove(
-                direction
-            );
+        RelockTransitionInput();
 
         if (!moved)
         {
-            if (requestedFromMap &&
-                requestedRoom != null)
-            {
-                Debug.LogWarning(
-                    "RoomTransitionController: " +
-                    $"Room {requestedRoom.RoomId}으로 " +
-                    "맵 클릭 이동하지 못했습니다.",
-                    this
-                );
-            }
-            else
-            {
-                Debug.LogWarning(
-                    "RoomTransitionController: " +
-                    $"{direction} 방향으로 " +
-                    "이동하지 못했습니다.",
-                    this
-                );
-            }
+            Debug.LogWarning(
+                "RoomTransitionController: " +
+                $"{direction} 방향 이동에 실패했습니다.",
+                this
+            );
         }
         else if (showDebugLog)
         {
-            string movementSource =
-                requestedFromMap
-                    ? "맵 클릭"
-                    : "방향 버튼";
-
             Debug.Log(
                 "RoomTransitionController: " +
-                $"{movementSource} 암전 이동 완료, " +
-                $"방향={direction}, " +
+                $"방향 이동 완료, " +
                 $"현재 방={navigator.CurrentRoomId}",
                 this
             );
         }
 
-        /*
-         * 방 변경 및 새 방 생성 처리가 끝난 뒤
-         * 화면을 다시 밝힙니다.
-         */
-        if (fadePresenter != null)
-        {
-            yield return
-                fadePresenter
-                    .FadeInRoutine();
-        }
+        yield return FadeIn();
 
         FinishTransition();
     }
 
-    private void LockTransitionInput()
+    private IEnumerator FastTravelRoutine(
+        RoomNode targetRoom)
     {
+        BeginTransition();
+
+        yield return FadeOut();
+
+        bool moved = false;
+
+        UnlockNavigatorForMove();
+
+        if (navigator != null &&
+            targetRoom != null)
+        {
+            moved =
+                navigator
+                    .TryFastTravelToRoom(
+                        targetRoom.RoomId
+                    );
+        }
+
+        RelockTransitionInput();
+
+        if (!moved)
+        {
+            Debug.LogWarning(
+                "RoomTransitionController: " +
+                $"Room {targetRoom?.RoomId}으로 " +
+                "빠른 이동하지 못했습니다.",
+                this
+            );
+        }
+        else if (showDebugLog)
+        {
+            Debug.Log(
+                "RoomTransitionController: " +
+                "맵 빠른 이동 완료, " +
+                $"현재 방={navigator.CurrentRoomId}",
+                this
+            );
+        }
+
+        yield return FadeIn();
+
+        FinishTransition();
+    }
+
+    private IEnumerator RetreatRoutine(
+        RoomRetreatController
+            retreatController)
+    {
+        BeginTransition();
+
+        yield return FadeOut();
+
+        bool retreated = false;
+
+        UnlockNavigatorForMove();
+
+        if (retreatController != null)
+        {
+            retreated =
+                retreatController
+                    .ExecuteRetreatDuringFade();
+        }
+
+        RelockTransitionInput();
+
+        if (!retreated)
+        {
+            Debug.LogWarning(
+                "RoomTransitionController: " +
+                "후퇴 처리에 실패했습니다.",
+                this
+            );
+        }
+        else if (showDebugLog)
+        {
+            Debug.Log(
+                "RoomTransitionController: " +
+                "암전 후퇴 완료",
+                this
+            );
+        }
+
+        yield return FadeIn();
+
+        FinishTransition();
+    }
+
+    private bool ExecuteDirectionalMove(
+        RoomDirection direction)
+    {
+        if (navigator == null)
+        {
+            return false;
+        }
+
+        return navigator.TryMove(
+            direction
+        );
+    }
+
+    private void BeginTransition()
+    {
+        SetTransitioning(
+            true
+        );
+
         navigator?.SetNavigationLocked(
             true
         );
@@ -355,40 +385,51 @@ public sealed class RoomTransitionController :
         );
     }
 
-    private bool ExecuteNavigatorMove(
-        RoomDirection direction)
+    private void UnlockNavigatorForMove()
     {
-        if (navigator == null)
-        {
-            return false;
-        }
-
-        /*
-         * 실제 이동을 실행하는 순간에만
-         * Navigator 잠금을 잠시 해제합니다.
-         */
-        navigator.SetNavigationLocked(
+        navigator?.SetNavigationLocked(
             false
         );
+    }
 
-        bool moved =
-            navigator.TryMove(
-                direction
-            );
-
-        navigator.SetNavigationLocked(
+    private void RelockTransitionInput()
+    {
+        navigator?.SetNavigationLocked(
             true
         );
 
         /*
-         * 방 입장 처리에서 입력 잠금이 풀릴 수 있으므로
-         * 암전이 끝날 때까지 다시 잠급니다.
+         * 방 진입 처리에서 TurnManager 입력 잠금이
+         * 풀릴 수 있으므로 암전이 끝날 때까지
+         * 다시 잠급니다.
          */
         turnManager?.SetInputLocked(
             true
         );
+    }
 
-        return moved;
+    private IEnumerator FadeOut()
+    {
+        if (fadePresenter == null)
+        {
+            yield break;
+        }
+
+        yield return
+            fadePresenter
+                .FadeOutRoutine();
+    }
+
+    private IEnumerator FadeIn()
+    {
+        if (fadePresenter == null)
+        {
+            yield break;
+        }
+
+        yield return
+            fadePresenter
+                .FadeInRoutine();
     }
 
     private void FinishTransition()
@@ -407,63 +448,6 @@ public sealed class RoomTransitionController :
         SetTransitioning(
             false
         );
-    }
-
-    private static bool TryResolveDirection(
-        RoomNode currentRoom,
-        RoomNode targetRoom,
-        out RoomDirection direction)
-    {
-        direction =
-            RoomDirection.Up;
-
-        if (currentRoom == null ||
-            targetRoom == null)
-        {
-            return false;
-        }
-
-        Vector2Int difference =
-            targetRoom.GridPosition -
-            currentRoom.GridPosition;
-
-        if (difference ==
-            Vector2Int.up)
-        {
-            direction =
-                RoomDirection.Up;
-
-            return true;
-        }
-
-        if (difference ==
-            Vector2Int.right)
-        {
-            direction =
-                RoomDirection.Right;
-
-            return true;
-        }
-
-        if (difference ==
-            Vector2Int.down)
-        {
-            direction =
-                RoomDirection.Down;
-
-            return true;
-        }
-
-        if (difference ==
-            Vector2Int.left)
-        {
-            direction =
-                RoomDirection.Left;
-
-            return true;
-        }
-
-        return false;
     }
 
     private void SetTransitioning(

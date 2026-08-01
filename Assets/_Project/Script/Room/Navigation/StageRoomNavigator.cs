@@ -6,6 +6,7 @@ public sealed class StageRoomNavigator :
     MonoBehaviour
 {
     [Header("References")]
+
     [SerializeField]
     private StageMapGenerator mapGenerator;
 
@@ -17,7 +18,7 @@ public sealed class StageRoomNavigator :
 
     [SerializeField]
     private BallLauncher ballLauncher;
-    
+
     [SerializeField]
     private BallCollection ballCollection;
 
@@ -35,11 +36,8 @@ public sealed class StageRoomNavigator :
             new HashSet<int>();
 
     /*
-     * 보상 선택, 연출, 맵 전환 등 외부 시스템이
+     * 보상 선택, 방 전환 연출 등 외부 시스템이
      * 방 이동 자체를 잠글 때 사용합니다.
-     *
-     * UI를 숨기는 것과 별개로 TryMove와
-     * MoveToRoom 실행을 시스템 수준에서 막습니다.
      */
     private bool isNavigationLocked;
 
@@ -192,7 +190,7 @@ public sealed class StageRoomNavigator :
                     BallLauncher
                 >();
         }
-        
+
         if (ballCollection == null)
         {
             ballCollection =
@@ -241,7 +239,7 @@ public sealed class StageRoomNavigator :
                 this
             );
         }
-        
+
         if (ballCollection == null)
         {
             Debug.LogError(
@@ -343,13 +341,6 @@ public sealed class StageRoomNavigator :
             this
         );
 
-        /*
-         * RoomNavigationUI는 이 이벤트를 받아
-         * CanMove 결과에 따라 화살표를 갱신합니다.
-         *
-         * 따라서 잠금 중에는 버튼이 숨고,
-         * 잠금 해제 후에만 연결된 방향 버튼이 나타납니다.
-         */
         NavigationAvailabilityChanged
             ?.Invoke();
     }
@@ -436,9 +427,6 @@ public sealed class StageRoomNavigator :
             currentRoom.RoomId
         );
 
-        /*
-         * 시작방은 전투가 없는 빈 방이다.
-         */
         ConfigureCurrentRoomOnEntry();
 
         Debug.Log(
@@ -610,20 +598,13 @@ public sealed class StageRoomNavigator :
             return false;
         }
 
-        return MoveToRoom(
+        return MoveToAdjacentRoom(
             targetRoom
         );
     }
 
     public bool TryMoveToPreviousRoom()
     {
-        /*
-         * 후퇴는 일반 CanNavigate 조건을 사용하지 않습니다.
-         * 미클리어 전투 중에도 허용되어야 하기 때문입니다.
-         *
-         * 단, 보상 선택처럼 외부 이동 잠금이 걸린 동안에는
-         * 후퇴를 포함한 모든 방 이동을 차단합니다.
-         */
         if (isNavigationLocked)
         {
             Debug.LogWarning(
@@ -655,21 +636,90 @@ public sealed class StageRoomNavigator :
             return false;
         }
 
-        return MoveToRoom(
+        return MoveToAdjacentRoom(
             previousRoom
         );
     }
 
-    private bool MoveToRoom(
+    /*
+     * 현재 방에서 목적지까지 방문 및 클리어된
+     * 안전한 경로가 존재하는지 확인합니다.
+     *
+     * 실제 이동은 일어나지 않습니다.
+     */
+    public bool CanFastTravelToRoom(
+        int targetRoomId)
+    {
+        if (!CanNavigate ||
+            currentMap == null ||
+            currentRoom == null)
+        {
+            return false;
+        }
+
+        if (targetRoomId ==
+            currentRoom.RoomId)
+        {
+            return false;
+        }
+
+        RoomNode targetRoom =
+            FindRoomById(
+                targetRoomId
+            );
+
+        if (targetRoom == null ||
+            !IsRoomVisited(
+                targetRoom.RoomId))
+        {
+            return false;
+        }
+
+        if (!CanUseRoomForFastTravel(
+                targetRoom
+            ))
+        {
+            return false;
+        }
+
+        return HasSafeFastTravelPath(
+            currentRoom.RoomId,
+            targetRoom.RoomId
+        );
+    }
+
+    /*
+     * 안전 경로가 존재하는 방문한 방으로
+     * 방 이벤트를 한 번만 실행하며 즉시 이동합니다.
+     */
+    public bool TryFastTravelToRoom(
+        int targetRoomId)
+    {
+        if (!CanFastTravelToRoom(
+                targetRoomId
+            ))
+        {
+            return false;
+        }
+
+        RoomNode targetRoom =
+            FindRoomById(
+                targetRoomId
+            );
+
+        if (targetRoom == null)
+        {
+            return false;
+        }
+
+        return MoveToRoomDirect(
+            targetRoom
+        );
+    }
+
+    private bool MoveToAdjacentRoom(
         RoomNode targetRoom)
     {
-        /*
-         * 모든 이동 경로의 마지막 진입점에서도
-         * 외부 잠금을 검사합니다.
-         *
-         * 이후 맵 노드 클릭 이동 같은 새로운 호출처가
-         * 추가되어도 잠금을 우회할 수 없습니다.
-         */
         if (isNavigationLocked)
         {
             return false;
@@ -685,6 +735,46 @@ public sealed class StageRoomNavigator :
 
         if (!currentRoom.HasConnection(
                 targetRoom.RoomId))
+        {
+            return false;
+        }
+
+        return CompleteRoomMove(
+            targetRoom
+        );
+    }
+
+    private bool MoveToRoomDirect(
+        RoomNode targetRoom)
+    {
+        if (isNavigationLocked)
+        {
+            return false;
+        }
+
+        if (targetRoom == null ||
+            currentRoom == null ||
+            targetRoom.RoomId ==
+            currentRoom.RoomId)
+        {
+            return false;
+        }
+
+        /*
+         * 직접 이동은 인접 연결을 검사하지 않습니다.
+         * CanFastTravelToRoom에서 전체 경로 검사를
+         * 통과한 경우에만 이 메서드가 호출됩니다.
+         */
+        return CompleteRoomMove(
+            targetRoom
+        );
+    }
+
+    private bool CompleteRoomMove(
+        RoomNode targetRoom)
+    {
+        if (targetRoom == null ||
+            currentRoom == null)
         {
             return false;
         }
@@ -729,6 +819,145 @@ public sealed class StageRoomNavigator :
         return true;
     }
 
+    private bool HasSafeFastTravelPath(
+        int startRoomId,
+        int targetRoomId)
+    {
+        if (currentMap == null)
+        {
+            return false;
+        }
+
+        Queue<int> pendingRoomIds =
+            new Queue<int>();
+
+        HashSet<int> checkedRoomIds =
+            new HashSet<int>();
+
+        pendingRoomIds.Enqueue(
+            startRoomId
+        );
+
+        checkedRoomIds.Add(
+            startRoomId
+        );
+
+        while (pendingRoomIds.Count > 0)
+        {
+            int roomId =
+                pendingRoomIds.Dequeue();
+
+            if (roomId ==
+                targetRoomId)
+            {
+                return true;
+            }
+
+            List<RoomNode> connectedRooms =
+                currentMap.GetConnectedRooms(
+                    roomId
+                );
+
+            if (connectedRooms == null)
+            {
+                continue;
+            }
+
+            for (int i = 0;
+                 i < connectedRooms.Count;
+                 i++)
+            {
+                RoomNode connectedRoom =
+                    connectedRooms[i];
+
+                if (connectedRoom == null ||
+                    checkedRoomIds.Contains(
+                        connectedRoom.RoomId))
+                {
+                    continue;
+                }
+
+                if (!CanUseRoomForFastTravel(
+                        connectedRoom))
+                {
+                    continue;
+                }
+
+                checkedRoomIds.Add(
+                    connectedRoom.RoomId
+                );
+
+                pendingRoomIds.Enqueue(
+                    connectedRoom.RoomId
+                );
+            }
+        }
+
+        return false;
+    }
+
+    private bool CanUseRoomForFastTravel(
+        RoomNode room)
+    {
+        if (room == null ||
+            !IsRoomVisited(
+                room.RoomId))
+        {
+            return false;
+        }
+
+        if (room.RoomType ==
+            RoomType.Start)
+        {
+            return true;
+        }
+
+        if (room.IsCombatRoom)
+        {
+            return IsRoomCleared(
+                room.RoomId
+            );
+        }
+
+        /*
+         * 방문한 비전투 특수방은
+         * 빠른 이동 목적지와 경유지로 허용합니다.
+         */
+        return true;
+    }
+
+    private RoomNode FindRoomById(
+        int roomId)
+    {
+        if (currentMap == null ||
+            currentMap.Rooms == null)
+        {
+            return null;
+        }
+
+        IReadOnlyList<RoomNode> rooms =
+            currentMap.Rooms;
+
+        for (int i = 0;
+             i < rooms.Count;
+             i++)
+        {
+            RoomNode room =
+                rooms[i];
+
+            if (room == null ||
+                room.RoomId !=
+                roomId)
+            {
+                continue;
+            }
+
+            return room;
+        }
+
+        return null;
+    }
+
     private void ConfigureCurrentRoomOnEntry()
     {
         if (currentRoom == null ||
@@ -748,10 +977,6 @@ public sealed class StageRoomNavigator :
             if (IsRoomCleared(
                     currentRoom.RoomId))
             {
-                /*
-                 * 이미 클리어한 전투방은 빈 이동 경로로
-                 * 사용하므로 공을 표시하지 않습니다.
-                 */
                 ballCollection
                     ?.SetBallsVisible(
                         false
@@ -767,10 +992,6 @@ public sealed class StageRoomNavigator :
                 return;
             }
 
-            /*
-             * 아직 클리어하지 않은 전투방에서만
-             * 공을 화면에 표시하고 전투를 시작합니다.
-             */
             ballCollection
                 ?.SetBallsVisible(
                     true
@@ -806,10 +1027,6 @@ public sealed class StageRoomNavigator :
             return;
         }
 
-        /*
-         * 시작방과 현재 구현되지 않은 특수방에서는
-         * 공 보유 데이터는 유지하되 화면에는 표시하지 않습니다.
-         */
         ballCollection
             ?.SetBallsVisible(
                 false
@@ -880,13 +1097,6 @@ public sealed class StageRoomNavigator :
                 currentRoom.RoomId
             );
 
-            /*
-             * 전투가 끝난 즉시 공을 숨깁니다.
-             *
-             * 이후 보상으로 새 공을 받아도
-             * BallCollection의 현재 표시 상태를 따라
-             * 숨김 상태로 생성됩니다.
-             */
             ballCollection
                 ?.SetBallsVisible(
                     false

@@ -21,6 +21,10 @@ public sealed class RoomRetreatController :
     [SerializeField]
     private StageRoomNavigator navigator;
 
+    [SerializeField]
+    private RoomTransitionController
+        transitionController;
+
     [Header("Retreat Cost")]
 
     [Tooltip(
@@ -31,8 +35,8 @@ public sealed class RoomRetreatController :
     private float retreatCostRatio = 0.1f;
 
     [Tooltip(
-        "후퇴 비용으로 플레이어가 사망하는 것을 허용할지 " +
-        "결정합니다. 현재는 false를 권장합니다."
+        "후퇴 비용으로 플레이어가 사망하는 것을 " +
+        "허용할지 결정합니다."
     )]
     [SerializeField]
     private bool allowLethalRetreatCost;
@@ -83,26 +87,20 @@ public sealed class RoomRetreatController :
     }
 
     public bool CanRetreat =>
-        turnManager != null &&
-        blockGridManager != null &&
-        playerHealth != null &&
-        ballLauncher != null &&
-        navigator != null &&
-        navigator.PreviousRoom != null &&
-        !navigator.IsNavigationLocked &&
-        turnManager.CanRetreat &&
-        blockGridManager.CurrentRoomState ==
-            RoomCombatState.InCombat &&
-        blockGridManager.CanResetCurrentRoomCombat &&
-        !ballLauncher.IsAttackInProgress &&
-        HasEnoughHealth;
+        transitionController != null &&
+        !transitionController.IsTransitioning &&
+        CanExecuteRetreat(
+            true
+        );
 
     public event Action<int>
         RetreatCompleted;
 
     /*
-     * 기존 구독 코드의 컴파일 호환을 위해 유지합니다.
-     * 실제 방 이동은 이제 이 컨트롤러가 직접 처리합니다.
+     * 기존 외부 참조와의 컴파일 호환을 위해
+     * 이벤트 선언은 유지합니다.
+     *
+     * 이동 중복을 막기 위해 더 이상 발생시키지 않습니다.
      */
     public event Action
         PreviousRoomMoveRequested;
@@ -159,6 +157,14 @@ public sealed class RoomRetreatController :
             navigator =
                 FindFirstObjectByType<
                     StageRoomNavigator
+                >();
+        }
+
+        if (transitionController == null)
+        {
+            transitionController =
+                FindFirstObjectByType<
+                    RoomTransitionController
                 >();
         }
     }
@@ -219,6 +225,15 @@ public sealed class RoomRetreatController :
                 this
             );
         }
+
+        if (transitionController == null)
+        {
+            Debug.LogError(
+                "RoomRetreatController: " +
+                "RoomTransitionController를 찾지 못했습니다.",
+                this
+            );
+        }
     }
 
     public void RequestRetreat()
@@ -235,12 +250,32 @@ public sealed class RoomRetreatController :
             return false;
         }
 
+        return transitionController
+            .TryRetreat(
+                this
+            );
+    }
+
+    /*
+     * RoomTransitionController가 화면을 완전히
+     * 암전한 상태에서만 호출합니다.
+     */
+    public bool ExecuteRetreatDuringFade()
+    {
+        /*
+         * 전환 컨트롤러가 이미 입력을 잠갔으므로
+         * 입력 및 네비게이션 잠금 조건은 제외하고
+         * 실제 후퇴 가능 조건을 다시 검사합니다.
+         */
+        if (!CanExecuteRetreat(
+                false
+            ))
+        {
+            return false;
+        }
+
         int cost =
             RetreatCost;
-
-        turnManager.SetInputLocked(
-            true
-        );
 
         bool launchPositionReset =
             ballLauncher
@@ -255,13 +290,11 @@ public sealed class RoomRetreatController :
                 this
             );
 
-            RestoreInputAfterFailure();
-
             return false;
         }
 
         /*
-         * 현재 미클리어 방은 떠나기 전에
+         * 현재 미클리어 방을 떠나기 전에
          * 최초 생성 상태로 복원합니다.
          */
         bool roomResetSucceeded =
@@ -276,15 +309,12 @@ public sealed class RoomRetreatController :
                 this
             );
 
-            RestoreInputAfterFailure();
-
             return false;
         }
 
         /*
-         * 실제 직전 방 이동 결과를 반드시 확인합니다.
-         *
-         * 이동에 실패하면 체력을 차감하지 않습니다.
+         * 실제 직전 방 이동 성공 여부를 먼저 확인합니다.
+         * 이동 실패 시 체력은 차감되지 않습니다.
          */
         bool roomMoveSucceeded =
             navigator
@@ -299,42 +329,16 @@ public sealed class RoomRetreatController :
                 this
             );
 
-            RestoreInputAfterFailure();
-
             return false;
         }
 
-        /*
-         * 방 이동까지 성공한 뒤에만 체력을 차감합니다.
-         */
         playerHealth.TakeDamage(
             cost
-        );
-
-        if (playerHealth.IsDead)
-        {
-            Debug.LogWarning(
-                "RoomRetreatController: " +
-                "후퇴 비용으로 플레이어가 사망했습니다.",
-                this
-            );
-
-            return false;
-        }
-
-        turnManager.ResetToAiming(
-            true
         );
 
         RetreatCompleted?.Invoke(
             cost
         );
-
-        /*
-         * 호환 이벤트입니다.
-         * 구독처에서는 추가 이동을 실행하면 안 됩니다.
-         */
-        PreviousRoomMoveRequested?.Invoke();
 
         Debug.Log(
             "RoomRetreatController: 후퇴 완료, " +
@@ -348,17 +352,62 @@ public sealed class RoomRetreatController :
         return true;
     }
 
-    private void RestoreInputAfterFailure()
+    private bool CanExecuteRetreat(
+        bool includeInputLocks)
     {
         if (turnManager == null ||
-            turnManager.IsGameOver)
+            blockGridManager == null ||
+            playerHealth == null ||
+            ballLauncher == null ||
+            navigator == null)
         {
-            return;
+            return false;
         }
 
-        turnManager.SetInputLocked(
-            false
-        );
+        if (navigator.PreviousRoom == null)
+        {
+            return false;
+        }
+
+        if (turnManager.IsGameOver ||
+            playerHealth.IsDead)
+        {
+            return false;
+        }
+
+        if (includeInputLocks)
+        {
+            if (navigator.IsNavigationLocked ||
+                turnManager.IsInputLocked)
+            {
+                return false;
+            }
+
+            if (turnManager.CurrentState !=
+                TurnState.Aiming)
+            {
+                return false;
+            }
+        }
+
+        if (blockGridManager.CurrentRoomState !=
+            RoomCombatState.InCombat)
+        {
+            return false;
+        }
+
+        if (!blockGridManager
+                .CanResetCurrentRoomCombat)
+        {
+            return false;
+        }
+
+        if (ballLauncher.IsAttackInProgress)
+        {
+            return false;
+        }
+
+        return HasEnoughHealth;
     }
 
     private void LogRetreatFailure()
@@ -367,7 +416,8 @@ public sealed class RoomRetreatController :
             blockGridManager == null ||
             playerHealth == null ||
             ballLauncher == null ||
-            navigator == null)
+            navigator == null ||
+            transitionController == null)
         {
             Debug.LogWarning(
                 "RoomRetreatController: " +
@@ -379,11 +429,11 @@ public sealed class RoomRetreatController :
             return;
         }
 
-        if (navigator.IsNavigationLocked)
+        if (transitionController.IsTransitioning)
         {
             Debug.LogWarning(
                 "RoomRetreatController: " +
-                "방 이동이 잠겨 있어 후퇴할 수 없습니다.",
+                "방 전환 중에는 후퇴할 수 없습니다.",
                 this
             );
 
@@ -418,19 +468,19 @@ public sealed class RoomRetreatController :
         {
             Debug.LogWarning(
                 "RoomRetreatController: " +
-                "공격 또는 턴 처리 중에는 후퇴할 수 없습니다. " +
-                $"현재 턴 상태={turnManager.CurrentState}",
+                "공격 또는 턴 처리 중에는 후퇴할 수 없습니다.",
                 this
             );
 
             return;
         }
 
-        if (turnManager.IsInputLocked)
+        if (turnManager.IsInputLocked ||
+            navigator.IsNavigationLocked)
         {
             Debug.LogWarning(
                 "RoomRetreatController: " +
-                "입력이 잠긴 상태에서는 후퇴할 수 없습니다.",
+                "입력 또는 이동이 잠겨 있습니다.",
                 this
             );
 
@@ -441,31 +491,19 @@ public sealed class RoomRetreatController :
         {
             Debug.LogWarning(
                 "RoomRetreatController: " +
-                "공 공격이 진행 중이라 후퇴할 수 없습니다.",
+                "공 공격 진행 중에는 후퇴할 수 없습니다.",
                 this
             );
 
             return;
         }
 
-        if (blockGridManager.IsBossEncounterActive)
+        if (blockGridManager.CurrentRoomState !=
+            RoomCombatState.InCombat)
         {
             Debug.LogWarning(
                 "RoomRetreatController: " +
-                "현재 단계에서는 보스전 후퇴를 지원하지 않습니다.",
-                this
-            );
-
-            return;
-        }
-
-        if (blockGridManager.IsCurrentRoomCleared ||
-            blockGridManager.CurrentRoomState ==
-            RoomCombatState.Cleared)
-        {
-            Debug.LogWarning(
-                "RoomRetreatController: " +
-                "이미 클리어한 방에서는 후퇴할 수 없습니다.",
+                "미클리어 전투방에서만 후퇴할 수 있습니다.",
                 this
             );
 
@@ -477,7 +515,7 @@ public sealed class RoomRetreatController :
         {
             Debug.LogWarning(
                 "RoomRetreatController: " +
-                "현재 방의 최초 배치가 저장되지 않아 " +
+                "현재 방 최초 배치가 저장되지 않아 " +
                 "후퇴할 수 없습니다.",
                 this
             );
@@ -491,8 +529,7 @@ public sealed class RoomRetreatController :
                 "RoomRetreatController: " +
                 "후퇴에 필요한 체력이 부족합니다. " +
                 $"현재 체력={playerHealth.CurrentHealth}, " +
-                $"필요 체력={RetreatCost}, " +
-                $"치명적 비용 허용={allowLethalRetreatCost}",
+                $"필요 체력={RetreatCost}",
                 this
             );
 
