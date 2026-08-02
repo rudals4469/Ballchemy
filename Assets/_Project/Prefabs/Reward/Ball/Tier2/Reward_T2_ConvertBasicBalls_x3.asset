@@ -12,11 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5158897992bb02145a20d821b6f43efa, type: 3}
   m_Name: Reward_T2_ConvertBasicBalls_x3
   m_EditorClassIdentifier: Assembly-CSharp::BasicBallConversionRewardDefinition
-  rewardId: 
-  displayName: 
-  description: 
+  rewardId: t2_convert_basic_balls_x3
+  displayName: "\uAE30\uBCF8 \uACF5 3\uAC1C \uD2B9\uC131 \uBCC0\uD658"
+  description: "1\uC131 \uAE30\uBCF8 \uACF5\uC744 \uCD5C\uB300 3\uAC1C \uACE8\uB77C
+    \n\uBB34\uC791\uC704 1\uC131 \uD2B9\uC131 \uACF5\uC73C\uB85C \uBCC0\uD658\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
-  rewardTier: 1
-  selectionWeight: 1
+  rewardTier: 2
+  selectionWeight: 3
   conversionCount: 3
-  oneStarTraitBallDefinitions: []
+  oneStarTraitBallDefinitions:
+  - {fileID: 11400000, guid: 1a3c5d93c7b1fea4483d9b9c34d35fa2, type: 2}
+  - {fileID: 11400000, guid: 70c03fb27c2d8f6489b82ceec901a30b, type: 2}
+  - {fileID: 11400000, guid: b1e7cbd436f2498438bfd17adc7ca273, type: 2}
+  - {fileID: 11400000, guid: c69249269c66c4e4591d7d98c895b989, type: 2}
+  - {fileID: 11400000, guid: 08f823ec512503340a068defd0c509dd, type: 2}
+  - {fileID: 11400000, guid: b65d39e1272932d43bc312c835a0b3d6, type: 2}
+  - {fileID: 11400000, guid: 790b25c1d5659b8419746646b696b1db, type: 2}
+  - {fileID: 11400000, guid: d7e006b48422fe5449487a6d8d430da6, type: 2}

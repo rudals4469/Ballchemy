@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b509a70cfd2d0a14bb0c8c97c40810f7, type: 3}
   m_Name: Reward_T2_CriticalBall_2Star_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
-  rewardId: t2_critical_ball_1star_x2
-  displayName: "1\uC131 \uCE58\uBA85 \uACF5 x2"
+  rewardId: t2_critical_ball_2star_x1
+  displayName: "2\uC131 \uCE58\uBA85 \uACF5 x1"
   description: "\uC9C1\uC811 \uD53C\uD574\uAC00 \uC77C\uC815 \uD655\uB960\uB85C \uCE58\uBA85\uD0C0\uAC00
     \uB429\uB2C8\uB2E4.\n"
   icon: {fileID: 0}
   rewardTier: 2
   selectionWeight: 2
-  ballDefinition: {fileID: 11400000, guid: d7e006b48422fe5449487a6d8d430da6, type: 2}
-  amount: 2
+  ballDefinition: {fileID: 11400000, guid: ec7c17274b95de5408feccc792c2a4e8, type: 2}
+  amount: 1

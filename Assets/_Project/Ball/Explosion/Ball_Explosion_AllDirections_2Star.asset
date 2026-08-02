@@ -15,6 +15,7 @@ MonoBehaviour:
   ballId: explosion_all_direction_2
   displayName: "\uD3ED\uBC1C \uACF5"
   starGrade: 2
+  nextStarDefinition: {fileID: 11400000, guid: 63636733eacdb93438e2a244463993a5, type: 2}
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: 12de859e18679bb46a064b81c9c0d346, type: 2}
   sprite: {fileID: 0}

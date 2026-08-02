@@ -12,10 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 37af48da8073f73469788fac3feac5c8, type: 3}
   m_Name: Reward_T2_UpgradeRandomBalls_x3
   m_EditorClassIdentifier: Assembly-CSharp::BallUpgradeRewardDefinition
-  rewardId: 
-  displayName: 
-  description: 
+  rewardId: t2_upgrade_random_balls_x3
+  displayName: "\uBB34\uC791\uC704 \uACF5 3\uAC1C \uC2B9\uAE09"
+  description: "\uC2B9\uAE09 \uAC00\uB2A5\uD55C \uBB34\uC791\uC704 \uACF5\uC744 \uCD5C\uB300
+    3\uAC1C \uACE8\uB77C \n\uB4F1\uAE09\uC744 1\uB2E8\uACC4 \uC62C\uB9BD\uB2C8\uB2E4."
   icon: {fileID: 0}
-  rewardTier: 1
-  selectionWeight: 1
+  rewardTier: 2
+  selectionWeight: 3
   upgradeCount: 3

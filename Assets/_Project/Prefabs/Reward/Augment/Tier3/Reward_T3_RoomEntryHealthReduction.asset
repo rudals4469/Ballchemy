@@ -10,12 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 774113563a9c8374796cc18a3727f9c3, type: 3}
-  m_Name: Reward_T3_DirectDamageAugment
+  m_Name: Reward_T3_RoomEntryHealthReduction
   m_EditorClassIdentifier: Assembly-CSharp::AugmentRewardDefinition
-  rewardId: t3_direct_damage_augment
-  displayName: "\uC751\uCD95 \uD654\uB825"
-  description: "\uBAA8\uB4E0 \uACF5\uC758 \uC9C1\uC811 \uD53C\uD574\uB97C \uC99D\uAC00\uC2DC\uD0B5\uB2C8\uB2E4."
+  rewardId: t3_room_entry_health_reduction
+  displayName: "\uC120\uC81C \uC5F0\uAE08"
+  description: "\uBC29 \uC785\uC7A5 \uC2DC \uC77C\uBC18 \uC801\uC758 \uCCB4\uB825\uC744
+    \uAC10\uC18C\uC2DC\uD0B5\uB2C8\uB2E4.\n\uB124\uC784\uB4DC\uC640 \uBCF4\uC2A4\uC5D0\uAC8C\uB294
+    \uC808\uBC18\uB9CC \uC801\uC6A9\uB429\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 3
   selectionWeight: 1
-  augmentDefinition: {fileID: 11400000, guid: 978b5e16537e3524291695f24182df9f, type: 2}
+  augmentDefinition: {fileID: 11400000, guid: 4eb8f4559c540334a83add8783d52896, type: 2}

@@ -15,6 +15,7 @@ MonoBehaviour:
   ballId: critical_1
   displayName: "\uCE58\uBA85\uD0C0 \uACF5"
   starGrade: 1
+  nextStarDefinition: {fileID: 11400000, guid: ec7c17274b95de5408feccc792c2a4e8, type: 2}
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: e2631926fec21c846b6b06e6614519f0, type: 2}
   sprite: {fileID: 0}

@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3b2aa2db13fc0ff4da882b43e2bb3ec0, type: 3}
   m_Name: Augment_DirectDamage
   m_EditorClassIdentifier: Assembly-CSharp::DirectDamageAugmentDefinition
-  augmentId: 
-  displayName: 
-  description: 
+  augmentId: augment_direct_damage
+  displayName: "\uC751\uCD95 \uD654\uB825"
+  description: "\uBAA8\uB4E0 \uACF5\uC758 \uC9C1\uC811 \uD53C\uD574\uAC00 \uC99D\uAC00\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   maxLevel: 3
   totalDirectDamageBonusByLevel: 010000000200000003000000

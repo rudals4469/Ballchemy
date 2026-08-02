@@ -15,6 +15,7 @@ MonoBehaviour:
   ballId: Fire_1
   displayName: "\uBD88\uAF43 \uACF5"
   starGrade: 1
+  nextStarDefinition: {fileID: 11400000, guid: b42b339e0ba7ac9458fce3594b02f38f, type: 2}
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: c4bf3b0cf2c5ba9469d761a2ed7d5bf8, type: 2}
   sprite: {fileID: 0}

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c3ae6f63c682ea448fd75e589918f46, type: 3}
+  m_Name: Augment_RoomEntryHealthReduction
+  m_EditorClassIdentifier: Assembly-CSharp::RoomEntryHealthReductionAugmentDefinition
+  augmentId: 'augment_room_entry_health_reduction '
+  displayName: "\uC120\uC81C \uC5F0\uAE08"
+  description: "\uBC29 \uC785\uC7A5 \uC2DC \uC801 \uBE14\uB85D\uC758 \uCCB4\uB825\uC744
+    \uAC10\uC18C\uC2DC\uD0B5\uB2C8\uB2E4.\n"
+  icon: {fileID: 0}
+  maxLevel: 3
+  normalRoomReductionByLevel:
+  - 0.1
+  - 0.15
+  - 0.3
+  namedAndBossMultiplier: 0.5

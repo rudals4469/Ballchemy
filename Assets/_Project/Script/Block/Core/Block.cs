@@ -698,6 +698,76 @@ public sealed class Block : MonoBehaviour
             DestroyBlock();
         }
     }
+    
+    public int ReduceCurrentHealthByPercent(
+        float reductionPercent,
+        int minimumHealth = 1)
+    {
+        if (!IsAlive ||
+            !IsBreakable ||
+            reductionPercent <= 0f)
+        {
+            return 0;
+        }
+
+        reductionPercent =
+            Mathf.Clamp01(
+                reductionPercent
+            );
+
+        minimumHealth =
+            Mathf.Clamp(
+                minimumHealth,
+                1,
+                maxHealth
+            );
+
+        int reductionAmount =
+            Mathf.CeilToInt(
+                maxHealth *
+                reductionPercent
+            );
+
+        reductionAmount =
+            Mathf.Max(
+                reductionAmount,
+                1
+            );
+
+        int targetHealth =
+            Mathf.Max(
+                maxHealth -
+                reductionAmount,
+                minimumHealth
+            );
+
+        /*
+         * 최대 체력을 기준으로 목표 체력을 계산하므로,
+         * 같은 효과가 실수로 두 번 호출되어도
+         * 체력이 계속 중첩 감소하지 않습니다.
+         */
+        if (currentHealth <= targetHealth)
+        {
+            return 0;
+        }
+
+        int previousHealth =
+            currentHealth;
+
+        currentHealth =
+            targetHealth;
+
+        int reducedHealth =
+            previousHealth -
+            currentHealth;
+
+        HealthChanged?.Invoke(
+            currentHealth,
+            maxHealth
+        );
+
+        return reducedHealth;
+    }
 
     public int Heal(
         int amount)

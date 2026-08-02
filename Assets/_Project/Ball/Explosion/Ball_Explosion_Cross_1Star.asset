@@ -15,6 +15,7 @@ MonoBehaviour:
   ballId: explosion_cross_1
   displayName: "\uD3ED\uBC1C \uACF5"
   starGrade: 1
+  nextStarDefinition: {fileID: 11400000, guid: 801a10e2718ad6c4a98d1532f5e3b31b, type: 2}
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: de24924ef56b3304fb169c59ff1307a0, type: 2}
   sprite: {fileID: 0}
