@@ -151,10 +151,81 @@ public sealed class NextBallQueueItemView : MonoBehaviour
 
     public void Bind(Ball ball)
     {
+        UnsubscribeBallDefinitionChanged();
+
         BoundBall = ball;
 
-        RefreshBallIcon(ball);
-        RefreshStarText(ball);
+        SubscribeBallDefinitionChanged();
+        RefreshVisual();
+    }
+
+    private void SubscribeBallDefinitionChanged()
+    {
+        BallCombatController combatController =
+            ResolveBoundCombatController();
+
+        if (combatController == null)
+        {
+            return;
+        }
+
+        combatController.DefinitionChanged -=
+            HandleDefinitionChanged;
+
+        combatController.DefinitionChanged +=
+            HandleDefinitionChanged;
+    }
+
+    private void UnsubscribeBallDefinitionChanged()
+    {
+        BallCombatController combatController =
+            ResolveBoundCombatController();
+
+        if (combatController == null)
+        {
+            return;
+        }
+
+        combatController.DefinitionChanged -=
+            HandleDefinitionChanged;
+    }
+
+    private BallCombatController
+        ResolveBoundCombatController()
+    {
+        if (BoundBall == null)
+        {
+            return null;
+        }
+
+        BallCombatController combatController =
+            BoundBall.CombatController;
+
+        if (combatController != null)
+        {
+            return combatController;
+        }
+
+        return BoundBall.GetComponent<
+            BallCombatController
+        >();
+    }
+
+    private void HandleDefinitionChanged(
+        BallDefinition newDefinition)
+    {
+        RefreshVisual();
+    }
+
+    private void RefreshVisual()
+    {
+        RefreshBallIcon(
+            BoundBall
+        );
+
+        RefreshStarText(
+            BoundBall
+        );
     }
 
     private void RefreshBallIcon(Ball ball)
@@ -381,7 +452,7 @@ public sealed class NextBallQueueItemView : MonoBehaviour
             rectTransform.localPosition =
                 exitLocalPosition;
 
-            Destroy(gameObject);
+            DisposeImmediate();
             return;
         }
 
@@ -410,13 +481,14 @@ public sealed class NextBallQueueItemView : MonoBehaviour
                 {
                     activeSequence = null;
 
-                    Destroy(gameObject);
+                    DisposeImmediate();
                 }
             );
     }
 
     public void DisposeImmediate()
     {
+        UnsubscribeBallDefinitionChanged();
         KillActiveTween();
 
         Destroy(gameObject);
@@ -521,6 +593,7 @@ public sealed class NextBallQueueItemView : MonoBehaviour
 
     private void OnDestroy()
     {
+        UnsubscribeBallDefinitionChanged();
         KillActiveTween();
     }
 }
