@@ -51,6 +51,10 @@ public sealed class Ball :
     [SerializeField, Min(0f)]
     private float returnZoneSurfacePadding = 0.02f;
 
+    [Header("Debug")]
+    [SerializeField]
+    private bool showBounceDamageDebugLog;
+
     private static int activeMovingBallCount;
 
     private Rigidbody2D body;
@@ -65,6 +69,20 @@ public sealed class Ball :
     private bool hasStartedDescending;
 
     private bool isPresentationVisible = true;
+
+    /*
+     * 현재 한 번의 비행에서 실제로 처리된 반사 횟수입니다.
+     */
+    private int bounceCount;
+
+    /*
+     * 반사 증강이 현재 공의 Individual Damage Bonus에
+     * 임시로 더해둔 값입니다.
+     *
+     * 비행 종료 시 이 값만 다시 제거하므로,
+     * 다른 시스템에서 적용한 개별 피해 보너스는 보존됩니다.
+     */
+    private int appliedBounceDamageBonus;
 
     private Renderer[]
         cachedRenderers =
@@ -137,6 +155,12 @@ public sealed class Ball :
         body != null
             ? body.linearVelocity.y
             : 0f;
+
+    public int BounceCount =>
+        bounceCount;
+
+    public int AppliedBounceDamageBonus =>
+        appliedBounceDamageBonus;
 
     public event Action<Ball>
         Returned;
@@ -539,6 +563,8 @@ public sealed class Ball :
             return;
         }
 
+        ResetBounceDamageRuntime();
+
         if (!isMoving)
         {
             activeMovingBallCount++;
@@ -684,6 +710,69 @@ public sealed class Ball :
         );
     }
 
+    private void RegisterResolvedBounce()
+    {
+        bounceCount++;
+
+        int nextDamageBonus =
+            BounceDamageAugmentSystem
+                .CalculateDamageBonus(
+                    bounceCount
+                );
+
+        int bonusDifference =
+            nextDamageBonus -
+            appliedBounceDamageBonus;
+
+        if (bonusDifference != 0)
+        {
+            if (combatController == null)
+            {
+                FindReferences();
+            }
+
+            combatController
+                ?.AddIndividualDirectDamageBonus(
+                    bonusDifference
+                );
+
+            appliedBounceDamageBonus =
+                nextDamageBonus;
+        }
+
+        if (!showBounceDamageDebugLog)
+        {
+            return;
+        }
+
+        Debug.Log(
+            "Ball: " +
+            $"{name} 반사 {bounceCount}회, " +
+            $"반사 피해 보너스 " +
+            $"+{appliedBounceDamageBonus}",
+            this
+        );
+    }
+
+    private void ResetBounceDamageRuntime()
+    {
+        if (appliedBounceDamageBonus != 0)
+        {
+            if (combatController == null)
+            {
+                FindReferences();
+            }
+
+            combatController
+                ?.AddIndividualDirectDamageBonus(
+                    -appliedBounceDamageBonus
+                );
+        }
+
+        bounceCount = 0;
+        appliedBounceDamageBonus = 0;
+    }
+
     private void ClearPiercingSensorRuntime()
     {
         PiercingBallSensor piercingSensor =
@@ -696,6 +785,7 @@ public sealed class Ball :
     private void StopMovement()
     {
         ClearPiercingSensorRuntime();
+        ResetBounceDamageRuntime();
 
         if (isMoving)
         {
@@ -774,6 +864,8 @@ public sealed class Ball :
                 hitBlock
             );
 
+            RegisterResolvedBounce();
+
             if (hitBlock != null &&
                 hitResult.WasHandled)
             {
@@ -789,11 +881,17 @@ public sealed class Ball :
 
         if (shouldResolveBounce)
         {
-            ResolveBounce(
-                collision,
-                hitBlock,
-                incomingVelocity
-            );
+            bool resolvedBounce =
+                ResolveBounce(
+                    collision,
+                    hitBlock,
+                    incomingVelocity
+                );
+
+            if (resolvedBounce)
+            {
+                RegisterResolvedBounce();
+            }
         }
 
         if (hitBlock != null &&
@@ -870,7 +968,7 @@ public sealed class Ball :
         );
     }
 
-    private void ResolveBounce(
+    private bool ResolveBounce(
         Collision2D collision,
         Block hitBlock,
         Vector2 incomingVelocity)
@@ -888,7 +986,7 @@ public sealed class Ball :
 
         if (!resolvedBounce)
         {
-            return;
+            return false;
         }
 
         if (hitBlock == null &&
@@ -923,6 +1021,8 @@ public sealed class Ball :
 
         lastPhysicsVelocity =
             finalVelocity;
+
+        return true;
     }
 
     private void SeparateFromSurface(
@@ -1192,11 +1292,13 @@ public sealed class Ball :
     private void OnDisable()
     {
         ClearPiercingSensorRuntime();
+        ResetBounceDamageRuntime();
     }
 
     private void OnDestroy()
     {
         ClearPiercingSensorRuntime();
+        ResetBounceDamageRuntime();
 
         if (!isMoving)
         {

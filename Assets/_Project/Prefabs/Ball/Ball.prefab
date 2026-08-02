@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: -6506564171772199970}
   - component: {fileID: 716773751127089919}
   - component: {fileID: 667588407618561759}
+  - component: {fileID: 2659057172565688237}
   m_Layer: 0
   m_Name: Ball
   m_TagString: Untagged
@@ -172,6 +173,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Ball
   combatController: {fileID: 667588407618561759}
+  lastStandBounce: {fileID: 2659057172565688237}
   moveSpeed: 12
   verticalDirectionThreshold: 0.05
   bounceResolver:
@@ -186,6 +188,8 @@ MonoBehaviour:
     boardCenterX: 0
     escapeCooldown: 0.25
   bounceSeparationDistance: 0.02
+  returnZoneSurfacePadding: 0.02
+  showBounceDamageDebugLog: 1
 --- !u!114 &716773751127089919
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -218,3 +222,34 @@ MonoBehaviour:
   individualCriticalDamageMultiplierBonus: 0
   fallbackDirectDamage: 1
   showDebugLog: 0
+--- !u!114 &2659057172565688237
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7667098293119860426}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b92b3446a0435346a2384b5cd0c6c8f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallLastStandBounce
+  enableLastStandBounce: 1
+  maximumFloorBounceCount: 3
+  floorBounceStrengthDecay: 0.72
+  minimumRepeatedVerticalSpeed: 4.5
+  minimumHorizontalSpeed: 2.5
+  maximumHorizontalSpeed: 5
+  minimumVerticalSpeed: 7.5
+  maximumVerticalSpeed: 9.5
+  horizontalFlipChance: 0.3
+  gravity: 22
+  maximumFallSpeed: 14
+  minimumReboundSpeed: 5.5
+  maximumReboundSpeed: 11
+  blockDirectionJitter: 10
+  wallDirectionJitter: 3
+  minimumHorizontalReboundSpeed: 1.25
+  surfaceSeparationDistance: 0.025
+  minimumAirTime: 0.15
+  maximumDuration: 2.4

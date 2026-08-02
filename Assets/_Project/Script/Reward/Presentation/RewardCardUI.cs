@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,6 +21,45 @@ public sealed class RewardCardUI :
 
     [SerializeField]
     private GameObject iconRoot;
+
+    [Header("Augment Level Stars")]
+
+    [Tooltip(
+        "증강 레벨 별 전체를 감싸는 오브젝트입니다."
+    )]
+    [SerializeField]
+    private GameObject levelStarsRoot;
+
+    [Tooltip(
+        "왼쪽부터 Star1, Star2, Star3 순서로 연결합니다."
+    )]
+    [SerializeField]
+    private List<Image> levelStarImages =
+        new List<Image>();
+
+    [Tooltip(
+        "선택 후 획득하게 되는 레벨의 별 색상입니다."
+    )]
+    [SerializeField]
+    private Color acquiredStarColor =
+        new Color(
+            1f,
+            0.82f,
+            0.12f,
+            1f
+        );
+
+    [Tooltip(
+        "아직 획득하지 않은 레벨의 별 색상입니다."
+    )]
+    [SerializeField]
+    private Color unacquiredStarColor =
+        new Color(
+            0.25f,
+            0.25f,
+            0.25f,
+            0.8f
+        );
 
     [Header("Texts")]
 
@@ -46,6 +86,9 @@ public sealed class RewardCardUI :
 
     private RewardDefinition
         boundRewardDefinition;
+
+    private RunAugmentState
+        boundRunAugmentState;
 
     private bool isSelectionEnabled;
     private bool hasInvokedSelection;
@@ -100,18 +143,22 @@ public sealed class RewardCardUI :
     private void OnValidate()
     {
         FindReferences();
+        RemoveNullStarImages();
     }
 
     public void Bind(
         RewardDefinition rewardDefinition)
     {
-        /*
-         * 카드가 비활성화된 상태라면 먼저 활성화합니다.
-         *
-         * 기존처럼 보상을 먼저 연결한 뒤 활성화하면,
-         * 최초 활성화 시 Awake()의 Clear()가 실행되어
-         * 연결한 보상이 다시 지워질 수 있습니다.
-         */
+        Bind(
+            rewardDefinition,
+            null
+        );
+    }
+
+    public void Bind(
+        RewardDefinition rewardDefinition,
+        RunAugmentState runAugmentState)
+    {
         if (!gameObject.activeSelf)
         {
             gameObject.SetActive(
@@ -121,6 +168,9 @@ public sealed class RewardCardUI :
 
         boundRewardDefinition =
             rewardDefinition;
+
+        boundRunAugmentState =
+            runAugmentState;
 
         hasInvokedSelection =
             false;
@@ -134,12 +184,15 @@ public sealed class RewardCardUI :
 
         RewardCardContent content =
             RewardDescriptionBuilder.Build(
-                boundRewardDefinition
+                boundRewardDefinition,
+                boundRunAugmentState
             );
 
         ApplyContent(
             content
         );
+
+        RefreshAugmentLevelStars();
 
         SetSelectionEnabled(
             true
@@ -164,6 +217,9 @@ public sealed class RewardCardUI :
     public void Clear()
     {
         boundRewardDefinition =
+            null;
+
+        boundRunAugmentState =
             null;
 
         hasInvokedSelection =
@@ -204,6 +260,11 @@ public sealed class RewardCardUI :
 
         SetObjectActive(
             effectRoot,
+            false
+        );
+
+        SetObjectActive(
+            levelStarsRoot,
             false
         );
 
@@ -284,6 +345,100 @@ public sealed class RewardCardUI :
         }
     }
 
+    private void RefreshAugmentLevelStars()
+    {
+        AugmentRewardDefinition augmentReward =
+            boundRewardDefinition as
+                AugmentRewardDefinition;
+
+        if (augmentReward == null ||
+            augmentReward.AugmentDefinition == null)
+        {
+            SetObjectActive(
+                levelStarsRoot,
+                false
+            );
+
+            return;
+        }
+
+        RemoveNullStarImages();
+
+        if (levelStarImages.Count == 0)
+        {
+            SetObjectActive(
+                levelStarsRoot,
+                false
+            );
+
+            return;
+        }
+
+        AugmentDefinition augmentDefinition =
+            augmentReward.AugmentDefinition;
+
+        int maximumLevel =
+            Mathf.Max(
+                augmentDefinition.MaxLevel,
+                1
+            );
+
+        int currentLevel =
+            boundRunAugmentState != null
+                ? boundRunAugmentState.GetLevel(
+                    augmentDefinition
+                )
+                : 0;
+
+        int displayedLevel =
+            Mathf.Clamp(
+                currentLevel + 1,
+                1,
+                maximumLevel
+            );
+
+        SetObjectActive(
+            levelStarsRoot,
+            true
+        );
+
+        for (int i = 0;
+             i < levelStarImages.Count;
+             i++)
+        {
+            Image starImage =
+                levelStarImages[i];
+
+            if (starImage == null)
+            {
+                continue;
+            }
+
+            bool shouldShow =
+                i < maximumLevel;
+
+            starImage.gameObject.SetActive(
+                shouldShow
+            );
+
+            if (!shouldShow)
+            {
+                continue;
+            }
+
+            bool isAcquired =
+                i < displayedLevel;
+
+            starImage.color =
+                isAcquired
+                    ? acquiredStarColor
+                    : unacquiredStarColor;
+
+            starImage.preserveAspect =
+                true;
+        }
+    }
+
     private void HandleSelectButtonClicked()
     {
         if (!IsSelectionEnabled)
@@ -313,6 +468,32 @@ public sealed class RewardCardUI :
         {
             selectButton =
                 GetComponent<Button>();
+        }
+    }
+
+    private void RemoveNullStarImages()
+    {
+        if (levelStarImages == null)
+        {
+            levelStarImages =
+                new List<Image>();
+
+            return;
+        }
+
+        for (int i =
+                 levelStarImages.Count - 1;
+             i >= 0;
+             i--)
+        {
+            if (levelStarImages[i] != null)
+            {
+                continue;
+            }
+
+            levelStarImages.RemoveAt(
+                i
+            );
         }
     }
 
@@ -361,6 +542,27 @@ public sealed class RewardCardUI :
                 "RewardCardUI: " +
                 "Icon Image가 연결되지 않았습니다. " +
                 "보상 아이콘이 표시되지 않습니다.",
+                this
+            );
+        }
+
+        if (levelStarsRoot == null)
+        {
+            Debug.LogWarning(
+                "RewardCardUI: " +
+                "Level Stars Root가 연결되지 않았습니다. " +
+                "증강 레벨 별이 표시되지 않습니다.",
+                this
+            );
+        }
+
+        if (levelStarImages == null ||
+            levelStarImages.Count == 0)
+        {
+            Debug.LogWarning(
+                "RewardCardUI: " +
+                "Level Star Images가 연결되지 않았습니다. " +
+                "증강 레벨 별이 표시되지 않습니다.",
                 this
             );
         }

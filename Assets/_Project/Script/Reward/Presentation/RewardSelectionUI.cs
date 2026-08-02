@@ -24,6 +24,15 @@ public sealed class RewardSelectionUI :
     private List<RewardCardUI> rewardCards =
         new List<RewardCardUI>();
 
+    [Header("Augment State")]
+
+    [Tooltip(
+        "증강 카드의 현재 및 다음 레벨을 " +
+        "표시할 때 사용하는 런 상태입니다."
+    )]
+    [SerializeField]
+    private RunAugmentState runAugmentState;
+
     [Header("State")]
 
     [Tooltip(
@@ -49,6 +58,7 @@ public sealed class RewardSelectionUI :
 
     private void Awake()
     {
+        FindReferences();
         ValidateReferences();
         SubscribeCards();
 
@@ -64,6 +74,7 @@ public sealed class RewardSelectionUI :
 
     private void OnEnable()
     {
+        FindReferences();
         SubscribeCards();
     }
 
@@ -80,6 +91,21 @@ public sealed class RewardSelectionUI :
     private void OnValidate()
     {
         RemoveDuplicateAndNullCards();
+    }
+
+    private void FindReferences()
+    {
+        if (runAugmentState != null)
+        {
+            return;
+        }
+
+        runAugmentState =
+            FindFirstObjectByType<
+                RunAugmentState
+            >(
+                FindObjectsInactive.Include
+            );
     }
 
     public void ShowChoices(
@@ -99,13 +125,8 @@ public sealed class RewardSelectionUI :
             return;
         }
 
-        /*
-         * 패널과 카드 오브젝트를 먼저 활성화합니다.
-         *
-         * 비활성화된 카드에 먼저 Bind한 뒤 패널을 켜면
-         * 카드가 처음 활성화될 때 RewardCardUI.Awake()가
-         * 실행되면서 Clear()되어 보상 연결이 사라질 수 있습니다.
-         */
+        FindReferences();
+
         SetPanelActive(
             true
         );
@@ -116,10 +137,6 @@ public sealed class RewardSelectionUI :
         hasSelection =
             false;
 
-        /*
-         * 패널 활성화로 모든 RewardCardUI의 Awake가
-         * 완료된 다음 카드를 초기화하고 보상을 연결합니다.
-         */
         ClearCards();
 
         int visibleCardCount =
@@ -144,7 +161,8 @@ public sealed class RewardSelectionUI :
             }
 
             card.Bind(
-                reward
+                reward,
+                runAugmentState
             );
 
             card.SetSelectionEnabled(
@@ -344,6 +362,17 @@ public sealed class RewardSelectionUI :
                 "RewardSelectionUI: " +
                 "현재 기본 보상 선택지는 3개입니다. " +
                 $"연결된 카드는 {rewardCards.Count}개입니다.",
+                this
+            );
+        }
+
+        if (runAugmentState == null)
+        {
+            Debug.LogWarning(
+                "RewardSelectionUI: " +
+                "RunAugmentState가 연결되지 않았습니다. " +
+                "증강 카드는 표시되지만 현재 레벨을 " +
+                "정확히 반영하지 못할 수 있습니다.",
                 this
             );
         }

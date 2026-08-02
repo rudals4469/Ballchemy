@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d687f18adc655de4fbe18e4290cee97f, type: 3}
   m_Name: DamageTextStyle_RoomEntryHealthReduction
   m_EditorClassIdentifier: Assembly-CSharp::BallDamageTextStyleDefinition
-  styleId: burn
+  styleId: room_entry_health_reduction
   popupPrefabOverride: {fileID: 0}
-  aggregationMode: 1
-  aggregationWindow: 0.3
+  aggregationMode: 0
+  aggregationWindow: 0
   fontAsset: {fileID: 0}
   fontMaterialPreset: {fileID: 0}
   textColor: {r: 1, g: 0.46219245, b: 0, a: 1}
@@ -27,13 +27,13 @@ MonoBehaviour:
   horizontalJitter: 0.12
   worldZ: -1
   duration: 0.55
-  riseDistance: 0.7
+  riseDistance: 0.45
   horizontalDriftRange: {x: -0.08, y: 0.08}
   moveEase: 9
-  startScale: 0.9
-  peakScale: 1.15
+  startScale: 0.8
+  peakScale: 0.25
   endScale: 1
-  popDurationRatio: 0.25
+  popDurationRatio: 0.3
   popEase: 27
   settleEase: 6
   fadeStartRatio: 0.35
