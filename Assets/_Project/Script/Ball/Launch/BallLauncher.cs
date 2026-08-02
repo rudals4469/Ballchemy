@@ -12,6 +12,7 @@ public sealed class BallLauncher :
     MonoBehaviour
 {
     [Header("References")]
+
     [SerializeField]
     private TurnManager turnManager;
 
@@ -39,10 +40,17 @@ public sealed class BallLauncher :
         temporaryUpgradePresenter;
 
     [Header("Launch Settings")]
+
+    [Tooltip(
+        "발사 묶음 사이의 시간 간격입니다.\n" +
+        "다각도 발사 증강이 활성화되어도 " +
+        "같은 묶음의 공들은 같은 프레임에 발사됩니다."
+    )]
     [SerializeField, Min(0f)]
     private float launchInterval = 0.08f;
 
     [Header("Attack Completion")]
+
     [Tooltip(
         "마지막 공이 복귀한 뒤 " +
         "공 모으기 애니메이션을 시작하기 전까지의 대기 시간입니다."
@@ -51,6 +59,7 @@ public sealed class BallLauncher :
     private float allBallsReturnedDelay = 0.7f;
 
     [Header("Launch Position Limit")]
+
     [SerializeField]
     private float minimumLaunchX = -4.3f;
 
@@ -58,8 +67,12 @@ public sealed class BallLauncher :
     private float maximumLaunchX = 4.3f;
 
     [Header("Debug")]
+
     [SerializeField]
     private bool showTemporaryUpgradeDebugLog;
+
+    [SerializeField]
+    private bool showMultiDirectionDebugLog;
 
     private readonly List<Ball>
         currentLaunchSnapshot =
@@ -522,10 +535,21 @@ public sealed class BallLauncher :
 
         NotifyRemainingBallsToLaunchChanged();
 
+        /*
+         * 공격 도중 증강 레벨이 바뀌더라도
+         * 이미 시작한 턴의 갈래 수와 각도가 변하지 않도록
+         * 발사 시작 시 설정을 한 번만 저장합니다.
+         */
+        MultiDirectionLaunchSettings
+            multiDirectionSettings =
+                MultiDirectionLaunchAugmentSystem
+                    .GetCurrentSettings();
+
         launchCoroutine =
             StartCoroutine(
                 LaunchBallsRoutine(
-                    direction.normalized
+                    direction.normalized,
+                    multiDirectionSettings
                 )
             );
 
@@ -533,81 +557,93 @@ public sealed class BallLauncher :
     }
 
     private IEnumerator LaunchBallsRoutine(
-        Vector2 direction)
+        Vector2 baseDirection,
+        MultiDirectionLaunchSettings
+            multiDirectionSettings)
     {
-        Debug.Log(
-            "BallLauncher: " +
-            $"공 {plannedBallCount}개 순차 발사 시작",
-            this
-        );
+        int branchCount =
+            multiDirectionSettings.IsActive
+                ? multiDirectionSettings.BranchCount
+                : 1;
 
-        for (int i = 0;
-             i < currentLaunchSnapshot.Count;
-             i++)
+        branchCount =
+            Mathf.Max(
+                branchCount,
+                1
+            );
+
+        float spreadAngle =
+            multiDirectionSettings.IsActive
+                ? multiDirectionSettings.SpreadAngle
+                : 0f;
+
+        if (showMultiDirectionDebugLog)
         {
-            Ball ball =
-                currentLaunchSnapshot[i];
+            Debug.Log(
+                "BallLauncher: " +
+                $"공 {plannedBallCount}개 발사 시작, " +
+                $"갈래={branchCount}, " +
+                $"확산 각도=±{spreadAngle:0.#}°",
+                this
+            );
+        }
 
-            if (ball == null)
+        int nextBallIndex = 0;
+
+        while (nextBallIndex <
+               currentLaunchSnapshot.Count)
+        {
+            /*
+             * 같은 묶음에서는 최대 branchCount개의 공을
+             * 같은 프레임에 서로 다른 방향으로 발사합니다.
+             */
+            for (int branchIndex = 0;
+                 branchIndex < branchCount;
+                 branchIndex++)
             {
-                continue;
+                if (nextBallIndex >=
+                    currentLaunchSnapshot.Count)
+                {
+                    break;
+                }
+
+                Ball ball =
+                    currentLaunchSnapshot[
+                        nextBallIndex
+                    ];
+
+                nextBallIndex++;
+
+                if (ball == null)
+                {
+                    continue;
+                }
+
+                Vector2 branchDirection =
+                    MultiDirectionLaunchAugmentSystem
+                        .GetBranchDirection(
+                            baseDirection,
+                            branchIndex,
+                            branchCount,
+                            spreadAngle
+                        );
+
+                LaunchSingleBall(
+                    ball,
+                    branchDirection,
+                    branchIndex,
+                    branchCount
+                );
             }
 
             /*
-             * ResetTo에서 이전 비행의 임시 승급 상태를
-             * 원래 Definition으로 복구합니다.
+             * 마지막 묶음 이후에는 불필요한 대기를 하지 않습니다.
              */
-            ball.ResetTo(
-                currentTurnLaunchPosition
-            );
-
-            TemporaryBallUpgradeResult
-                temporaryUpgradeResult =
-                    TemporaryBallUpgradeAugmentSystem
-                        .RollForBall(
-                            ball
-                        );
-
-            bool temporaryUpgradeApplied =
-                ball.ApplyTemporaryUpgrade(
-                    temporaryUpgradeResult
-                );
-
-            if (temporaryUpgradeApplied &&
-                temporaryUpgradeResult.WasActivated)
+            if (nextBallIndex >=
+                currentLaunchSnapshot.Count)
             {
-                temporaryUpgradePresenter?.Play(
-                    ball,
-                    temporaryUpgradeResult
-                        .UsedMaximumGradeBonus
-                );
-
-                if (showTemporaryUpgradeDebugLog)
-                {
-                    Debug.Log(
-                        "BallLauncher: " +
-                        $"{ball.name} 불안정한 진화 발동, " +
-                        $"승급 단계=" +
-                        $"{temporaryUpgradeResult.AppliedUpgradeStepCount}, " +
-                        $"최종 등급 보너스=" +
-                        $"{temporaryUpgradeResult.MaximumGradeDamageBonus}",
-                        ball
-                    );
-                }
+                break;
             }
-
-            ball.Launch(
-                direction
-            );
-
-            launchedBallCount++;
-
-            turnQueueController
-                ?.NotifyBallLaunched(
-                    ball
-                );
-
-            NotifyRemainingBallsToLaunchChanged();
 
             if (launchInterval > 0f)
             {
@@ -632,6 +668,87 @@ public sealed class BallLauncher :
             );
 
         TryCompleteAttack();
+    }
+
+    private void LaunchSingleBall(
+        Ball ball,
+        Vector2 direction,
+        int branchIndex,
+        int branchCount)
+    {
+        if (ball == null)
+        {
+            return;
+        }
+
+        /*
+         * 이전 비행에서 남은 임시 상태를 정리하고
+         * 현재 턴 발사 위치로 옮깁니다.
+         */
+        ball.ResetTo(
+            currentTurnLaunchPosition
+        );
+
+        TemporaryBallUpgradeResult
+            temporaryUpgradeResult =
+                TemporaryBallUpgradeAugmentSystem
+                    .RollForBall(
+                        ball
+                    );
+
+        bool temporaryUpgradeApplied =
+            ball.ApplyTemporaryUpgrade(
+                temporaryUpgradeResult
+            );
+
+        if (temporaryUpgradeApplied &&
+            temporaryUpgradeResult.WasActivated)
+        {
+            temporaryUpgradePresenter?.Play(
+                ball,
+                temporaryUpgradeResult
+                    .UsedMaximumGradeBonus
+            );
+
+            if (showTemporaryUpgradeDebugLog)
+            {
+                Debug.Log(
+                    "BallLauncher: " +
+                    $"{ball.name} 불안정한 진화 발동, " +
+                    $"승급 단계=" +
+                    $"{temporaryUpgradeResult.AppliedUpgradeStepCount}, " +
+                    $"최종 등급 보너스=" +
+                    $"{temporaryUpgradeResult.MaximumGradeDamageBonus}",
+                    ball
+                );
+            }
+        }
+
+        ball.Launch(
+            direction
+        );
+
+        launchedBallCount++;
+
+        turnQueueController
+            ?.NotifyBallLaunched(
+                ball
+            );
+
+        NotifyRemainingBallsToLaunchChanged();
+
+        if (showMultiDirectionDebugLog &&
+            branchCount > 1)
+        {
+            Debug.Log(
+                "BallLauncher: " +
+                $"{ball.name} " +
+                $"갈래 {branchIndex + 1}/" +
+                $"{branchCount} 발사, " +
+                $"방향={direction}",
+                ball
+            );
+        }
     }
 
     private void NotifyRemainingBallsToLaunchChanged()
@@ -663,10 +780,6 @@ public sealed class BallLauncher :
                 launchBaselineY
             );
 
-        /*
-         * ResetTo 내부에서 임시 승급 Definition과
-         * 최종 등급 피해 보너스가 제거됩니다.
-         */
         returnedBall.ResetTo(
             normalizedReturnPosition
         );

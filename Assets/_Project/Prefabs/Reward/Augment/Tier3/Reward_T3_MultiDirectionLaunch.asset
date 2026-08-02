@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 774113563a9c8374796cc18a3727f9c3, type: 3}
+  m_Name: Reward_T3_MultiDirectionLaunch
+  m_EditorClassIdentifier: Assembly-CSharp::AugmentRewardDefinition
+  rewardId: 't3_multi_direction_launch '
+  displayName: "\uBD84\uC0B0 \uBC1C\uC0AC "
+  description: "\uBCF4\uC720 \uACF5\uC744 \uC5EC\uB7EC \uBC29\uD5A5\uC73C\uB85C \uB098\uB204\uC5B4
+    \uBC1C\uC0AC\uD569\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  rewardTier: 3
+  selectionWeight: 1
+  augmentDefinition: {fileID: 11400000, guid: 56298e91982b99f4090a0b742ba027c3, type: 2}
