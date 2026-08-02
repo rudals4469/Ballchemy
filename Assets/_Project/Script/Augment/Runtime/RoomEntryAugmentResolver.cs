@@ -19,6 +19,10 @@ public sealed class RoomEntryAugmentResolver :
     private BlockGridManager
         blockGridManager;
 
+    [SerializeField]
+    private RoomEntryHealthReductionPresenter
+        healthReductionPresenter;
+
     [Header("Settings")]
 
     [Tooltip(
@@ -32,6 +36,13 @@ public sealed class RoomEntryAugmentResolver :
 
     [SerializeField]
     private bool showDebugLog = true;
+
+    private readonly List<
+        RoomEntryHealthReductionResult
+    > healthReductionResults =
+        new List<
+            RoomEntryHealthReductionResult
+        >();
 
     private void Awake()
     {
@@ -87,6 +98,14 @@ public sealed class RoomEntryAugmentResolver :
                     BlockGridManager
                 >();
         }
+
+        if (healthReductionPresenter == null)
+        {
+            healthReductionPresenter =
+                GetComponent<
+                    RoomEntryHealthReductionPresenter
+                >();
+        }
     }
 
     private void NormalizeSettings()
@@ -123,6 +142,17 @@ public sealed class RoomEntryAugmentResolver :
             Debug.LogError(
                 "RoomEntryAugmentResolver: " +
                 "BlockGridManager가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (healthReductionPresenter == null)
+        {
+            Debug.LogWarning(
+                "RoomEntryAugmentResolver: " +
+                "RoomEntryHealthReductionPresenter가 " +
+                "연결되지 않았습니다. " +
+                "체력 감소는 적용되지만 연출은 나오지 않습니다.",
                 this
             );
         }
@@ -188,6 +218,8 @@ public sealed class RoomEntryAugmentResolver :
     private void ApplyRoomEntryAugments(
         RoomNode room)
     {
+        healthReductionResults.Clear();
+
         if (room == null ||
             !room.IsCombatRoom ||
             runAugmentState == null ||
@@ -225,7 +257,6 @@ public sealed class RoomEntryAugmentResolver :
             return;
         }
 
-        int affectedBlockCount = 0;
         int totalReducedHealth = 0;
 
         for (int augmentIndex = 0;
@@ -264,16 +295,22 @@ public sealed class RoomEntryAugmentResolver :
                 continue;
             }
 
-            ApplyHealthReduction(
-                blocks,
-                reductionPercent,
-                ref affectedBlockCount,
-                ref totalReducedHealth
+            totalReducedHealth +=
+                ApplyHealthReduction(
+                    blocks,
+                    reductionPercent
+                );
+        }
+
+        if (healthReductionResults.Count > 0)
+        {
+            healthReductionPresenter?.Play(
+                healthReductionResults
             );
         }
 
         if (!showDebugLog ||
-            affectedBlockCount <= 0)
+            healthReductionResults.Count <= 0)
         {
             return;
         }
@@ -281,18 +318,18 @@ public sealed class RoomEntryAugmentResolver :
         Debug.Log(
             "RoomEntryAugmentResolver: " +
             $"{room.RoomType} 방 입장 증강 적용, " +
-            $"대상 {affectedBlockCount}개, " +
+            $"대상 {healthReductionResults.Count}개, " +
             $"총 체력 감소 {totalReducedHealth}",
             this
         );
     }
 
-    private void ApplyHealthReduction(
+    private int ApplyHealthReduction(
         IReadOnlyList<Block> blocks,
-        float reductionPercent,
-        ref int affectedBlockCount,
-        ref int totalReducedHealth)
+        float reductionPercent)
     {
+        int totalReducedHealth = 0;
+
         for (int i = 0;
              i < blocks.Count;
              i++)
@@ -318,10 +355,18 @@ public sealed class RoomEntryAugmentResolver :
                 continue;
             }
 
-            affectedBlockCount++;
+            healthReductionResults.Add(
+                new RoomEntryHealthReductionResult(
+                    block,
+                    reducedHealth
+                )
+            );
+
             totalReducedHealth +=
                 reducedHealth;
         }
+
+        return totalReducedHealth;
     }
 
     private static bool IsValidTarget(
