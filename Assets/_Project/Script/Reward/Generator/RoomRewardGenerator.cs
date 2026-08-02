@@ -6,6 +6,16 @@ public sealed class RoomRewardGenerator :
 {
     private const int DefaultChoiceCount = 3;
 
+    private enum TierTwoCategory
+    {
+        None = 0,
+        UpgradeRandomBalls = 1,
+        ConvertBasicBalls = 2,
+        TwoStarTraitBall = 3,
+        OneStarTraitBalls = 4,
+        BasicBalls = 5
+    }
+
     [Header("References")]
 
     [SerializeField]
@@ -40,6 +50,36 @@ public sealed class RoomRewardGenerator :
     private readonly List<BallRewardDefinition>
         traitOneStarCandidates =
             new List<BallRewardDefinition>();
+
+    /*
+     * Tier 2 범주별 후보 목록입니다.
+     *
+     * 공 종류별 RewardDefinition이 여러 개 존재하더라도
+     * 범주 자체는 하나의 선택지로만 취급합니다.
+     */
+    private readonly List<RewardDefinition>
+        tierTwoUpgradeCandidates =
+            new List<RewardDefinition>();
+
+    private readonly List<RewardDefinition>
+        tierTwoConversionCandidates =
+            new List<RewardDefinition>();
+
+    private readonly List<BallRewardDefinition>
+        tierTwoTwoStarTraitCandidates =
+            new List<BallRewardDefinition>();
+
+    private readonly List<BallRewardDefinition>
+        tierTwoOneStarTraitCandidates =
+            new List<BallRewardDefinition>();
+
+    private readonly List<BallRewardDefinition>
+        tierTwoBasicCandidates =
+            new List<BallRewardDefinition>();
+
+    private readonly List<TierTwoCategory>
+        availableTierTwoCategories =
+            new List<TierTwoCategory>();
 
     public RewardCatalog RewardCatalog =>
         rewardCatalog;
@@ -83,13 +123,22 @@ public sealed class RoomRewardGenerator :
         return false;
     }
 
+    /*
+     * 기존 공개 API를 유지합니다.
+     *
+     * 기존 참조처의 컴파일 오류를 막기 위해 남겨두며,
+     * 적용 조건 검사가 필요한 실제 방 보상 흐름에서는
+     * RewardApplyContext를 받는 오버로드를 사용합니다.
+     */
     public List<RewardDefinition>
         GenerateChoices(
             RewardTier rewardTier)
     {
-        return GenerateChoices(
+        return GenerateChoicesInternal(
             rewardTier,
-            choiceCount
+            choiceCount,
+            null,
+            false
         );
     }
 
@@ -97,6 +146,48 @@ public sealed class RoomRewardGenerator :
         GenerateChoices(
             RewardTier rewardTier,
             int requestedChoiceCount)
+    {
+        return GenerateChoicesInternal(
+            rewardTier,
+            requestedChoiceCount,
+            null,
+            false
+        );
+    }
+
+    public List<RewardDefinition>
+        GenerateChoices(
+            RewardTier rewardTier,
+            RewardApplyContext applyContext)
+    {
+        return GenerateChoicesInternal(
+            rewardTier,
+            choiceCount,
+            applyContext,
+            true
+        );
+    }
+
+    public List<RewardDefinition>
+        GenerateChoices(
+            RewardTier rewardTier,
+            int requestedChoiceCount,
+            RewardApplyContext applyContext)
+    {
+        return GenerateChoicesInternal(
+            rewardTier,
+            requestedChoiceCount,
+            applyContext,
+            true
+        );
+    }
+
+    private List<RewardDefinition>
+        GenerateChoicesInternal(
+            RewardTier rewardTier,
+            int requestedChoiceCount,
+            RewardApplyContext applyContext,
+            bool requireCanApply)
     {
         generatedChoices.Clear();
 
@@ -145,16 +236,32 @@ public sealed class RoomRewardGenerator :
             requestedChoiceCount ==
             DefaultChoiceCount)
         {
-            GenerateTierOneChoices();
+            GenerateTierOneChoices(
+                applyContext,
+                requireCanApply
+            );
 
             FillRemainingChoices(
-                requestedChoiceCount
+                requestedChoiceCount,
+                applyContext,
+                requireCanApply
+            );
+        }
+        else if (rewardTier ==
+                 RewardTier.Tier2)
+        {
+            GenerateTierTwoChoices(
+                requestedChoiceCount,
+                applyContext,
+                requireCanApply
             );
         }
         else
         {
             GenerateGenericChoices(
-                requestedChoiceCount
+                requestedChoiceCount,
+                applyContext,
+                requireCanApply
             );
         }
 
@@ -175,7 +282,9 @@ public sealed class RoomRewardGenerator :
         );
     }
 
-    private void GenerateTierOneChoices()
+    private void GenerateTierOneChoices(
+        RewardApplyContext applyContext,
+        bool requireCanApply)
     {
         basicOneStarCandidates.Clear();
         traitOneStarCandidates.Clear();
@@ -188,7 +297,11 @@ public sealed class RoomRewardGenerator :
                 tierCandidates[i] as
                     BallRewardDefinition;
 
-            if (ballReward == null ||
+            if (!IsAvailableCandidate(
+                    ballReward,
+                    applyContext,
+                    requireCanApply
+                ) ||
                 ballReward.BallDefinition == null)
             {
                 continue;
@@ -224,7 +337,9 @@ public sealed class RoomRewardGenerator :
             );
 
         AddChoice(
-            basicReward
+            basicReward,
+            applyContext,
+            requireCanApply
         );
 
         BallRewardDefinition firstTraitReward =
@@ -233,7 +348,9 @@ public sealed class RoomRewardGenerator :
             );
 
         AddChoice(
-            firstTraitReward
+            firstTraitReward,
+            applyContext,
+            requireCanApply
         );
 
         BallRewardDefinition secondTraitReward =
@@ -243,7 +360,9 @@ public sealed class RoomRewardGenerator :
             );
 
         AddChoice(
-            secondTraitReward
+            secondTraitReward,
+            applyContext,
+            requireCanApply
         );
 
         if (basicReward == null)
@@ -277,8 +396,345 @@ public sealed class RoomRewardGenerator :
         }
     }
 
+    private void GenerateTierTwoChoices(
+        int requestedChoiceCount,
+        RewardApplyContext applyContext,
+        bool requireCanApply)
+    {
+        BuildTierTwoCategories(
+            applyContext,
+            requireCanApply
+        );
+
+        while (generatedChoices.Count <
+                   requestedChoiceCount &&
+               availableTierTwoCategories.Count > 0)
+        {
+            TierTwoCategory selectedCategory =
+                SelectWeightedTierTwoCategory();
+
+            if (selectedCategory ==
+                TierTwoCategory.None)
+            {
+                break;
+            }
+
+            RewardDefinition selectedReward =
+                SelectRewardFromTierTwoCategory(
+                    selectedCategory
+                );
+
+            availableTierTwoCategories.Remove(
+                selectedCategory
+            );
+
+            AddChoice(
+                selectedReward,
+                applyContext,
+                requireCanApply
+            );
+        }
+    }
+
+    private void BuildTierTwoCategories(
+        RewardApplyContext applyContext,
+        bool requireCanApply)
+    {
+        tierTwoUpgradeCandidates.Clear();
+        tierTwoConversionCandidates.Clear();
+        tierTwoTwoStarTraitCandidates.Clear();
+        tierTwoOneStarTraitCandidates.Clear();
+        tierTwoBasicCandidates.Clear();
+        availableTierTwoCategories.Clear();
+
+        for (int i = 0;
+             i < tierCandidates.Count;
+             i++)
+        {
+            RewardDefinition candidate =
+                tierCandidates[i];
+
+            if (!IsAvailableCandidate(
+                    candidate,
+                    applyContext,
+                    requireCanApply
+                ))
+            {
+                continue;
+            }
+
+            if (candidate is
+                BallUpgradeRewardDefinition)
+            {
+                tierTwoUpgradeCandidates.Add(
+                    candidate
+                );
+
+                continue;
+            }
+
+            if (candidate is
+                BasicBallConversionRewardDefinition)
+            {
+                tierTwoConversionCandidates.Add(
+                    candidate
+                );
+
+                continue;
+            }
+
+            BallRewardDefinition ballReward =
+                candidate as
+                    BallRewardDefinition;
+
+            if (ballReward == null ||
+                ballReward.BallDefinition == null)
+            {
+                continue;
+            }
+
+            if (ballReward.IsTraitBallReward &&
+                ballReward.IsTwoStarBallReward &&
+                ballReward.Amount == 1)
+            {
+                tierTwoTwoStarTraitCandidates.Add(
+                    ballReward
+                );
+
+                continue;
+            }
+
+            if (ballReward.IsTraitBallReward &&
+                ballReward.IsOneStarBallReward &&
+                ballReward.Amount == 2)
+            {
+                tierTwoOneStarTraitCandidates.Add(
+                    ballReward
+                );
+
+                continue;
+            }
+
+            if (ballReward.IsBasicBallReward &&
+                ballReward.IsOneStarBallReward &&
+                ballReward.Amount == 5)
+            {
+                tierTwoBasicCandidates.Add(
+                    ballReward
+                );
+            }
+        }
+
+        AddTierTwoCategoryIfAvailable(
+            TierTwoCategory.UpgradeRandomBalls,
+            tierTwoUpgradeCandidates.Count
+        );
+
+        AddTierTwoCategoryIfAvailable(
+            TierTwoCategory.ConvertBasicBalls,
+            tierTwoConversionCandidates.Count
+        );
+
+        AddTierTwoCategoryIfAvailable(
+            TierTwoCategory.TwoStarTraitBall,
+            tierTwoTwoStarTraitCandidates.Count
+        );
+
+        AddTierTwoCategoryIfAvailable(
+            TierTwoCategory.OneStarTraitBalls,
+            tierTwoOneStarTraitCandidates.Count
+        );
+
+        AddTierTwoCategoryIfAvailable(
+            TierTwoCategory.BasicBalls,
+            tierTwoBasicCandidates.Count
+        );
+    }
+
+    private void AddTierTwoCategoryIfAvailable(
+        TierTwoCategory category,
+        int candidateCount)
+    {
+        if (candidateCount <= 0)
+        {
+            return;
+        }
+
+        availableTierTwoCategories.Add(
+            category
+        );
+    }
+
+    private TierTwoCategory
+        SelectWeightedTierTwoCategory()
+    {
+        int totalWeight = 0;
+
+        for (int i = 0;
+             i < availableTierTwoCategories.Count;
+             i++)
+        {
+            totalWeight +=
+                GetTierTwoCategoryWeight(
+                    availableTierTwoCategories[i]
+                );
+        }
+
+        if (totalWeight <= 0)
+        {
+            return TierTwoCategory.None;
+        }
+
+        int randomValue =
+            Random.Range(
+                0,
+                totalWeight
+            );
+
+        int accumulatedWeight = 0;
+
+        for (int i = 0;
+             i < availableTierTwoCategories.Count;
+             i++)
+        {
+            TierTwoCategory category =
+                availableTierTwoCategories[i];
+
+            accumulatedWeight +=
+                GetTierTwoCategoryWeight(
+                    category
+                );
+
+            if (randomValue <
+                accumulatedWeight)
+            {
+                return category;
+            }
+        }
+
+        return TierTwoCategory.None;
+    }
+
+    private int GetTierTwoCategoryWeight(
+        TierTwoCategory category)
+    {
+        switch (category)
+        {
+            case TierTwoCategory
+                .UpgradeRandomBalls:
+                return GetMaximumSelectionWeight(
+                    tierTwoUpgradeCandidates
+                );
+
+            case TierTwoCategory
+                .ConvertBasicBalls:
+                return GetMaximumSelectionWeight(
+                    tierTwoConversionCandidates
+                );
+
+            case TierTwoCategory
+                .TwoStarTraitBall:
+                return GetMaximumSelectionWeight(
+                    tierTwoTwoStarTraitCandidates
+                );
+
+            case TierTwoCategory
+                .OneStarTraitBalls:
+                return GetMaximumSelectionWeight(
+                    tierTwoOneStarTraitCandidates
+                );
+
+            case TierTwoCategory
+                .BasicBalls:
+                return GetMaximumSelectionWeight(
+                    tierTwoBasicCandidates
+                );
+
+            default:
+                return 0;
+        }
+    }
+
+    private RewardDefinition
+        SelectRewardFromTierTwoCategory(
+            TierTwoCategory category)
+    {
+        switch (category)
+        {
+            case TierTwoCategory
+                .UpgradeRandomBalls:
+                return SelectWeighted(
+                    tierTwoUpgradeCandidates
+                );
+
+            case TierTwoCategory
+                .ConvertBasicBalls:
+                return SelectWeighted(
+                    tierTwoConversionCandidates
+                );
+
+            case TierTwoCategory
+                .TwoStarTraitBall:
+                return SelectWeighted(
+                    tierTwoTwoStarTraitCandidates
+                );
+
+            case TierTwoCategory
+                .OneStarTraitBalls:
+                return SelectWeighted(
+                    tierTwoOneStarTraitCandidates
+                );
+
+            case TierTwoCategory
+                .BasicBalls:
+                return SelectWeighted(
+                    tierTwoBasicCandidates
+                );
+
+            default:
+                return null;
+        }
+    }
+
+    private static int GetMaximumSelectionWeight<T>(
+        List<T> candidates)
+        where T : RewardDefinition
+    {
+        if (candidates == null)
+        {
+            return 0;
+        }
+
+        int maximumWeight = 0;
+
+        for (int i = 0;
+             i < candidates.Count;
+             i++)
+        {
+            T candidate =
+                candidates[i];
+
+            if (!IsValidCandidate(
+                    candidate
+                ))
+            {
+                continue;
+            }
+
+            maximumWeight =
+                Mathf.Max(
+                    maximumWeight,
+                    candidate.SelectionWeight
+                );
+        }
+
+        return maximumWeight;
+    }
+
     private void FillRemainingChoices(
-        int requestedChoiceCount)
+        int requestedChoiceCount,
+        RewardApplyContext applyContext,
+        bool requireCanApply)
     {
         if (generatedChoices.Count >=
             requestedChoiceCount)
@@ -295,8 +751,10 @@ public sealed class RoomRewardGenerator :
             RewardDefinition candidate =
                 tierCandidates[i];
 
-            if (!IsValidCandidate(
-                    candidate
+            if (!IsAvailableCandidate(
+                    candidate,
+                    applyContext,
+                    requireCanApply
                 ))
             {
                 continue;
@@ -329,7 +787,9 @@ public sealed class RoomRewardGenerator :
             }
 
             AddChoice(
-                selected
+                selected,
+                applyContext,
+                requireCanApply
             );
 
             workingCandidates.Remove(
@@ -339,7 +799,9 @@ public sealed class RoomRewardGenerator :
     }
 
     private void GenerateGenericChoices(
-        int requestedChoiceCount)
+        int requestedChoiceCount,
+        RewardApplyContext applyContext,
+        bool requireCanApply)
     {
         workingCandidates.Clear();
 
@@ -350,8 +812,10 @@ public sealed class RoomRewardGenerator :
             RewardDefinition candidate =
                 tierCandidates[i];
 
-            if (!IsValidCandidate(
-                    candidate
+            if (!IsAvailableCandidate(
+                    candidate,
+                    applyContext,
+                    requireCanApply
                 ))
             {
                 continue;
@@ -377,7 +841,9 @@ public sealed class RoomRewardGenerator :
             }
 
             AddChoice(
-                selected
+                selected,
+                applyContext,
+                requireCanApply
             );
 
             workingCandidates.Remove(
@@ -387,10 +853,14 @@ public sealed class RoomRewardGenerator :
     }
 
     private void AddChoice(
-        RewardDefinition rewardDefinition)
+        RewardDefinition rewardDefinition,
+        RewardApplyContext applyContext,
+        bool requireCanApply)
     {
-        if (!IsValidCandidate(
-                rewardDefinition
+        if (!IsAvailableCandidate(
+                rewardDefinition,
+                applyContext,
+                requireCanApply
             ))
         {
             return;
@@ -405,6 +875,33 @@ public sealed class RoomRewardGenerator :
 
         generatedChoices.Add(
             rewardDefinition
+        );
+    }
+
+    private static bool IsAvailableCandidate(
+        RewardDefinition rewardDefinition,
+        RewardApplyContext applyContext,
+        bool requireCanApply)
+    {
+        if (!IsValidCandidate(
+                rewardDefinition
+            ))
+        {
+            return false;
+        }
+
+        if (!requireCanApply)
+        {
+            return true;
+        }
+
+        if (applyContext == null)
+        {
+            return false;
+        }
+
+        return rewardDefinition.CanApply(
+            applyContext
         );
     }
 

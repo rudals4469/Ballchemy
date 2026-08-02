@@ -176,6 +176,20 @@ public sealed class RoomRewardController :
             return;
         }
 
+        if (ballCollection == null)
+        {
+            Debug.LogError(
+                "RoomRewardController: " +
+                "BallCollection이 없어 보상 선택지를 " +
+                "생성할 수 없습니다.",
+                this
+            );
+
+            ReleaseRoomAfterReward();
+
+            return;
+        }
+
         RoomNode currentRoom =
             roomNavigator.CurrentRoom;
 
@@ -199,9 +213,23 @@ public sealed class RoomRewardController :
             return;
         }
 
+        /*
+         * 보상 생성 시점에도 현재 BallCollection을 전달합니다.
+         *
+         * 이를 통해 승급 가능한 공이 없는 경우,
+         * 1성 기본 공이 3개 미만인 경우처럼
+         * 현재 상태에서 적용할 수 없는 보상을
+         * 선택지 후보에서 제외합니다.
+         */
+        RewardApplyContext applyContext =
+            new RewardApplyContext(
+                ballCollection
+            );
+
         List<RewardDefinition> choices =
             rewardGenerator.GenerateChoices(
-                rewardTier
+                rewardTier,
+                applyContext
             );
 
         if (choices == null ||
@@ -232,13 +260,6 @@ public sealed class RoomRewardController :
         isRewardPending =
             true;
 
-        /*
-         * 먼저 네비게이터 자체를 잠급니다.
-         *
-         * RoomNavigationUI는 CanMove가 false가 되면서
-         * 화살표를 숨깁니다. 이후 맵 노드 클릭 이동이
-         * 추가되어도 같은 잠금으로 차단됩니다.
-         */
         roomNavigator.SetNavigationLocked(
             true
         );
@@ -291,6 +312,26 @@ public sealed class RoomRewardController :
             new RewardApplyContext(
                 ballCollection
             );
+
+        /*
+         * 선택지를 생성한 뒤 공 상태가 바뀌었을 가능성에
+         * 대비해 적용 직전에도 조건을 다시 검사합니다.
+         */
+        if (!selectedReward.CanApply(
+                applyContext
+            ))
+        {
+            Debug.LogWarning(
+                "RoomRewardController: " +
+                $"{selectedReward.DisplayName} 보상은 " +
+                "현재 상태에서 적용할 수 없습니다.",
+                this
+            );
+
+            RestorePendingChoices();
+
+            return;
+        }
 
         bool applied =
             selectedReward.Apply(
@@ -348,14 +389,6 @@ public sealed class RoomRewardController :
             return false;
         }
 
-        /*
-         * 현재 구현 단계에서 BlockGridManager의
-         * 일반 방 클리어 이벤트는 NormalCombat과
-         * NamedCombat에서 사용됩니다.
-         *
-         * 보스 보상은 보스 클리어 흐름을 연결하는
-         * 단계에서 같은 컨트롤러로 확장합니다.
-         */
         return currentRoom.RoomType ==
                    RoomType.NormalCombat ||
                currentRoom.RoomType ==
@@ -383,10 +416,6 @@ public sealed class RoomRewardController :
 
     private void RestorePendingChoices()
     {
-        /*
-         * 적용 실패 시 보상 선택을 다시 열어야 하므로
-         * 입력과 이동 잠금을 유지합니다.
-         */
         roomNavigator?.SetNavigationLocked(
             true
         );
@@ -398,11 +427,6 @@ public sealed class RoomRewardController :
         if (pendingChoices.Count > 0 &&
             rewardSelectionUI != null)
         {
-            /*
-             * ShowChoices를 다시 호출하면
-             * RewardSelectionUI의 선택 완료 상태도
-             * 함께 초기화됩니다.
-             */
             rewardSelectionUI.ShowChoices(
                 pendingChoices
             );
@@ -423,17 +447,6 @@ public sealed class RoomRewardController :
 
     private void ReleaseRoomAfterReward()
     {
-        /*
-         * 네비게이터 잠금을 마지막에 해제합니다.
-         *
-         * 먼저 TurnManager 입력 잠금을 풀어도
-         * 네비게이터 잠금이 유지되므로 화살표는
-         * 아직 나타나지 않습니다.
-         *
-         * 마지막 SetNavigationLocked(false)가
-         * NavigationAvailabilityChanged를 발생시키며
-         * 이때 이동 가능한 화살표가 표시됩니다.
-         */
         turnManager?.SetInputLocked(
             false
         );
