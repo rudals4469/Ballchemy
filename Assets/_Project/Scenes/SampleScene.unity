@@ -2502,7 +2502,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StageMapGenerator
   testStageNumber: 1
-  baseRoomCount: 7
+  baseRoomCount: 9
   additionalRoomsPerStage: 2
   maximumRoomCount: 30
   baseNamedRoomCount: 1
@@ -4168,6 +4168,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &625044160
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 625044161}
+  m_Layer: 0
+  m_Name: AimDots
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &625044161
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 625044160}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2022299903}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &627753608
 GameObject:
   m_ObjectHideFlags: 0
@@ -5010,6 +5041,37 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 794671696}
   m_CullTransparentMesh: 1
+--- !u!1 &802641240
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 802641241}
+  m_Layer: 0
+  m_Name: AimDots
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &802641241
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 802641240}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1049787279}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &812937565
 GameObject:
   m_ObjectHideFlags: 0
@@ -5387,7 +5449,6 @@ GameObject:
   - component: {fileID: 904823816}
   - component: {fileID: 904823807}
   - component: {fileID: 904823809}
-  - component: {fileID: 904823808}
   - component: {fileID: 904823811}
   - component: {fileID: 904823810}
   - component: {fileID: 904823820}
@@ -5402,6 +5463,7 @@ GameObject:
   - component: {fileID: 904823822}
   - component: {fileID: 904823823}
   - component: {fileID: 904823824}
+  - component: {fileID: 904823825}
   m_Layer: 0
   m_Name: Launcher
   m_TagString: Untagged
@@ -5423,11 +5485,13 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 435487107}
-  - {fileID: 1965845130}
   - {fileID: 18714751}
   - {fileID: 1901578435}
   - {fileID: 2092661372}
   - {fileID: 1980215018}
+  - {fileID: 1073901317}
+  - {fileID: 2022299903}
+  - {fileID: 1049787279}
   m_Father: {fileID: 1312074106}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &904823807
@@ -5455,45 +5519,6 @@ MonoBehaviour:
   maximumLaunchX: 4.3
   showTemporaryUpgradeDebugLog: 0
   showMultiDirectionDebugLog: 1
---- !u!114 &904823808
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 904823805}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bb23d2081d26b1d439a47d8672e9ff4b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BallTrajectoryPreview
-  aimDotPrefab: {fileID: 857700973967420122, guid: a3f0ebd8f58dc294d9041665fa020e88, type: 3}
-  dotsRoot: {fileID: 1965845130}
-  ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
-  legacyAimLine: {fileID: 0}
-  shortAimDistance: 1.75
-  shortAimMaximumBounces: 1
-  shortDotSpacing: 0.25
-  shortDotScaleMultiplier: 1
-  shortDotColor: {r: 1, g: 1, b: 1, a: 0.95}
-  trajectoryRevealDuration: 0.45
-  longDotSpacing: 0.38
-  longDotScaleMultiplier: 0.9
-  longDotColor: {r: 1, g: 1, b: 1, a: 0.6}
-  firstDotOffset: 0.15
-  prewarmDotCount: 120
-  trajectoryDistance: 50
-  maximumTrajectoryBounces: 4
-  bounceResolver:
-    snapBoxNormalToAxis: 1
-    cornerTieTolerance: 0.12
-    minimumNormalMagnitude: 0.001
-  useBallPrefabRadius: 1
-  manualTrajectoryRadius: 0.2
-  trajectorySkinWidth: 0.02
-  trajectoryCollisionMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
 --- !u!114 &904823809
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5508,7 +5533,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallAimController
   turnManager: {fileID: 1520316753}
   ballLauncher: {fileID: 904823807}
-  trajectoryPreview: {fileID: 904823808}
+  multiTrajectoryPreview: {fileID: 904823825}
   roomNavigator: {fileID: 372114439}
   minimumUpwardDirection: 0.15
   aimSmoothSpeed: 14
@@ -5647,6 +5672,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9496ff8c69203b2459df8b4ce8405f66, type: 2}
   - {fileID: 11400000, guid: ffbbcdb5fc72dda49903f540be0100b5, type: 2}
   - {fileID: 11400000, guid: e3d01e89eb05349489d0b121f09eda87, type: 2}
+  - {fileID: 11400000, guid: 63636733eacdb93438e2a244463993a5, type: 2}
+  - {fileID: 11400000, guid: f2368215b677293438d7f538d0ce135b, type: 2}
+  - {fileID: 11400000, guid: 59c1c0debc1efe147b2c187707130180, type: 2}
   randomDrawAmount: 1
   enableDrawOneOfEach: 1
   showDebugLog: 1
@@ -5836,6 +5864,22 @@ MonoBehaviour:
   upgradeText: UP
   maximumGradeText: UP
   prewarmCount: 8
+--- !u!114 &904823825
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4974a864cdce3ae4db97f290fe74e10d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MultiTrajectoryPreview
+  centerPreview: {fileID: 1073901316}
+  leftPreview: {fileID: 2022299902}
+  rightPreview: {fileID: 1049787278}
+  showDebugLog: 0
 --- !u!1 &933485870
 GameObject:
   m_ObjectHideFlags: 0
@@ -6374,6 +6418,78 @@ MonoBehaviour:
   blockGridManager: {fileID: 987057997}
   ballLauncher: {fileID: 904823807}
   showDebugLog: 1
+--- !u!1 &1049787277
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1049787279}
+  - component: {fileID: 1049787278}
+  m_Layer: 0
+  m_Name: PreviewRight
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1049787278
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1049787277}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb23d2081d26b1d439a47d8672e9ff4b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallTrajectoryPreview
+  aimDotPrefab: {fileID: 857700973967420122, guid: a3f0ebd8f58dc294d9041665fa020e88, type: 3}
+  dotsRoot: {fileID: 802641241}
+  ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
+  legacyAimLine: {fileID: 0}
+  shortAimDistance: 1.75
+  shortAimMaximumBounces: 1
+  shortDotSpacing: 0.25
+  shortDotScaleMultiplier: 1
+  shortDotColor: {r: 1, g: 1, b: 1, a: 0.95}
+  trajectoryRevealDuration: 0.45
+  longDotSpacing: 0.38
+  longDotScaleMultiplier: 0.9
+  longDotColor: {r: 1, g: 1, b: 1, a: 0.6}
+  firstDotOffset: 0.15
+  prewarmDotCount: 120
+  trajectoryDistance: 50
+  maximumTrajectoryBounces: 4
+  bounceResolver:
+    snapBoxNormalToAxis: 1
+    cornerTieTolerance: 0.12
+    minimumNormalMagnitude: 0.001
+  useBallPrefabRadius: 1
+  manualTrajectoryRadius: 0.2
+  trajectorySkinWidth: 0.02
+  trajectoryCollisionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!4 &1049787279
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1049787277}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 802641241}
+  m_Father: {fileID: 904823806}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1064525585
 GameObject:
   m_ObjectHideFlags: 0
@@ -6431,6 +6547,78 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1073901315
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1073901317}
+  - component: {fileID: 1073901316}
+  m_Layer: 0
+  m_Name: PreviewCenter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1073901316
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1073901315}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb23d2081d26b1d439a47d8672e9ff4b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallTrajectoryPreview
+  aimDotPrefab: {fileID: 857700973967420122, guid: a3f0ebd8f58dc294d9041665fa020e88, type: 3}
+  dotsRoot: {fileID: 1843478306}
+  ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
+  legacyAimLine: {fileID: 0}
+  shortAimDistance: 1.75
+  shortAimMaximumBounces: 1
+  shortDotSpacing: 0.25
+  shortDotScaleMultiplier: 1
+  shortDotColor: {r: 1, g: 1, b: 1, a: 0.95}
+  trajectoryRevealDuration: 0.45
+  longDotSpacing: 0.38
+  longDotScaleMultiplier: 0.9
+  longDotColor: {r: 1, g: 1, b: 1, a: 0.6}
+  firstDotOffset: 0.15
+  prewarmDotCount: 120
+  trajectoryDistance: 50
+  maximumTrajectoryBounces: 4
+  bounceResolver:
+    snapBoxNormalToAxis: 1
+    cornerTieTolerance: 0.12
+    minimumNormalMagnitude: 0.001
+  useBallPrefabRadius: 1
+  manualTrajectoryRadius: 0.2
+  trajectorySkinWidth: 0.02
+  trajectoryCollisionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!4 &1073901317
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1073901315}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1843478306}
+  m_Father: {fileID: 904823806}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1082527028
 GameObject:
   m_ObjectHideFlags: 0
@@ -9584,6 +9772,37 @@ MonoBehaviour:
   runAugmentState: {fileID: 904823821}
   debugRewardTierOverride: 3
   showDebugLog: 1
+--- !u!1 &1843478305
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1843478306}
+  m_Layer: 0
+  m_Name: AimDots
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1843478306
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1843478305}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1073901317}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1844054805
 GameObject:
   m_ObjectHideFlags: 0
@@ -9973,37 +10192,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 987057996}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1965845129
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1965845130}
-  m_Layer: 0
-  m_Name: AimDots
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1965845130
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1965845129}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 904823806}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1980215017
 GameObject:
   m_ObjectHideFlags: 0
@@ -10282,6 +10470,78 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2001399147}
   m_CullTransparentMesh: 1
+--- !u!1 &2022299901
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2022299903}
+  - component: {fileID: 2022299902}
+  m_Layer: 0
+  m_Name: PreviewLeft
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2022299902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2022299901}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb23d2081d26b1d439a47d8672e9ff4b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallTrajectoryPreview
+  aimDotPrefab: {fileID: 857700973967420122, guid: a3f0ebd8f58dc294d9041665fa020e88, type: 3}
+  dotsRoot: {fileID: 625044161}
+  ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
+  legacyAimLine: {fileID: 0}
+  shortAimDistance: 1.75
+  shortAimMaximumBounces: 1
+  shortDotSpacing: 0.25
+  shortDotScaleMultiplier: 1
+  shortDotColor: {r: 1, g: 1, b: 1, a: 0.95}
+  trajectoryRevealDuration: 0.45
+  longDotSpacing: 0.38
+  longDotScaleMultiplier: 0.9
+  longDotColor: {r: 1, g: 1, b: 1, a: 0.6}
+  firstDotOffset: 0.15
+  prewarmDotCount: 120
+  trajectoryDistance: 50
+  maximumTrajectoryBounces: 4
+  bounceResolver:
+    snapBoxNormalToAxis: 1
+    cornerTieTolerance: 0.12
+    minimumNormalMagnitude: 0.001
+  useBallPrefabRadius: 1
+  manualTrajectoryRadius: 0.2
+  trajectorySkinWidth: 0.02
+  trajectoryCollisionMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!4 &2022299903
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2022299901}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 625044161}
+  m_Father: {fileID: 904823806}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2026090750
 GameObject:
   m_ObjectHideFlags: 0
