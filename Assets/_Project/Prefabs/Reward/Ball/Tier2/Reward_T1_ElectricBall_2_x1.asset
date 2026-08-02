@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b509a70cfd2d0a14bb0c8c97c40810f7, type: 3}
+  m_Name: Reward_T1_ElectricBall_2_x1
+  m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
+  rewardId: t1_electric_ball_2_x1
+  displayName: "\uBC88\uAC1C \uACF5 2\uB2E8\uACC4 x1"
+  description: "\uC804\uD558\uB97C \uBD80\uC5EC\uD558\uBA70, \n\uC816\uC740 \uC801\uC5D0\uAC8C
+    \uAC10\uC804\uC744 \uC77C\uC73C\uD0B5\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  rewardTier: 2
+  selectionWeight: 1
+  ballDefinition: {fileID: 11400000, guid: 1cdaf2d58092d874eb84e2c207dd4a23, type: 2}
+  amount: 1
