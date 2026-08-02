@@ -33,7 +33,22 @@ public sealed class RoomRewardController :
     private BallCollection
         ballCollection;
 
+    [SerializeField]
+    private RunAugmentState
+        runAugmentState;
+
     [Header("Debug")]
+
+    [Tooltip(
+        "None이면 방 타입에 맞는 정상 보상 등급을 사용합니다.\n" +
+        "Tier3로 설정하면 일반 또는 네임드 전투방에서도 " +
+        "Tier3 증강 보상을 테스트할 수 있습니다.\n" +
+        "테스트 후 반드시 None으로 되돌립니다."
+    )]
+    [SerializeField]
+    private RewardTier
+        debugRewardTierOverride =
+            RewardTier.None;
 
     [SerializeField]
     private bool showDebugLog = true;
@@ -126,6 +141,14 @@ public sealed class RoomRewardController :
                     BallCollection
                 >();
         }
+
+        if (runAugmentState == null)
+        {
+            runAugmentState =
+                FindFirstObjectByType<
+                    RunAugmentState
+                >();
+        }
     }
 
     private void SubscribeEvents()
@@ -198,6 +221,13 @@ public sealed class RoomRewardController :
                 currentRoom.RoomType
             );
 
+        if (debugRewardTierOverride !=
+            RewardTier.None)
+        {
+            rewardTier =
+                debugRewardTierOverride;
+        }
+
         if (rewardTier == RewardTier.None)
         {
             if (showDebugLog)
@@ -213,18 +243,8 @@ public sealed class RoomRewardController :
             return;
         }
 
-        /*
-         * 보상 생성 시점에도 현재 BallCollection을 전달합니다.
-         *
-         * 이를 통해 승급 가능한 공이 없는 경우,
-         * 1성 기본 공이 3개 미만인 경우처럼
-         * 현재 상태에서 적용할 수 없는 보상을
-         * 선택지 후보에서 제외합니다.
-         */
         RewardApplyContext applyContext =
-            new RewardApplyContext(
-                ballCollection
-            );
+            CreateApplyContext();
 
         List<RewardDefinition> choices =
             rewardGenerator.GenerateChoices(
@@ -243,10 +263,6 @@ public sealed class RoomRewardController :
                 this
             );
 
-            /*
-             * 보상을 생성하지 못했다면 플레이어가
-             * 방에 갇히지 않도록 잠금을 남기지 않습니다.
-             */
             ReleaseRoomAfterReward();
 
             return;
@@ -309,14 +325,8 @@ public sealed class RoomRewardController :
         }
 
         RewardApplyContext applyContext =
-            new RewardApplyContext(
-                ballCollection
-            );
+            CreateApplyContext();
 
-        /*
-         * 선택지를 생성한 뒤 공 상태가 바뀌었을 가능성에
-         * 대비해 적용 직전에도 조건을 다시 검사합니다.
-         */
         if (!selectedReward.CanApply(
                 applyContext
             ))
@@ -363,6 +373,14 @@ public sealed class RoomRewardController :
         }
 
         CompleteRewardSelection();
+    }
+
+    private RewardApplyContext CreateApplyContext()
+    {
+        return new RewardApplyContext(
+            ballCollection,
+            runAugmentState
+        );
     }
 
     private bool CanOpenRoomReward()
@@ -529,6 +547,17 @@ public sealed class RoomRewardController :
             Debug.LogError(
                 "RoomRewardController: " +
                 "BallCollection이 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (runAugmentState == null)
+        {
+            Debug.LogWarning(
+                "RoomRewardController: " +
+                "RunAugmentState가 연결되지 않았습니다. " +
+                "공 보상은 동작하지만 증강 보상은 " +
+                "생성되지 않습니다.",
                 this
             );
         }
