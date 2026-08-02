@@ -6,23 +6,33 @@ public sealed class BallAimController :
     MonoBehaviour
 {
     [Header("References")]
+
     [SerializeField]
     private TurnManager turnManager;
 
     [SerializeField]
     private BallLauncher ballLauncher;
 
+    [Tooltip(
+        "단일 BallTrajectoryPreview가 아니라 " +
+        "중앙·왼쪽·오른쪽 Preview를 조율하는 " +
+        "MultiTrajectoryPreview를 연결합니다."
+    )]
     [SerializeField]
-    private BallTrajectoryPreview trajectoryPreview;
+    private MultiTrajectoryPreview
+        multiTrajectoryPreview;
 
     [SerializeField]
     private StageRoomNavigator roomNavigator;
 
     [Header("Aim Direction")]
+
     [SerializeField, Range(0.01f, 1f)]
     private float minimumUpwardDirection = 0.15f;
 
-    [Tooltip("조준 방향이 마우스를 따라가는 속도입니다.")]
+    [Tooltip(
+        "조준 방향이 마우스를 따라가는 속도입니다."
+    )]
     [SerializeField, Min(0f)]
     private float aimSmoothSpeed = 14f;
 
@@ -34,6 +44,7 @@ public sealed class BallAimController :
     private float aimMovementThresholdDegrees = 1.5f;
 
     [Header("Trajectory Timing")]
+
     [Tooltip(
         "조준 방향을 유지한 뒤 " +
         "긴 예상 경로를 표시하기까지의 시간입니다."
@@ -71,7 +82,8 @@ public sealed class BallAimController :
 
     private void Awake()
     {
-        mainCamera = Camera.main;
+        mainCamera =
+            Camera.main;
 
         FindReferences();
         ValidateReferences();
@@ -88,16 +100,18 @@ public sealed class BallAimController :
         stableReferenceDirection =
             Vector2.up;
 
-        hasValidAim = true;
-        hasStableReference = true;
-        wasAimingLastFrame = false;
+        hasValidAim =
+            true;
+
+        hasStableReference =
+            true;
+
+        wasAimingLastFrame =
+            false;
 
         ResetTrajectoryPreview();
 
-        if (trajectoryPreview != null)
-        {
-            trajectoryPreview.Hide();
-        }
+        multiTrajectoryPreview?.Hide();
     }
 
     private void Update()
@@ -110,11 +124,7 @@ public sealed class BallAimController :
 
         /*
          * 방 이동 화살표가 하나라도 표시될 수 있는 상태면
-         * 조준과 발사 입력을 모두 비활성화한다.
-         *
-         * RoomNavigationUI와 동일하게
-         * StageRoomNavigator.CanMove()를 사용하므로
-         * 실제 표시되는 이동 방향과 조건이 일치한다.
+         * 조준과 발사 입력을 모두 비활성화합니다.
          */
         if (!turnManager.CanAim ||
             ShouldSuppressAimForNavigation())
@@ -176,11 +186,11 @@ public sealed class BallAimController :
                 >();
         }
 
-        if (trajectoryPreview == null)
+        if (multiTrajectoryPreview == null)
         {
-            trajectoryPreview =
+            multiTrajectoryPreview =
                 GetComponent<
-                    BallTrajectoryPreview
+                    MultiTrajectoryPreview
                 >();
         }
 
@@ -198,7 +208,8 @@ public sealed class BallAimController :
         if (mainCamera == null)
         {
             Debug.LogError(
-                "BallAimController: Main Camera를 찾지 못했습니다. " +
+                "BallAimController: " +
+                "Main Camera를 찾지 못했습니다. " +
                 "카메라의 Tag가 MainCamera인지 확인하세요.",
                 this
             );
@@ -207,7 +218,8 @@ public sealed class BallAimController :
         if (turnManager == null)
         {
             Debug.LogError(
-                "BallAimController: TurnManager를 찾지 못했습니다.",
+                "BallAimController: " +
+                "TurnManager를 찾지 못했습니다.",
                 this
             );
         }
@@ -215,16 +227,17 @@ public sealed class BallAimController :
         if (ballLauncher == null)
         {
             Debug.LogError(
-                "BallAimController: BallLauncher를 찾지 못했습니다.",
+                "BallAimController: " +
+                "BallLauncher를 찾지 못했습니다.",
                 this
             );
         }
 
-        if (trajectoryPreview == null)
+        if (multiTrajectoryPreview == null)
         {
             Debug.LogError(
                 "BallAimController: " +
-                "BallTrajectoryPreview를 찾지 못했습니다.",
+                "MultiTrajectoryPreview를 찾지 못했습니다.",
                 this
             );
         }
@@ -248,25 +261,19 @@ public sealed class BallAimController :
             return false;
         }
 
-        /*
-         * RoomNavigationUI가 hideUnavailableButtons=true일 때
-         * 표시하는 조건과 동일하다.
-         *
-         * 연결된 방향 중 실제로 이동 가능한 방향이
-         * 하나라도 있으면 이동 선택 상태로 판단한다.
-         */
-        return roomNavigator.CanMove(
-                   RoomDirection.Up
-               ) ||
-               roomNavigator.CanMove(
-                   RoomDirection.Right
-               ) ||
-               roomNavigator.CanMove(
-                   RoomDirection.Down
-               ) ||
-               roomNavigator.CanMove(
-                   RoomDirection.Left
-               );
+        return
+            roomNavigator.CanMove(
+                RoomDirection.Up
+            ) ||
+            roomNavigator.CanMove(
+                RoomDirection.Right
+            ) ||
+            roomNavigator.CanMove(
+                RoomDirection.Down
+            ) ||
+            roomNavigator.CanMove(
+                RoomDirection.Left
+            );
     }
 
     private void HandleAimingEnabled()
@@ -276,7 +283,8 @@ public sealed class BallAimController :
             return;
         }
 
-        wasAimingLastFrame = true;
+        wasAimingLastFrame =
+            true;
 
         if (currentAimDirection.sqrMagnitude <=
             0.001f)
@@ -291,44 +299,38 @@ public sealed class BallAimController :
         stableReferenceDirection =
             currentAimDirection;
 
-        hasStableReference = true;
-        hasValidAim = true;
+        hasStableReference =
+            true;
+
+        hasValidAim =
+            true;
 
         ResetTrajectoryPreview();
 
-        if (trajectoryPreview != null)
-        {
-            trajectoryPreview.ShowShort(
-                currentAimDirection
-            );
-        }
+        multiTrajectoryPreview?.ShowShort(
+            currentAimDirection
+        );
     }
 
     private void HandleAimingDisabled()
     {
         /*
-         * 이미 비활성 상태더라도 예상 경로가
          * 외부 상태 변경으로 남아 있을 수 있으므로
-         * 항상 Hide를 호출한다.
+         * 비활성 상태에서도 항상 Hide를 호출합니다.
          */
         if (!wasAimingLastFrame)
         {
-            if (trajectoryPreview != null)
-            {
-                trajectoryPreview.Hide();
-            }
+            multiTrajectoryPreview?.Hide();
 
             return;
         }
 
-        wasAimingLastFrame = false;
+        wasAimingLastFrame =
+            false;
 
         ResetTrajectoryPreview();
 
-        if (trajectoryPreview != null)
-        {
-            trajectoryPreview.Hide();
-        }
+        multiTrajectoryPreview?.Hide();
     }
 
     private void UpdateAimInput(
@@ -385,7 +387,8 @@ public sealed class BallAimController :
         targetAimDirection =
             newTargetDirection;
 
-        hasValidAim = true;
+        hasValidAim =
+            true;
 
         if (!hasMeaningfulChange)
         {
@@ -395,7 +398,8 @@ public sealed class BallAimController :
         stableReferenceDirection =
             newTargetDirection;
 
-        hasStableReference = true;
+        hasStableReference =
+            true;
 
         ResetTrajectoryPreview();
     }
@@ -408,7 +412,8 @@ public sealed class BallAimController :
             stableReferenceDirection =
                 newDirection;
 
-            hasStableReference = true;
+            hasStableReference =
+                true;
 
             return true;
         }
@@ -419,13 +424,14 @@ public sealed class BallAimController :
                 newDirection
             );
 
-        return angleDifference >=
-               aimMovementThresholdDegrees;
+        return
+            angleDifference >=
+            aimMovementThresholdDegrees;
     }
 
     private void UpdateAimVisual()
     {
-        if (trajectoryPreview == null)
+        if (multiTrajectoryPreview == null)
         {
             return;
         }
@@ -440,7 +446,7 @@ public sealed class BallAimController :
 
         SmoothCurrentAimDirection();
 
-        trajectoryPreview.ShowShort(
+        multiTrajectoryPreview.ShowShort(
             currentAimDirection
         );
 
@@ -503,36 +509,41 @@ public sealed class BallAimController :
             previewDirection;
 
         bool didBegin =
-            trajectoryPreview.BeginTrajectory(
-                previewDirection
-            );
+            multiTrajectoryPreview != null &&
+            multiTrajectoryPreview
+                .BeginTrajectory(
+                    previewDirection
+                );
 
         if (didBegin)
         {
-            isTrajectoryPreviewActive = true;
+            isTrajectoryPreviewActive =
+                true;
         }
         else
         {
-            stableAimTimer = 0f;
+            stableAimTimer =
+                0f;
         }
     }
 
     private void ResetTrajectoryPreview()
     {
-        stableAimTimer = 0f;
-        isTrajectoryPreviewActive = false;
+        stableAimTimer =
+            0f;
 
-        if (trajectoryPreview != null)
-        {
-            trajectoryPreview.StopLongPreview();
-        }
+        isTrajectoryPreviewActive =
+            false;
+
+        multiTrajectoryPreview
+            ?.StopLongPreview();
     }
 
     private void TryLaunch()
     {
         /*
-         * Update 중간에 방 이동 가능 상태가 변경될 가능성까지
-         * 방어하기 위해 발사 직전에도 다시 검사한다.
+         * Update 중간에 방 이동 가능 상태가 바뀌는 경우를
+         * 방어하기 위해 발사 직전에도 다시 검사합니다.
          */
         if (ShouldSuppressAimForNavigation())
         {
@@ -551,18 +562,17 @@ public sealed class BallAimController :
             return;
         }
 
-        wasAimingLastFrame = false;
+        wasAimingLastFrame =
+            false;
 
         ResetTrajectoryPreview();
 
-        if (trajectoryPreview != null)
-        {
-            trajectoryPreview.Hide();
-        }
+        multiTrajectoryPreview?.Hide();
     }
 
-    private static bool IsPointerOverUserInterface(
-        Vector3 screenPosition)
+    private static bool
+        IsPointerOverUserInterface(
+            Vector3 screenPosition)
     {
         EventSystem eventSystem =
             EventSystem.current;
@@ -572,7 +582,8 @@ public sealed class BallAimController :
             return false;
         }
 
-        if (eventSystem.IsPointerOverGameObject())
+        if (eventSystem
+            .IsPointerOverGameObject())
         {
             return true;
         }
@@ -606,10 +617,18 @@ public sealed class BallAimController :
     private static bool IsValidPointerPosition(
         Vector3 screenPosition)
     {
-        if (float.IsNaN(screenPosition.x) ||
-            float.IsNaN(screenPosition.y) ||
-            float.IsInfinity(screenPosition.x) ||
-            float.IsInfinity(screenPosition.y))
+        if (float.IsNaN(
+                screenPosition.x
+            ) ||
+            float.IsNaN(
+                screenPosition.y
+            ) ||
+            float.IsInfinity(
+                screenPosition.x
+            ) ||
+            float.IsInfinity(
+                screenPosition.y
+            ))
         {
             return false;
         }
