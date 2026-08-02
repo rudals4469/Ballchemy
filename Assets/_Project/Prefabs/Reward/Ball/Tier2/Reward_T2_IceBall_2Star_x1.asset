@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b509a70cfd2d0a14bb0c8c97c40810f7, type: 3}
-  m_Name: Reward_T1_CrossBall_x1 1
+  m_Name: Reward_T2_IceBall_2Star_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
-  rewardId: t1_cross_ball_x1
-  displayName: "\uC2ED\uC790 \uD3ED\uBC1C \uACF5 x1"
-  description: "\uC801\uC911 \uC9C0\uC810 \uC8FC\uBCC0 \uC2ED\uC790\uC5D0 \uC788\uB294
-    \uBE14\uB85D\uC5D0\uB3C4 \n\uD53C\uD574\uB97C \uC90D\uB2C8\uB2E4."
+  rewardId: t2_water_ball_1star_x2
+  displayName: "1\uC131 \uBB3C \uACF5 x2"
+  description: "\uB0C9\uAE30\uB97C \uBD80\uC5EC\uD558\uBA70, \n\uCD5C\uB300 \uC911\uCCA9
+    \uC2DC \uC801\uC744 \uB3D9\uACB0\uC2DC\uD0B5\uB2C8\uB2E4."
   icon: {fileID: 0}
-  rewardTier: 1
-  selectionWeight: 1
-  ballDefinition: {fileID: 11400000, guid: b65d39e1272932d43bc312c835a0b3d6, type: 2}
-  amount: 1
+  rewardTier: 2
+  selectionWeight: 2
+  ballDefinition: {fileID: 11400000, guid: b1e7cbd436f2498438bfd17adc7ca273, type: 2}
+  amount: 2

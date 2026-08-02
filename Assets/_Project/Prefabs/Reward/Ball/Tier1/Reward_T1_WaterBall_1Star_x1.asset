@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b509a70cfd2d0a14bb0c8c97c40810f7, type: 3}
-  m_Name: Reward_T1_WaterBall_2_x1
+  m_Name: Reward_T1_WaterBall_1Star_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
-  rewardId: t1_water_ball_2_x1
-  displayName: "\uBB3C \uACF5 2\uB2E8\uACC4x1"
+  rewardId: t1_water_ball_1star_x1
+  displayName: "1\uC131 \uBB3C \uACF5 x1"
   description: "\uC801\uC911\uD55C \uC801\uC5D0\uAC8C \uC816\uC74C\uC744 \uBD80\uC5EC\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
-  rewardTier: 2
+  rewardTier: 1
   selectionWeight: 1
-  ballDefinition: {fileID: 11400000, guid: b439394112f3fa54e8410e3df233c864, type: 2}
+  ballDefinition: {fileID: 11400000, guid: c69249269c66c4e4591d7d98c895b989, type: 2}
   amount: 1
