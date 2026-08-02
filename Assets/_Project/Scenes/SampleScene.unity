@@ -5368,6 +5368,7 @@ GameObject:
   - component: {fileID: 904823821}
   - component: {fileID: 904823822}
   - component: {fileID: 904823823}
+  - component: {fileID: 904823824}
   m_Layer: 0
   m_Name: Launcher
   m_TagString: Untagged
@@ -5414,10 +5415,12 @@ MonoBehaviour:
   tempoController: {fileID: 904823810}
   ballSealController: {fileID: 904823812}
   gatherAnimator: {fileID: 904823813}
+  temporaryUpgradePresenter: {fileID: 904823824}
   launchInterval: 0.08
   allBallsReturnedDelay: 0.7
   minimumLaunchX: -4.3
   maximumLaunchX: 4.3
+  showTemporaryUpgradeDebugLog: 0
 --- !u!114 &904823808
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5776,6 +5779,29 @@ MonoBehaviour:
   blockInterval: 0.025
   recoilDirection: {x: 0, y: -1}
   showDebugLog: 0
+--- !u!114 &904823824
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4c4b2b5adda96d46b512e5b1018a0ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallTemporaryUpgradePresenter
+  ringPrefab: {fileID: 6537556326055995240, guid: 4de58b58c726de249a30e5eeedda7a1e, type: 3}
+  textPrefab: {fileID: 1300359838098513784, guid: 0d16a8eab6545df44a59f3d0a3f73480, type: 3}
+  ringDuration: 0.22
+  ringStartScale: 0.3
+  ringEndScale: 0.7
+  textDuration: 0.32
+  textStartOffset: {x: 0, y: 0.15}
+  textRiseDistance: 0.35
+  upgradeText: UP
+  maximumGradeText: UP
+  prewarmCount: 8
 --- !u!1 &933485870
 GameObject:
   m_ObjectHideFlags: 0
@@ -6060,12 +6086,12 @@ MonoBehaviour:
       forcedSpecialDefinition: {fileID: 11400000, guid: 07a1e78f430ea7c48a1167689f7e7a9c, type: 2}
       forceSpawnEveryWaveInTestMode: 1
       forcedSpecialCount: 1
-    minimumRowsPerWave: 1
-    maximumRowsPerWave: 1
-    minimumBlocksPerRow: 1
-    maximumBlocksPerRow: 1
-    minimumPillarColumns: 1
-    maximumPillarColumns: 1
+    minimumRowsPerWave: 5
+    maximumRowsPerWave: 6
+    minimumBlocksPerRow: 2
+    maximumBlocksPerRow: 3
+    minimumPillarColumns: 2
+    maximumPillarColumns: 2
     extraColumnCarryChance: 0.65
   defaultWaveBlockType: 0
   startingBlockHealth: 4

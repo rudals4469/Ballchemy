@@ -55,6 +55,9 @@ public sealed class Ball :
     [SerializeField]
     private bool showBounceDamageDebugLog;
 
+    [SerializeField]
+    private bool showTemporaryUpgradeDebugLog;
+
     private static int activeMovingBallCount;
 
     private Rigidbody2D body;
@@ -67,22 +70,31 @@ public sealed class Ball :
     private bool isMoving;
     private bool hasMovedUpward;
     private bool hasStartedDescending;
-
     private bool isPresentationVisible = true;
 
     /*
-     * 현재 한 번의 비행에서 실제로 처리된 반사 횟수입니다.
+     * 운동 에너지 증강 런타임 상태
      */
     private int bounceCount;
+    private int appliedBounceDamageBonus;
 
     /*
-     * 반사 증강이 현재 공의 Individual Damage Bonus에
-     * 임시로 더해둔 값입니다.
+     * 불안정한 진화 증강 런타임 상태
      *
-     * 비행 종료 시 이 값만 다시 제거하므로,
-     * 다른 시스템에서 적용한 개별 피해 보너스는 보존됩니다.
+     * originalDefinition은 이번 비행 전에
+     * 실제로 보유하고 있던 Definition입니다.
      */
-    private int appliedBounceDamageBonus;
+    private BallDefinition
+        temporaryUpgradeOriginalDefinition;
+
+    private BallDefinition
+        temporaryUpgradeAppliedDefinition;
+
+    /*
+     * 최종 등급 공에서 강화가 발동했을 때
+     * 이번 비행 동안만 적용한 개별 피해입니다.
+     */
+    private int appliedTemporaryUpgradeDamageBonus;
 
     private Renderer[]
         cachedRenderers =
@@ -161,6 +173,21 @@ public sealed class Ball :
 
     public int AppliedBounceDamageBonus =>
         appliedBounceDamageBonus;
+
+    public bool HasTemporaryUpgrade =>
+        temporaryUpgradeOriginalDefinition != null;
+
+    public BallDefinition
+        TemporaryUpgradeOriginalDefinition =>
+            temporaryUpgradeOriginalDefinition;
+
+    public BallDefinition
+        TemporaryUpgradeAppliedDefinition =>
+            temporaryUpgradeAppliedDefinition;
+
+    public int
+        AppliedTemporaryUpgradeDamageBonus =>
+            appliedTemporaryUpgradeDamageBonus;
 
     public event Action<Ball>
         Returned;
@@ -563,6 +590,10 @@ public sealed class Ball :
             return;
         }
 
+        /*
+         * 임시 승급은 BallLauncher가 Launch 직전에
+         * 적용하므로 여기서는 제거하지 않습니다.
+         */
         ResetBounceDamageRuntime();
 
         if (!isMoving)
@@ -622,9 +653,9 @@ public sealed class Ball :
             );
 
         if (Mathf.Approximately(
-            runtimeSpeedMultiplier,
-            multiplier
-        ))
+                runtimeSpeedMultiplier,
+                multiplier
+            ))
         {
             return;
         }
@@ -678,6 +709,121 @@ public sealed class Ball :
 
         lastPhysicsVelocity =
             adjustedVelocity;
+    }
+
+    public bool ApplyTemporaryUpgrade(
+        TemporaryBallUpgradeResult result)
+    {
+        ClearTemporaryUpgradeRuntime();
+
+        if (!result.WasActivated)
+        {
+            return false;
+        }
+
+        if (combatController == null)
+        {
+            FindReferences();
+        }
+
+        if (combatController == null)
+        {
+            return false;
+        }
+
+        BallDefinition currentDefinition =
+            combatController.Definition;
+
+        BallDefinition originalDefinition =
+            result.OriginalDefinition != null
+                ? result.OriginalDefinition
+                : currentDefinition;
+
+        if (originalDefinition == null)
+        {
+            return false;
+        }
+
+        temporaryUpgradeOriginalDefinition =
+            originalDefinition;
+
+        temporaryUpgradeAppliedDefinition =
+            result.HasTemporaryDefinition
+                ? result.TemporaryDefinition
+                : originalDefinition;
+
+        if (result.HasTemporaryDefinition)
+        {
+            combatController.ApplyDefinition(
+                result.TemporaryDefinition
+            );
+        }
+
+        if (result.MaximumGradeDamageBonus > 0)
+        {
+            appliedTemporaryUpgradeDamageBonus =
+                result.MaximumGradeDamageBonus;
+
+            combatController
+                .AddIndividualDirectDamageBonus(
+                    appliedTemporaryUpgradeDamageBonus
+                );
+        }
+
+        if (showTemporaryUpgradeDebugLog)
+        {
+            string appliedName =
+                temporaryUpgradeAppliedDefinition != null
+                    ? temporaryUpgradeAppliedDefinition
+                        .DisplayName
+                    : "None";
+
+            Debug.Log(
+                "Ball: 임시 강화 적용, " +
+                $"{originalDefinition.DisplayName} " +
+                $"→ {appliedName}, " +
+                $"추가 피해 " +
+                $"+{appliedTemporaryUpgradeDamageBonus}",
+                this
+            );
+        }
+
+        return true;
+    }
+
+    public void ClearTemporaryUpgradeRuntime()
+    {
+        if (combatController == null)
+        {
+            FindReferences();
+        }
+
+        if (combatController != null &&
+            appliedTemporaryUpgradeDamageBonus != 0)
+        {
+            combatController
+                .AddIndividualDirectDamageBonus(
+                    -appliedTemporaryUpgradeDamageBonus
+                );
+        }
+
+        appliedTemporaryUpgradeDamageBonus = 0;
+
+        if (combatController != null &&
+            temporaryUpgradeOriginalDefinition != null &&
+            combatController.Definition !=
+                temporaryUpgradeOriginalDefinition)
+        {
+            combatController.ApplyDefinition(
+                temporaryUpgradeOriginalDefinition
+            );
+        }
+
+        temporaryUpgradeOriginalDefinition =
+            null;
+
+        temporaryUpgradeAppliedDefinition =
+            null;
     }
 
     public bool ForceReturn()
@@ -786,6 +932,7 @@ public sealed class Ball :
     {
         ClearPiercingSensorRuntime();
         ResetBounceDamageRuntime();
+        ClearTemporaryUpgradeRuntime();
 
         if (isMoving)
         {
@@ -1293,12 +1440,14 @@ public sealed class Ball :
     {
         ClearPiercingSensorRuntime();
         ResetBounceDamageRuntime();
+        ClearTemporaryUpgradeRuntime();
     }
 
     private void OnDestroy()
     {
         ClearPiercingSensorRuntime();
         ResetBounceDamageRuntime();
+        ClearTemporaryUpgradeRuntime();
 
         if (!isMoving)
         {

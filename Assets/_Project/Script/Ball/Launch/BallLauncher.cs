@@ -34,6 +34,10 @@ public sealed class BallLauncher :
     private BallGatherAnimator
         gatherAnimator;
 
+    [SerializeField]
+    private BallTemporaryUpgradePresenter
+        temporaryUpgradePresenter;
+
     [Header("Launch Settings")]
     [SerializeField, Min(0f)]
     private float launchInterval = 0.08f;
@@ -52,6 +56,10 @@ public sealed class BallLauncher :
 
     [SerializeField]
     private float maximumLaunchX = 4.3f;
+
+    [Header("Debug")]
+    [SerializeField]
+    private bool showTemporaryUpgradeDebugLog;
 
     private readonly List<Ball>
         currentLaunchSnapshot =
@@ -209,6 +217,14 @@ public sealed class BallLauncher :
                     BallGatherAnimator
                 >();
         }
+
+        if (temporaryUpgradePresenter == null)
+        {
+            temporaryUpgradePresenter =
+                GetComponent<
+                    BallTemporaryUpgradePresenter
+                >();
+        }
     }
 
     private void NormalizeSettings()
@@ -291,6 +307,17 @@ public sealed class BallLauncher :
             Debug.LogError(
                 "BallLauncher: " +
                 "BallGatherAnimator를 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (temporaryUpgradePresenter == null)
+        {
+            Debug.LogWarning(
+                "BallLauncher: " +
+                "BallTemporaryUpgradePresenter가 없습니다. " +
+                "임시 승급 기능은 작동하지만 " +
+                "링과 UP 연출은 표시되지 않습니다.",
                 this
             );
         }
@@ -526,9 +553,48 @@ public sealed class BallLauncher :
                 continue;
             }
 
+            /*
+             * ResetTo에서 이전 비행의 임시 승급 상태를
+             * 원래 Definition으로 복구합니다.
+             */
             ball.ResetTo(
                 currentTurnLaunchPosition
             );
+
+            TemporaryBallUpgradeResult
+                temporaryUpgradeResult =
+                    TemporaryBallUpgradeAugmentSystem
+                        .RollForBall(
+                            ball
+                        );
+
+            bool temporaryUpgradeApplied =
+                ball.ApplyTemporaryUpgrade(
+                    temporaryUpgradeResult
+                );
+
+            if (temporaryUpgradeApplied &&
+                temporaryUpgradeResult.WasActivated)
+            {
+                temporaryUpgradePresenter?.Play(
+                    ball,
+                    temporaryUpgradeResult
+                        .UsedMaximumGradeBonus
+                );
+
+                if (showTemporaryUpgradeDebugLog)
+                {
+                    Debug.Log(
+                        "BallLauncher: " +
+                        $"{ball.name} 불안정한 진화 발동, " +
+                        $"승급 단계=" +
+                        $"{temporaryUpgradeResult.AppliedUpgradeStepCount}, " +
+                        $"최종 등급 보너스=" +
+                        $"{temporaryUpgradeResult.MaximumGradeDamageBonus}",
+                        ball
+                    );
+                }
+            }
 
             ball.Launch(
                 direction
@@ -536,13 +602,6 @@ public sealed class BallLauncher :
 
             launchedBallCount++;
 
-            /*
-             * 실제 공을 발사한 직후
-             * 다음 공 큐를 한 칸 이동시킵니다.
-             *
-             * 이후 우측 하단 UI가 이 이벤트를 받아
-             * 오른쪽에서 왼쪽으로 이동하게 됩니다.
-             */
             turnQueueController
                 ?.NotifyBallLaunched(
                     ball
@@ -604,6 +663,10 @@ public sealed class BallLauncher :
                 launchBaselineY
             );
 
+        /*
+         * ResetTo 내부에서 임시 승급 Definition과
+         * 최종 등급 피해 보너스가 제거됩니다.
+         */
         returnedBall.ResetTo(
             normalizedReturnPosition
         );
@@ -792,13 +855,6 @@ public sealed class BallLauncher :
 
         currentLaunchSnapshot.Clear();
 
-        /*
-         * 다음 턴이 시작되기 전에
-         * 새로운 발사 순서를 미리 셔플합니다.
-         *
-         * 그래서 플레이어는 조준 전부터
-         * 다음 5개 공을 확인할 수 있습니다.
-         */
         turnQueueController
             ?.CompleteTurnAndPrepareNextQueue();
 
@@ -932,6 +988,8 @@ public sealed class BallLauncher :
 
                 ball.Returned -=
                     HandleBallReturned;
+
+                ball.ClearTemporaryUpgradeRuntime();
             }
         }
 

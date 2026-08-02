@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 581ba01a98b931d458bd293f91fe2a74, type: 3}
   m_Name: Augment_BounceDamage
   m_EditorClassIdentifier: Assembly-CSharp::BounceDamageAugmentDefinition
-  augmentId: 
-  displayName: 
-  description: 
+  augmentId: augment_bounce_damage
+  displayName: "\uC6B4\uB3D9 \uC5D0\uB108\uC9C0"
+  description: "\uACF5\uC774 \uBC18\uC0AC\uB420\uC218\uB85D \uC9C1\uC811 \uD53C\uD574\uAC00
+    \uC99D\uAC00\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   maxLevel: 3
   requiredBouncesByLevel: 030000000200000001000000

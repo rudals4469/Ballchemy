@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 774113563a9c8374796cc18a3727f9c3, type: 3}
-  m_Name: Reward_T3_BounceDamageAugment
+  m_Name: Reward_T3_TemporaryBallUpgrade
   m_EditorClassIdentifier: Assembly-CSharp::AugmentRewardDefinition
-  rewardId: t3_bounce_damage_augment
-  displayName: "\uC6B4\uB3D9 \uC5D0\uB108\uC9C0"
-  description: "\uACF5\uC774 \uBC18\uC0AC\uB420\uC218\uB85D \uC9C1\uC811 \uD53C\uD574\uAC00
-    \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  rewardId: t3_temporary_ball_upgrade
+  displayName: "\uBD88\uC548\uC815\uD55C \uC9C4\uD654"
+  description: "\uC77C\uC815 \uD655\uB960\uB85C \uB354 \uB192\uC740 \uB4F1\uAE09\uC758
+    \uACF5\uC73C\uB85C \uBC1C\uC0AC\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 3
   selectionWeight: 1
-  augmentDefinition: {fileID: 11400000, guid: 8a7293ef0c277754fab96a16e4070155, type: 2}
+  augmentDefinition: {fileID: 11400000, guid: f87a5400ec99aac47a50bf67eca243e8, type: 2}
