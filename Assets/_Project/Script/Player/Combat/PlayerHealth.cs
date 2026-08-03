@@ -1,28 +1,45 @@
 using System;
 using UnityEngine;
 
-public sealed class PlayerHealth : MonoBehaviour
+public sealed class PlayerHealth :
+    MonoBehaviour
 {
     [Header("Health")]
+
     [SerializeField, Min(1)]
     private int maxHealth = 30;
 
     private int currentHealth;
     private bool isDead;
 
-    public int MaxHealth => maxHealth;
-    public int CurrentHealth => currentHealth;
-    public bool IsDead => isDead;
+    public int MaxHealth =>
+        maxHealth;
+
+    public int CurrentHealth =>
+        currentHealth;
+
+    public bool IsDead =>
+        isDead;
 
     public float HealthRatio =>
         maxHealth > 0
             ? (float)currentHealth / maxHealth
             : 0f;
 
-    public event Action<int, int> HealthChanged;
-    public event Action<int> Damaged;
-    public event Action<int> Healed;
-    public event Action Died;
+    public event Action<int, int>
+        HealthChanged;
+
+    public event Action<int>
+        Damaged;
+
+    public event Action<int>
+        Healed;
+
+    public event Action<int>
+        MaxHealthIncreased;
+
+    public event Action
+        Died;
 
     private void Awake()
     {
@@ -31,16 +48,20 @@ public sealed class PlayerHealth : MonoBehaviour
 
     private void OnValidate()
     {
-        maxHealth = Mathf.Max(
-            1,
-            maxHealth
-        );
+        maxHealth =
+            Mathf.Max(
+                1,
+                maxHealth
+            );
     }
 
     private void InitializeHealth()
     {
-        currentHealth = maxHealth;
-        isDead = false;
+        currentHealth =
+            maxHealth;
+
+        isDead =
+            false;
 
         Debug.Log(
             $"PlayerHealth: 체력 초기화 " +
@@ -49,7 +70,8 @@ public sealed class PlayerHealth : MonoBehaviour
         );
     }
 
-    public void TakeDamage(int damage)
+    public void TakeDamage(
+        int damage)
     {
         if (damage <= 0 ||
             isDead)
@@ -67,7 +89,8 @@ public sealed class PlayerHealth : MonoBehaviour
             );
 
         int appliedDamage =
-            previousHealth - currentHealth;
+            previousHealth -
+            currentHealth;
 
         Debug.Log(
             $"PlayerHealth: 피해 {appliedDamage}, " +
@@ -90,7 +113,8 @@ public sealed class PlayerHealth : MonoBehaviour
         }
     }
 
-    public void Heal(int amount)
+    public void Heal(
+        int amount)
     {
         if (amount <= 0 ||
             isDead)
@@ -108,7 +132,8 @@ public sealed class PlayerHealth : MonoBehaviour
             );
 
         int appliedHealing =
-            currentHealth - previousHealth;
+            currentHealth -
+            previousHealth;
 
         if (appliedHealing <= 0)
         {
@@ -131,10 +156,51 @@ public sealed class PlayerHealth : MonoBehaviour
         );
     }
 
+    public bool TryIncreaseMaxHealth(
+        int amount)
+    {
+        if (amount <= 0 ||
+            isDead)
+        {
+            return false;
+        }
+
+        maxHealth +=
+            amount;
+
+        /*
+         * 의도적으로 currentHealth는 변경하지 않습니다.
+         *
+         * 예:
+         * 20 / 30
+         * → 최대 체력 +5
+         * → 20 / 35
+         */
+        Debug.Log(
+            $"PlayerHealth: 최대 체력 증가 {amount}, " +
+            $"현재 체력 {currentHealth}/{maxHealth}",
+            this
+        );
+
+        MaxHealthIncreased?.Invoke(
+            amount
+        );
+
+        HealthChanged?.Invoke(
+            currentHealth,
+            maxHealth
+        );
+
+        return true;
+    }
+
     public void ResetHealth()
     {
-        currentHealth = maxHealth;
-        isDead = false;
+        currentHealth =
+            maxHealth;
+
+        isDead =
+            false;
 
         Debug.Log(
             $"PlayerHealth: 체력 재설정 " +
@@ -155,8 +221,11 @@ public sealed class PlayerHealth : MonoBehaviour
             return;
         }
 
-        isDead = true;
-        currentHealth = 0;
+        isDead =
+            true;
+
+        currentHealth =
+            0;
 
         Debug.Log(
             "PlayerHealth: 플레이어 사망",
