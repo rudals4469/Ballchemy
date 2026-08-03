@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a59272b6cfdd574781aaadfda5aadf5, type: 3}
   m_Name: UnknownEvent_CatalystExtraction
   m_EditorClassIdentifier: Assembly-CSharp::CatalystExtractionUnknownEventDefinition
-  eventId: 
-  displayName: 
-  description: 
+  eventId: alchemy_catalyst_extraction
+  displayName: "\uCD09\uB9E4 \uCD94\uCD9C"
+  description: "\uBB34\uC791\uC704 \uACF5\uC744 \uCD09\uB9E4\uB85C \uCD94\uCD9C\uD574\n\uBAA8\uB4E0
+    \uACF5\uC758 \uD53C\uD574\uB97C \uB192\uC785\uB2C8\uB2E4."
   icon: {fileID: 0}
   selectionWeight: 1
   ballsToRemove: 8

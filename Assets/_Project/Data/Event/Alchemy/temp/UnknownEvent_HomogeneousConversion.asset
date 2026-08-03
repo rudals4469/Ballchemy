@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d462fc59204a5ab47a14f7e6adf93553, type: 3}
+  m_Name: UnknownEvent_HomogeneousConversion
+  m_EditorClassIdentifier: Assembly-CSharp::HomogeneousConversionUnknownEventDefinition
+  eventId: alchemy_homogeneous_conversion
+  displayName: "\uB3D9\uC9C8 \uBCC0\uD658"
+  description: "\uC5EC\uB7EC \uAE30\uBCF8 \uACF5\uC744 \n\uD558\uB098\uC758 \uB3D9\uC77C\uD55C
+    \uD2B9\uC131 \uACF5\uC73C\uB85C \uBCC0\uD658\uD569\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  selectionWeight: 1
+  conversionCount: 8
+  oneStarTraitBallDefinitions:
+  - {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
+  - {fileID: 11400000, guid: d7e006b48422fe5449487a6d8d430da6, type: 2}
+  - {fileID: 11400000, guid: 1a3c5d93c7b1fea4483d9b9c34d35fa2, type: 2}
+  - {fileID: 11400000, guid: 08f823ec512503340a068defd0c509dd, type: 2}
+  - {fileID: 11400000, guid: b65d39e1272932d43bc312c835a0b3d6, type: 2}
+  - {fileID: 11400000, guid: 790b25c1d5659b8419746646b696b1db, type: 2}
+  - {fileID: 11400000, guid: 70c03fb27c2d8f6489b82ceec901a30b, type: 2}
+  - {fileID: 11400000, guid: b1e7cbd436f2498438bfd17adc7ca273, type: 2}
+  - {fileID: 11400000, guid: c69249269c66c4e4591d7d98c895b989, type: 2}
