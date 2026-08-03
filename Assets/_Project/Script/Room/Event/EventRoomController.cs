@@ -16,12 +16,22 @@ public sealed class EventRoomController :
         playerHealth;
 
     [SerializeField]
+    private BallCollection
+        ballCollection;
+
+    [SerializeField]
     private EventRoomState
         eventRoomState;
 
     [SerializeField]
     private EventSelectionUI
         selectionUI;
+
+    [Header("Unknown Event")]
+
+    [SerializeField]
+    private UnknownEventPool
+        unknownEventPool;
 
     [Header("Choice Values")]
 
@@ -59,6 +69,9 @@ public sealed class EventRoomController :
         currentChoices =
             new List<EventChoiceData>();
 
+    private UnknownEventApplyContext
+        unknownEventContext;
+
     private int activeEventRoomId =
         -1;
 
@@ -67,12 +80,14 @@ public sealed class EventRoomController :
     private void Awake()
     {
         FindReferences();
+        CreateUnknownEventContext();
         ValidateReferences();
     }
 
     private void OnEnable()
     {
         FindReferences();
+        CreateUnknownEventContext();
         SubscribeEvents();
     }
 
@@ -80,12 +95,6 @@ public sealed class EventRoomController :
     {
         UnsubscribeEvents();
 
-        /*
-         * 씬 종료 또는 플레이 종료 중에는
-         * EventSelectionUI가 먼저 파괴될 수 있습니다.
-         *
-         * 여기서 CloseSelection()을 호출하지 않습니다.
-         */
         isChoiceOpen =
             false;
 
@@ -127,6 +136,14 @@ public sealed class EventRoomController :
                 >();
         }
 
+        if (ballCollection == null)
+        {
+            ballCollection =
+                FindFirstObjectByType<
+                    BallCollection
+                >();
+        }
+
         if (eventRoomState == null)
         {
             eventRoomState =
@@ -154,6 +171,15 @@ public sealed class EventRoomController :
         }
     }
 
+    private void CreateUnknownEventContext()
+    {
+        unknownEventContext =
+            new UnknownEventApplyContext(
+                ballCollection,
+                playerHealth
+            );
+    }
+
     private void ValidateReferences()
     {
         if (roomNavigator == null)
@@ -174,6 +200,15 @@ public sealed class EventRoomController :
             );
         }
 
+        if (ballCollection == null)
+        {
+            Debug.LogError(
+                "EventRoomController: " +
+                "BallCollection이 연결되지 않았습니다.",
+                this
+            );
+        }
+
         if (eventRoomState == null)
         {
             Debug.LogError(
@@ -188,6 +223,15 @@ public sealed class EventRoomController :
             Debug.LogError(
                 "EventRoomController: " +
                 "EventSelectionUI가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (unknownEventPool == null)
+        {
+            Debug.LogError(
+                "EventRoomController: " +
+                "UnknownEventPool이 연결되지 않았습니다.",
                 this
             );
         }
@@ -241,8 +285,10 @@ public sealed class EventRoomController :
     private void HandleMapInitialized(
         StageMap stageMap)
     {
-        eventRoomState
-            ?.ResetForNewStage();
+        if (eventRoomState != null)
+        {
+            eventRoomState.ResetForNewStage();
+        }
 
         CloseSelection(
             false
@@ -327,6 +373,13 @@ public sealed class EventRoomController :
             playerHealth.CurrentHealth <
             playerHealth.MaxHealth;
 
+        bool canUseUnknownEvent =
+            !playerHealth.IsDead &&
+            unknownEventPool != null &&
+            unknownEventPool.HasApplicableEvent(
+                unknownEventContext
+            );
+
         currentChoices.Add(
             new EventChoiceData(
                 EventChoiceType.HealCurrentHealth,
@@ -356,7 +409,7 @@ public sealed class EventRoomController :
                 "알 수 없는 효과",
                 "무슨 일이 일어날지 알 수 없습니다.",
                 unknownIcon,
-                !playerHealth.IsDead
+                canUseUnknownEvent
             )
         );
     }
@@ -385,10 +438,6 @@ public sealed class EventRoomController :
                 this
             );
 
-            /*
-             * 적용에 실패했으면 다시 선택할 수 있도록
-             * 선택지를 새로 표시합니다.
-             */
             BuildChoices();
 
             if (selectionUI != null)
@@ -459,19 +508,7 @@ public sealed class EventRoomController :
 
             case EventChoiceType.Unknown:
             {
-                /*
-                 * 이번 단계의 더미 효과입니다.
-                 * 이후 15종 비밀 이벤트 풀의
-                 * 추첨과 적용으로 교체합니다.
-                 */
-                Debug.Log(
-                    "EventRoomController: " +
-                    "??? 선택 — 알 수 없는 힘이 " +
-                    "스쳐 지나갔습니다.",
-                    this
-                );
-
-                return true;
+                return TryApplyUnknownEvent();
             }
 
             default:
@@ -479,13 +516,64 @@ public sealed class EventRoomController :
         }
     }
 
+    private bool TryApplyUnknownEvent()
+    {
+        if (unknownEventPool == null ||
+            unknownEventContext == null)
+        {
+            return false;
+        }
+
+        bool drewEvent =
+            unknownEventPool.TryDraw(
+                unknownEventContext,
+                out UnknownEventDefinition
+                    selectedEvent
+            );
+
+        if (!drewEvent ||
+            selectedEvent == null)
+        {
+            Debug.LogWarning(
+                "EventRoomController: " +
+                "적용 가능한 비밀 이벤트가 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        UnknownEventResult result =
+            selectedEvent.Apply(
+                unknownEventContext
+            );
+
+        if (result == null ||
+            !result.WasApplied)
+        {
+            Debug.LogWarning(
+                "EventRoomController: " +
+                $"비밀 이벤트 적용 실패, " +
+                $"Event={selectedEvent.DisplayName}",
+                this
+            );
+
+            return false;
+        }
+
+        Debug.Log(
+            "EventRoomController: ??? 결과 — " +
+            $"{selectedEvent.DisplayName}\n" +
+            $"{result.ResultText}",
+            this
+        );
+
+        return true;
+    }
+
     private void CloseSelection(
         bool wasCompleted)
     {
-        /*
-         * Unity 객체에는 null 조건 연산자(?.) 대신
-         * Unity의 명시적 null 검사를 사용합니다.
-         */
         if (selectionUI != null)
         {
             selectionUI.Hide();

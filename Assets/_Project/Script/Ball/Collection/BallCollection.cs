@@ -8,6 +8,7 @@ public sealed class BallCollection :
     MonoBehaviour
 {
     [Header("Starting Ball Settings")]
+
     [SerializeField]
     private Ball ballPrefab;
 
@@ -65,8 +66,15 @@ public sealed class BallCollection :
     public int StartingBallCount =>
         startingBallCount;
 
-    public int Count =>
-        balls.Count;
+    public int Count
+    {
+        get
+        {
+            RemoveDestroyedBallReferences();
+
+            return balls.Count;
+        }
+    }
 
     public IReadOnlyList<Ball> Balls =>
         balls;
@@ -80,6 +88,10 @@ public sealed class BallCollection :
     public Vector2 StandbyPosition =>
         standbyPosition;
 
+    public bool CanModifyBallComposition =>
+        isInitialized &&
+        Ball.ActiveMovingBallCount <= 0;
+
     public event Action<Ball>
         BallCreated;
 
@@ -88,6 +100,12 @@ public sealed class BallCollection :
 
     public event Action<int>
         BallsAdded;
+
+    public event Action<int>
+        BallsRemoved;
+
+    public event Action<int>
+        BallDefinitionsReplaced;
 
     public event Action<bool>
         BallsVisibilityChanged;
@@ -261,6 +279,8 @@ public sealed class BallCollection :
             return 0;
         }
 
+        RemoveDestroyedBallReferences();
+
         int previousCount =
             balls.Count;
 
@@ -291,6 +311,365 @@ public sealed class BallCollection :
         );
 
         return addedCount;
+    }
+
+    /*
+     * 조건 없이 보유 공 중 무작위 공을 제거합니다.
+     *
+     * minimumRemainingCount보다 적은 수의 공이
+     * 남도록 제거하지 않습니다.
+     */
+    public int RemoveRandomBalls(
+        int amount,
+        int minimumRemainingCount = 1)
+    {
+        return RemoveRandomBalls(
+            amount,
+            null,
+            minimumRemainingCount
+        );
+    }
+
+    /*
+     * predicate 조건을 만족하는 공 중 무작위로 제거합니다.
+     *
+     * 예:
+     *
+     * 1성 공만 제거:
+     * ballCollection.RemoveRandomBalls(
+     *     5,
+     *     ball => ball.StarGrade ==
+     *         BallStarGrade.OneStar
+     * );
+     *
+     * 기본 공만 제거:
+     * ballCollection.RemoveRandomBalls(
+     *     5,
+     *     ball => ball.TraitType ==
+     *         BallTraitType.Basic
+     * );
+     */
+    public int RemoveRandomBalls(
+        int amount,
+        Predicate<Ball> predicate,
+        int minimumRemainingCount = 1)
+    {
+        if (!ValidateCompositionModification(
+                "공 제거"
+            ))
+        {
+            return 0;
+        }
+
+        amount =
+            Mathf.Max(
+                amount,
+                0
+            );
+
+        minimumRemainingCount =
+            Mathf.Max(
+                minimumRemainingCount,
+                1
+            );
+
+        if (amount <= 0)
+        {
+            return 0;
+        }
+
+        RemoveDestroyedBallReferences();
+
+        int maximumRemovableCount =
+            Mathf.Max(
+                balls.Count -
+                minimumRemainingCount,
+                0
+            );
+
+        if (maximumRemovableCount <= 0)
+        {
+            Debug.LogWarning(
+                "BallCollection: " +
+                "최소 보유 공 개수 때문에 " +
+                "공을 제거할 수 없습니다. " +
+                $"현재={balls.Count}, " +
+                $"최소={minimumRemainingCount}",
+                this
+            );
+
+            return 0;
+        }
+
+        List<Ball> candidates =
+            CollectMatchingBalls(
+                predicate
+            );
+
+        if (candidates.Count == 0)
+        {
+            return 0;
+        }
+
+        ShuffleBalls(
+            candidates
+        );
+
+        int removeCount =
+            Mathf.Min(
+                amount,
+                maximumRemovableCount,
+                candidates.Count
+            );
+
+        int removedCount = 0;
+
+        for (int i = 0;
+             i < removeCount;
+             i++)
+        {
+            Ball targetBall =
+                candidates[i];
+
+            if (!RemoveBallInternal(
+                    targetBall
+                ))
+            {
+                continue;
+            }
+
+            removedCount++;
+        }
+
+        if (removedCount <= 0)
+        {
+            return 0;
+        }
+
+        RemoveDestroyedBallReferences();
+
+        BallCountChanged?.Invoke(
+            balls.Count
+        );
+
+        BallsRemoved?.Invoke(
+            removedCount
+        );
+
+        Debug.Log(
+            "BallCollection: " +
+            $"공 {removedCount}개 제거, " +
+            $"현재 총 {balls.Count}개",
+            this
+        );
+
+        return removedCount;
+    }
+
+    /*
+     * 조건 없이 무작위 공의 Definition을 교체합니다.
+     */
+    public int ReplaceRandomBallDefinitions(
+        int amount,
+        BallDefinition replacementDefinition)
+    {
+        return ReplaceRandomBallDefinitions(
+            amount,
+            replacementDefinition,
+            null
+        );
+    }
+
+    /*
+     * predicate 조건을 만족하는 공 중 무작위 공의
+     * Definition을 영구 교체합니다.
+     *
+     * 공 개수는 변하지 않습니다.
+     */
+    public int ReplaceRandomBallDefinitions(
+        int amount,
+        BallDefinition replacementDefinition,
+        Predicate<Ball> predicate)
+    {
+        if (!ValidateCompositionModification(
+                "공 Definition 교체"
+            ))
+        {
+            return 0;
+        }
+
+        if (replacementDefinition == null)
+        {
+            Debug.LogWarning(
+                "BallCollection: " +
+                "교체할 BallDefinition이 없습니다.",
+                this
+            );
+
+            return 0;
+        }
+
+        amount =
+            Mathf.Max(
+                amount,
+                0
+            );
+
+        if (amount <= 0)
+        {
+            return 0;
+        }
+
+        RemoveDestroyedBallReferences();
+
+        List<Ball> candidates =
+            CollectMatchingBalls(
+                ball =>
+                {
+                    if (ball == null)
+                    {
+                        return false;
+                    }
+
+                    if (ball.Definition ==
+                        replacementDefinition)
+                    {
+                        return false;
+                    }
+
+                    return predicate == null ||
+                           predicate(
+                               ball
+                           );
+                }
+            );
+
+        if (candidates.Count == 0)
+        {
+            return 0;
+        }
+
+        ShuffleBalls(
+            candidates
+        );
+
+        int replaceCount =
+            Mathf.Min(
+                amount,
+                candidates.Count
+            );
+
+        int replacedCount = 0;
+
+        for (int i = 0;
+             i < replaceCount;
+             i++)
+        {
+            Ball targetBall =
+                candidates[i];
+
+            if (!ReplaceBallDefinitionInternal(
+                    targetBall,
+                    replacementDefinition
+                ))
+            {
+                continue;
+            }
+
+            replacedCount++;
+        }
+
+        if (replacedCount <= 0)
+        {
+            return 0;
+        }
+
+        BallDefinitionsReplaced?.Invoke(
+            replacedCount
+        );
+
+        Debug.Log(
+            "BallCollection: " +
+            $"공 {replacedCount}개를 " +
+            $"{replacementDefinition.DisplayName}(으)로 변환",
+            this
+        );
+
+        return replacedCount;
+    }
+
+    /*
+     * 조건을 만족하는 현재 보유 공의 수를 반환합니다.
+     */
+    public int CountMatchingBalls(
+        Predicate<Ball> predicate)
+    {
+        RemoveDestroyedBallReferences();
+
+        int count = 0;
+
+        for (int i = 0;
+             i < balls.Count;
+             i++)
+        {
+            Ball ball =
+                balls[i];
+
+            if (ball == null)
+            {
+                continue;
+            }
+
+            if (predicate != null &&
+                !predicate(
+                    ball
+                ))
+            {
+                continue;
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    public int CountBallsWithDefinition(
+        BallDefinition definition)
+    {
+        if (definition == null)
+        {
+            return 0;
+        }
+
+        return CountMatchingBalls(
+            ball =>
+                ball != null &&
+                ball.Definition ==
+                definition
+        );
+    }
+
+    public int CountBallsWithGrade(
+        BallStarGrade grade)
+    {
+        return CountMatchingBalls(
+            ball =>
+                ball != null &&
+                ball.StarGrade ==
+                grade
+        );
+    }
+
+    public int CountBallsWithTrait(
+        BallTraitType traitType)
+    {
+        return CountMatchingBalls(
+            ball =>
+                ball != null &&
+                ball.TraitType ==
+                traitType
+        );
     }
 
     public void SetBallsVisible(
@@ -332,6 +711,8 @@ public sealed class BallCollection :
 
     private void ApplyCurrentVisibilityToAll()
     {
+        RemoveDestroyedBallReferences();
+
         for (int i = 0;
              i < balls.Count;
              i++)
@@ -387,7 +768,8 @@ public sealed class BallCollection :
 
         newBall.name =
             CreateBallObjectName(
-                definition
+                definition,
+                balls.Count + 1
             );
 
         BallCombatController combatController =
@@ -445,23 +827,245 @@ public sealed class BallCollection :
         return newBall;
     }
 
-    private string CreateBallObjectName(
-        BallDefinition definition)
+    private bool RemoveBallInternal(
+        Ball targetBall)
     {
-        int ballNumber =
-            balls.Count + 1;
+        if (targetBall == null)
+        {
+            return false;
+        }
+
+        if (targetBall.IsMoving)
+        {
+            Debug.LogWarning(
+                "BallCollection: " +
+                "이동 중인 공은 제거할 수 없습니다.",
+                targetBall
+            );
+
+            return false;
+        }
+
+        bool removed =
+            balls.Remove(
+                targetBall
+            );
+
+        if (!removed)
+        {
+            return false;
+        }
+
+        targetBall.ClearTemporaryUpgradeRuntime();
+
+        Destroy(
+            targetBall.gameObject
+        );
+
+        return true;
+    }
+
+    private bool ReplaceBallDefinitionInternal(
+        Ball targetBall,
+        BallDefinition replacementDefinition)
+    {
+        if (targetBall == null ||
+            replacementDefinition == null)
+        {
+            return false;
+        }
+
+        if (targetBall.IsMoving)
+        {
+            Debug.LogWarning(
+                "BallCollection: " +
+                "이동 중인 공의 Definition은 " +
+                "교체할 수 없습니다.",
+                targetBall
+            );
+
+            return false;
+        }
+
+        BallCombatController combatController =
+            targetBall.CombatController;
+
+        if (combatController == null)
+        {
+            Debug.LogWarning(
+                "BallCollection: " +
+                "공에 BallCombatController가 없어 " +
+                "Definition을 교체할 수 없습니다.",
+                targetBall
+            );
+
+            return false;
+        }
+
+        targetBall.ClearTemporaryUpgradeRuntime();
+
+        combatController.ApplyDefinition(
+            replacementDefinition
+        );
+
+        targetBall.name =
+            CreateBallObjectName(
+                replacementDefinition,
+                ResolveBallDisplayNumber(
+                    targetBall
+                )
+            );
+
+        return
+            targetBall.Definition ==
+            replacementDefinition;
+    }
+
+    private bool ValidateCompositionModification(
+        string operationName)
+    {
+        if (!isInitialized)
+        {
+            Debug.LogWarning(
+                "BallCollection: " +
+                $"초기화 전에 {operationName}을 시도했습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        if (Ball.ActiveMovingBallCount > 0)
+        {
+            Debug.LogWarning(
+                "BallCollection: " +
+                $"공이 이동 중이므로 {operationName}을 " +
+                "실행할 수 없습니다. " +
+                $"이동 중 공={Ball.ActiveMovingBallCount}",
+                this
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private List<Ball> CollectMatchingBalls(
+        Predicate<Ball> predicate)
+    {
+        List<Ball> matches =
+            new List<Ball>();
+
+        for (int i = 0;
+             i < balls.Count;
+             i++)
+        {
+            Ball ball =
+                balls[i];
+
+            if (ball == null)
+            {
+                continue;
+            }
+
+            if (predicate != null &&
+                !predicate(
+                    ball
+                ))
+            {
+                continue;
+            }
+
+            matches.Add(
+                ball
+            );
+        }
+
+        return matches;
+    }
+
+    private static void ShuffleBalls(
+        List<Ball> targetBalls)
+    {
+        if (targetBalls == null)
+        {
+            return;
+        }
+
+        for (int i = targetBalls.Count - 1;
+             i > 0;
+             i--)
+        {
+            int randomIndex =
+                UnityEngine.Random.Range(
+                    0,
+                    i + 1
+                );
+
+            Ball temporary =
+                targetBalls[i];
+
+            targetBalls[i] =
+                targetBalls[randomIndex];
+
+            targetBalls[randomIndex] =
+                temporary;
+        }
+    }
+
+    private void RemoveDestroyedBallReferences()
+    {
+        for (int i = balls.Count - 1;
+             i >= 0;
+             i--)
+        {
+            if (balls[i] != null)
+            {
+                continue;
+            }
+
+            balls.RemoveAt(
+                i
+            );
+        }
+    }
+
+    private string CreateBallObjectName(
+        BallDefinition definition,
+        int ballNumber)
+    {
+        ballNumber =
+            Mathf.Max(
+                ballNumber,
+                1
+            );
 
         if (definition == null ||
             string.IsNullOrWhiteSpace(
                 definition.BallId
             ))
         {
-            return $"Ball_{ballNumber}";
+            return
+                $"Ball_{ballNumber}";
         }
 
         return
             $"Ball_{ballNumber}_" +
             $"{definition.BallId}";
+    }
+
+    private int ResolveBallDisplayNumber(
+        Ball targetBall)
+    {
+        int index =
+            balls.IndexOf(
+                targetBall
+            );
+
+        return index >= 0
+            ? index + 1
+            : 1;
     }
 
     private void IgnoreCollisionWithExistingBalls(
@@ -512,6 +1116,8 @@ public sealed class BallCollection :
 
     public List<Ball> CreateSnapshot()
     {
+        RemoveDestroyedBallReferences();
+
         List<Ball> snapshot =
             new List<Ball>();
 
@@ -547,6 +1153,8 @@ public sealed class BallCollection :
     {
         standbyPosition =
             position;
+
+        RemoveDestroyedBallReferences();
 
         for (int i = 0;
              i < balls.Count;
