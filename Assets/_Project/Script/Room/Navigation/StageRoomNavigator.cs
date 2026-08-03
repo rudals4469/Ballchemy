@@ -22,6 +22,9 @@ public sealed class StageRoomNavigator :
     [SerializeField]
     private BallCollection ballCollection;
 
+    [SerializeField]
+    private StageKeyState stageKeyState;
+
     private StageMap currentMap;
 
     private RoomNode currentRoom;
@@ -125,15 +128,15 @@ public sealed class StageRoomNavigator :
         RoomNode
     > RoomChanged;
 
-    /*
-     * 전투방 클리어 상태가 Navigator에 저장된 직후 발생합니다.
-     *
-     * BlockGridManager는 어떤 맵 방이 클리어됐는지 모르므로
-     * 방 ID가 필요한 열쇠, 통계, 퀘스트 시스템은
-     * 이 이벤트를 구독합니다.
-     */
     public event Action<RoomNode>
         CombatRoomCleared;
+
+    /*
+     * 열쇠가 없어 이벤트방 입장이 거부됐을 때 발생합니다.
+     * 이후 안내 문구나 흔들림 연출을 연결할 수 있습니다.
+     */
+    public event Action<RoomNode>
+        EventRoomEntryBlocked;
 
     public event Action
         NavigationAvailabilityChanged;
@@ -208,6 +211,14 @@ public sealed class StageRoomNavigator :
                     BallCollection
                 >();
         }
+
+        if (stageKeyState == null)
+        {
+            stageKeyState =
+                FindFirstObjectByType<
+                    StageKeyState
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -255,6 +266,16 @@ public sealed class StageRoomNavigator :
             Debug.LogError(
                 "StageRoomNavigator: " +
                 "BallCollection을 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (stageKeyState == null)
+        {
+            Debug.LogError(
+                "StageRoomNavigator: " +
+                "StageKeyState를 찾지 못했습니다. " +
+                "이벤트방 입장 조건을 검사할 수 없습니다.",
                 this
             );
         }
@@ -535,9 +556,15 @@ public sealed class StageRoomNavigator :
             return false;
         }
 
-        return GetConnectedRoom(
-                   direction
-               ) != null;
+        RoomNode targetRoom =
+            GetConnectedRoom(
+                direction
+            );
+
+        return targetRoom != null &&
+               CanEnterRoom(
+                   targetRoom
+               );
     }
 
     public RoomNode GetConnectedRoom(
@@ -608,6 +635,17 @@ public sealed class StageRoomNavigator :
             return false;
         }
 
+        if (!CanEnterRoom(
+                targetRoom
+            ))
+        {
+            HandleBlockedEventRoomEntry(
+                targetRoom
+            );
+
+            return false;
+        }
+
         return MoveToAdjacentRoom(
             targetRoom
         );
@@ -641,6 +679,17 @@ public sealed class StageRoomNavigator :
                 "StageRoomNavigator: " +
                 "직전 방이 현재 방과 연결되어 있지 않습니다.",
                 this
+            );
+
+            return false;
+        }
+
+        if (!CanEnterRoom(
+                previousRoom
+            ))
+        {
+            HandleBlockedEventRoomEntry(
+                previousRoom
             );
 
             return false;
@@ -739,6 +788,13 @@ public sealed class StageRoomNavigator :
             return false;
         }
 
+        if (!CanEnterRoom(
+                targetRoom
+            ))
+        {
+            return false;
+        }
+
         return CompleteRoomMove(
             targetRoom
         );
@@ -760,6 +816,10 @@ public sealed class StageRoomNavigator :
             return false;
         }
 
+        /*
+         * 빠른 이동 대상은 이미 방문한 방만 허용되므로
+         * 이벤트방 열쇠를 다시 요구하지 않습니다.
+         */
         return CompleteRoomMove(
             targetRoom
         );
@@ -772,6 +832,34 @@ public sealed class StageRoomNavigator :
             currentRoom == null)
         {
             return false;
+        }
+
+        bool isFirstEventRoomEntry =
+            targetRoom.RoomType ==
+                RoomType.Event &&
+            !IsRoomVisited(
+                targetRoom.RoomId
+            );
+
+        /*
+         * 첫 이벤트방 입장을 하나의 이동 처리로 묶습니다.
+         * 여기까지 왔다면 CanEnterRoom을 통과했으므로
+         * 열쇠를 정상적으로 소비할 수 있어야 합니다.
+         */
+        if (isFirstEventRoomEntry)
+        {
+            if (stageKeyState == null ||
+                !stageKeyState.TryConsumeKey())
+            {
+                Debug.LogError(
+                    "StageRoomNavigator: " +
+                    "이벤트방 입장 직전 스테이지 열쇠를 " +
+                    "소비하지 못해 이동을 취소했습니다.",
+                    this
+                );
+
+                return false;
+            }
         }
 
         if (ballLauncher != null &&
@@ -803,6 +891,17 @@ public sealed class StageRoomNavigator :
             this
         );
 
+        if (isFirstEventRoomEntry)
+        {
+            Debug.Log(
+                "StageRoomNavigator: " +
+                $"이벤트방 최초 입장, " +
+                $"RoomId={currentRoom.RoomId}, " +
+                "스테이지 열쇠 소비 완료",
+                this
+            );
+        }
+
         RoomChanged?.Invoke(
             departedRoom,
             currentRoom
@@ -812,6 +911,63 @@ public sealed class StageRoomNavigator :
             ?.Invoke();
 
         return true;
+    }
+
+    /*
+     * 이벤트방 최초 입장에만 열쇠를 요구합니다.
+     *
+     * 이미 방문한 이벤트방은 콘텐츠 이용이 끝난 빈 방으로
+     * 취급하며 열쇠 없이 다시 통과할 수 있습니다.
+     */
+    private bool CanEnterRoom(
+        RoomNode targetRoom)
+    {
+        if (targetRoom == null)
+        {
+            return false;
+        }
+
+        if (targetRoom.RoomType !=
+            RoomType.Event)
+        {
+            return true;
+        }
+
+        if (IsRoomVisited(
+                targetRoom.RoomId
+            ))
+        {
+            return true;
+        }
+
+        return stageKeyState != null &&
+               stageKeyState.HasKey;
+    }
+
+    private void HandleBlockedEventRoomEntry(
+        RoomNode eventRoom)
+    {
+        if (eventRoom == null ||
+            eventRoom.RoomType !=
+            RoomType.Event)
+        {
+            return;
+        }
+
+        Debug.LogWarning(
+            "StageRoomNavigator: " +
+            "이벤트방에 입장하려면 " +
+            "스테이지 열쇠가 필요합니다. " +
+            $"RoomId={eventRoom.RoomId}",
+            this
+        );
+
+        EventRoomEntryBlocked?.Invoke(
+            eventRoom
+        );
+
+        NavigationAvailabilityChanged
+            ?.Invoke();
     }
 
     private bool HasSafeFastTravelPath(
@@ -959,9 +1115,9 @@ public sealed class StageRoomNavigator :
 
         bool isSupportedCombatRoom =
             currentRoom.RoomType ==
-            RoomType.NormalCombat ||
+                RoomType.NormalCombat ||
             currentRoom.RoomType ==
-            RoomType.NamedCombat;
+                RoomType.NamedCombat;
 
         if (isSupportedCombatRoom)
         {
