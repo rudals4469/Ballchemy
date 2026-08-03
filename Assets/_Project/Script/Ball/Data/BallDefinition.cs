@@ -23,6 +23,16 @@ public sealed class BallDefinition :
         BallStarGrade.OneStar;
 
     [Tooltip(
+        "이 공을 1단계 강등했을 때 변경할 " +
+        "이전 등급의 Ball Definition입니다.\n" +
+        "2성은 같은 종류의 1성, " +
+        "3성은 같은 종류의 2성을 연결합니다.\n" +
+        "1성이나 강등할 수 없는 공은 비워둡니다."
+    )]
+    [SerializeField]
+    private BallDefinition previousStarDefinition;
+
+    [Tooltip(
         "이 공을 1단계 승급했을 때 변경할 " +
         "다음 등급의 Ball Definition입니다.\n" +
         "1성은 같은 종류의 2성, " +
@@ -90,8 +100,14 @@ public sealed class BallDefinition :
     public BallStarGrade StarGrade =>
         starGrade;
 
+    public BallDefinition PreviousStarDefinition =>
+        previousStarDefinition;
+
     public BallDefinition NextStarDefinition =>
         nextStarDefinition;
+
+    public bool CanDowngrade =>
+        previousStarDefinition != null;
 
     public bool CanUpgrade =>
         nextStarDefinition != null;
@@ -178,9 +194,9 @@ public sealed class BallDefinition :
     {
         if (traitDefinition != null &&
             traitDefinition.TraitType !=
-            BallTraitType.Piercing &&
+                BallTraitType.Piercing &&
             starGrade ==
-            BallStarGrade.None)
+                BallStarGrade.None)
         {
             Debug.LogWarning(
                 $"BallDefinition: {name}은 " +
@@ -189,6 +205,69 @@ public sealed class BallDefinition :
             );
         }
 
+        ValidatePreviousStarDefinition();
+        ValidateNextStarDefinition();
+    }
+
+    private void ValidatePreviousStarDefinition()
+    {
+        if (previousStarDefinition == null)
+        {
+            return;
+        }
+
+        if (previousStarDefinition == this)
+        {
+            Debug.LogError(
+                $"BallDefinition: {name}의 " +
+                "Previous Star Definition에 " +
+                "자기 자신이 연결되어 있습니다.",
+                this
+            );
+
+            return;
+        }
+
+        if (!IsExpectedPreviousGrade(
+                starGrade,
+                previousStarDefinition.StarGrade
+            ))
+        {
+            Debug.LogWarning(
+                $"BallDefinition: {name}의 이전 등급이 " +
+                $"{previousStarDefinition.name}으로 연결되어 있지만, " +
+                $"{starGrade} 이전 등급과 일치하지 않습니다.",
+                this
+            );
+        }
+
+        if (TraitType !=
+            previousStarDefinition.TraitType)
+        {
+            Debug.LogWarning(
+                $"BallDefinition: {name}과 " +
+                $"{previousStarDefinition.name}의 " +
+                "Trait Type이 서로 다릅니다.",
+                this
+            );
+        }
+
+        if (previousStarDefinition
+                .NextStarDefinition != null &&
+            previousStarDefinition
+                .NextStarDefinition != this)
+        {
+            Debug.LogWarning(
+                $"BallDefinition: {name}의 이전 등급 " +
+                $"{previousStarDefinition.name}이 " +
+                "다른 다음 등급을 가리키고 있습니다.",
+                this
+            );
+        }
+    }
+
+    private void ValidateNextStarDefinition()
+    {
         if (nextStarDefinition == null)
         {
             return;
@@ -228,6 +307,38 @@ public sealed class BallDefinition :
                 "Trait Type이 서로 다릅니다.",
                 this
             );
+        }
+
+        if (nextStarDefinition
+                .PreviousStarDefinition != null &&
+            nextStarDefinition
+                .PreviousStarDefinition != this)
+        {
+            Debug.LogWarning(
+                $"BallDefinition: {name}의 다음 등급 " +
+                $"{nextStarDefinition.name}이 " +
+                "다른 이전 등급을 가리키고 있습니다.",
+                this
+            );
+        }
+    }
+
+    private static bool IsExpectedPreviousGrade(
+        BallStarGrade currentGrade,
+        BallStarGrade previousGrade)
+    {
+        switch (currentGrade)
+        {
+            case BallStarGrade.TwoStar:
+                return previousGrade ==
+                       BallStarGrade.OneStar;
+
+            case BallStarGrade.ThreeStar:
+                return previousGrade ==
+                       BallStarGrade.TwoStar;
+
+            default:
+                return false;
         }
     }
 

@@ -38,6 +38,9 @@ public sealed class PlayerHealth :
     public event Action<int>
         MaxHealthIncreased;
 
+    public event Action<int>
+        MaxHealthDecreased;
+
     public event Action
         Died;
 
@@ -184,6 +187,89 @@ public sealed class PlayerHealth :
 
         MaxHealthIncreased?.Invoke(
             amount
+        );
+
+        HealthChanged?.Invoke(
+            currentHealth,
+            maxHealth
+        );
+
+        return true;
+    }
+
+    public bool TryDecreaseMaxHealth(
+        int amount,
+        int minimumMaxHealth = 1)
+    {
+        if (amount <= 0 ||
+            isDead)
+        {
+            return false;
+        }
+
+        minimumMaxHealth =
+            Mathf.Max(
+                minimumMaxHealth,
+                1
+            );
+
+        if (maxHealth <=
+            minimumMaxHealth)
+        {
+            return false;
+        }
+
+        int previousMaxHealth =
+            maxHealth;
+
+        int targetMaxHealth =
+            Mathf.Max(
+                maxHealth - amount,
+                minimumMaxHealth
+            );
+
+        int appliedDecrease =
+            previousMaxHealth -
+            targetMaxHealth;
+
+        if (appliedDecrease <= 0)
+        {
+            return false;
+        }
+
+        maxHealth =
+            targetMaxHealth;
+
+        /*
+         * 현재 체력이 새 최대 체력보다 높을 때만
+         * 새 최대 체력에 맞춰 Clamp합니다.
+         *
+         * 이 감소는 일반 피해가 아니므로
+         * Damaged 이벤트를 발생시키지 않습니다.
+         */
+        currentHealth =
+            Mathf.Clamp(
+                currentHealth,
+                1,
+                maxHealth
+            );
+
+        /*
+         * 이 메서드는 사망하지 않는 최대 체력 감소입니다.
+         * 현재 체력은 항상 최소 1을 유지합니다.
+         */
+        isDead =
+            false;
+
+        Debug.Log(
+            $"PlayerHealth: 최대 체력 감소 " +
+            $"{appliedDecrease}, " +
+            $"현재 체력 {currentHealth}/{maxHealth}",
+            this
+        );
+
+        MaxHealthDecreased?.Invoke(
+            appliedDecrease
         );
 
         HealthChanged?.Invoke(

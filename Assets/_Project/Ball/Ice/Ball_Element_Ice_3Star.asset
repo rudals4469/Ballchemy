@@ -15,6 +15,8 @@ MonoBehaviour:
   ballId: Ice_3
   displayName: "\uC11C\uB9AC \uACF5"
   starGrade: 3
+  previousStarDefinition: {fileID: 11400000, guid: ded1842081b5fd64b9fc282ae3b254cd, type: 2}
+  nextStarDefinition: {fileID: 0}
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: 292d316b6c041704484533463fc45605, type: 2}
   sprite: {fileID: 0}

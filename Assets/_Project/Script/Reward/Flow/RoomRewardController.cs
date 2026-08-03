@@ -37,6 +37,10 @@ public sealed class RoomRewardController :
     private RunAugmentState
         runAugmentState;
 
+    [SerializeField]
+    private RunRewardState
+        runRewardState;
+
     [Header("Debug")]
 
     [Tooltip(
@@ -149,6 +153,14 @@ public sealed class RoomRewardController :
                     RunAugmentState
                 >();
         }
+
+        if (runRewardState == null)
+        {
+            runRewardState =
+                FindFirstObjectByType<
+                    RunRewardState
+                >();
+        }
     }
 
     private void SubscribeEvents()
@@ -216,7 +228,7 @@ public sealed class RoomRewardController :
         RoomNode currentRoom =
             roomNavigator.CurrentRoom;
 
-        RewardTier rewardTier =
+        RewardTier baseRewardTier =
             ResolveRewardTier(
                 currentRoom.RoomType
             );
@@ -224,11 +236,12 @@ public sealed class RoomRewardController :
         if (debugRewardTierOverride !=
             RewardTier.None)
         {
-            rewardTier =
+            baseRewardTier =
                 debugRewardTierOverride;
         }
 
-        if (rewardTier == RewardTier.None)
+        if (baseRewardTier ==
+            RewardTier.None)
         {
             if (showDebugLog)
             {
@@ -243,12 +256,17 @@ public sealed class RoomRewardController :
             return;
         }
 
+        RewardTier finalRewardTier =
+            ResolveFinalRewardTier(
+                baseRewardTier
+            );
+
         RewardApplyContext applyContext =
             CreateApplyContext();
 
         List<RewardDefinition> choices =
             rewardGenerator.GenerateChoices(
-                rewardTier,
+                finalRewardTier,
                 applyContext
             );
 
@@ -258,17 +276,29 @@ public sealed class RoomRewardController :
             Debug.LogWarning(
                 "RoomRewardController: " +
                 $"{currentRoom.RoomType} 방의 " +
-                $"{rewardTier} 보상 선택지를 " +
+                $"{finalRewardTier} 보상 선택지를 " +
                 "생성하지 못했습니다.",
                 this
             );
 
+            /*
+             * 보상 선택지 생성에 실패했으므로
+             * 예약된 보상 등급 증가는 소비하지 않습니다.
+             */
             ReleaseRoomAfterReward();
 
             return;
         }
 
+        /*
+         * 실제 보상 선택지가 정상 생성된 경우에만
+         * 다음 전투방 보상 증가 예약을 소비합니다.
+         */
+        bool consumedRewardUpgrade =
+            ConsumePendingRewardUpgradeIfNeeded();
+
         pendingChoices.Clear();
+
         pendingChoices.AddRange(
             choices
         );
@@ -293,12 +323,44 @@ public sealed class RoomRewardController :
             Debug.Log(
                 "RoomRewardController: " +
                 $"Room {currentRoom.RoomId}, " +
-                $"{currentRoom.RoomType} 클리어 보상 " +
-                $"{rewardTier} 선택지 " +
-                $"{pendingChoices.Count}개 표시",
+                $"{currentRoom.RoomType} 클리어 보상, " +
+                $"기본 등급={baseRewardTier}, " +
+                $"최종 등급={finalRewardTier}, " +
+                $"승급 예약 소비={consumedRewardUpgrade}, " +
+                $"선택지={pendingChoices.Count}개",
                 this
             );
         }
+    }
+
+    private RewardTier ResolveFinalRewardTier(
+        RewardTier baseRewardTier)
+    {
+        if (runRewardState == null ||
+            !runRewardState
+                .HasPendingRewardUpgrade)
+        {
+            return baseRewardTier;
+        }
+
+        return runRewardState
+            .ApplyPendingUpgrade(
+                baseRewardTier
+            );
+    }
+
+    private bool
+        ConsumePendingRewardUpgradeIfNeeded()
+    {
+        if (runRewardState == null ||
+            !runRewardState
+                .HasPendingRewardUpgrade)
+        {
+            return false;
+        }
+
+        return runRewardState
+            .ConsumePendingRewardUpgrade();
     }
 
     private void HandleRewardSelected(
@@ -558,6 +620,17 @@ public sealed class RoomRewardController :
                 "RunAugmentState가 연결되지 않았습니다. " +
                 "공 보상은 동작하지만 증강 보상은 " +
                 "생성되지 않습니다.",
+                this
+            );
+        }
+
+        if (runRewardState == null)
+        {
+            Debug.LogError(
+                "RoomRewardController: " +
+                "RunRewardState가 연결되지 않았습니다. " +
+                "다음 전투방 보상 등급 증가 효과가 " +
+                "적용되지 않습니다.",
                 this
             );
         }

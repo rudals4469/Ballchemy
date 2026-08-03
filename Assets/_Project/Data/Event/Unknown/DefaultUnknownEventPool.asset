@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: DefaultUnknownEventPool
   m_EditorClassIdentifier: Assembly-CSharp::UnknownEventPool
   events:
-  - {fileID: 11400000, guid: 4cc6af6a2bd45194b83faf1bba97882e, type: 2}
+  - {fileID: 11400000, guid: 7c7b7371f20c84649b01e98b9fb3959f, type: 2}

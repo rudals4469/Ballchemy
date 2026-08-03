@@ -20,6 +20,10 @@ public sealed class EventRoomController :
         ballCollection;
 
     [SerializeField]
+    private RunRewardState
+        runRewardState;
+
+    [SerializeField]
     private EventRoomState
         eventRoomState;
 
@@ -144,6 +148,14 @@ public sealed class EventRoomController :
                 >();
         }
 
+        if (runRewardState == null)
+        {
+            runRewardState =
+                FindFirstObjectByType<
+                    RunRewardState
+                >();
+        }
+
         if (eventRoomState == null)
         {
             eventRoomState =
@@ -176,7 +188,8 @@ public sealed class EventRoomController :
         unknownEventContext =
             new UnknownEventApplyContext(
                 ballCollection,
-                playerHealth
+                playerHealth,
+                runRewardState
             );
     }
 
@@ -205,6 +218,17 @@ public sealed class EventRoomController :
             Debug.LogError(
                 "EventRoomController: " +
                 "BallCollection이 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (runRewardState == null)
+        {
+            Debug.LogError(
+                "EventRoomController: " +
+                "RunRewardState가 연결되지 않았습니다. " +
+                "다음 전투방 보상 등급 증가 결과가 " +
+                "적용되지 않습니다.",
                 this
             );
         }
@@ -328,6 +352,14 @@ public sealed class EventRoomController :
         {
             return;
         }
+
+        /*
+         * 런 상태 오브젝트가 씬 초기화 과정에서
+         * 늦게 생성되거나 다시 활성화될 수 있으므로
+         * 이벤트 UI를 열 때 참조와 컨텍스트를 갱신합니다.
+         */
+        FindReferences();
+        CreateUnknownEventContext();
 
         activeEventRoomId =
             roomId;

@@ -12,6 +12,11 @@ public sealed class UnknownEventApplyContext
         get;
     }
 
+    public RunRewardState RunRewardState
+    {
+        get;
+    }
+
     public BallRuntimeStats BallRuntimeStats =>
         BallCollection != null
             ? BallCollection.RuntimeStats
@@ -27,15 +32,41 @@ public sealed class UnknownEventApplyContext
     public bool HasBallRuntimeStats =>
         BallRuntimeStats != null;
 
+    public bool HasRunRewardState =>
+        RunRewardState != null;
+
+    /*
+     * 기존 참조처의 컴파일 호환성을 유지하기 위한
+     * 기존 생성자입니다.
+     */
     public UnknownEventApplyContext(
         BallCollection ballCollection,
         PlayerHealth playerHealth)
+        : this(
+            ballCollection,
+            playerHealth,
+            null
+        )
+    {
+    }
+
+    /*
+     * 다음 전투방 보상 상태까지 전달하는
+     * 확장 생성자입니다.
+     */
+    public UnknownEventApplyContext(
+        BallCollection ballCollection,
+        PlayerHealth playerHealth,
+        RunRewardState runRewardState)
     {
         BallCollection =
             ballCollection;
 
         PlayerHealth =
             playerHealth;
+
+        RunRewardState =
+            runRewardState;
     }
 }
 

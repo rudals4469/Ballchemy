@@ -15,6 +15,7 @@ MonoBehaviour:
   ballId: electric_2
   displayName: "\uBC88\uAC1C \uACF5"
   starGrade: 2
+  previousStarDefinition: {fileID: 11400000, guid: 1a3c5d93c7b1fea4483d9b9c34d35fa2, type: 2}
   nextStarDefinition: {fileID: 11400000, guid: c8947fc0b1ab8fb4bb9a67a39d8acd32, type: 2}
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: 577ed8d3f71ba824fbd8a49356309efc, type: 2}

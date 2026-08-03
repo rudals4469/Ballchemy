@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1658c98708793044c8bb3fd1f86d0db2, type: 3}
+  m_Name: UnknownEvent_DecreaseDirectDamage
+  m_EditorClassIdentifier: Assembly-CSharp::DecreaseDirectDamageUnknownEventDefinition
+  eventId: negative_decrease_direct_damage
+  displayName: "\uBAA8\uB4E0 \uACF5 \uD53C\uD574 -1 "
+  description: "\uD68D\uB4DD\uD55C \uBAA8\uB4E0 \uACF5\uC758 \n\uC9C1\uC811 \uD53C\uD574
+    \uBCF4\uB108\uC2A4\uAC00 1 \uAC10\uC18C\uD569\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  selectionWeight: 1
+  damagePenalty: 1
+  minimumRunDamageBonus: 0

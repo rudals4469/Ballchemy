@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e221be458132674bbbce296216ee1c2, type: 3}
+  m_Name: UnknownEvent_CurrentHealthLoss_35
+  m_EditorClassIdentifier: Assembly-CSharp::CurrentHealthLossUnknownEventDefinition
+  eventId: negative_current_health_loss_35
+  displayName: "\uD604\uC7AC \uCCB4\uB825 -35%"
+  description: "\uD604\uC7AC \uCCB4\uB825\uC758 35%\uB97C \uC783\uC2B5\uB2C8\uB2E4.
+    \uCCB4\uB825\uC740 \uCD5C\uC18C 1 \uB0A8\uC2B5\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  selectionWeight: 1
+  currentHealthLossRatio: 0.35
+  minimumRemainingHealth: 1

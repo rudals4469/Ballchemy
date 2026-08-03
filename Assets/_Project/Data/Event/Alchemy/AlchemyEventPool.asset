@@ -12,4 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 79b7f65cada06864083687196272b69a, type: 3}
   m_Name: AlchemyEventPool
   m_EditorClassIdentifier: Assembly-CSharp::UnknownEventPool
-  events: []
+  events:
+  - {fileID: 11400000, guid: 3791eaf69e60ae34a888172cb0f5b416, type: 2}
+  - {fileID: 11400000, guid: 628c139c796dd4241bff2b7371205803, type: 2}
+  - {fileID: 11400000, guid: 4cc6af6a2bd45194b83faf1bba97882e, type: 2}
+  - {fileID: 11400000, guid: a4cb5bc0611f25c4892feb88ed219022, type: 2}

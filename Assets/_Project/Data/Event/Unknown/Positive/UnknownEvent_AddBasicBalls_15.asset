@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d56bacd35cf58c47a663963a51da6a3, type: 3}
+  m_Name: UnknownEvent_AddBasicBalls_15
+  m_EditorClassIdentifier: Assembly-CSharp::AddBasicBallsUnknownEventDefinition
+  eventId: positive_add_basic_balls_15
+  displayName: "\uAE30\uBCF8 \uACF5 +15"
+  description: "\uAE30\uBCF8 \uACF5\uC744 15\uAC1C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
+  icon: {fileID: 0}
+  selectionWeight: 1
+  basicBallDefinition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
+  amount: 15
