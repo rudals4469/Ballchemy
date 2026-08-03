@@ -125,6 +125,16 @@ public sealed class StageRoomNavigator :
         RoomNode
     > RoomChanged;
 
+    /*
+     * 전투방 클리어 상태가 Navigator에 저장된 직후 발생합니다.
+     *
+     * BlockGridManager는 어떤 맵 방이 클리어됐는지 모르므로
+     * 방 ID가 필요한 열쇠, 통계, 퀘스트 시스템은
+     * 이 이벤트를 구독합니다.
+     */
+    public event Action<RoomNode>
+        CombatRoomCleared;
+
     public event Action
         NavigationAvailabilityChanged;
 
@@ -641,12 +651,6 @@ public sealed class StageRoomNavigator :
         );
     }
 
-    /*
-     * 현재 방에서 목적지까지 방문 및 클리어된
-     * 안전한 경로가 존재하는지 확인합니다.
-     *
-     * 실제 이동은 일어나지 않습니다.
-     */
     public bool CanFastTravelToRoom(
         int targetRoomId)
     {
@@ -688,10 +692,6 @@ public sealed class StageRoomNavigator :
         );
     }
 
-    /*
-     * 안전 경로가 존재하는 방문한 방으로
-     * 방 이벤트를 한 번만 실행하며 즉시 이동합니다.
-     */
     public bool TryFastTravelToRoom(
         int targetRoomId)
     {
@@ -760,11 +760,6 @@ public sealed class StageRoomNavigator :
             return false;
         }
 
-        /*
-         * 직접 이동은 인접 연결을 검사하지 않습니다.
-         * CanFastTravelToRoom에서 전체 경로 검사를
-         * 통과한 경우에만 이 메서드가 호출됩니다.
-         */
         return CompleteRoomMove(
             targetRoom
         );
@@ -919,10 +914,6 @@ public sealed class StageRoomNavigator :
             );
         }
 
-        /*
-         * 방문한 비전투 특수방은
-         * 빠른 이동 목적지와 경유지로 허용합니다.
-         */
         return true;
     }
 
@@ -1093,20 +1084,28 @@ public sealed class StageRoomNavigator :
         if (currentRoom != null &&
             currentRoom.IsCombatRoom)
         {
-            clearedCombatRoomIds.Add(
-                currentRoom.RoomId
-            );
+            bool wasNewlyCleared =
+                clearedCombatRoomIds.Add(
+                    currentRoom.RoomId
+                );
 
             ballCollection
                 ?.SetBallsVisible(
                     false
                 );
 
-            Debug.Log(
-                "StageRoomNavigator: " +
-                $"방 {currentRoom.RoomId} 클리어 상태 저장",
-                this
-            );
+            if (wasNewlyCleared)
+            {
+                Debug.Log(
+                    "StageRoomNavigator: " +
+                    $"방 {currentRoom.RoomId} 클리어 상태 저장",
+                    this
+                );
+
+                CombatRoomCleared?.Invoke(
+                    currentRoom
+                );
+            }
         }
 
         NavigationAvailabilityChanged
