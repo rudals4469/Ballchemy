@@ -17,5 +17,5 @@ MonoBehaviour:
   description: "\uB2E4\uC74C \uC804\uD22C\uBC29\uC758 \uBCF4\uC0C1\uC774 1\uB2E8\uACC4
     \uC99D\uAC00\uD569\uB2C8\uB2E4.\n"
   icon: {fileID: 0}
-  selectionWeight: 1
+  selectionWeight: 3
   tierIncrease: 1

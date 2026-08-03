@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f97262688aa7db84fa4452c8c7db630e, type: 3}
   m_Name: UnknownEvent_DecreaseMaxHealth_10
   m_EditorClassIdentifier: Assembly-CSharp::DecreaseMaxHealthUnknownEventDefinition
-  eventId: negative_decrease_max_health
-  displayName: "\uCD5C\uB300 \uCCB4\uB825 -5"
-  description: "\uCD5C\uB300 \uCCB4\uB825\uC774 5 \uAC10\uC18C\uD569\uB2C8\uB2E4.
+  eventId: negative_decrease_max_health_10
+  displayName: "\uCD5C\uB300 \uCCB4\uB825 -10"
+  description: "\uCD5C\uB300 \uCCB4\uB825\uC774 10 \uAC10\uC18C\uD569\uB2C8\uB2E4.
     \n\uD604\uC7AC \uCCB4\uB825\uC774 \uC0C8 \uCD5C\uB300 \uCCB4\uB825\uBCF4\uB2E4
     \uB192\uC73C\uBA74 \uD568\uAED8 \uC870\uC815\uB429\uB2C8\uB2E4."
   icon: {fileID: 0}
-  selectionWeight: 1
-  amount: 5
+  selectionWeight: 2
+  amount: 10
   minimumMaxHealth: 1

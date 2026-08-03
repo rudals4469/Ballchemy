@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "\uBB34\uC791\uC704 2\uC131 \uACF5 +2 "
   description: "\uBB34\uC791\uC704 2\uC131 \uACF5\uC744 2\uAC1C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
-  selectionWeight: 1
+  selectionWeight: 6
   amount: 2
   twoStarBallDefinitions:
   - {fileID: 11400000, guid: 3ec0369c005d22944bdd862eef1952de, type: 2}

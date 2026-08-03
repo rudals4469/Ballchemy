@@ -16,5 +16,5 @@ MonoBehaviour:
   displayName: "\uBAA8\uB4E0 \uACF5 \uD53C\uD574 +2"
   description: "\uBAA8\uB4E0 \uACF5\uC758 \uC9C1\uC811 \uD53C\uD574\uAC00 2 \uC99D\uAC00\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
-  selectionWeight: 1
+  selectionWeight: 4
   damageBonus: 2

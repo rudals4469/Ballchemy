@@ -17,6 +17,6 @@ MonoBehaviour:
   description: "\uD604\uC7AC \uCCB4\uB825\uC758 20%\uB97C \uC783\uC2B5\uB2C8\uB2E4.
     \uCCB4\uB825\uC740 \uCD5C\uC18C 1 \uB0A8\uC2B5\uB2C8\uB2E4."
   icon: {fileID: 0}
-  selectionWeight: 1
+  selectionWeight: 10
   currentHealthLossRatio: 0.2
   minimumRemainingHealth: 1

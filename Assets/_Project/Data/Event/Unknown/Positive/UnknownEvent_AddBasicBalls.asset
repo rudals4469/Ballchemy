@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: "\uAE30\uBCF8 \uACF5 +8"
   description: "\uAE30\uBCF8 \uACF5\uC744 8\uAC1C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
-  selectionWeight: 1
+  selectionWeight: 10
   basicBallDefinition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
   amount: 8

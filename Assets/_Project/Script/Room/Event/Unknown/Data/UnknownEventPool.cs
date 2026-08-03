@@ -34,6 +34,49 @@ public sealed class UnknownEventPool :
         return validCandidates.Count > 0;
     }
 
+    /*
+     * 현재 상태에서 실제 적용 가능한 이벤트를
+     * 전달받은 results 목록에 복사합니다.
+     *
+     * 슬롯머신은 이 목록의 표시 문구만 순환하며,
+     * 실제 당첨 결과는 TryDraw()의 가중치 추첨을
+     * 그대로 사용합니다.
+     */
+    public int GetApplicableEvents(
+        UnknownEventApplyContext context,
+        List<UnknownEventDefinition> results)
+    {
+        if (results == null)
+        {
+            return 0;
+        }
+
+        results.Clear();
+
+        CollectApplicableEvents(
+            context
+        );
+
+        for (int i = 0;
+             i < validCandidates.Count;
+             i++)
+        {
+            UnknownEventDefinition candidate =
+                validCandidates[i];
+
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            results.Add(
+                candidate
+            );
+        }
+
+        return results.Count;
+    }
+
     public bool TryDraw(
         UnknownEventApplyContext context,
         out UnknownEventDefinition selectedEvent)

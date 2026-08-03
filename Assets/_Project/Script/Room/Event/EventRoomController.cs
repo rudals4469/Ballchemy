@@ -31,6 +31,10 @@ public sealed class EventRoomController :
     private EventSelectionUI
         selectionUI;
 
+    [SerializeField]
+    private UnknownEventSlotPresenter
+        unknownEventSlotPresenter;
+
     [Header("Unknown Event")]
 
     [SerializeField]
@@ -73,13 +77,22 @@ public sealed class EventRoomController :
         currentChoices =
             new List<EventChoiceData>();
 
+    private readonly List<UnknownEventDefinition>
+        applicableUnknownEvents =
+            new List<UnknownEventDefinition>();
+
     private UnknownEventApplyContext
         unknownEventContext;
+
+    private UnknownEventDefinition
+        pendingUnknownEvent;
 
     private int activeEventRoomId =
         -1;
 
     private bool isChoiceOpen;
+    private bool isUnknownSlotPlaying;
+    private bool isBeingDestroyed;
 
     private void Awake()
     {
@@ -90,6 +103,9 @@ public sealed class EventRoomController :
 
     private void OnEnable()
     {
+        isBeingDestroyed =
+            false;
+
         FindReferences();
         CreateUnknownEventContext();
         SubscribeEvents();
@@ -99,13 +115,48 @@ public sealed class EventRoomController :
     {
         UnsubscribeEvents();
 
+        /*
+         * Unity 오브젝트는 파괴된 후 일반 C#의
+         * null 조건 연산자(?.)로 안전하게
+         * 걸러지지 않을 수 있습니다.
+         *
+         * 반드시 Unity 방식의 명시적인
+         * null 검사를 사용합니다.
+         */
+        if (unknownEventSlotPresenter != null)
+        {
+            unknownEventSlotPresenter
+                .CancelAndHide();
+        }
+
         isChoiceOpen =
+            false;
+
+        isUnknownSlotPlaying =
             false;
 
         activeEventRoomId =
             -1;
 
+        pendingUnknownEvent =
+            null;
+
         currentChoices.Clear();
+        applicableUnknownEvents.Clear();
+    }
+
+    private void OnDestroy()
+    {
+        isBeingDestroyed =
+            true;
+
+        UnsubscribeEvents();
+
+        /*
+         * OnDestroy에서는 다른 UI 오브젝트가
+         * 이미 먼저 파괴됐을 수 있으므로
+         * Presenter를 호출하지 않습니다.
+         */
     }
 
     private void OnValidate()
@@ -181,6 +232,16 @@ public sealed class EventRoomController :
                     FindObjectsInactive.Include
                 );
         }
+
+        if (unknownEventSlotPresenter == null)
+        {
+            unknownEventSlotPresenter =
+                FindFirstObjectByType<
+                    UnknownEventSlotPresenter
+                >(
+                    FindObjectsInactive.Include
+                );
+        }
     }
 
     private void CreateUnknownEventContext()
@@ -251,6 +312,15 @@ public sealed class EventRoomController :
             );
         }
 
+        if (unknownEventSlotPresenter == null)
+        {
+            Debug.LogError(
+                "EventRoomController: " +
+                "UnknownEventSlotPresenter가 연결되지 않았습니다.",
+                this
+            );
+        }
+
         if (unknownEventPool == null)
         {
             Debug.LogError(
@@ -309,6 +379,11 @@ public sealed class EventRoomController :
     private void HandleMapInitialized(
         StageMap stageMap)
     {
+        if (isBeingDestroyed)
+        {
+            return;
+        }
+
         if (eventRoomState != null)
         {
             eventRoomState.ResetForNewStage();
@@ -323,7 +398,8 @@ public sealed class EventRoomController :
         RoomNode previousRoom,
         RoomNode currentRoom)
     {
-        if (currentRoom == null ||
+        if (isBeingDestroyed ||
+            currentRoom == null ||
             currentRoom.RoomType !=
                 RoomType.Event)
         {
@@ -346,20 +422,30 @@ public sealed class EventRoomController :
     private void OpenSelection(
         int roomId)
     {
-        if (selectionUI == null ||
+        if (isBeingDestroyed ||
+            selectionUI == null ||
             playerHealth == null ||
             roomNavigator == null)
         {
             return;
         }
 
-        /*
-         * 런 상태 오브젝트가 씬 초기화 과정에서
-         * 늦게 생성되거나 다시 활성화될 수 있으므로
-         * 이벤트 UI를 열 때 참조와 컨텍스트를 갱신합니다.
-         */
         FindReferences();
         CreateUnknownEventContext();
+
+        if (unknownEventSlotPresenter != null)
+        {
+            unknownEventSlotPresenter
+                .CancelAndHide();
+        }
+
+        pendingUnknownEvent =
+            null;
+
+        applicableUnknownEvents.Clear();
+
+        isUnknownSlotPlaying =
+            false;
 
         activeEventRoomId =
             roomId;
@@ -449,15 +535,31 @@ public sealed class EventRoomController :
     private void HandleChoiceSelected(
         EventChoiceData selectedChoice)
     {
-        if (!isChoiceOpen ||
+        if (isBeingDestroyed ||
+            !isChoiceOpen ||
+            isUnknownSlotPlaying ||
             selectedChoice == null ||
             playerHealth == null)
         {
             return;
         }
 
+        if (selectedChoice.ChoiceType ==
+            EventChoiceType.Unknown)
+        {
+            bool started =
+                TryStartUnknownEventSlot();
+
+            if (!started)
+            {
+                RestoreChoiceSelection();
+            }
+
+            return;
+        }
+
         bool applied =
-            ApplyChoice(
+            ApplyImmediateChoice(
                 selectedChoice
             );
 
@@ -470,31 +572,15 @@ public sealed class EventRoomController :
                 this
             );
 
-            BuildChoices();
-
-            if (selectionUI != null)
-            {
-                selectionUI.ShowChoices(
-                    currentChoices
-                );
-            }
+            RestoreChoiceSelection();
 
             return;
         }
 
-        if (eventRoomState != null)
-        {
-            eventRoomState.TryMarkEventRoomUsed(
-                activeEventRoomId
-            );
-        }
-
-        CloseSelection(
-            true
-        );
+        CompleteEventRoomChoice();
     }
 
-    private bool ApplyChoice(
+    private bool ApplyImmediateChoice(
         EventChoiceData selectedChoice)
     {
         switch (selectedChoice.ChoiceType)
@@ -538,77 +624,235 @@ public sealed class EventRoomController :
                     );
             }
 
-            case EventChoiceType.Unknown:
-            {
-                return TryApplyUnknownEvent();
-            }
-
             default:
                 return false;
         }
     }
 
-    private bool TryApplyUnknownEvent()
+    private bool TryStartUnknownEventSlot()
     {
-        if (unknownEventPool == null ||
-            unknownEventContext == null)
+        if (isBeingDestroyed ||
+            unknownEventPool == null ||
+            unknownEventContext == null ||
+            unknownEventSlotPresenter == null)
         {
+            return false;
+        }
+
+        FindReferences();
+        CreateUnknownEventContext();
+
+        int candidateCount =
+            unknownEventPool.GetApplicableEvents(
+                unknownEventContext,
+                applicableUnknownEvents
+            );
+
+        if (candidateCount <= 0)
+        {
+            Debug.LogWarning(
+                "EventRoomController: " +
+                "슬롯에 표시할 적용 가능한 " +
+                "비밀 이벤트가 없습니다.",
+                this
+            );
+
             return false;
         }
 
         bool drewEvent =
             unknownEventPool.TryDraw(
                 unknownEventContext,
-                out UnknownEventDefinition
-                    selectedEvent
+                out pendingUnknownEvent
             );
 
         if (!drewEvent ||
-            selectedEvent == null)
+            pendingUnknownEvent == null)
         {
             Debug.LogWarning(
                 "EventRoomController: " +
-                "적용 가능한 비밀 이벤트가 없습니다.",
+                "비밀 이벤트 당첨 결과를 추첨하지 못했습니다.",
                 this
             );
 
             return false;
         }
+
+        isUnknownSlotPlaying =
+            true;
+
+        selectionUI.Hide();
+
+        bool started =
+            unknownEventSlotPresenter.Play(
+                applicableUnknownEvents,
+                pendingUnknownEvent,
+                ApplyPendingUnknownEvent,
+                HandleUnknownSlotCompleted
+            );
+
+        if (!started)
+        {
+            isUnknownSlotPlaying =
+                false;
+
+            pendingUnknownEvent =
+                null;
+
+            return false;
+        }
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "EventRoomController: " +
+                $"??? 슬롯 시작, 후보={candidateCount}개",
+                this
+            );
+        }
+
+        return true;
+    }
+
+    private UnknownEventResult
+        ApplyPendingUnknownEvent()
+    {
+        if (pendingUnknownEvent == null ||
+            unknownEventContext == null)
+        {
+            return new UnknownEventResult(
+                pendingUnknownEvent,
+                false,
+                "적용할 비밀 이벤트가 없습니다."
+            );
+        }
+
+        UnknownEventDefinition selectedEvent =
+            pendingUnknownEvent;
 
         UnknownEventResult result =
             selectedEvent.Apply(
                 unknownEventContext
             );
 
-        if (result == null ||
-            !result.WasApplied)
+        if (result == null)
+        {
+            return new UnknownEventResult(
+                selectedEvent,
+                false,
+                "비밀 이벤트 결과가 생성되지 않았습니다."
+            );
+        }
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "EventRoomController: ??? 결과 — " +
+                $"{selectedEvent.DisplayName}\n" +
+                $"{result.ResultText}",
+                this
+            );
+        }
+
+        return result;
+    }
+
+    private void HandleUnknownSlotCompleted(
+        bool wasApplied)
+    {
+        if (isBeingDestroyed)
+        {
+            return;
+        }
+
+        isUnknownSlotPlaying =
+            false;
+
+        pendingUnknownEvent =
+            null;
+
+        applicableUnknownEvents.Clear();
+
+        if (!wasApplied)
         {
             Debug.LogWarning(
                 "EventRoomController: " +
-                $"비밀 이벤트 적용 실패, " +
-                $"Event={selectedEvent.DisplayName}",
+                "비밀 이벤트 슬롯 결과 적용에 실패했습니다.",
                 this
             );
 
-            return false;
+            RestoreChoiceSelection();
+
+            return;
         }
 
-        Debug.Log(
-            "EventRoomController: ??? 결과 — " +
-            $"{selectedEvent.DisplayName}\n" +
-            $"{result.ResultText}",
-            this
-        );
+        CompleteEventRoomChoice();
+    }
 
-        return true;
+    private void RestoreChoiceSelection()
+    {
+        if (isBeingDestroyed ||
+            !isChoiceOpen)
+        {
+            return;
+        }
+
+        isUnknownSlotPlaying =
+            false;
+
+        pendingUnknownEvent =
+            null;
+
+        applicableUnknownEvents.Clear();
+
+        BuildChoices();
+
+        if (selectionUI != null)
+        {
+            selectionUI.ShowChoices(
+                currentChoices
+            );
+        }
+
+        if (roomNavigator != null)
+        {
+            roomNavigator.SetNavigationLocked(
+                true
+            );
+        }
+    }
+
+    private void CompleteEventRoomChoice()
+    {
+        if (eventRoomState != null)
+        {
+            eventRoomState.TryMarkEventRoomUsed(
+                activeEventRoomId
+            );
+        }
+
+        CloseSelection(
+            true
+        );
     }
 
     private void CloseSelection(
         bool wasCompleted)
     {
+        if (isBeingDestroyed)
+        {
+            return;
+        }
+
         if (selectionUI != null)
         {
             selectionUI.Hide();
+        }
+
+        if (unknownEventSlotPresenter != null)
+        {
+            unknownEventSlotPresenter
+                .CancelAndHide();
         }
 
         if (roomNavigator != null)
@@ -632,9 +876,16 @@ public sealed class EventRoomController :
         isChoiceOpen =
             false;
 
+        isUnknownSlotPlaying =
+            false;
+
         activeEventRoomId =
             -1;
 
+        pendingUnknownEvent =
+            null;
+
         currentChoices.Clear();
+        applicableUnknownEvents.Clear();
     }
 }

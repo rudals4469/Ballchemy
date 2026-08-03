@@ -6126,8 +6126,10 @@ MonoBehaviour:
   roomNavigator: {fileID: 372114439}
   playerHealth: {fileID: 858936749}
   ballCollection: {fileID: 904823811}
+  runRewardState: {fileID: 2091208932}
   eventRoomState: {fileID: 819815874}
   selectionUI: {fileID: 1765613868}
+  unknownEventSlotPresenter: {fileID: 0}
   unknownEventPool: {fileID: 11400000, guid: 7503fda6c3b3e7147bec1e82d9975737, type: 2}
   healMaxHealthRatio: 0.3
   maxHealthIncrease: 5
@@ -6815,7 +6817,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallCollection
   ballPrefab: {fileID: -6506564171772199970, guid: 1e1ebd27078b36c4f903bd2242b0daf6, type: 3}
   startingBallCount: 15
-  startingBallDefinition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
+  startingBallDefinition: {fileID: 11400000, guid: 3ec0369c005d22944bdd862eef1952de, type: 2}
   runtimeStats: {fileID: 904823814}
 --- !u!114 &904823812
 MonoBehaviour:
@@ -9761,6 +9763,7 @@ Transform:
   - {fileID: 1816328242}
   - {fileID: 1386750353}
   - {fileID: 819815872}
+  - {fileID: 2091208931}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1321679005
@@ -12547,7 +12550,8 @@ MonoBehaviour:
   rewardSelectionUI: {fileID: 1593605052}
   ballCollection: {fileID: 904823811}
   runAugmentState: {fileID: 904823821}
-  debugRewardTierOverride: 3
+  runRewardState: {fileID: 2091208932}
+  debugRewardTierOverride: 0
   showDebugLog: 1
 --- !u!1 &1843478305
 GameObject:
@@ -14350,6 +14354,51 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2073427152}
   m_CullTransparentMesh: 1
+--- !u!1 &2091208930
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2091208931}
+  - component: {fileID: 2091208932}
+  m_Layer: 0
+  m_Name: RunRewardSystem
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2091208931
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2091208930}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1312074106}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2091208932
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2091208930}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c35913ebf2f38204293a8c12a8ed3542, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RunRewardState
+  pendingRewardTierIncrease: 0
 --- !u!1 &2092661371
 GameObject:
   m_ObjectHideFlags: 0

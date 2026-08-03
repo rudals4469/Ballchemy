@@ -17,6 +17,6 @@ MonoBehaviour:
   description: "\uD68D\uB4DD\uD55C \uBAA8\uB4E0 \uACF5\uC758 \n\uC9C1\uC811 \uD53C\uD574
     \uBCF4\uB108\uC2A4\uAC00 1 \uAC10\uC18C\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
-  selectionWeight: 1
+  selectionWeight: 6
   damagePenalty: 1
   minimumRunDamageBonus: 0

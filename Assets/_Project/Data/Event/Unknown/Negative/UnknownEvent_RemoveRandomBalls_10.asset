@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: "\uBB34\uC791\uC704 \uACF5 -10"
   description: "\uBB34\uC791\uC704 \uACF5 10\uAC1C\uB97C \uC783\uC2B5\uB2C8\uB2E4."
   icon: {fileID: 0}
-  selectionWeight: 1
+  selectionWeight: 3
   removeCount: 10
   minimumRemainingBalls: 1
   excludePiercingBalls: 1
