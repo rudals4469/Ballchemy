@@ -37,6 +37,13 @@ public sealed class StageModifierState :
     [SerializeField, Min(0)]
     private int enemyAttackIntervalBonusTurns;
 
+    [Tooltip(
+        "현재 스테이지에 적용되는 블록 파괴 골드 증가율입니다.\n" +
+        "0.25는 골드 획득량 25% 증가를 의미합니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float goldGainIncreaseRatio;
+
     [Header("Debug")]
 
     [SerializeField]
@@ -55,6 +62,9 @@ public sealed class StageModifierState :
     public int EnemyAttackIntervalBonusTurns =>
         enemyAttackIntervalBonusTurns;
 
+    public float GoldGainIncreaseRatio =>
+        goldGainIncreaseRatio;
+
     public bool HasDirectDamageIncrease =>
         directDamageIncreaseRatio > 0f;
 
@@ -66,6 +76,9 @@ public sealed class StageModifierState :
 
     public bool HasEnemyAttackIntervalBonus =>
         enemyAttackIntervalBonusTurns > 0;
+
+    public bool HasGoldGainIncrease =>
+        goldGainIncreaseRatio > 0f;
 
     public event Action
         StateChanged;
@@ -81,6 +94,9 @@ public sealed class StageModifierState :
 
     public event Action<int>
         EnemyAttackIntervalBonusTurnsChanged;
+
+    public event Action<float>
+        GoldGainIncreaseRatioChanged;
 
     public event Action
         StageStateReset;
@@ -109,6 +125,12 @@ public sealed class StageModifierState :
             Mathf.Max(
                 enemyAttackIntervalBonusTurns,
                 0
+            );
+
+        goldGainIncreaseRatio =
+            Mathf.Max(
+                goldGainIncreaseRatio,
+                0f
             );
     }
 
@@ -454,6 +476,92 @@ public sealed class StageModifierState :
         return true;
     }
 
+    public bool TryAddGoldGainIncreaseRatio(
+        float ratio)
+    {
+        if (ratio <= 0f)
+        {
+            return false;
+        }
+
+        goldGainIncreaseRatio +=
+            ratio;
+
+        goldGainIncreaseRatio =
+            Mathf.Max(
+                goldGainIncreaseRatio,
+                0f
+            );
+
+        GoldGainIncreaseRatioChanged
+            ?.Invoke(
+                goldGainIncreaseRatio
+            );
+
+        StateChanged?.Invoke();
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "StageModifierState: " +
+                "골드 획득 증가율을 추가했습니다. " +
+                $"추가={ratio:P0}, " +
+                $"현재={goldGainIncreaseRatio:P0}",
+                this
+            );
+        }
+
+        return true;
+    }
+
+    public bool TryRemoveGoldGainIncreaseRatio(
+        float ratio)
+    {
+        if (ratio <= 0f ||
+            goldGainIncreaseRatio <= 0f)
+        {
+            return false;
+        }
+
+        float previousRatio =
+            goldGainIncreaseRatio;
+
+        goldGainIncreaseRatio =
+            Mathf.Max(
+                goldGainIncreaseRatio -
+                ratio,
+                0f
+            );
+
+        if (Mathf.Approximately(
+                previousRatio,
+                goldGainIncreaseRatio
+            ))
+        {
+            return false;
+        }
+
+        GoldGainIncreaseRatioChanged
+            ?.Invoke(
+                goldGainIncreaseRatio
+            );
+
+        StateChanged?.Invoke();
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "StageModifierState: " +
+                "골드 획득 증가율을 되돌렸습니다. " +
+                $"감소={ratio:P0}, " +
+                $"현재={goldGainIncreaseRatio:P0}",
+                this
+            );
+        }
+
+        return true;
+    }
+
     public int ApplyDirectDamageModifier(
         int baseDamage)
     {
@@ -498,7 +606,7 @@ public sealed class StageModifierState :
             return baseDamage;
         }
 
-        float clampedReductionRatio =
+        float reductionRatio =
             Mathf.Clamp01(
                 enemyAttackDamageReductionRatio
             );
@@ -507,7 +615,7 @@ public sealed class StageModifierState :
             baseDamage *
             (
                 1f -
-                clampedReductionRatio
+                reductionRatio
             );
 
         return Mathf.Max(
@@ -534,6 +642,36 @@ public sealed class StageModifierState :
         );
     }
 
+    public int ApplyGoldGainModifier(
+        int baseGold)
+    {
+        baseGold =
+            Mathf.Max(
+                baseGold,
+                0
+            );
+
+        if (baseGold <= 0 ||
+            goldGainIncreaseRatio <= 0f)
+        {
+            return baseGold;
+        }
+
+        float modifiedGold =
+            baseGold *
+            (
+                1f +
+                goldGainIncreaseRatio
+            );
+
+        return Mathf.Max(
+            Mathf.CeilToInt(
+                modifiedGold
+            ),
+            1
+        );
+    }
+
     public void ResetForNewStage()
     {
         directDamageIncreaseRatio =
@@ -547,6 +685,9 @@ public sealed class StageModifierState :
 
         enemyAttackIntervalBonusTurns =
             0;
+
+        goldGainIncreaseRatio =
+            0f;
 
         DirectDamageIncreaseRatioChanged
             ?.Invoke(
@@ -566,6 +707,11 @@ public sealed class StageModifierState :
         EnemyAttackIntervalBonusTurnsChanged
             ?.Invoke(
                 enemyAttackIntervalBonusTurns
+            );
+
+        GoldGainIncreaseRatioChanged
+            ?.Invoke(
+                goldGainIncreaseRatio
             );
 
         StageStateReset?.Invoke();

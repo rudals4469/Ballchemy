@@ -229,6 +229,13 @@ public sealed class ShopPurchaseController :
                     item
                 );
 
+            case ShopItemEffectType.IncreaseGoldGain:
+                return TryPurchaseIncreaseGoldGain(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
             default:
                 return Fail(
                     $"아직 구매 효과가 구현되지 않은 상품입니다. " +
@@ -373,86 +380,27 @@ public sealed class ShopPurchaseController :
         int inventorySlotIndex,
         ShopItemDefinition item)
     {
-        if (!ValidateStageBuffPurchase(
-                roomId,
-                inventorySlotIndex,
-                item,
-                out int price
-            ))
-        {
-            return false;
-        }
-
-        float increaseRatio =
+        float ratio =
             item.RatioValue;
 
-        if (increaseRatio <= 0f)
-        {
-            return Fail(
-                "직접 피해 증가율이 0 이하입니다. " +
-                $"ItemId={item.ItemId}, " +
-                $"RatioValue={increaseRatio}"
-            );
-        }
-
-        if (!currencyState.TrySpendGold(
-                price
-            ))
-        {
-            return Fail(
-                "골드 차감에 실패했습니다."
-            );
-        }
-
-        bool modifierApplied =
-            stageModifierState
-                .TryAddDirectDamageIncreaseRatio(
-                    increaseRatio
-                );
-
-        if (!modifierApplied)
-        {
-            currencyState.TryAddGold(
-                price
-            );
-
-            return Fail(
-                "직접 피해 증가 효과 적용에 실패하여 " +
-                "구매를 취소했습니다."
-            );
-        }
-
-        if (!TryRecordStageBuffPurchase(
-                roomId,
-                inventorySlotIndex,
-                price,
-                () =>
-                    stageModifierState
-                        .TryRemoveDirectDamageIncreaseRatio(
-                            increaseRatio
-                        )
-            ))
-        {
-            return false;
-        }
-
-        LogPurchaseSuccess(
+        return TryPurchaseRatioStageBuff(
             roomId,
             inventorySlotIndex,
             item,
-            price,
-            $"DirectDamageIncrease={increaseRatio:P0}, " +
-            $"TotalIncrease=" +
-            $"{stageModifierState.DirectDamageIncreaseRatio:P0}"
+            ratio,
+            "직접 피해 증가율",
+            () =>
+                stageModifierState
+                    .TryAddDirectDamageIncreaseRatio(
+                        ratio
+                    ),
+            () =>
+                stageModifierState
+                    .TryRemoveDirectDamageIncreaseRatio(
+                        ratio
+                    ),
+            $"DirectDamageIncrease={ratio:P0}"
         );
-
-        NotifyPurchaseSucceeded(
-            roomId,
-            inventorySlotIndex,
-            item
-        );
-
-        return true;
     }
 
     private bool TryPurchaseReduceEnemyMaxHealth(
@@ -460,86 +408,27 @@ public sealed class ShopPurchaseController :
         int inventorySlotIndex,
         ShopItemDefinition item)
     {
-        if (!ValidateStageBuffPurchase(
-                roomId,
-                inventorySlotIndex,
-                item,
-                out int price
-            ))
-        {
-            return false;
-        }
-
-        float reductionRatio =
+        float ratio =
             item.RatioValue;
 
-        if (reductionRatio <= 0f)
-        {
-            return Fail(
-                "적 최대 체력 감소율이 0 이하입니다. " +
-                $"ItemId={item.ItemId}, " +
-                $"RatioValue={reductionRatio}"
-            );
-        }
-
-        if (!currencyState.TrySpendGold(
-                price
-            ))
-        {
-            return Fail(
-                "골드 차감에 실패했습니다."
-            );
-        }
-
-        bool modifierApplied =
-            stageModifierState
-                .TryAddEnemyMaxHealthReductionRatio(
-                    reductionRatio
-                );
-
-        if (!modifierApplied)
-        {
-            currencyState.TryAddGold(
-                price
-            );
-
-            return Fail(
-                "적 최대 체력 감소 효과 적용에 실패하여 " +
-                "구매를 취소했습니다."
-            );
-        }
-
-        if (!TryRecordStageBuffPurchase(
-                roomId,
-                inventorySlotIndex,
-                price,
-                () =>
-                    stageModifierState
-                        .TryRemoveEnemyMaxHealthReductionRatio(
-                            reductionRatio
-                        )
-            ))
-        {
-            return false;
-        }
-
-        LogPurchaseSuccess(
+        return TryPurchaseRatioStageBuff(
             roomId,
             inventorySlotIndex,
             item,
-            price,
-            $"EnemyMaxHealthReduction={reductionRatio:P0}, " +
-            $"TotalReduction=" +
-            $"{stageModifierState.EnemyMaxHealthReductionRatio:P0}"
+            ratio,
+            "적 최대 체력 감소율",
+            () =>
+                stageModifierState
+                    .TryAddEnemyMaxHealthReductionRatio(
+                        ratio
+                    ),
+            () =>
+                stageModifierState
+                    .TryRemoveEnemyMaxHealthReductionRatio(
+                        ratio
+                    ),
+            $"EnemyMaxHealthReduction={ratio:P0}"
         );
-
-        NotifyPurchaseSucceeded(
-            roomId,
-            inventorySlotIndex,
-            item
-        );
-
-        return true;
     }
 
     private bool TryPurchaseReduceEnemyAttackDamage(
@@ -547,86 +436,55 @@ public sealed class ShopPurchaseController :
         int inventorySlotIndex,
         ShopItemDefinition item)
     {
-        if (!ValidateStageBuffPurchase(
-                roomId,
-                inventorySlotIndex,
-                item,
-                out int price
-            ))
-        {
-            return false;
-        }
-
-        float reductionRatio =
+        float ratio =
             item.RatioValue;
 
-        if (reductionRatio <= 0f)
-        {
-            return Fail(
-                "적 공격력 감소율이 0 이하입니다. " +
-                $"ItemId={item.ItemId}, " +
-                $"RatioValue={reductionRatio}"
-            );
-        }
-
-        if (!currencyState.TrySpendGold(
-                price
-            ))
-        {
-            return Fail(
-                "골드 차감에 실패했습니다."
-            );
-        }
-
-        bool modifierApplied =
-            stageModifierState
-                .TryAddEnemyAttackDamageReductionRatio(
-                    reductionRatio
-                );
-
-        if (!modifierApplied)
-        {
-            currencyState.TryAddGold(
-                price
-            );
-
-            return Fail(
-                "적 공격력 감소 효과 적용에 실패하여 " +
-                "구매를 취소했습니다."
-            );
-        }
-
-        if (!TryRecordStageBuffPurchase(
-                roomId,
-                inventorySlotIndex,
-                price,
-                () =>
-                    stageModifierState
-                        .TryRemoveEnemyAttackDamageReductionRatio(
-                            reductionRatio
-                        )
-            ))
-        {
-            return false;
-        }
-
-        LogPurchaseSuccess(
+        return TryPurchaseRatioStageBuff(
             roomId,
             inventorySlotIndex,
             item,
-            price,
-            $"EnemyAttackDamageReduction={reductionRatio:P0}, " +
-            $"TotalReduction=" +
-            $"{stageModifierState.EnemyAttackDamageReductionRatio:P0}"
+            ratio,
+            "적 공격력 감소율",
+            () =>
+                stageModifierState
+                    .TryAddEnemyAttackDamageReductionRatio(
+                        ratio
+                    ),
+            () =>
+                stageModifierState
+                    .TryRemoveEnemyAttackDamageReductionRatio(
+                        ratio
+                    ),
+            $"EnemyAttackDamageReduction={ratio:P0}"
         );
+    }
 
-        NotifyPurchaseSucceeded(
+    private bool TryPurchaseIncreaseGoldGain(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        float ratio =
+            item.RatioValue;
+
+        return TryPurchaseRatioStageBuff(
             roomId,
             inventorySlotIndex,
-            item
+            item,
+            ratio,
+            "골드 획득 증가율",
+            () =>
+                stageModifierState
+                    .TryAddGoldGainIncreaseRatio(
+                        ratio
+                    ),
+            () =>
+                stageModifierState
+                    .TryRemoveGoldGainIncreaseRatio(
+                        ratio
+                    ),
+            $"GoldGainIncrease={ratio:P0}"
         );
-
-        return true;
     }
 
     private bool TryPurchaseIncreaseEnemyAttackInterval(
@@ -665,13 +523,13 @@ public sealed class ShopPurchaseController :
             );
         }
 
-        bool modifierApplied =
+        bool applied =
             stageModifierState
                 .TryAddEnemyAttackIntervalBonusTurns(
                     bonusTurns
                 );
 
-        if (!modifierApplied)
+        if (!applied)
         {
             currencyState.TryAddGold(
                 price
@@ -702,9 +560,88 @@ public sealed class ShopPurchaseController :
             inventorySlotIndex,
             item,
             price,
-            $"EnemyAttackIntervalBonus={bonusTurns}턴, " +
-            $"TotalBonus=" +
-            $"{stageModifierState.EnemyAttackIntervalBonusTurns}턴"
+            $"EnemyAttackIntervalBonus={bonusTurns}턴"
+        );
+
+        NotifyPurchaseSucceeded(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+
+        return true;
+    }
+
+    private bool TryPurchaseRatioStageBuff(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item,
+        float ratio,
+        string ratioDescription,
+        Func<bool> applyModifier,
+        Func<bool> rollbackModifier,
+        string successDescription)
+    {
+        if (!ValidateStageBuffPurchase(
+                roomId,
+                inventorySlotIndex,
+                item,
+                out int price
+            ))
+        {
+            return false;
+        }
+
+        if (ratio <= 0f)
+        {
+            return Fail(
+                $"{ratioDescription}이 0 이하입니다. " +
+                $"ItemId={item.ItemId}, " +
+                $"RatioValue={ratio}"
+            );
+        }
+
+        if (!currencyState.TrySpendGold(
+                price
+            ))
+        {
+            return Fail(
+                "골드 차감에 실패했습니다."
+            );
+        }
+
+        bool applied =
+            applyModifier != null &&
+            applyModifier.Invoke();
+
+        if (!applied)
+        {
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                $"{ratioDescription} 효과 적용에 실패하여 " +
+                "구매를 취소했습니다."
+            );
+        }
+
+        if (!TryRecordStageBuffPurchase(
+                roomId,
+                inventorySlotIndex,
+                price,
+                rollbackModifier
+            ))
+        {
+            return false;
+        }
+
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            successDescription
         );
 
         NotifyPurchaseSucceeded(
@@ -722,13 +659,13 @@ public sealed class ShopPurchaseController :
         int price,
         Func<bool> rollbackModifier)
     {
-        bool purchaseRecorded =
+        bool recorded =
             shopRoomState.TryMarkSlotPurchased(
                 roomId,
                 inventorySlotIndex
             );
 
-        if (purchaseRecorded)
+        if (recorded)
         {
             return true;
         }

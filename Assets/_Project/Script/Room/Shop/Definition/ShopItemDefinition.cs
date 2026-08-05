@@ -23,11 +23,8 @@ public enum ShopItemEffectType
     ReduceEnemyMaxHealth,
     ReduceEnemyAttackDamage,
     IncreaseEnemyAttackInterval,
-    IncreaseCriticalChance,
     IncreaseBossDamage,
     IncreaseGoldGain,
-    SkipFirstEnemyAttackEachRoom,
-    BlockFirstEnemyAttackThisStage,
 
     /*
      * 특수 상품

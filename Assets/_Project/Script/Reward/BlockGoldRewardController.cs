@@ -8,42 +8,41 @@ public sealed class BlockGoldRewardController :
     [Header("References")]
 
     [SerializeField]
-    private StageRoomNavigator
-        roomNavigator;
+    private StageRoomNavigator roomNavigator;
 
     [SerializeField]
-    private BlockGridManager
-        blockGridManager;
+    private BlockGridManager blockGridManager;
 
     [SerializeField]
-    private RoomRetreatController
-        retreatController;
+    private RoomRetreatController retreatController;
 
     [SerializeField]
-    private RunCurrencyState
-        runCurrencyState;
+    private RunCurrencyState runCurrencyState;
 
     [SerializeField]
-    private RoomGoldTransactionState
-        roomGoldTransactionState;
+    private RoomGoldTransactionState roomGoldTransactionState;
+
+    [SerializeField]
+    private StageModifierState stageModifierState;
 
     [Header("Gold Per Clear Role")]
 
     [Tooltip(
-        "RequiredEnemy 역할 블록 파괴 시 지급할 골드입니다."
+        "RequiredEnemy 역할 블록 파괴 시 지급할 기본 골드입니다."
     )]
     [SerializeField, Min(0)]
-    private int requiredEnemyGold = 1;
+    private int requiredEnemyGold =
+        1;
 
     [Tooltip(
-        "Optional 역할 블록 파괴 시 지급할 골드입니다.\n" +
+        "Optional 역할 블록 파괴 시 지급할 기본 골드입니다.\n" +
         "초기에는 0을 권장합니다."
     )]
     [SerializeField, Min(0)]
     private int optionalGold;
 
     [Tooltip(
-        "Ignore 역할 블록 파괴 시 지급할 골드입니다.\n" +
+        "Ignore 역할 블록 파괴 시 지급할 기본 골드입니다.\n" +
         "항상 0을 권장합니다."
     )]
     [SerializeField, Min(0)]
@@ -52,7 +51,8 @@ public sealed class BlockGoldRewardController :
     [Header("Debug")]
 
     [SerializeField]
-    private bool showDebugLog = true;
+    private bool showDebugLog =
+        true;
 
     private readonly HashSet<Block>
         subscribedBlocks =
@@ -161,6 +161,14 @@ public sealed class BlockGoldRewardController :
                     RoomGoldTransactionState
                 >();
         }
+
+        if (stageModifierState == null)
+        {
+            stageModifierState =
+                FindFirstObjectByType<
+                    StageModifierState
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -206,6 +214,16 @@ public sealed class BlockGoldRewardController :
             Debug.LogError(
                 "BlockGoldRewardController: " +
                 "RoomGoldTransactionState가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (stageModifierState == null)
+        {
+            Debug.LogWarning(
+                "BlockGoldRewardController: " +
+                "StageModifierState가 연결되지 않았습니다. " +
+                "골드 획득 증가 버프는 적용되지 않습니다.",
                 this
             );
         }
@@ -308,10 +326,6 @@ public sealed class BlockGoldRewardController :
     private void HandleMapInitialized(
         StageMap stageMap)
     {
-        /*
-         * 정상 흐름에서는 새 스테이지 전환 전에
-         * 활성 거래가 남아 있으면 안 됩니다.
-         */
         if (roomGoldTransactionState != null &&
             roomGoldTransactionState
                 .HasActiveTransaction)
@@ -343,10 +357,6 @@ public sealed class BlockGoldRewardController :
             return;
         }
 
-        /*
-         * 이미 클리어한 전투방 재방문에서는
-         * 새로운 골드 거래를 시작하지 않습니다.
-         */
         if (roomNavigator != null &&
             roomNavigator.IsRoomCleared(
                 currentRoom.RoomId
@@ -371,14 +381,6 @@ public sealed class BlockGoldRewardController :
 
     private void HandleRoomCombatReset()
     {
-        /*
-         * 후퇴 과정에서는 이 이벤트가
-         * RetreatCompleted보다 먼저 발생합니다.
-         *
-         * 여기서는 거래를 제거하지 않고
-         * 기존 블록 구독만 정리합니다.
-         * 실제 골드 회수는 RetreatCompleted에서 처리합니다.
-         */
         UnsubscribeAllBlocks();
     }
 
@@ -465,11 +467,8 @@ public sealed class BlockGoldRewardController :
              i < activeBlocks.Count;
              i++)
         {
-            Block block =
-                activeBlocks[i];
-
             SubscribeBlock(
-                block
+                activeBlocks[i]
             );
         }
     }
@@ -555,9 +554,14 @@ public sealed class BlockGoldRewardController :
             }
         }
 
-        int rewardAmount =
+        int baseRewardAmount =
             ResolveBlockGold(
                 block
+            );
+
+        int rewardAmount =
+            ApplyGoldGainModifier(
+                baseRewardAmount
             );
 
         if (rewardAmount <= 0)
@@ -584,10 +588,6 @@ public sealed class BlockGoldRewardController :
 
         if (!recorded)
         {
-            /*
-             * 골드는 증가했지만 거래 기록에 실패한 경우
-             * 즉시 되돌려 중복 획득 가능성을 차단합니다.
-             */
             runCurrencyState.TryRollbackGold(
                 rewardAmount
             );
@@ -607,11 +607,40 @@ public sealed class BlockGoldRewardController :
             Debug.Log(
                 "BlockGoldRewardController: " +
                 $"블록 파괴 골드 +{rewardAmount}G, " +
+                $"기본={baseRewardAmount}G, " +
                 $"RoomId={currentRoom.RoomId}, " +
                 $"BlockId={block.BlockId}",
                 this
             );
         }
+    }
+
+    private int ApplyGoldGainModifier(
+        int baseRewardAmount)
+    {
+        baseRewardAmount =
+            Mathf.Max(
+                baseRewardAmount,
+                0
+            );
+
+        if (stageModifierState == null)
+        {
+            stageModifierState =
+                FindFirstObjectByType<
+                    StageModifierState
+                >();
+        }
+
+        if (stageModifierState == null)
+        {
+            return baseRewardAmount;
+        }
+
+        return stageModifierState
+            .ApplyGoldGainModifier(
+                baseRewardAmount
+            );
     }
 
     private int ResolveBlockGold(
