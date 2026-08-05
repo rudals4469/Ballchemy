@@ -23,6 +23,20 @@ public sealed class StageModifierState :
     [SerializeField, Min(0f)]
     private float enemyMaxHealthReductionRatio;
 
+    [Tooltip(
+        "현재 스테이지에 적용되는 적 공격력 감소율입니다.\n" +
+        "0.2는 적 공격력 20% 감소를 의미합니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float enemyAttackDamageReductionRatio;
+
+    [Tooltip(
+        "현재 스테이지에 추가되는 적 공격 주기 턴 수입니다.\n" +
+        "1이면 기존 공격 주기가 1턴 증가합니다."
+    )]
+    [SerializeField, Min(0)]
+    private int enemyAttackIntervalBonusTurns;
+
     [Header("Debug")]
 
     [SerializeField]
@@ -35,11 +49,23 @@ public sealed class StageModifierState :
     public float EnemyMaxHealthReductionRatio =>
         enemyMaxHealthReductionRatio;
 
+    public float EnemyAttackDamageReductionRatio =>
+        enemyAttackDamageReductionRatio;
+
+    public int EnemyAttackIntervalBonusTurns =>
+        enemyAttackIntervalBonusTurns;
+
     public bool HasDirectDamageIncrease =>
         directDamageIncreaseRatio > 0f;
 
     public bool HasEnemyMaxHealthReduction =>
         enemyMaxHealthReductionRatio > 0f;
+
+    public bool HasEnemyAttackDamageReduction =>
+        enemyAttackDamageReductionRatio > 0f;
+
+    public bool HasEnemyAttackIntervalBonus =>
+        enemyAttackIntervalBonusTurns > 0;
 
     public event Action
         StateChanged;
@@ -49,6 +75,12 @@ public sealed class StageModifierState :
 
     public event Action<float>
         EnemyMaxHealthReductionRatioChanged;
+
+    public event Action<float>
+        EnemyAttackDamageReductionRatioChanged;
+
+    public event Action<int>
+        EnemyAttackIntervalBonusTurnsChanged;
 
     public event Action
         StageStateReset;
@@ -65,6 +97,18 @@ public sealed class StageModifierState :
             Mathf.Max(
                 enemyMaxHealthReductionRatio,
                 0f
+            );
+
+        enemyAttackDamageReductionRatio =
+            Mathf.Max(
+                enemyAttackDamageReductionRatio,
+                0f
+            );
+
+        enemyAttackIntervalBonusTurns =
+            Mathf.Max(
+                enemyAttackIntervalBonusTurns,
+                0
             );
     }
 
@@ -240,6 +284,176 @@ public sealed class StageModifierState :
         return true;
     }
 
+    public bool TryAddEnemyAttackDamageReductionRatio(
+        float ratio)
+    {
+        if (ratio <= 0f)
+        {
+            return false;
+        }
+
+        enemyAttackDamageReductionRatio +=
+            ratio;
+
+        enemyAttackDamageReductionRatio =
+            Mathf.Max(
+                enemyAttackDamageReductionRatio,
+                0f
+            );
+
+        EnemyAttackDamageReductionRatioChanged
+            ?.Invoke(
+                enemyAttackDamageReductionRatio
+            );
+
+        StateChanged?.Invoke();
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "StageModifierState: " +
+                "적 공격력 감소율을 추가했습니다. " +
+                $"추가={ratio:P0}, " +
+                $"현재={enemyAttackDamageReductionRatio:P0}",
+                this
+            );
+        }
+
+        return true;
+    }
+
+    public bool TryRemoveEnemyAttackDamageReductionRatio(
+        float ratio)
+    {
+        if (ratio <= 0f ||
+            enemyAttackDamageReductionRatio <= 0f)
+        {
+            return false;
+        }
+
+        float previousRatio =
+            enemyAttackDamageReductionRatio;
+
+        enemyAttackDamageReductionRatio =
+            Mathf.Max(
+                enemyAttackDamageReductionRatio -
+                ratio,
+                0f
+            );
+
+        if (Mathf.Approximately(
+                previousRatio,
+                enemyAttackDamageReductionRatio
+            ))
+        {
+            return false;
+        }
+
+        EnemyAttackDamageReductionRatioChanged
+            ?.Invoke(
+                enemyAttackDamageReductionRatio
+            );
+
+        StateChanged?.Invoke();
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "StageModifierState: " +
+                "적 공격력 감소율을 되돌렸습니다. " +
+                $"감소={ratio:P0}, " +
+                $"현재={enemyAttackDamageReductionRatio:P0}",
+                this
+            );
+        }
+
+        return true;
+    }
+
+    public bool TryAddEnemyAttackIntervalBonusTurns(
+        int turns)
+    {
+        if (turns <= 0)
+        {
+            return false;
+        }
+
+        enemyAttackIntervalBonusTurns +=
+            turns;
+
+        enemyAttackIntervalBonusTurns =
+            Mathf.Max(
+                enemyAttackIntervalBonusTurns,
+                0
+            );
+
+        EnemyAttackIntervalBonusTurnsChanged
+            ?.Invoke(
+                enemyAttackIntervalBonusTurns
+            );
+
+        StateChanged?.Invoke();
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "StageModifierState: " +
+                "적 공격 주기 추가 턴을 등록했습니다. " +
+                $"추가={turns}턴, " +
+                $"현재={enemyAttackIntervalBonusTurns}턴",
+                this
+            );
+        }
+
+        return true;
+    }
+
+    public bool TryRemoveEnemyAttackIntervalBonusTurns(
+        int turns)
+    {
+        if (turns <= 0 ||
+            enemyAttackIntervalBonusTurns <= 0)
+        {
+            return false;
+        }
+
+        int previousTurns =
+            enemyAttackIntervalBonusTurns;
+
+        enemyAttackIntervalBonusTurns =
+            Mathf.Max(
+                enemyAttackIntervalBonusTurns -
+                turns,
+                0
+            );
+
+        if (previousTurns ==
+            enemyAttackIntervalBonusTurns)
+        {
+            return false;
+        }
+
+        EnemyAttackIntervalBonusTurnsChanged
+            ?.Invoke(
+                enemyAttackIntervalBonusTurns
+            );
+
+        StateChanged?.Invoke();
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "StageModifierState: " +
+                "적 공격 주기 추가 턴을 되돌렸습니다. " +
+                $"감소={turns}턴, " +
+                $"현재={enemyAttackIntervalBonusTurns}턴",
+                this
+            );
+        }
+
+        return true;
+    }
+
     public int ApplyDirectDamageModifier(
         int baseDamage)
     {
@@ -269,6 +483,57 @@ public sealed class StageModifierState :
         );
     }
 
+    public int ApplyEnemyAttackDamageModifier(
+        int baseDamage)
+    {
+        baseDamage =
+            Mathf.Max(
+                baseDamage,
+                0
+            );
+
+        if (baseDamage <= 0 ||
+            enemyAttackDamageReductionRatio <= 0f)
+        {
+            return baseDamage;
+        }
+
+        float clampedReductionRatio =
+            Mathf.Clamp01(
+                enemyAttackDamageReductionRatio
+            );
+
+        float modifiedDamage =
+            baseDamage *
+            (
+                1f -
+                clampedReductionRatio
+            );
+
+        return Mathf.Max(
+            Mathf.FloorToInt(
+                modifiedDamage
+            ),
+            1
+        );
+    }
+
+    public int ApplyEnemyAttackIntervalModifier(
+        int baseIntervalTurns)
+    {
+        baseIntervalTurns =
+            Mathf.Max(
+                baseIntervalTurns,
+                1
+            );
+
+        return Mathf.Max(
+            baseIntervalTurns +
+            enemyAttackIntervalBonusTurns,
+            1
+        );
+    }
+
     public void ResetForNewStage()
     {
         directDamageIncreaseRatio =
@@ -276,6 +541,12 @@ public sealed class StageModifierState :
 
         enemyMaxHealthReductionRatio =
             0f;
+
+        enemyAttackDamageReductionRatio =
+            0f;
+
+        enemyAttackIntervalBonusTurns =
+            0;
 
         DirectDamageIncreaseRatioChanged
             ?.Invoke(
@@ -285,6 +556,16 @@ public sealed class StageModifierState :
         EnemyMaxHealthReductionRatioChanged
             ?.Invoke(
                 enemyMaxHealthReductionRatio
+            );
+
+        EnemyAttackDamageReductionRatioChanged
+            ?.Invoke(
+                enemyAttackDamageReductionRatio
+            );
+
+        EnemyAttackIntervalBonusTurnsChanged
+            ?.Invoke(
+                enemyAttackIntervalBonusTurns
             );
 
         StageStateReset?.Invoke();

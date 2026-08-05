@@ -215,6 +215,20 @@ public sealed class ShopPurchaseController :
                     item
                 );
 
+            case ShopItemEffectType.ReduceEnemyAttackDamage:
+                return TryPurchaseReduceEnemyAttackDamage(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            case ShopItemEffectType.IncreaseEnemyAttackInterval:
+                return TryPurchaseIncreaseEnemyAttackInterval(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
             default:
                 return Fail(
                     $"아직 구매 효과가 구현되지 않은 상품입니다. " +
@@ -360,6 +374,8 @@ public sealed class ShopPurchaseController :
         ShopItemDefinition item)
     {
         if (!ValidateStageBuffPurchase(
+                roomId,
+                inventorySlotIndex,
                 item,
                 out int price
             ))
@@ -406,27 +422,18 @@ public sealed class ShopPurchaseController :
             );
         }
 
-        bool purchaseRecorded =
-            shopRoomState.TryMarkSlotPurchased(
+        if (!TryRecordStageBuffPurchase(
                 roomId,
-                inventorySlotIndex
-            );
-
-        if (!purchaseRecorded)
+                inventorySlotIndex,
+                price,
+                () =>
+                    stageModifierState
+                        .TryRemoveDirectDamageIncreaseRatio(
+                            increaseRatio
+                        )
+            ))
         {
-            stageModifierState
-                .TryRemoveDirectDamageIncreaseRatio(
-                    increaseRatio
-                );
-
-            currencyState.TryAddGold(
-                price
-            );
-
-            return Fail(
-                "상품 구매 상태 기록에 실패하여 " +
-                "효과와 골드를 되돌렸습니다."
-            );
+            return false;
         }
 
         LogPurchaseSuccess(
@@ -434,8 +441,7 @@ public sealed class ShopPurchaseController :
             inventorySlotIndex,
             item,
             price,
-            $"DirectDamageIncrease=" +
-            $"{increaseRatio:P0}, " +
+            $"DirectDamageIncrease={increaseRatio:P0}, " +
             $"TotalIncrease=" +
             $"{stageModifierState.DirectDamageIncreaseRatio:P0}"
         );
@@ -455,6 +461,8 @@ public sealed class ShopPurchaseController :
         ShopItemDefinition item)
     {
         if (!ValidateStageBuffPurchase(
+                roomId,
+                inventorySlotIndex,
                 item,
                 out int price
             ))
@@ -501,27 +509,18 @@ public sealed class ShopPurchaseController :
             );
         }
 
-        bool purchaseRecorded =
-            shopRoomState.TryMarkSlotPurchased(
+        if (!TryRecordStageBuffPurchase(
                 roomId,
-                inventorySlotIndex
-            );
-
-        if (!purchaseRecorded)
+                inventorySlotIndex,
+                price,
+                () =>
+                    stageModifierState
+                        .TryRemoveEnemyMaxHealthReductionRatio(
+                            reductionRatio
+                        )
+            ))
         {
-            stageModifierState
-                .TryRemoveEnemyMaxHealthReductionRatio(
-                    reductionRatio
-                );
-
-            currencyState.TryAddGold(
-                price
-            );
-
-            return Fail(
-                "상품 구매 상태 기록에 실패하여 " +
-                "효과와 골드를 되돌렸습니다."
-            );
+            return false;
         }
 
         LogPurchaseSuccess(
@@ -529,8 +528,7 @@ public sealed class ShopPurchaseController :
             inventorySlotIndex,
             item,
             price,
-            $"EnemyMaxHealthReduction=" +
-            $"{reductionRatio:P0}, " +
+            $"EnemyMaxHealthReduction={reductionRatio:P0}, " +
             $"TotalReduction=" +
             $"{stageModifierState.EnemyMaxHealthReductionRatio:P0}"
         );
@@ -544,11 +542,217 @@ public sealed class ShopPurchaseController :
         return true;
     }
 
+    private bool TryPurchaseReduceEnemyAttackDamage(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        if (!ValidateStageBuffPurchase(
+                roomId,
+                inventorySlotIndex,
+                item,
+                out int price
+            ))
+        {
+            return false;
+        }
+
+        float reductionRatio =
+            item.RatioValue;
+
+        if (reductionRatio <= 0f)
+        {
+            return Fail(
+                "적 공격력 감소율이 0 이하입니다. " +
+                $"ItemId={item.ItemId}, " +
+                $"RatioValue={reductionRatio}"
+            );
+        }
+
+        if (!currencyState.TrySpendGold(
+                price
+            ))
+        {
+            return Fail(
+                "골드 차감에 실패했습니다."
+            );
+        }
+
+        bool modifierApplied =
+            stageModifierState
+                .TryAddEnemyAttackDamageReductionRatio(
+                    reductionRatio
+                );
+
+        if (!modifierApplied)
+        {
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "적 공격력 감소 효과 적용에 실패하여 " +
+                "구매를 취소했습니다."
+            );
+        }
+
+        if (!TryRecordStageBuffPurchase(
+                roomId,
+                inventorySlotIndex,
+                price,
+                () =>
+                    stageModifierState
+                        .TryRemoveEnemyAttackDamageReductionRatio(
+                            reductionRatio
+                        )
+            ))
+        {
+            return false;
+        }
+
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            $"EnemyAttackDamageReduction={reductionRatio:P0}, " +
+            $"TotalReduction=" +
+            $"{stageModifierState.EnemyAttackDamageReductionRatio:P0}"
+        );
+
+        NotifyPurchaseSucceeded(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+
+        return true;
+    }
+
+    private bool TryPurchaseIncreaseEnemyAttackInterval(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        if (!ValidateStageBuffPurchase(
+                roomId,
+                inventorySlotIndex,
+                item,
+                out int price
+            ))
+        {
+            return false;
+        }
+
+        int bonusTurns =
+            item.IntegerValue;
+
+        if (bonusTurns <= 0)
+        {
+            return Fail(
+                "적 공격 주기 증가 턴이 0 이하입니다. " +
+                $"ItemId={item.ItemId}, " +
+                $"IntegerValue={bonusTurns}"
+            );
+        }
+
+        if (!currencyState.TrySpendGold(
+                price
+            ))
+        {
+            return Fail(
+                "골드 차감에 실패했습니다."
+            );
+        }
+
+        bool modifierApplied =
+            stageModifierState
+                .TryAddEnemyAttackIntervalBonusTurns(
+                    bonusTurns
+                );
+
+        if (!modifierApplied)
+        {
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "적 공격 주기 증가 효과 적용에 실패하여 " +
+                "구매를 취소했습니다."
+            );
+        }
+
+        if (!TryRecordStageBuffPurchase(
+                roomId,
+                inventorySlotIndex,
+                price,
+                () =>
+                    stageModifierState
+                        .TryRemoveEnemyAttackIntervalBonusTurns(
+                            bonusTurns
+                        )
+            ))
+        {
+            return false;
+        }
+
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            $"EnemyAttackIntervalBonus={bonusTurns}턴, " +
+            $"TotalBonus=" +
+            $"{stageModifierState.EnemyAttackIntervalBonusTurns}턴"
+        );
+
+        NotifyPurchaseSucceeded(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+
+        return true;
+    }
+
+    private bool TryRecordStageBuffPurchase(
+        int roomId,
+        int inventorySlotIndex,
+        int price,
+        Func<bool> rollbackModifier)
+    {
+        bool purchaseRecorded =
+            shopRoomState.TryMarkSlotPurchased(
+                roomId,
+                inventorySlotIndex
+            );
+
+        if (purchaseRecorded)
+        {
+            return true;
+        }
+
+        rollbackModifier?.Invoke();
+
+        currencyState.TryAddGold(
+            price
+        );
+
+        return Fail(
+            "상품 구매 상태 기록에 실패하여 " +
+            "효과와 골드를 되돌렸습니다."
+        );
+    }
+
     private bool ValidateStageBuffPurchase(
+        int roomId,
+        int inventorySlotIndex,
         ShopItemDefinition item,
         out int price)
     {
-        price = 0;
+        price =
+            0;
 
         if (item == null)
         {
@@ -576,22 +780,10 @@ public sealed class ShopPurchaseController :
             );
         }
 
-        RoomNode currentRoom =
-            roomNavigator != null
-                ? roomNavigator.CurrentRoom
-                : null;
-
-        if (currentRoom == null)
-        {
-            return Fail(
-                "현재 상점방 정보를 찾을 수 없습니다."
-            );
-        }
-
         price =
             GetCurrentPrice(
-                currentRoom.RoomId,
-                0,
+                roomId,
+                inventorySlotIndex,
                 item
             );
 

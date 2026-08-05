@@ -3,9 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class EnemyAttackSequence : MonoBehaviour
+public sealed class EnemyAttackSequence :
+    MonoBehaviour
 {
     [Header("References")]
+
     [SerializeField]
     private EnemyAttackLineEffect attackLineEffect;
 
@@ -15,20 +17,26 @@ public sealed class EnemyAttackSequence : MonoBehaviour
     [SerializeField]
     private BlockElementSystem blockElementSystem;
 
+    [SerializeField]
+    private StageModifierState stageModifierState;
+
     [Header("Sequence Timing")]
+
     [Tooltip(
         "적 공격 턴이 시작된 뒤 " +
         "첫 블록이 공격하기까지의 시간입니다."
     )]
     [SerializeField, Min(0f)]
-    private float firstAttackDelay = 0.15f;
+    private float firstAttackDelay =
+        0.15f;
 
     [Tooltip(
         "한 블록의 공격이 끝난 뒤 " +
         "다음 블록이 공격하기까지의 간격입니다."
     )]
     [SerializeField, Min(0f)]
-    private float intervalBetweenAttacks = 0.1f;
+    private float intervalBetweenAttacks =
+        0.1f;
 
     public bool IsTargetDead =>
         playerHealth != null &&
@@ -41,6 +49,26 @@ public sealed class EnemyAttackSequence : MonoBehaviour
     {
         FindReferences();
         ValidateReferences();
+    }
+
+    private void OnValidate()
+    {
+        firstAttackDelay =
+            Mathf.Max(
+                firstAttackDelay,
+                0f
+            );
+
+        intervalBetweenAttacks =
+            Mathf.Max(
+                intervalBetweenAttacks,
+                0f
+            );
+
+        if (Application.isPlaying)
+        {
+            FindReferences();
+        }
     }
 
     private void FindReferences()
@@ -86,6 +114,14 @@ public sealed class EnemyAttackSequence : MonoBehaviour
                     BlockElementSystem
                 >();
         }
+
+        if (stageModifierState == null)
+        {
+            stageModifierState =
+                FindFirstObjectByType<
+                    StageModifierState
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -115,6 +151,16 @@ public sealed class EnemyAttackSequence : MonoBehaviour
                 "EnemyAttackSequence: " +
                 "BlockElementSystem을 찾지 못했습니다. " +
                 "동결 공격 취소가 적용되지 않습니다.",
+                this
+            );
+        }
+
+        if (stageModifierState == null)
+        {
+            Debug.LogWarning(
+                "EnemyAttackSequence: " +
+                "StageModifierState를 찾지 못했습니다. " +
+                "적 공격력 감소 버프가 적용되지 않습니다.",
                 this
             );
         }
@@ -163,8 +209,7 @@ public sealed class EnemyAttackSequence : MonoBehaviour
             }
 
             int damage =
-                Mathf.Max(
-                    0,
+                CalculateModifiedAttackPower(
                     attackingBlock.AttackPower
                 );
 
@@ -200,7 +245,8 @@ public sealed class EnemyAttackSequence : MonoBehaviour
                 continue;
             }
 
-            bool damageApplied = false;
+            bool damageApplied =
+                false;
 
             if (attackLineEffect != null)
             {
@@ -214,7 +260,8 @@ public sealed class EnemyAttackSequence : MonoBehaviour
                                 return;
                             }
 
-                            damageApplied = true;
+                            damageApplied =
+                                true;
 
                             TriggerBlockAttack(
                                 attackingBlock,
@@ -226,7 +273,8 @@ public sealed class EnemyAttackSequence : MonoBehaviour
 
             if (!damageApplied)
             {
-                damageApplied = true;
+                damageApplied =
+                    true;
 
                 TriggerBlockAttack(
                     attackingBlock,
@@ -262,7 +310,8 @@ public sealed class EnemyAttackSequence : MonoBehaviour
             return 0;
         }
 
-        int totalAttackPower = 0;
+        int totalAttackPower =
+            0;
 
         foreach (Block block in blocks)
         {
@@ -288,13 +337,45 @@ public sealed class EnemyAttackSequence : MonoBehaviour
             }
 
             totalAttackPower +=
-                Mathf.Max(
-                    0,
+                CalculateModifiedAttackPower(
                     block.AttackPower
                 );
         }
 
         return totalAttackPower;
+    }
+
+    private int CalculateModifiedAttackPower(
+        int baseAttackPower)
+    {
+        baseAttackPower =
+            Mathf.Max(
+                baseAttackPower,
+                0
+            );
+
+        if (baseAttackPower <= 0)
+        {
+            return 0;
+        }
+
+        if (stageModifierState == null)
+        {
+            stageModifierState =
+                FindFirstObjectByType<
+                    StageModifierState
+                >();
+        }
+
+        if (stageModifierState == null)
+        {
+            return baseAttackPower;
+        }
+
+        return stageModifierState
+            .ApplyEnemyAttackDamageModifier(
+                baseAttackPower
+            );
     }
 
     private List<Block> CreateAttackSnapshot(
