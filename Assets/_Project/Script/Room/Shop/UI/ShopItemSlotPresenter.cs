@@ -57,6 +57,7 @@ public sealed class ShopItemSlotPresenter :
 
     private ShopItemDefinition currentItem;
     private int currentInventorySlotIndex = -1;
+    private int currentDisplayedPrice;
     private bool isSoldOut;
 
     public ShopItemDefinition CurrentItem =>
@@ -64,6 +65,9 @@ public sealed class ShopItemSlotPresenter :
 
     public int CurrentInventorySlotIndex =>
         currentInventorySlotIndex;
+
+    public int CurrentDisplayedPrice =>
+        currentDisplayedPrice;
 
     public bool IsSoldOut =>
         isSoldOut;
@@ -109,11 +113,36 @@ public sealed class ShopItemSlotPresenter :
         int inventorySlotIndex,
         bool soldOut)
     {
+        int displayedPrice =
+            item != null
+                ? item.BaseGoldPrice
+                : 0;
+
+        Show(
+            item,
+            inventorySlotIndex,
+            soldOut,
+            displayedPrice
+        );
+    }
+
+    public void Show(
+        ShopItemDefinition item,
+        int inventorySlotIndex,
+        bool soldOut,
+        int displayedPrice)
+    {
         currentItem =
             item;
 
         currentInventorySlotIndex =
             inventorySlotIndex;
+
+        currentDisplayedPrice =
+            Mathf.Max(
+                displayedPrice,
+                0
+            );
 
         isSoldOut =
             soldOut;
@@ -133,12 +162,27 @@ public sealed class ShopItemSlotPresenter :
         currentInventorySlotIndex =
             -1;
 
+        currentDisplayedPrice =
+            0;
+
         isSoldOut =
             false;
 
         gameObject.SetActive(
             false
         );
+    }
+
+    public void RefreshPrice(
+        int displayedPrice)
+    {
+        currentDisplayedPrice =
+            Mathf.Max(
+                displayedPrice,
+                0
+            );
+
+        ApplyPriceVisual();
     }
 
     public void RefreshSoldOut(
@@ -155,7 +199,6 @@ public sealed class ShopItemSlotPresenter :
         if (currentItem == null)
         {
             Hide();
-
             return;
         }
 
@@ -180,15 +223,21 @@ public sealed class ShopItemSlotPresenter :
                 currentItem.Description;
         }
 
-        if (priceText != null)
+        ApplyPriceVisual();
+        ApplyInteractionState();
+    }
+
+    private void ApplyPriceVisual()
+    {
+        if (priceText == null)
         {
-            priceText.text =
-                FormatGoldPrice(
-                    currentItem.BaseGoldPrice
-                );
+            return;
         }
 
-        ApplyInteractionState();
+        priceText.text =
+            FormatGoldPrice(
+                currentDisplayedPrice
+            );
     }
 
     private void ApplyInteractionState()
@@ -202,10 +251,6 @@ public sealed class ShopItemSlotPresenter :
 
         if (slotButton != null)
         {
-            /*
-             * 치료 상품은 반복 구매형이므로 품절되지 않습니다.
-             * 다른 상품은 구매 후 카드 클릭을 잠글 예정입니다.
-             */
             slotButton.interactable =
                 currentItem != null &&
                 !isSoldOut;

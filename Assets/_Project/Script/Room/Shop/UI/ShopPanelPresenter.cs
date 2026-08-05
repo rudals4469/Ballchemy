@@ -9,25 +9,20 @@ public sealed class ShopPanelPresenter :
     [Header("Panel")]
 
     [Tooltip(
-        "실제로 표시하거나 숨길 상점 UI 루트입니다.\n" +
-        "이 컴포넌트가 붙은 오브젝트와는 분리하는 것을 권장합니다."
+        "실제로 표시하거나 숨길 상점 UI 오브젝트입니다.\n" +
+        "Presenter가 붙은 오브젝트와 분리되어 있어야 합니다."
     )]
     [SerializeField]
     private GameObject panelRoot;
 
     [Tooltip(
-        "상품 목록을 표시하는 Scroll Rect입니다.\n" +
-        "상점방 진입 시 목록을 맨 위로 이동하는 데 사용합니다."
+        "상품 목록을 표시하는 Scroll Rect입니다."
     )]
     [SerializeField]
     private ScrollRect productScrollRect;
 
     [Header("Slots")]
 
-    [Tooltip(
-        "상점 재고 0번부터 5번까지 표시할 UI 슬롯입니다.\n" +
-        "배열 순서와 상점 재고 슬롯 순서가 같아야 합니다."
-    )]
     [SerializeField]
     private ShopItemSlotPresenter[] slots =
         new ShopItemSlotPresenter[
@@ -45,10 +40,14 @@ public sealed class ShopPanelPresenter :
     [SerializeField]
     private ShopItemCatalog itemCatalog;
 
+    [SerializeField]
+    private ShopPurchaseController purchaseController;
+
     [Header("Debug")]
 
     [SerializeField]
-    private bool showDebugLog = true;
+    private bool showDebugLog =
+        true;
 
     private Coroutine delayedRefreshCoroutine;
     private bool isSubscribed;
@@ -135,7 +134,23 @@ public sealed class ShopPanelPresenter :
                 HandleStageStateReset;
         }
 
-        isSubscribed = true;
+        if (purchaseController != null)
+        {
+            purchaseController.PurchaseSucceeded -=
+                HandlePurchaseSucceeded;
+
+            purchaseController.PurchaseSucceeded +=
+                HandlePurchaseSucceeded;
+
+            purchaseController.PurchaseFailed -=
+                HandlePurchaseFailed;
+
+            purchaseController.PurchaseFailed +=
+                HandlePurchaseFailed;
+        }
+
+        isSubscribed =
+            true;
     }
 
     private void UnsubscribeEvents()
@@ -166,7 +181,17 @@ public sealed class ShopPanelPresenter :
                 HandleStageStateReset;
         }
 
-        isSubscribed = false;
+        if (purchaseController != null)
+        {
+            purchaseController.PurchaseSucceeded -=
+                HandlePurchaseSucceeded;
+
+            purchaseController.PurchaseFailed -=
+                HandlePurchaseFailed;
+        }
+
+        isSubscribed =
+            false;
     }
 
     private void SubscribeSlots()
@@ -224,26 +249,23 @@ public sealed class ShopPanelPresenter :
         RoomNode previousRoom,
         RoomNode currentRoom)
     {
-        if (!IsShopRoom(currentRoom))
+        if (!IsShopRoom(
+                currentRoom
+            ))
         {
             HideImmediately();
             return;
         }
 
-        /*
-         * ShopRoomController가 동일한 RoomChanged 이벤트에서
-         * 재고 생성과 상품 추첨을 처리합니다.
-         *
-         * 컴포넌트 실행 순서에 의존하지 않도록
-         * 한 프레임 뒤에 UI를 갱신합니다.
-         */
         ScheduleRefresh();
     }
 
     private void HandleShopInventoryCreated(
         int roomId)
     {
-        if (!IsCurrentShopRoom(roomId))
+        if (!IsCurrentShopRoom(
+                roomId
+            ))
         {
             return;
         }
@@ -255,7 +277,9 @@ public sealed class ShopPanelPresenter :
         int roomId,
         int slotIndex)
     {
-        if (!IsCurrentShopRoom(roomId))
+        if (!IsCurrentShopRoom(
+                roomId
+            ))
         {
             return;
         }
@@ -267,16 +291,44 @@ public sealed class ShopPanelPresenter :
         int roomId,
         int purchaseCount)
     {
-        if (!IsCurrentShopRoom(roomId))
+        if (!IsCurrentShopRoom(
+                roomId
+            ))
         {
             return;
         }
 
-        /*
-         * 다음 단계에서 치료 가격 증가를 연결하면
-         * 이 이벤트를 통해 가격 표시가 즉시 갱신됩니다.
-         */
         RefreshInventory();
+    }
+
+    private void HandlePurchaseSucceeded(
+        int roomId,
+        int slotIndex,
+        ShopItemDefinition item)
+    {
+        if (!IsCurrentShopRoom(
+                roomId
+            ))
+        {
+            return;
+        }
+
+        RefreshInventory();
+    }
+
+    private void HandlePurchaseFailed(
+        string message)
+    {
+        if (!showDebugLog)
+        {
+            return;
+        }
+
+        Debug.LogWarning(
+            "ShopPanelPresenter: " +
+            $"구매 실패 - {message}",
+            this
+        );
     }
 
     private void HandleStageStateReset()
@@ -303,7 +355,8 @@ public sealed class ShopPanelPresenter :
     {
         yield return null;
 
-        delayedRefreshCoroutine = null;
+        delayedRefreshCoroutine =
+            null;
 
         RefreshForCurrentRoom();
     }
@@ -319,7 +372,9 @@ public sealed class ShopPanelPresenter :
         RoomNode currentRoom =
             roomNavigator.CurrentRoom;
 
-        if (!IsShopRoom(currentRoom))
+        if (!IsShopRoom(
+                currentRoom
+            ))
         {
             HideImmediately();
             return;
@@ -347,7 +402,10 @@ public sealed class ShopPanelPresenter :
             return;
         }
 
-        SetPanelActive(true);
+        SetPanelActive(
+            true
+        );
+
         RefreshInventory();
         ResetScrollToTop();
 
@@ -375,7 +433,9 @@ public sealed class ShopPanelPresenter :
         RoomNode currentRoom =
             roomNavigator.CurrentRoom;
 
-        if (!IsShopRoom(currentRoom))
+        if (!IsShopRoom(
+                currentRoom
+            ))
         {
             HideImmediately();
             return;
@@ -398,7 +458,9 @@ public sealed class ShopPanelPresenter :
             }
 
             ShopItemSlotPresenter slot =
-                slots[inventorySlotIndex];
+                slots[
+                    inventorySlotIndex
+                ];
 
             if (slot == null)
             {
@@ -428,13 +490,10 @@ public sealed class ShopPanelPresenter :
                 continue;
             }
 
-            bool foundItem =
-                itemCatalog.TryGetItem(
+            if (!itemCatalog.TryGetItem(
                     productId,
                     out ShopItemDefinition item
-                );
-
-            if (!foundItem ||
+                ) ||
                 item == null)
             {
                 slot.Hide();
@@ -457,10 +516,20 @@ public sealed class ShopPanelPresenter :
                     inventorySlotIndex
                 );
 
+            int displayedPrice =
+                purchaseController != null
+                    ? purchaseController.GetCurrentPrice(
+                        currentRoom.RoomId,
+                        inventorySlotIndex,
+                        item
+                    )
+                    : item.BaseGoldPrice;
+
             slot.Show(
                 item,
                 inventorySlotIndex,
-                soldOut
+                soldOut,
+                displayedPrice
             );
         }
 
@@ -497,24 +566,22 @@ public sealed class ShopPanelPresenter :
             return;
         }
 
-        /*
-         * 실제 구매는 다음 단계에서
-         * ShopPurchaseController에 위임합니다.
-         *
-         * 현재는 카드 전체 클릭이 정상적으로
-         * 전달되는지만 확인합니다.
-         */
-        if (showDebugLog)
+        if (purchaseController == null)
         {
-            Debug.Log(
+            Debug.LogError(
                 "ShopPanelPresenter: " +
-                "상품 카드 클릭. " +
-                $"ItemId={slot.CurrentItem.ItemId}, " +
-                $"InventorySlot=" +
-                $"{slot.CurrentInventorySlotIndex}",
+                "ShopPurchaseController가 연결되지 않아 " +
+                "구매할 수 없습니다.",
                 this
             );
+
+            return;
         }
+
+        purchaseController.TryPurchase(
+            slot.CurrentInventorySlotIndex,
+            slot.CurrentItem
+        );
     }
 
     private bool IsCurrentShopRoom(
@@ -529,8 +596,11 @@ public sealed class ShopPanelPresenter :
         RoomNode currentRoom =
             roomNavigator.CurrentRoom;
 
-        return IsShopRoom(currentRoom) &&
-               currentRoom.RoomId == roomId;
+        return IsShopRoom(
+                   currentRoom
+               ) &&
+               currentRoom.RoomId ==
+               roomId;
     }
 
     private static bool IsShopRoom(
@@ -548,21 +618,22 @@ public sealed class ShopPanelPresenter :
             return;
         }
 
-        /*
-         * 레이아웃 갱신이 끝난 뒤에도
-         * 항상 최상단에서 시작하도록 설정합니다.
-         */
         Canvas.ForceUpdateCanvases();
 
         productScrollRect.StopMovement();
-        productScrollRect.verticalNormalizedPosition =
+
+        productScrollRect
+                .verticalNormalizedPosition =
             1f;
     }
 
     private void HideImmediately()
     {
         StopDelayedRefresh();
-        SetPanelActive(false);
+
+        SetPanelActive(
+            false
+        );
     }
 
     private void SetPanelActive(
@@ -595,7 +666,8 @@ public sealed class ShopPanelPresenter :
             delayedRefreshCoroutine
         );
 
-        delayedRefreshCoroutine = null;
+        delayedRefreshCoroutine =
+            null;
     }
 
     private void FindReferences()
@@ -628,6 +700,14 @@ public sealed class ShopPanelPresenter :
                 itemCatalog =
                     generator.ItemCatalog;
             }
+        }
+
+        if (purchaseController == null)
+        {
+            purchaseController =
+                FindFirstObjectByType<
+                    ShopPurchaseController
+                >();
         }
 
         if (productScrollRect == null &&
@@ -680,6 +760,15 @@ public sealed class ShopPanelPresenter :
             );
         }
 
+        if (purchaseController == null)
+        {
+            Debug.LogError(
+                "ShopPanelPresenter: " +
+                "ShopPurchaseController가 연결되지 않았습니다.",
+                this
+            );
+        }
+
         if (slots == null ||
             slots.Length !=
             ShopRoomState.TotalSlotCount)
@@ -696,9 +785,7 @@ public sealed class ShopPanelPresenter :
         {
             Debug.LogWarning(
                 "ShopPanelPresenter: " +
-                "Product Scroll Rect가 연결되지 않았습니다. " +
-                "상품 표시는 가능하지만 상점 진입 시 " +
-                "스크롤 위치를 초기화할 수 없습니다.",
+                "Product Scroll Rect가 연결되지 않았습니다.",
                 this
             );
         }

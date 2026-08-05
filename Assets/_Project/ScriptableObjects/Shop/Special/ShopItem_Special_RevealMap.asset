@@ -12,16 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0d48dbbbce09364dbf38fc15d92a9bf, type: 3}
   m_Name: ShopItem_Special_RevealMap
   m_EditorClassIdentifier: Assembly-CSharp::ShopItemDefinition
-  itemId: 
-  displayName: 
-  description: 
+  itemId: special_reveal_map
+  displayName: "\uD0D0\uC0C9 \uB098\uCE68\uBC18"
+  description: "\uD604\uC7AC \uC2A4\uD14C\uC774\uC9C0\uC758 \uBAA8\uB4E0 \uBC29\uACFC
+    \uC5F0\uACB0 \uACBD\uB85C\uB97C \uACF5\uAC1C\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   category: 2
-  effectType: 0
+  effectType: 12
   canBeSelected: 1
   selectionWeight: 100
   allowDuplicateInSameShop: 0
-  baseGoldPrice: 10
+  baseGoldPrice: 40
   isRepeatable: 0
   becomesSoldOutAfterPurchase: 1
   integerValue: 0

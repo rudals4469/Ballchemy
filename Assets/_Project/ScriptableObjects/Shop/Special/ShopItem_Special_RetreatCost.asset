@@ -12,18 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0d48dbbbce09364dbf38fc15d92a9bf, type: 3}
   m_Name: ShopItem_Special_RetreatCost
   m_EditorClassIdentifier: Assembly-CSharp::ShopItemDefinition
-  itemId: 
-  displayName: 
-  description: 
+  itemId: special_retreat_discount
+  displayName: "\uD6C4\uD1F4 \uD5C8\uAC00\uC99D"
+  description: "\uB2E4\uC74C \uD6C4\uD1F4 \uBE44\uC6A9\uC774 \uAC10\uC18C\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   category: 2
-  effectType: 0
+  effectType: 18
   canBeSelected: 1
   selectionWeight: 100
   allowDuplicateInSameShop: 0
-  baseGoldPrice: 10
+  baseGoldPrice: 35
   isRepeatable: 0
   becomesSoldOutAfterPurchase: 1
   integerValue: 0
-  ratioValue: 0
+  ratioValue: 1
   secondaryRatioValue: 0

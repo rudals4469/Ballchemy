@@ -12,18 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0d48dbbbce09364dbf38fc15d92a9bf, type: 3}
   m_Name: ShopItem_Special_RewardUpgrade
   m_EditorClassIdentifier: Assembly-CSharp::ShopItemDefinition
-  itemId: 
-  displayName: 
-  description: 
+  itemId: special_reward_upgrade
+  displayName: "\uBCF4\uC0C1 \uBCF4\uC99D\uC11C"
+  description: "\uB2E4\uC74C \uC804\uD22C\uBC29 \uBCF4\uC0C1 \uB4F1\uAE09\uC774 1\uB2E8\uACC4
+    \uC99D\uAC00\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   category: 2
-  effectType: 0
+  effectType: 15
   canBeSelected: 1
   selectionWeight: 100
   allowDuplicateInSameShop: 0
-  baseGoldPrice: 10
+  baseGoldPrice: 50
   isRepeatable: 0
   becomesSoldOutAfterPurchase: 1
-  integerValue: 0
+  integerValue: 1
   ratioValue: 0
   secondaryRatioValue: 0
