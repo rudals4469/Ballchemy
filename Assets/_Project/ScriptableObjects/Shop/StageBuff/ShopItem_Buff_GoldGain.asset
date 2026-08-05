@@ -12,19 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0d48dbbbce09364dbf38fc15d92a9bf, type: 3}
   m_Name: ShopItem_Buff_GoldGain
   m_EditorClassIdentifier: Assembly-CSharp::ShopItemDefinition
-  itemId: buff_reduce_enemy_max_health
-  displayName: "\uBB34\uB825\uD654 \uC6A9\uC561"
-  description: "\uC774\uBC88 \uC2A4\uD14C\uC774\uC9C0 \uB3D9\uC548 \uC77C\uBC18 \uC801\uACFC
-    \uB124\uC784\uB4DC\uC758 \uCD5C\uB300 \uCCB4\uB825\uC774 \uAC10\uC18C\uD569\uB2C8\uB2E4."
+  itemId: buff_increase_gold_gain
+  displayName: "\uD669\uAE08 \uCD09\uB9E4"
+  description: "\uC774\uBC88 \uC2A4\uD14C\uC774\uC9C0 \uB3D9\uC548 \uBE14\uB85D \uD30C\uAD34\uB85C
+    \uD68D\uB4DD\uD558\uB294 \uACE8\uB4DC\uAC00 25% \uC99D\uAC00\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   category: 1
-  effectType: 3
+  effectType: 7
   canBeSelected: 1
   selectionWeight: 100
   allowDuplicateInSameShop: 0
-  baseGoldPrice: 30
+  baseGoldPrice: 35
   isRepeatable: 0
   becomesSoldOutAfterPurchase: 1
   integerValue: 0
-  ratioValue: 0.2
+  ratioValue: 0.25
   secondaryRatioValue: 0
