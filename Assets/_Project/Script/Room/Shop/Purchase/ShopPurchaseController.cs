@@ -19,6 +19,9 @@ public sealed class ShopPurchaseController :
     [SerializeField]
     private PlayerHealth playerHealth;
 
+    [SerializeField]
+    private StageModifierState stageModifierState;
+
     [Header("Healing Price")]
 
     [Tooltip(
@@ -144,6 +147,13 @@ public sealed class ShopPurchaseController :
             );
         }
 
+        if (shopRoomState == null)
+        {
+            return Fail(
+                "상점 상태 참조가 없습니다."
+            );
+        }
+
         if (!shopRoomState.HasInventory(
                 roomId
             ))
@@ -186,6 +196,13 @@ public sealed class ShopPurchaseController :
         {
             case ShopItemEffectType.RecoverHealth:
                 return TryPurchaseHealing(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            case ShopItemEffectType.IncreaseDirectDamage:
+                return TryPurchaseIncreaseDirectDamage(
                     roomId,
                     inventorySlotIndex,
                     item
@@ -289,10 +306,6 @@ public sealed class ShopPurchaseController :
 
         if (appliedHealing <= 0)
         {
-            /*
-             * 사전 검증 이후 회복이 실패하는 비정상 상황입니다.
-             * 구매 손실을 막기 위해 차감한 골드를 되돌립니다.
-             */
             currencyState.TryAddGold(
                 price
             );
@@ -315,23 +328,141 @@ public sealed class ShopPurchaseController :
             );
         }
 
-        if (showDebugLog)
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            $"Healing={appliedHealing}, " +
+            $"Health={playerHealth.CurrentHealth}/" +
+            $"{playerHealth.MaxHealth}"
+        );
+
+        NotifyPurchaseSucceeded(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+
+        return true;
+    }
+
+    private bool TryPurchaseIncreaseDirectDamage(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        if (item.Category !=
+            ShopItemCategory.StageBuff)
         {
-            Debug.Log(
-                "ShopPurchaseController: " +
-                $"치료 상품 구매 완료. " +
-                $"RoomId={roomId}, " +
-                $"SlotIndex={inventorySlotIndex}, " +
-                $"Price={price}G, " +
-                $"Healing={appliedHealing}, " +
-                $"Health=" +
-                $"{playerHealth.CurrentHealth}/" +
-                $"{playerHealth.MaxHealth}",
-                this
+            return Fail(
+                "IncreaseDirectDamage 효과의 상품 카테고리가 " +
+                "StageBuff가 아닙니다."
             );
         }
 
-        PurchaseSucceeded?.Invoke(
+        if (currencyState == null ||
+            shopRoomState == null ||
+            stageModifierState == null)
+        {
+            return Fail(
+                "직접 피해 증가 상품 구매에 필요한 " +
+                "런타임 참조가 없습니다."
+            );
+        }
+
+        float increaseRatio =
+            item.RatioValue;
+
+        if (increaseRatio <= 0f)
+        {
+            return Fail(
+                "직접 피해 증가율이 0 이하입니다. " +
+                $"ItemId={item.ItemId}, " +
+                $"RatioValue={increaseRatio}"
+            );
+        }
+
+        int price =
+            GetCurrentPrice(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        if (!currencyState.CanAfford(
+                price
+            ))
+        {
+            return Fail(
+                $"골드가 부족합니다. " +
+                $"필요={price}G, " +
+                $"보유={currencyState.CurrentGold}G"
+            );
+        }
+
+        if (!currencyState.TrySpendGold(
+                price
+            ))
+        {
+            return Fail(
+                "골드 차감에 실패했습니다."
+            );
+        }
+
+        bool modifierApplied =
+            stageModifierState
+                .TryAddDirectDamageIncreaseRatio(
+                    increaseRatio
+                );
+
+        if (!modifierApplied)
+        {
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "직접 피해 증가 효과 적용에 실패하여 " +
+                "구매를 취소했습니다."
+            );
+        }
+
+        bool purchaseRecorded =
+            shopRoomState.TryMarkSlotPurchased(
+                roomId,
+                inventorySlotIndex
+            );
+
+        if (!purchaseRecorded)
+        {
+            stageModifierState
+                .TryRemoveDirectDamageIncreaseRatio(
+                    increaseRatio
+                );
+
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "상품 구매 상태 기록에 실패하여 " +
+                "효과와 골드를 되돌렸습니다."
+            );
+        }
+
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            $"DirectDamageIncrease=" +
+            $"{increaseRatio:P0}, " +
+            $"TotalIncrease=" +
+            $"{stageModifierState.DirectDamageIncreaseRatio:P0}"
+        );
+
+        NotifyPurchaseSucceeded(
             roomId,
             inventorySlotIndex,
             item
@@ -382,6 +513,47 @@ public sealed class ShopPurchaseController :
         return inventorySlotIndex >= 0 &&
                inventorySlotIndex <
                ShopRoomState.TotalSlotCount;
+    }
+
+    private void NotifyPurchaseSucceeded(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        PurchaseSucceeded?.Invoke(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+    }
+
+    private void LogPurchaseSuccess(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item,
+        int price,
+        string effectDescription)
+    {
+        if (!showDebugLog)
+        {
+            return;
+        }
+
+        string itemId =
+            item != null
+                ? item.ItemId
+                : "None";
+
+        Debug.Log(
+            "ShopPurchaseController: " +
+            "상품 구매 완료. " +
+            $"RoomId={roomId}, " +
+            $"SlotIndex={inventorySlotIndex}, " +
+            $"ItemId={itemId}, " +
+            $"Price={price}G, " +
+            effectDescription,
+            this
+        );
     }
 
     private bool Fail(
@@ -436,6 +608,14 @@ public sealed class ShopPurchaseController :
                     PlayerHealth
                 >();
         }
+
+        if (stageModifierState == null)
+        {
+            stageModifierState =
+                FindFirstObjectByType<
+                    StageModifierState
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -472,6 +652,15 @@ public sealed class ShopPurchaseController :
             Debug.LogError(
                 "ShopPurchaseController: " +
                 "PlayerHealth가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (stageModifierState == null)
+        {
+            Debug.LogError(
+                "ShopPurchaseController: " +
+                "StageModifierState가 연결되지 않았습니다.",
                 this
             );
         }

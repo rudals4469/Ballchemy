@@ -4,17 +4,26 @@ using UnityEngine;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Ball))]
 [RequireComponent(typeof(BallVisualView))]
-public sealed class BallCombatController : MonoBehaviour
+public sealed class BallCombatController :
+    MonoBehaviour
 {
     [Header("Ball Data")]
+
     [SerializeField]
     private BallDefinition definition;
 
     [Header("Runtime Stats")]
+
     [SerializeField]
     private BallRuntimeStats runtimeStats;
 
+    [Header("Stage State")]
+
+    [SerializeField]
+    private StageModifierState stageModifierState;
+
     [Header("Individual Ball Bonuses")]
+
     [SerializeField]
     private int individualDirectDamageBonus;
 
@@ -23,10 +32,13 @@ public sealed class BallCombatController : MonoBehaviour
         individualCriticalDamageMultiplierBonus;
 
     [Header("Fallback")]
+
     [SerializeField, Min(1)]
-    private int fallbackDirectDamage = 1;
+    private int fallbackDirectDamage =
+        1;
 
     [Header("Debug")]
+
     [SerializeField]
     private bool showDebugLog;
 
@@ -41,16 +53,6 @@ public sealed class BallCombatController : MonoBehaviour
     private BallTraitEffect
         activeTraitEffect;
 
-    /*
-     * 현재 ResolveBlockHit에서 처리 중인
-     * 직접 충돌을 추적합니다.
-     *
-     * 첫 번째로 충돌 대상 블록에 적용된 피해만
-     * 직접 피해로 인정합니다.
-     *
-     * 이후 같은 블록에 적용되는 감전, 열충격 등의
-     * 추가 피해는 동결 파쇄를 다시 일으키지 않습니다.
-     */
     private bool isResolvingDirectBlockHit;
 
     private Block resolvingDirectHitBlock;
@@ -67,6 +69,9 @@ public sealed class BallCombatController : MonoBehaviour
 
     public BallRuntimeStats RuntimeStats =>
         runtimeStats;
+
+    public StageModifierState StageModifierState =>
+        ResolveStageModifierState();
 
     public BallTraitDefinition TraitDefinition =>
         definition != null
@@ -95,7 +100,7 @@ public sealed class BallCombatController : MonoBehaviour
         IndividualCriticalDamageMultiplierBonus =>
             individualCriticalDamageMultiplierBonus;
 
-    public int DirectDamage
+    public int UnmodifiedDirectDamage
     {
         get
         {
@@ -117,6 +122,28 @@ public sealed class BallCombatController : MonoBehaviour
                 fallbackDamage,
                 1
             );
+        }
+    }
+
+    public int DirectDamage
+    {
+        get
+        {
+            int baseDamage =
+                UnmodifiedDirectDamage;
+
+            StageModifierState modifierState =
+                ResolveStageModifierState();
+
+            if (modifierState == null)
+            {
+                return baseDamage;
+            }
+
+            return modifierState
+                .ApplyDirectDamageModifier(
+                    baseDamage
+                );
         }
     }
 
@@ -187,6 +214,36 @@ public sealed class BallCombatController : MonoBehaviour
             ball =
                 GetComponent<Ball>();
         }
+
+        if (stageModifierState == null &&
+            Application.isPlaying)
+        {
+            stageModifierState =
+                FindFirstObjectByType<
+                    StageModifierState
+                >();
+        }
+    }
+
+    private StageModifierState
+        ResolveStageModifierState()
+    {
+        if (stageModifierState != null)
+        {
+            return stageModifierState;
+        }
+
+        if (!Application.isPlaying)
+        {
+            return null;
+        }
+
+        stageModifierState =
+            FindFirstObjectByType<
+                StageModifierState
+            >();
+
+        return stageModifierState;
     }
 
     private void NormalizeSettings()
@@ -339,13 +396,6 @@ public sealed class BallCombatController : MonoBehaviour
                 healthBeforeDamage
             );
 
-        /*
-         * 첫 직접 피해가 쉴드에 막혀 0이더라도
-         * 해당 충돌의 직접 피해 판정은 이미 끝난 것입니다.
-         *
-         * 같은 충돌에서 나중에 발생하는 추가 피해를
-         * 직접 피해로 오인하지 않도록 먼저 기록합니다.
-         */
         bool shouldResolveFrozenShatter =
             TryCaptureDirectHitDamage(
                 target,
@@ -379,10 +429,6 @@ public sealed class BallCombatController : MonoBehaviour
             )
         );
 
-        /*
-         * 직접 피해 숫자가 먼저 발행된 뒤
-         * 파쇄 추가 피해를 별도로 적용합니다.
-         */
         if (shouldResolveFrozenShatter)
         {
             ResolveFrozenShatter(
@@ -511,19 +557,11 @@ public sealed class BallCombatController : MonoBehaviour
         hasCapturedDirectDamage =
             true;
 
-        /*
-         * 충돌 시작 시점에 동결 상태가 아니었다면
-         * 이번 직접 피해로 파쇄할 대상이 아닙니다.
-         */
         if (!resolvingBlockWasFrozen)
         {
             return false;
         }
 
-        /*
-         * 쉴드, 무적, 파괴 불가 등의 이유로
-         * 체력이 감소하지 않았다면 동결도 유지됩니다.
-         */
         if (appliedHealthDamage <= 0)
         {
             if (showDebugLog)
@@ -539,10 +577,6 @@ public sealed class BallCombatController : MonoBehaviour
             return false;
         }
 
-        /*
-         * 직접 피해 자체로 파괴된 경우에는
-         * 추가 피해와 주변 전파를 실행하지 않습니다.
-         */
         if (!target.IsAlive)
         {
             return false;
@@ -614,7 +648,8 @@ public sealed class BallCombatController : MonoBehaviour
         BallTraitEffect[] existingEffects =
             GetComponents<BallTraitEffect>();
 
-        activeTraitEffect = null;
+        activeTraitEffect =
+            null;
 
         for (int i = 0;
              i < existingEffects.Length;
