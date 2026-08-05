@@ -532,10 +532,6 @@ public sealed class UnknownEventSlotPresenter :
             yield break;
         }
 
-        /*
-         * 최종 당첨 결과를 위쪽에 배치한 뒤
-         * 중앙 당첨선까지 내려보냅니다.
-         */
         SetText(
             currentTopText,
             winningEvent.DisplayName
@@ -573,9 +569,6 @@ public sealed class UnknownEventSlotPresenter :
             yield break;
         }
 
-        /*
-         * 당첨 이름을 먼저 숨깁니다.
-         */
         SetReelTextsVisible(
             false
         );
@@ -596,13 +589,6 @@ public sealed class UnknownEventSlotPresenter :
             yield break;
         }
 
-        /*
-         * 실제 이벤트 효과를 적용합니다.
-         *
-         * 적용 성공 여부에는 UnknownEventResult를 사용하지만,
-         * 화면에는 ResultText가 아닌
-         * ScriptableObject의 Description을 표시합니다.
-         */
         UnknownEventResult result =
             applyWinningEvent.Invoke();
 
@@ -679,6 +665,16 @@ public sealed class UnknownEventSlotPresenter :
             }
         }
 
+        /*
+         * 완료 콜백보다 패널을 먼저 끄면
+         * OnDisable에서 completionCallback이 제거됩니다.
+         *
+         * 따라서 먼저 런타임 상태와 콜백 필드를 정리하고,
+         * EventRoomController의 완료 콜백을 실행합니다.
+         *
+         * 완료 콜백에서 EventRoomController.CloseSelection()이
+         * 호출되며 그 과정에서 이 패널도 안전하게 숨겨집니다.
+         */
         slotCoroutine =
             null;
 
@@ -687,19 +683,26 @@ public sealed class UnknownEventSlotPresenter :
 
         candidates.Clear();
 
-        SetPanelActive(
-            false
-        );
-
         Action<bool> callback =
             completionCallback;
 
         completionCallback =
             null;
 
-        callback?.Invoke(
-            wasApplied
-        );
+        if (callback != null)
+        {
+            callback.Invoke(
+                wasApplied
+            );
+        }
+        else
+        {
+            /*
+             * 외부 완료 콜백이 없을 때만
+             * Presenter가 직접 패널을 숨깁니다.
+             */
+            HideImmediately();
+        }
     }
 
     private IEnumerator MoveReelOneStep(

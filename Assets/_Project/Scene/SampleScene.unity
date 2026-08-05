@@ -6613,6 +6613,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EventRoomController
   roomNavigator: {fileID: 372114439}
+  turnManager: {fileID: 1520316753}
   playerHealth: {fileID: 858936749}
   ballCollection: {fileID: 904823811}
   runRewardState: {fileID: 2091208932}

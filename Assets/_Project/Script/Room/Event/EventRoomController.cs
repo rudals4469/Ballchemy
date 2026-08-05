@@ -12,6 +12,10 @@ public sealed class EventRoomController :
         roomNavigator;
 
     [SerializeField]
+    private TurnManager
+        turnManager;
+
+    [SerializeField]
     private PlayerHealth
         playerHealth;
 
@@ -94,6 +98,13 @@ public sealed class EventRoomController :
     private bool isUnknownSlotPlaying;
     private bool isBeingDestroyed;
 
+    /*
+     * 슬롯 시작 전에 TurnManager가 이미 잠겨 있었는지
+     * 기억해 두었다가 슬롯 종료 시 원래 상태로 복구합니다.
+     */
+    private bool isUnknownSlotInputLockActive;
+    private bool inputWasLockedBeforeUnknownSlot;
+
     private void Awake()
     {
         FindReferences();
@@ -115,14 +126,8 @@ public sealed class EventRoomController :
     {
         UnsubscribeEvents();
 
-        /*
-         * Unity 오브젝트는 파괴된 후 일반 C#의
-         * null 조건 연산자(?.)로 안전하게
-         * 걸러지지 않을 수 있습니다.
-         *
-         * 반드시 Unity 방식의 명시적인
-         * null 검사를 사용합니다.
-         */
+        RestoreUnknownSlotInputLock();
+
         if (unknownEventSlotPresenter != null)
         {
             unknownEventSlotPresenter
@@ -153,10 +158,11 @@ public sealed class EventRoomController :
         UnsubscribeEvents();
 
         /*
-         * OnDestroy에서는 다른 UI 오브젝트가
-         * 이미 먼저 파괴됐을 수 있으므로
-         * Presenter를 호출하지 않습니다.
+         * OnDestroy 시점에는 TurnManager가 먼저 파괴됐을
+         * 가능성이 있으므로 Unity 참조에 접근하지 않습니다.
          */
+        isUnknownSlotInputLockActive =
+            false;
     }
 
     private void OnValidate()
@@ -180,6 +186,14 @@ public sealed class EventRoomController :
             roomNavigator =
                 FindFirstObjectByType<
                     StageRoomNavigator
+                >();
+        }
+
+        if (turnManager == null)
+        {
+            turnManager =
+                FindFirstObjectByType<
+                    TurnManager
                 >();
         }
 
@@ -261,6 +275,16 @@ public sealed class EventRoomController :
             Debug.LogError(
                 "EventRoomController: " +
                 "StageRoomNavigator가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (turnManager == null)
+        {
+            Debug.LogWarning(
+                "EventRoomController: " +
+                "TurnManager가 연결되지 않았습니다. " +
+                "??? 슬롯 중 조준 잠금이 적용되지 않습니다.",
                 this
             );
         }
@@ -384,6 +408,8 @@ public sealed class EventRoomController :
             return;
         }
 
+        RestoreUnknownSlotInputLock();
+
         if (eventRoomState != null)
         {
             eventRoomState.ResetForNewStage();
@@ -432,6 +458,8 @@ public sealed class EventRoomController :
 
         FindReferences();
         CreateUnknownEventContext();
+
+        RestoreUnknownSlotInputLock();
 
         if (unknownEventSlotPresenter != null)
         {
@@ -681,6 +709,11 @@ public sealed class EventRoomController :
         isUnknownSlotPlaying =
             true;
 
+        /*
+         * 슬롯 연출 중 조준, 발사, 후퇴를 잠급니다.
+         */
+        ApplyUnknownSlotInputLock();
+
         selectionUI.Hide();
 
         bool started =
@@ -698,6 +731,8 @@ public sealed class EventRoomController :
 
             pendingUnknownEvent =
                 null;
+
+            RestoreUnknownSlotInputLock();
 
             return false;
         }
@@ -765,6 +800,8 @@ public sealed class EventRoomController :
             return;
         }
 
+        RestoreUnknownSlotInputLock();
+
         isUnknownSlotPlaying =
             false;
 
@@ -797,6 +834,8 @@ public sealed class EventRoomController :
             return;
         }
 
+        RestoreUnknownSlotInputLock();
+
         isUnknownSlotPlaying =
             false;
 
@@ -824,6 +863,8 @@ public sealed class EventRoomController :
 
     private void CompleteEventRoomChoice()
     {
+        RestoreUnknownSlotInputLock();
+
         if (eventRoomState != null)
         {
             eventRoomState.TryMarkEventRoomUsed(
@@ -843,6 +884,8 @@ public sealed class EventRoomController :
         {
             return;
         }
+
+        RestoreUnknownSlotInputLock();
 
         if (selectionUI != null)
         {
@@ -887,5 +930,74 @@ public sealed class EventRoomController :
 
         currentChoices.Clear();
         applicableUnknownEvents.Clear();
+    }
+
+    private void ApplyUnknownSlotInputLock()
+    {
+        if (isUnknownSlotInputLockActive)
+        {
+            return;
+        }
+
+        if (turnManager == null)
+        {
+            turnManager =
+                FindFirstObjectByType<
+                    TurnManager
+                >();
+        }
+
+        if (turnManager == null)
+        {
+            return;
+        }
+
+        inputWasLockedBeforeUnknownSlot =
+            turnManager.IsInputLocked;
+
+        turnManager.SetInputLocked(
+            true
+        );
+
+        isUnknownSlotInputLockActive =
+            true;
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "EventRoomController: " +
+                "??? 슬롯 중 조준과 발사를 잠급니다.",
+                this
+            );
+        }
+    }
+
+    private void RestoreUnknownSlotInputLock()
+    {
+        if (!isUnknownSlotInputLockActive)
+        {
+            return;
+        }
+
+        isUnknownSlotInputLockActive =
+            false;
+
+        if (turnManager == null)
+        {
+            return;
+        }
+
+        turnManager.SetInputLocked(
+            inputWasLockedBeforeUnknownSlot
+        );
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "EventRoomController: " +
+                "??? 슬롯 입력 잠금을 원래 상태로 복구했습니다.",
+                this
+            );
+        }
     }
 }
