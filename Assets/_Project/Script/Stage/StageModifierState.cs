@@ -14,6 +14,15 @@ public sealed class StageModifierState :
     [SerializeField, Min(0f)]
     private float directDamageIncreaseRatio;
 
+    [Tooltip(
+        "현재 스테이지에 적용되는 일반·네임드 적 " +
+        "최대 체력 감소율입니다.\n" +
+        "0.2는 최대 체력 20% 감소를 의미합니다.\n" +
+        "보스에게는 적용되지 않습니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float enemyMaxHealthReductionRatio;
+
     [Header("Debug")]
 
     [SerializeField]
@@ -23,14 +32,23 @@ public sealed class StageModifierState :
     public float DirectDamageIncreaseRatio =>
         directDamageIncreaseRatio;
 
+    public float EnemyMaxHealthReductionRatio =>
+        enemyMaxHealthReductionRatio;
+
     public bool HasDirectDamageIncrease =>
         directDamageIncreaseRatio > 0f;
+
+    public bool HasEnemyMaxHealthReduction =>
+        enemyMaxHealthReductionRatio > 0f;
 
     public event Action
         StateChanged;
 
     public event Action<float>
         DirectDamageIncreaseRatioChanged;
+
+    public event Action<float>
+        EnemyMaxHealthReductionRatioChanged;
 
     public event Action
         StageStateReset;
@@ -40,6 +58,12 @@ public sealed class StageModifierState :
         directDamageIncreaseRatio =
             Mathf.Max(
                 directDamageIncreaseRatio,
+                0f
+            );
+
+        enemyMaxHealthReductionRatio =
+            Mathf.Max(
+                enemyMaxHealthReductionRatio,
                 0f
             );
     }
@@ -130,6 +154,92 @@ public sealed class StageModifierState :
         return true;
     }
 
+    public bool TryAddEnemyMaxHealthReductionRatio(
+        float ratio)
+    {
+        if (ratio <= 0f)
+        {
+            return false;
+        }
+
+        enemyMaxHealthReductionRatio +=
+            ratio;
+
+        enemyMaxHealthReductionRatio =
+            Mathf.Max(
+                enemyMaxHealthReductionRatio,
+                0f
+            );
+
+        EnemyMaxHealthReductionRatioChanged
+            ?.Invoke(
+                enemyMaxHealthReductionRatio
+            );
+
+        StateChanged?.Invoke();
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "StageModifierState: " +
+                "적 최대 체력 감소율을 추가했습니다. " +
+                $"추가={ratio:P0}, " +
+                $"현재={enemyMaxHealthReductionRatio:P0}",
+                this
+            );
+        }
+
+        return true;
+    }
+
+    public bool TryRemoveEnemyMaxHealthReductionRatio(
+        float ratio)
+    {
+        if (ratio <= 0f ||
+            enemyMaxHealthReductionRatio <= 0f)
+        {
+            return false;
+        }
+
+        float previousRatio =
+            enemyMaxHealthReductionRatio;
+
+        enemyMaxHealthReductionRatio =
+            Mathf.Max(
+                enemyMaxHealthReductionRatio -
+                ratio,
+                0f
+            );
+
+        if (Mathf.Approximately(
+                previousRatio,
+                enemyMaxHealthReductionRatio
+            ))
+        {
+            return false;
+        }
+
+        EnemyMaxHealthReductionRatioChanged
+            ?.Invoke(
+                enemyMaxHealthReductionRatio
+            );
+
+        StateChanged?.Invoke();
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "StageModifierState: " +
+                "적 최대 체력 감소율을 되돌렸습니다. " +
+                $"감소={ratio:P0}, " +
+                $"현재={enemyMaxHealthReductionRatio:P0}",
+                this
+            );
+        }
+
+        return true;
+    }
+
     public int ApplyDirectDamageModifier(
         int baseDamage)
     {
@@ -164,9 +274,17 @@ public sealed class StageModifierState :
         directDamageIncreaseRatio =
             0f;
 
+        enemyMaxHealthReductionRatio =
+            0f;
+
         DirectDamageIncreaseRatioChanged
             ?.Invoke(
                 directDamageIncreaseRatio
+            );
+
+        EnemyMaxHealthReductionRatioChanged
+            ?.Invoke(
+                enemyMaxHealthReductionRatio
             );
 
         StageStateReset?.Invoke();

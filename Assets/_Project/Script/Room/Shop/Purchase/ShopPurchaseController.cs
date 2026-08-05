@@ -208,6 +208,13 @@ public sealed class ShopPurchaseController :
                     item
                 );
 
+            case ShopItemEffectType.ReduceEnemyMaxHealth:
+                return TryPurchaseReduceEnemyMaxHealth(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
             default:
                 return Fail(
                     $"아직 구매 효과가 구현되지 않은 상품입니다. " +
@@ -352,23 +359,12 @@ public sealed class ShopPurchaseController :
         int inventorySlotIndex,
         ShopItemDefinition item)
     {
-        if (item.Category !=
-            ShopItemCategory.StageBuff)
+        if (!ValidateStageBuffPurchase(
+                item,
+                out int price
+            ))
         {
-            return Fail(
-                "IncreaseDirectDamage 효과의 상품 카테고리가 " +
-                "StageBuff가 아닙니다."
-            );
-        }
-
-        if (currencyState == null ||
-            shopRoomState == null ||
-            stageModifierState == null)
-        {
-            return Fail(
-                "직접 피해 증가 상품 구매에 필요한 " +
-                "런타임 참조가 없습니다."
-            );
+            return false;
         }
 
         float increaseRatio =
@@ -380,24 +376,6 @@ public sealed class ShopPurchaseController :
                 "직접 피해 증가율이 0 이하입니다. " +
                 $"ItemId={item.ItemId}, " +
                 $"RatioValue={increaseRatio}"
-            );
-        }
-
-        int price =
-            GetCurrentPrice(
-                roomId,
-                inventorySlotIndex,
-                item
-            );
-
-        if (!currencyState.CanAfford(
-                price
-            ))
-        {
-            return Fail(
-                $"골드가 부족합니다. " +
-                $"필요={price}G, " +
-                $"보유={currencyState.CurrentGold}G"
             );
         }
 
@@ -467,6 +445,166 @@ public sealed class ShopPurchaseController :
             inventorySlotIndex,
             item
         );
+
+        return true;
+    }
+
+    private bool TryPurchaseReduceEnemyMaxHealth(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        if (!ValidateStageBuffPurchase(
+                item,
+                out int price
+            ))
+        {
+            return false;
+        }
+
+        float reductionRatio =
+            item.RatioValue;
+
+        if (reductionRatio <= 0f)
+        {
+            return Fail(
+                "적 최대 체력 감소율이 0 이하입니다. " +
+                $"ItemId={item.ItemId}, " +
+                $"RatioValue={reductionRatio}"
+            );
+        }
+
+        if (!currencyState.TrySpendGold(
+                price
+            ))
+        {
+            return Fail(
+                "골드 차감에 실패했습니다."
+            );
+        }
+
+        bool modifierApplied =
+            stageModifierState
+                .TryAddEnemyMaxHealthReductionRatio(
+                    reductionRatio
+                );
+
+        if (!modifierApplied)
+        {
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "적 최대 체력 감소 효과 적용에 실패하여 " +
+                "구매를 취소했습니다."
+            );
+        }
+
+        bool purchaseRecorded =
+            shopRoomState.TryMarkSlotPurchased(
+                roomId,
+                inventorySlotIndex
+            );
+
+        if (!purchaseRecorded)
+        {
+            stageModifierState
+                .TryRemoveEnemyMaxHealthReductionRatio(
+                    reductionRatio
+                );
+
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "상품 구매 상태 기록에 실패하여 " +
+                "효과와 골드를 되돌렸습니다."
+            );
+        }
+
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            $"EnemyMaxHealthReduction=" +
+            $"{reductionRatio:P0}, " +
+            $"TotalReduction=" +
+            $"{stageModifierState.EnemyMaxHealthReductionRatio:P0}"
+        );
+
+        NotifyPurchaseSucceeded(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+
+        return true;
+    }
+
+    private bool ValidateStageBuffPurchase(
+        ShopItemDefinition item,
+        out int price)
+    {
+        price = 0;
+
+        if (item == null)
+        {
+            return Fail(
+                "스테이지 버프 상품 정보가 없습니다."
+            );
+        }
+
+        if (item.Category !=
+            ShopItemCategory.StageBuff)
+        {
+            return Fail(
+                $"{item.EffectType} 효과의 상품 카테고리가 " +
+                "StageBuff가 아닙니다."
+            );
+        }
+
+        if (currencyState == null ||
+            shopRoomState == null ||
+            stageModifierState == null)
+        {
+            return Fail(
+                "스테이지 버프 구매에 필요한 " +
+                "런타임 참조가 없습니다."
+            );
+        }
+
+        RoomNode currentRoom =
+            roomNavigator != null
+                ? roomNavigator.CurrentRoom
+                : null;
+
+        if (currentRoom == null)
+        {
+            return Fail(
+                "현재 상점방 정보를 찾을 수 없습니다."
+            );
+        }
+
+        price =
+            GetCurrentPrice(
+                currentRoom.RoomId,
+                0,
+                item
+            );
+
+        if (!currencyState.CanAfford(
+                price
+            ))
+        {
+            return Fail(
+                $"골드가 부족합니다. " +
+                $"필요={price}G, " +
+                $"보유={currencyState.CurrentGold}G"
+            );
+        }
 
         return true;
     }

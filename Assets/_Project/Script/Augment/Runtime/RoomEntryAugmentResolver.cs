@@ -12,6 +12,10 @@ public sealed class RoomEntryAugmentResolver :
         runAugmentState;
 
     [SerializeField]
+    private StageModifierState
+        stageModifierState;
+
+    [SerializeField]
     private StageRoomNavigator
         roomNavigator;
 
@@ -30,18 +34,29 @@ public sealed class RoomEntryAugmentResolver :
         "최소 체력입니다."
     )]
     [SerializeField, Min(1)]
-    private int minimumEnemyHealth = 1;
+    private int minimumEnemyHealth =
+        1;
 
     [Header("Debug")]
 
     [SerializeField]
-    private bool showDebugLog = true;
+    private bool showDebugLog =
+        true;
 
     private readonly List<
         RoomEntryHealthReductionResult
     > healthReductionResults =
         new List<
             RoomEntryHealthReductionResult
+        >();
+
+    private readonly Dictionary<
+        Block,
+        int
+    > reducedHealthByBlock =
+        new Dictionary<
+            Block,
+            int
         >();
 
     private void Awake()
@@ -80,6 +95,14 @@ public sealed class RoomEntryAugmentResolver :
             runAugmentState =
                 FindFirstObjectByType<
                     RunAugmentState
+                >();
+        }
+
+        if (stageModifierState == null)
+        {
+            stageModifierState =
+                FindFirstObjectByType<
+                    StageModifierState
                 >();
         }
 
@@ -124,6 +147,16 @@ public sealed class RoomEntryAugmentResolver :
             Debug.LogError(
                 "RoomEntryAugmentResolver: " +
                 "RunAugmentState가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (stageModifierState == null)
+        {
+            Debug.LogWarning(
+                "RoomEntryAugmentResolver: " +
+                "StageModifierState가 연결되지 않았습니다. " +
+                "상점 스테이지 버프는 적용되지 않습니다.",
                 this
             );
         }
@@ -198,7 +231,7 @@ public sealed class RoomEntryAugmentResolver :
         RoomNode previousRoom,
         RoomNode currentRoom)
     {
-        ApplyRoomEntryAugments(
+        ApplyRoomEntryModifiers(
             currentRoom
         );
     }
@@ -210,19 +243,19 @@ public sealed class RoomEntryAugmentResolver :
                 ? roomNavigator.CurrentRoom
                 : null;
 
-        ApplyRoomEntryAugments(
+        ApplyRoomEntryModifiers(
             currentRoom
         );
     }
 
-    private void ApplyRoomEntryAugments(
+    private void ApplyRoomEntryModifiers(
         RoomNode room)
     {
         healthReductionResults.Clear();
+        reducedHealthByBlock.Clear();
 
         if (room == null ||
             !room.IsCombatRoom ||
-            runAugmentState == null ||
             blockGridManager == null)
         {
             return;
@@ -238,16 +271,6 @@ public sealed class RoomEntryAugmentResolver :
             return;
         }
 
-        IReadOnlyList<AugmentRuntimeEntry>
-            activeAugments =
-                runAugmentState.ActiveAugments;
-
-        if (activeAugments == null ||
-            activeAugments.Count == 0)
-        {
-            return;
-        }
-
         IReadOnlyList<Block> blocks =
             blockGridManager.ActiveBlocks;
 
@@ -257,7 +280,142 @@ public sealed class RoomEntryAugmentResolver :
             return;
         }
 
-        int totalReducedHealth = 0;
+        int totalReducedHealth =
+            0;
+
+        totalReducedHealth +=
+            ApplyStageEnemyMaxHealthReduction(
+                room,
+                blocks
+            );
+
+        totalReducedHealth +=
+            ApplyRunAugmentHealthReduction(
+                room,
+                blocks
+            );
+
+        BuildPresentationResults();
+
+        if (healthReductionResults.Count > 0)
+        {
+            healthReductionPresenter?.Play(
+                healthReductionResults
+            );
+        }
+
+        if (!showDebugLog ||
+            healthReductionResults.Count <= 0)
+        {
+            return;
+        }
+
+        Debug.Log(
+            "RoomEntryAugmentResolver: " +
+            $"{room.RoomType} 방 입장 효과 적용, " +
+            $"대상 {healthReductionResults.Count}개, " +
+            $"총 체력 감소 {totalReducedHealth}",
+            this
+        );
+    }
+
+    private int ApplyStageEnemyMaxHealthReduction(
+        RoomNode room,
+        IReadOnlyList<Block> blocks)
+    {
+        if (room == null ||
+            stageModifierState == null ||
+            !stageModifierState
+                .HasEnemyMaxHealthReduction)
+        {
+            return 0;
+        }
+
+        /*
+         * 상점의 ReduceEnemyMaxHealth는
+         * 일반 전투방과 네임드 전투방에만 적용합니다.
+         *
+         * 보스방은 명시적으로 제외합니다.
+         */
+        if (room.RoomType !=
+                RoomType.NormalCombat &&
+            room.RoomType !=
+                RoomType.NamedCombat)
+        {
+            return 0;
+        }
+
+        float reductionRatio =
+            stageModifierState
+                .EnemyMaxHealthReductionRatio;
+
+        if (reductionRatio <= 0f)
+        {
+            return 0;
+        }
+
+        int totalReducedHealth =
+            0;
+
+        for (int i = 0;
+             i < blocks.Count;
+             i++)
+        {
+            Block block =
+                blocks[i];
+
+            if (!IsValidTarget(
+                    block
+                ))
+            {
+                continue;
+            }
+
+            int reducedHealth =
+                block.ReduceMaxHealthByPercent(
+                    reductionRatio,
+                    minimumEnemyHealth
+                );
+
+            if (reducedHealth <= 0)
+            {
+                continue;
+            }
+
+            RegisterReduction(
+                block,
+                reducedHealth
+            );
+
+            totalReducedHealth +=
+                reducedHealth;
+        }
+
+        return totalReducedHealth;
+    }
+
+    private int ApplyRunAugmentHealthReduction(
+        RoomNode room,
+        IReadOnlyList<Block> blocks)
+    {
+        if (room == null ||
+            runAugmentState == null)
+        {
+            return 0;
+        }
+
+        IReadOnlyList<AugmentRuntimeEntry>
+            activeAugments =
+                runAugmentState.ActiveAugments;
+
+        if (activeAugments == null ||
+            activeAugments.Count == 0)
+        {
+            return 0;
+        }
+
+        int totalReducedHealth =
+            0;
 
         for (int augmentIndex = 0;
              augmentIndex < activeAugments.Count;
@@ -296,39 +454,21 @@ public sealed class RoomEntryAugmentResolver :
             }
 
             totalReducedHealth +=
-                ApplyHealthReduction(
+                ApplyCurrentHealthReduction(
                     blocks,
                     reductionPercent
                 );
         }
 
-        if (healthReductionResults.Count > 0)
-        {
-            healthReductionPresenter?.Play(
-                healthReductionResults
-            );
-        }
-
-        if (!showDebugLog ||
-            healthReductionResults.Count <= 0)
-        {
-            return;
-        }
-
-        Debug.Log(
-            "RoomEntryAugmentResolver: " +
-            $"{room.RoomType} 방 입장 증강 적용, " +
-            $"대상 {healthReductionResults.Count}개, " +
-            $"총 체력 감소 {totalReducedHealth}",
-            this
-        );
+        return totalReducedHealth;
     }
 
-    private int ApplyHealthReduction(
+    private int ApplyCurrentHealthReduction(
         IReadOnlyList<Block> blocks,
         float reductionPercent)
     {
-        int totalReducedHealth = 0;
+        int totalReducedHealth =
+            0;
 
         for (int i = 0;
              i < blocks.Count;
@@ -355,11 +495,9 @@ public sealed class RoomEntryAugmentResolver :
                 continue;
             }
 
-            healthReductionResults.Add(
-                new RoomEntryHealthReductionResult(
-                    block,
-                    reducedHealth
-                )
+            RegisterReduction(
+                block,
+                reducedHealth
             );
 
             totalReducedHealth +=
@@ -367,6 +505,59 @@ public sealed class RoomEntryAugmentResolver :
         }
 
         return totalReducedHealth;
+    }
+
+    private void RegisterReduction(
+        Block block,
+        int reducedHealth)
+    {
+        if (block == null ||
+            reducedHealth <= 0)
+        {
+            return;
+        }
+
+        if (reducedHealthByBlock.TryGetValue(
+                block,
+                out int previousReduction
+            ))
+        {
+            reducedHealthByBlock[
+                block
+            ] =
+                previousReduction +
+                reducedHealth;
+
+            return;
+        }
+
+        reducedHealthByBlock.Add(
+            block,
+            reducedHealth
+        );
+    }
+
+    private void BuildPresentationResults()
+    {
+        healthReductionResults.Clear();
+
+        foreach (
+            KeyValuePair<Block, int> pair
+            in reducedHealthByBlock)
+        {
+            if (pair.Key == null ||
+                pair.Value <= 0)
+            {
+                continue;
+            }
+
+            healthReductionResults.Add(
+                new RoomEntryHealthReductionResult(
+                    pair.Key,
+                    pair.Value
+                )
+            );
+        }
     }
 
     private static bool IsValidTarget(

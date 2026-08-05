@@ -2,33 +2,43 @@ using System;
 using UnityEngine;
 
 [RequireComponent(typeof(BoxCollider2D))]
-public sealed class Block : MonoBehaviour
+public sealed class Block :
+    MonoBehaviour
 {
     [Header("Definition")]
+
     [SerializeField]
     private BlockDefinition definition;
 
     [Header("Presentation")]
+
     [SerializeField]
     private BlockLayout layout =
         new BlockLayout();
 
     [Header("Grid State")]
+
     [SerializeField]
     private BlockGridState gridState =
         new BlockGridState();
 
     [Header("Runtime Layout")]
+
     [SerializeField, Min(0.1f)]
-    private float runtimeCellSize = 1f;
+    private float runtimeCellSize =
+        1f;
 
     [Header("Runtime Stats")]
+
     [SerializeField, Min(1)]
-    private int maxHealth = 8;
+    private int maxHealth =
+        8;
 
     [SerializeField, Min(0)]
-    private int attackPower = 2;
+    private int attackPower =
+        2;
 
+    private int initialMaxHealth;
     private int currentHealth;
     private int shieldHitCount;
 
@@ -117,6 +127,9 @@ public sealed class Block : MonoBehaviour
             )
             : -1;
 
+    public int InitialMaxHealth =>
+        initialMaxHealth;
+
     public int CurrentHealth =>
         currentHealth;
 
@@ -202,12 +215,23 @@ public sealed class Block : MonoBehaviour
     {
         EnsureHelperObjects();
 
-        isDestructionStarted = false;
+        isDestructionStarted =
+            false;
+
+        maxHealth =
+            Mathf.Max(
+                maxHealth,
+                1
+            );
+
+        initialMaxHealth =
+            maxHealth;
 
         currentHealth =
             maxHealth;
 
-        shieldHitCount = 0;
+        shieldHitCount =
+            0;
 
         ApplyPresentation();
         RefreshGridPlacement();
@@ -261,7 +285,8 @@ public sealed class Block : MonoBehaviour
     {
         EnsureHelperObjects();
 
-        isDestructionStarted = false;
+        isDestructionStarted =
+            false;
 
         SetRuntimeStats(
             health,
@@ -299,7 +324,8 @@ public sealed class Block : MonoBehaviour
     {
         EnsureHelperObjects();
 
-        isDestructionStarted = false;
+        isDestructionStarted =
+            false;
 
         definition =
             blockDefinition;
@@ -582,6 +608,9 @@ public sealed class Block : MonoBehaviour
                 1
             );
 
+        initialMaxHealth =
+            maxHealth;
+
         currentHealth =
             maxHealth;
 
@@ -591,7 +620,8 @@ public sealed class Block : MonoBehaviour
                 0
             );
 
-        shieldHitCount = 0;
+        shieldHitCount =
+            0;
 
         HealthChanged?.Invoke(
             currentHealth,
@@ -644,10 +674,6 @@ public sealed class Block : MonoBehaviour
             return;
         }
 
-        /*
-         * 쉴드는 피해량과 관계없이
-         * 피격 한 번을 완전히 방어한다.
-         */
         if (shieldHitCount > 0)
         {
             shieldHitCount =
@@ -698,7 +724,101 @@ public sealed class Block : MonoBehaviour
             DestroyBlock();
         }
     }
-    
+
+    public int ReduceMaxHealthByPercent(
+        float reductionPercent,
+        int minimumMaxHealth = 1)
+    {
+        if (!IsAlive ||
+            !IsBreakable ||
+            reductionPercent <= 0f)
+        {
+            return 0;
+        }
+
+        reductionPercent =
+            Mathf.Clamp01(
+                reductionPercent
+            );
+
+        initialMaxHealth =
+            Mathf.Max(
+                initialMaxHealth,
+                maxHealth,
+                1
+            );
+
+        minimumMaxHealth =
+            Mathf.Clamp(
+                minimumMaxHealth,
+                1,
+                initialMaxHealth
+            );
+
+        int reductionAmount =
+            Mathf.CeilToInt(
+                initialMaxHealth *
+                reductionPercent
+            );
+
+        reductionAmount =
+            Mathf.Max(
+                reductionAmount,
+                1
+            );
+
+        int targetMaxHealth =
+            Mathf.Max(
+                initialMaxHealth -
+                reductionAmount,
+                minimumMaxHealth
+            );
+
+        if (maxHealth <= targetMaxHealth)
+        {
+            return 0;
+        }
+
+        int previousCurrentHealth =
+            currentHealth;
+
+        maxHealth =
+            targetMaxHealth;
+
+        currentHealth =
+            Mathf.Min(
+                currentHealth,
+                maxHealth
+            );
+
+        currentHealth =
+            Mathf.Max(
+                currentHealth,
+                1
+            );
+
+        int reducedHealth =
+            previousCurrentHealth -
+            currentHealth;
+
+        HealthChanged?.Invoke(
+            currentHealth,
+            maxHealth
+        );
+
+        Debug.Log(
+            $"{name} 최대 체력 감소: " +
+            $"HP {currentHealth}/{maxHealth}, " +
+            $"초기 최대 체력 {initialMaxHealth}",
+            this
+        );
+
+        return Mathf.Max(
+            reducedHealth,
+            0
+        );
+    }
+
     public int ReduceCurrentHealthByPercent(
         float reductionPercent,
         int minimumHealth = 1)
@@ -741,11 +861,6 @@ public sealed class Block : MonoBehaviour
                 minimumHealth
             );
 
-        /*
-         * 최대 체력을 기준으로 목표 체력을 계산하므로,
-         * 같은 효과가 실수로 두 번 호출되어도
-         * 체력이 계속 중첩 감소하지 않습니다.
-         */
         if (currentHealth <= targetHealth)
         {
             return 0;
@@ -881,7 +996,8 @@ public sealed class Block : MonoBehaviour
             return;
         }
 
-        shieldHitCount = 0;
+        shieldHitCount =
+            0;
 
         ShieldChanged?.Invoke(
             this,
@@ -897,9 +1013,14 @@ public sealed class Block : MonoBehaviour
             return false;
         }
 
-        isDestructionStarted = true;
-        currentHealth = 0;
-        shieldHitCount = 0;
+        isDestructionStarted =
+            true;
+
+        currentHealth =
+            0;
+
+        shieldHitCount =
+            0;
 
         ClearGridPosition();
 
@@ -930,7 +1051,8 @@ public sealed class Block : MonoBehaviour
             return;
         }
 
-        isDestructionStarted = true;
+        isDestructionStarted =
+            true;
 
         Debug.Log(
             $"{name} 파괴",
