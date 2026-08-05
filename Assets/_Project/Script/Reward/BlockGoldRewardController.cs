@@ -1,0 +1,730 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+[DisallowMultipleComponent]
+public sealed class BlockGoldRewardController :
+    MonoBehaviour
+{
+    [Header("References")]
+
+    [SerializeField]
+    private StageRoomNavigator
+        roomNavigator;
+
+    [SerializeField]
+    private BlockGridManager
+        blockGridManager;
+
+    [SerializeField]
+    private RoomRetreatController
+        retreatController;
+
+    [SerializeField]
+    private RunCurrencyState
+        runCurrencyState;
+
+    [SerializeField]
+    private RoomGoldTransactionState
+        roomGoldTransactionState;
+
+    [Header("Gold Per Clear Role")]
+
+    [Tooltip(
+        "RequiredEnemy 역할 블록 파괴 시 지급할 골드입니다."
+    )]
+    [SerializeField, Min(0)]
+    private int requiredEnemyGold = 1;
+
+    [Tooltip(
+        "Optional 역할 블록 파괴 시 지급할 골드입니다.\n" +
+        "초기에는 0을 권장합니다."
+    )]
+    [SerializeField, Min(0)]
+    private int optionalGold;
+
+    [Tooltip(
+        "Ignore 역할 블록 파괴 시 지급할 골드입니다.\n" +
+        "항상 0을 권장합니다."
+    )]
+    [SerializeField, Min(0)]
+    private int ignoreGold;
+
+    [Header("Debug")]
+
+    [SerializeField]
+    private bool showDebugLog = true;
+
+    private readonly HashSet<Block>
+        subscribedBlocks =
+            new HashSet<Block>();
+
+    private bool isSubscribed;
+
+    private void Awake()
+    {
+        FindReferences();
+        NormalizeSettings();
+        ValidateReferences();
+    }
+
+    private void OnEnable()
+    {
+        FindReferences();
+        SubscribeEvents();
+        TryPrepareCurrentRoomTransaction();
+        RefreshBlockSubscriptions();
+    }
+
+    private void Start()
+    {
+        TryPrepareCurrentRoomTransaction();
+        RefreshBlockSubscriptions();
+    }
+
+    private void OnDisable()
+    {
+        UnsubscribeEvents();
+        UnsubscribeAllBlocks();
+    }
+
+    private void OnDestroy()
+    {
+        UnsubscribeEvents();
+        UnsubscribeAllBlocks();
+    }
+
+    private void OnValidate()
+    {
+        NormalizeSettings();
+        FindReferences();
+    }
+
+    private void NormalizeSettings()
+    {
+        requiredEnemyGold =
+            Mathf.Max(
+                requiredEnemyGold,
+                0
+            );
+
+        optionalGold =
+            Mathf.Max(
+                optionalGold,
+                0
+            );
+
+        ignoreGold =
+            Mathf.Max(
+                ignoreGold,
+                0
+            );
+    }
+
+    private void FindReferences()
+    {
+        if (roomNavigator == null)
+        {
+            roomNavigator =
+                FindFirstObjectByType<
+                    StageRoomNavigator
+                >();
+        }
+
+        if (blockGridManager == null)
+        {
+            blockGridManager =
+                FindFirstObjectByType<
+                    BlockGridManager
+                >();
+        }
+
+        if (retreatController == null)
+        {
+            retreatController =
+                FindFirstObjectByType<
+                    RoomRetreatController
+                >();
+        }
+
+        if (runCurrencyState == null)
+        {
+            runCurrencyState =
+                FindFirstObjectByType<
+                    RunCurrencyState
+                >();
+        }
+
+        if (roomGoldTransactionState == null)
+        {
+            roomGoldTransactionState =
+                FindFirstObjectByType<
+                    RoomGoldTransactionState
+                >();
+        }
+    }
+
+    private void ValidateReferences()
+    {
+        if (roomNavigator == null)
+        {
+            Debug.LogError(
+                "BlockGoldRewardController: " +
+                "StageRoomNavigator가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (blockGridManager == null)
+        {
+            Debug.LogError(
+                "BlockGoldRewardController: " +
+                "BlockGridManager가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (retreatController == null)
+        {
+            Debug.LogError(
+                "BlockGoldRewardController: " +
+                "RoomRetreatController가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (runCurrencyState == null)
+        {
+            Debug.LogError(
+                "BlockGoldRewardController: " +
+                "RunCurrencyState가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (roomGoldTransactionState == null)
+        {
+            Debug.LogError(
+                "BlockGoldRewardController: " +
+                "RoomGoldTransactionState가 연결되지 않았습니다.",
+                this
+            );
+        }
+    }
+
+    private void SubscribeEvents()
+    {
+        if (isSubscribed)
+        {
+            return;
+        }
+
+        if (roomNavigator != null)
+        {
+            roomNavigator.RoomChanged -=
+                HandleRoomChanged;
+
+            roomNavigator.RoomChanged +=
+                HandleRoomChanged;
+
+            roomNavigator.CombatRoomCleared -=
+                HandleCombatRoomCleared;
+
+            roomNavigator.CombatRoomCleared +=
+                HandleCombatRoomCleared;
+
+            roomNavigator.MapInitialized -=
+                HandleMapInitialized;
+
+            roomNavigator.MapInitialized +=
+                HandleMapInitialized;
+        }
+
+        if (blockGridManager != null)
+        {
+            blockGridManager.WaveGenerated -=
+                HandleWaveGenerated;
+
+            blockGridManager.WaveGenerated +=
+                HandleWaveGenerated;
+
+            blockGridManager.RoomCombatReset -=
+                HandleRoomCombatReset;
+
+            blockGridManager.RoomCombatReset +=
+                HandleRoomCombatReset;
+        }
+
+        if (retreatController != null)
+        {
+            retreatController.RetreatCompleted -=
+                HandleRetreatCompleted;
+
+            retreatController.RetreatCompleted +=
+                HandleRetreatCompleted;
+        }
+
+        isSubscribed =
+            true;
+    }
+
+    private void UnsubscribeEvents()
+    {
+        if (!isSubscribed)
+        {
+            return;
+        }
+
+        if (roomNavigator != null)
+        {
+            roomNavigator.RoomChanged -=
+                HandleRoomChanged;
+
+            roomNavigator.CombatRoomCleared -=
+                HandleCombatRoomCleared;
+
+            roomNavigator.MapInitialized -=
+                HandleMapInitialized;
+        }
+
+        if (blockGridManager != null)
+        {
+            blockGridManager.WaveGenerated -=
+                HandleWaveGenerated;
+
+            blockGridManager.RoomCombatReset -=
+                HandleRoomCombatReset;
+        }
+
+        if (retreatController != null)
+        {
+            retreatController.RetreatCompleted -=
+                HandleRetreatCompleted;
+        }
+
+        isSubscribed =
+            false;
+    }
+
+    private void HandleMapInitialized(
+        StageMap stageMap)
+    {
+        /*
+         * 정상 흐름에서는 새 스테이지 전환 전에
+         * 활성 거래가 남아 있으면 안 됩니다.
+         */
+        if (roomGoldTransactionState != null &&
+            roomGoldTransactionState
+                .HasActiveTransaction)
+        {
+            Debug.LogWarning(
+                "BlockGoldRewardController: " +
+                "새 스테이지 초기화 시 " +
+                "미확정 방 골드가 남아 있습니다. " +
+                "회수 없이 거래 기록을 초기화합니다.",
+                this
+            );
+
+            roomGoldTransactionState
+                .ResetWithoutRollback();
+        }
+
+        UnsubscribeAllBlocks();
+    }
+
+    private void HandleRoomChanged(
+        RoomNode previousRoom,
+        RoomNode currentRoom)
+    {
+        CleanupInvalidBlockReferences();
+
+        if (currentRoom == null ||
+            !currentRoom.IsCombatRoom)
+        {
+            return;
+        }
+
+        /*
+         * 이미 클리어한 전투방 재방문에서는
+         * 새로운 골드 거래를 시작하지 않습니다.
+         */
+        if (roomNavigator != null &&
+            roomNavigator.IsRoomCleared(
+                currentRoom.RoomId
+            ))
+        {
+            return;
+        }
+
+        TryBeginTransaction(
+            currentRoom.RoomId
+        );
+
+        RefreshBlockSubscriptions();
+    }
+
+    private void HandleWaveGenerated(
+        int waveNumber)
+    {
+        TryPrepareCurrentRoomTransaction();
+        RefreshBlockSubscriptions();
+    }
+
+    private void HandleRoomCombatReset()
+    {
+        /*
+         * 후퇴 과정에서는 이 이벤트가
+         * RetreatCompleted보다 먼저 발생합니다.
+         *
+         * 여기서는 거래를 제거하지 않고
+         * 기존 블록 구독만 정리합니다.
+         * 실제 골드 회수는 RetreatCompleted에서 처리합니다.
+         */
+        UnsubscribeAllBlocks();
+    }
+
+    private void HandleCombatRoomCleared(
+        RoomNode clearedRoom)
+    {
+        if (clearedRoom == null ||
+            roomGoldTransactionState == null)
+        {
+            return;
+        }
+
+        roomGoldTransactionState
+            .TryConfirmTransaction(
+                clearedRoom.RoomId
+            );
+
+        UnsubscribeAllBlocks();
+    }
+
+    private void HandleRetreatCompleted(
+        int healthCost)
+    {
+        RollbackCurrentRoomGold();
+        UnsubscribeAllBlocks();
+    }
+
+    private void TryPrepareCurrentRoomTransaction()
+    {
+        if (roomNavigator == null ||
+            roomNavigator.CurrentRoom == null)
+        {
+            return;
+        }
+
+        RoomNode currentRoom =
+            roomNavigator.CurrentRoom;
+
+        if (!currentRoom.IsCombatRoom ||
+            roomNavigator.IsRoomCleared(
+                currentRoom.RoomId
+            ))
+        {
+            return;
+        }
+
+        TryBeginTransaction(
+            currentRoom.RoomId
+        );
+    }
+
+    private void TryBeginTransaction(
+        int roomId)
+    {
+        if (roomGoldTransactionState == null)
+        {
+            return;
+        }
+
+        roomGoldTransactionState
+            .BeginTransaction(
+                roomId
+            );
+    }
+
+    private void RefreshBlockSubscriptions()
+    {
+        if (blockGridManager == null)
+        {
+            return;
+        }
+
+        CleanupInvalidBlockReferences();
+
+        IReadOnlyList<Block> activeBlocks =
+            blockGridManager.ActiveBlocks;
+
+        if (activeBlocks == null)
+        {
+            return;
+        }
+
+        for (int i = 0;
+             i < activeBlocks.Count;
+             i++)
+        {
+            Block block =
+                activeBlocks[i];
+
+            SubscribeBlock(
+                block
+            );
+        }
+    }
+
+    private void SubscribeBlock(
+        Block block)
+    {
+        if (block == null ||
+            subscribedBlocks.Contains(
+                block
+            ))
+        {
+            return;
+        }
+
+        block.Destroyed -=
+            HandleBlockDestroyed;
+
+        block.Destroyed +=
+            HandleBlockDestroyed;
+
+        subscribedBlocks.Add(
+            block
+        );
+    }
+
+    private void HandleBlockDestroyed(
+        Block block)
+    {
+        if (block == null)
+        {
+            return;
+        }
+
+        block.Destroyed -=
+            HandleBlockDestroyed;
+
+        subscribedBlocks.Remove(
+            block
+        );
+
+        if (roomNavigator == null ||
+            roomNavigator.CurrentRoom == null ||
+            runCurrencyState == null ||
+            roomGoldTransactionState == null)
+        {
+            return;
+        }
+
+        RoomNode currentRoom =
+            roomNavigator.CurrentRoom;
+
+        if (!currentRoom.IsCombatRoom ||
+            roomNavigator.IsRoomCleared(
+                currentRoom.RoomId
+            ))
+        {
+            return;
+        }
+
+        if (!roomGoldTransactionState
+                .HasActiveTransaction ||
+            roomGoldTransactionState
+                .ActiveRoomId !=
+            currentRoom.RoomId)
+        {
+            bool began =
+                roomGoldTransactionState
+                    .BeginTransaction(
+                        currentRoom.RoomId
+                    );
+
+            if (!began)
+            {
+                Debug.LogWarning(
+                    "BlockGoldRewardController: " +
+                    "활성 방 골드 거래가 없어 " +
+                    "블록 골드를 지급하지 않습니다.",
+                    this
+                );
+
+                return;
+            }
+        }
+
+        int rewardAmount =
+            ResolveBlockGold(
+                block
+            );
+
+        if (rewardAmount <= 0)
+        {
+            return;
+        }
+
+        bool added =
+            runCurrencyState.TryAddGold(
+                rewardAmount
+            );
+
+        if (!added)
+        {
+            return;
+        }
+
+        bool recorded =
+            roomGoldTransactionState
+                .TryRecordEarnedGold(
+                    currentRoom.RoomId,
+                    rewardAmount
+                );
+
+        if (!recorded)
+        {
+            /*
+             * 골드는 증가했지만 거래 기록에 실패한 경우
+             * 즉시 되돌려 중복 획득 가능성을 차단합니다.
+             */
+            runCurrencyState.TryRollbackGold(
+                rewardAmount
+            );
+
+            Debug.LogError(
+                "BlockGoldRewardController: " +
+                "방 미확정 골드 기록에 실패해 " +
+                "방금 지급한 골드를 되돌렸습니다.",
+                this
+            );
+
+            return;
+        }
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "BlockGoldRewardController: " +
+                $"블록 파괴 골드 +{rewardAmount}G, " +
+                $"RoomId={currentRoom.RoomId}, " +
+                $"BlockId={block.BlockId}",
+                this
+            );
+        }
+    }
+
+    private int ResolveBlockGold(
+        Block block)
+    {
+        if (block == null ||
+            block.Definition == null)
+        {
+            return 0;
+        }
+
+        switch (block.Definition.ClearRole)
+        {
+            case BlockClearRole.RequiredEnemy:
+                return requiredEnemyGold;
+
+            case BlockClearRole.Optional:
+                return optionalGold;
+
+            case BlockClearRole.Ignore:
+                return ignoreGold;
+
+            default:
+                return 0;
+        }
+    }
+
+    private void RollbackCurrentRoomGold()
+    {
+        if (roomGoldTransactionState == null ||
+            runCurrencyState == null)
+        {
+            return;
+        }
+
+        bool hadTransaction =
+            roomGoldTransactionState
+                .TryConsumeRollback(
+                    out int roomId,
+                    out int rollbackGold
+                );
+
+        if (!hadTransaction)
+        {
+            return;
+        }
+
+        if (rollbackGold <= 0)
+        {
+            if (showDebugLog)
+            {
+                Debug.Log(
+                    "BlockGoldRewardController: " +
+                    $"Room {roomId} 후퇴, " +
+                    "회수할 골드 없음",
+                    this
+                );
+            }
+
+            return;
+        }
+
+        bool rolledBack =
+            runCurrencyState.TryRollbackGold(
+                rollbackGold
+            );
+
+        if (!rolledBack)
+        {
+            Debug.LogError(
+                "BlockGoldRewardController: " +
+                $"Room {roomId}에서 획득한 " +
+                $"{rollbackGold}G를 회수하지 못했습니다.",
+                this
+            );
+
+            return;
+        }
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "BlockGoldRewardController: " +
+                $"후퇴로 방 획득 골드 회수, " +
+                $"RoomId={roomId}, " +
+                $"Gold={rollbackGold}G",
+                this
+            );
+        }
+    }
+
+    private void CleanupInvalidBlockReferences()
+    {
+        subscribedBlocks.RemoveWhere(
+            block =>
+                block == null
+        );
+    }
+
+    private void UnsubscribeAllBlocks()
+    {
+        foreach (Block block in
+                 subscribedBlocks)
+        {
+            if (block == null)
+            {
+                continue;
+            }
+
+            block.Destroyed -=
+                HandleBlockDestroyed;
+        }
+
+        subscribedBlocks.Clear();
+    }
+}
