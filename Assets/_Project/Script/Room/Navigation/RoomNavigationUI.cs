@@ -13,10 +13,6 @@ public sealed class RoomNavigationUI :
     private RoomTransitionController
         transitionController;
 
-    [SerializeField]
-    private SecretRoomEntryController
-        secretRoomEntryController;
-
     [Header("Direction Buttons")]
 
     [SerializeField]
@@ -92,14 +88,6 @@ public sealed class RoomNavigationUI :
                     RoomTransitionController
                 >();
         }
-
-        if (secretRoomEntryController == null)
-        {
-            secretRoomEntryController =
-                FindFirstObjectByType<
-                    SecretRoomEntryController
-                >();
-        }
     }
 
     private void ValidateReferences()
@@ -122,47 +110,14 @@ public sealed class RoomNavigationUI :
             );
         }
 
-        if (secretRoomEntryController == null)
+        if (upButton == null ||
+            rightButton == null ||
+            downButton == null ||
+            leftButton == null)
         {
             Debug.LogError(
                 "RoomNavigationUI: " +
-                "SecretRoomEntryController가 연결되지 않았습니다.",
-                this
-            );
-        }
-
-        if (upButton == null)
-        {
-            Debug.LogError(
-                "RoomNavigationUI: " +
-                "Up Button이 연결되지 않았습니다.",
-                this
-            );
-        }
-
-        if (rightButton == null)
-        {
-            Debug.LogError(
-                "RoomNavigationUI: " +
-                "Right Button이 연결되지 않았습니다.",
-                this
-            );
-        }
-
-        if (downButton == null)
-        {
-            Debug.LogError(
-                "RoomNavigationUI: " +
-                "Down Button이 연결되지 않았습니다.",
-                this
-            );
-        }
-
-        if (leftButton == null)
-        {
-            Debug.LogError(
-                "RoomNavigationUI: " +
-                "Left Button이 연결되지 않았습니다.",
+                "상하좌우 버튼 중 연결되지 않은 버튼이 있습니다.",
                 this
             );
         }
@@ -300,105 +255,62 @@ public sealed class RoomNavigationUI :
             return;
         }
 
-        bool hasNormalConnection =
+        bool hasConnectedRoom =
             navigator != null &&
             navigator.HasConnectedRoom(
                 direction
             );
 
-        bool canRequestNormalMove =
-            transitionController != null &&
-            transitionController
-                .CanRequestDirectionalMove(
-                    direction
-                );
-
-        bool hasLockedSecretEntrance =
-            secretRoomEntryController != null &&
-            secretRoomEntryController
-                .HasLockedSecretRoomEntrance(
-                    direction
-                );
-
-        bool canUnlockAndMove =
-            secretRoomEntryController != null &&
-            secretRoomEntryController
-                .CanUnlockAndMove(
-                    direction
-                );
-
-        bool shouldShow;
-
-        if (hideUnavailableButtons)
-        {
-            shouldShow =
-                canRequestNormalMove ||
-                canUnlockAndMove;
-        }
-        else
-        {
-            shouldShow =
-                hasNormalConnection ||
-                hasLockedSecretEntrance;
-        }
+        bool canMove =
+            transitionController != null
+                ? transitionController
+                    .CanRequestDirectionalMove(
+                        direction
+                    )
+                : navigator != null &&
+                  navigator.CanMove(
+                      direction
+                  );
 
         button.gameObject.SetActive(
-            shouldShow
+            hideUnavailableButtons
+                ? canMove
+                : hasConnectedRoom
         );
 
         button.interactable =
-            canRequestNormalMove ||
-            canUnlockAndMove;
+            canMove;
     }
 
     private void HandleUpClicked()
     {
-        TryRequestDirectionalMove(
-            RoomDirection.Up
-        );
+        transitionController
+            ?.TryMoveFromDirectionButton(
+                RoomDirection.Up
+            );
     }
 
     private void HandleRightClicked()
     {
-        TryRequestDirectionalMove(
-            RoomDirection.Right
-        );
+        transitionController
+            ?.TryMoveFromDirectionButton(
+                RoomDirection.Right
+            );
     }
 
     private void HandleDownClicked()
     {
-        TryRequestDirectionalMove(
-            RoomDirection.Down
-        );
+        transitionController
+            ?.TryMoveFromDirectionButton(
+                RoomDirection.Down
+            );
     }
 
     private void HandleLeftClicked()
     {
-        TryRequestDirectionalMove(
-            RoomDirection.Left
-        );
-    }
-
-    private void TryRequestDirectionalMove(
-        RoomDirection direction)
-    {
-        if (secretRoomEntryController != null &&
-            secretRoomEntryController
-                .CanUnlockAndMove(
-                    direction
-                ))
-        {
-            secretRoomEntryController
-                .TryUnlockAndMove(
-                    direction
-                );
-
-            return;
-        }
-
         transitionController
             ?.TryMoveFromDirectionButton(
-                direction
+                RoomDirection.Left
             );
     }
 

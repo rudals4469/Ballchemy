@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -65,6 +66,16 @@ public sealed class RoomRewardController :
 
     public bool IsRewardPending =>
         isRewardPending;
+
+    /*
+     * 보상 선택 완료 후 다른 연출이 잠금을 이어받을 때 사용합니다.
+     *
+     * 반환값:
+     * true  = 외부 시스템이 입력/이동 잠금을 이어받음
+     * false = RoomRewardController가 잠금을 해제함
+     */
+    public event Func<RoomNode, bool>
+        RewardCompletionHandoffRequested;
 
     private void Awake()
     {
@@ -281,19 +292,11 @@ public sealed class RoomRewardController :
                 this
             );
 
-            /*
-             * 보상 선택지 생성에 실패했으므로
-             * 예약된 보상 등급 증가는 소비하지 않습니다.
-             */
             ReleaseRoomAfterReward();
 
             return;
         }
 
-        /*
-         * 실제 보상 선택지가 정상 생성된 경우에만
-         * 다음 전투방 보상 증가 예약을 소비합니다.
-         */
         bool consumedRewardUpgrade =
             ConsumePendingRewardUpgradeIfNeeded();
 
@@ -515,6 +518,11 @@ public sealed class RoomRewardController :
 
     private void CompleteRewardSelection()
     {
+        RoomNode completedRoom =
+            roomNavigator != null
+                ? roomNavigator.CurrentRoom
+                : null;
+
         rewardSelectionUI?.Hide();
 
         pendingChoices.Clear();
@@ -522,7 +530,74 @@ public sealed class RoomRewardController :
         isRewardPending =
             false;
 
+        bool wasLockHandedOff =
+            TryHandOffRewardCompletion(
+                completedRoom
+            );
+
+        if (wasLockHandedOff)
+        {
+            if (showDebugLog)
+            {
+                Debug.Log(
+                    "RoomRewardController: " +
+                    "보상 완료 후 입력 잠금을 " +
+                    "외부 연출 시스템에 인계했습니다.",
+                    this
+                );
+            }
+
+            return;
+        }
+
         ReleaseRoomAfterReward();
+    }
+
+    private bool TryHandOffRewardCompletion(
+        RoomNode completedRoom)
+    {
+        if (RewardCompletionHandoffRequested ==
+            null)
+        {
+            return false;
+        }
+
+        Delegate[] handlers =
+            RewardCompletionHandoffRequested
+                .GetInvocationList();
+
+        for (int i = 0;
+             i < handlers.Length;
+             i++)
+        {
+            if (!(handlers[i] is
+                Func<RoomNode, bool> handler))
+            {
+                continue;
+            }
+
+            try
+            {
+                bool accepted =
+                    handler.Invoke(
+                        completedRoom
+                    );
+
+                if (accepted)
+                {
+                    return true;
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(
+                    exception,
+                    this
+                );
+            }
+        }
+
+        return false;
     }
 
     private void ReleaseRoomAfterReward()
