@@ -5,6 +5,15 @@ using UnityEngine;
 public sealed class StageMapGenerator :
     MonoBehaviour
 {
+    [Header("References")]
+
+    [SerializeField]
+    private SecretRoomCoordinateSelector
+        secretRoomCoordinateSelector;
+
+    [SerializeField]
+    private SecretRoomState secretRoomState;
+
     [Header("Stage")]
 
     [SerializeField, Min(1)]
@@ -65,6 +74,21 @@ public sealed class StageMapGenerator :
     [SerializeField, Min(1)]
     private int maximumLayoutGenerationAttempts = 100;
 
+    [Header("Secret Room")]
+
+    [Tooltip(
+        "활성화하면 기본 맵과 방 타입 배정이 완료된 뒤 " +
+        "비밀방을 하나 추가합니다."
+    )]
+    [SerializeField]
+    private bool generateSecretRoom = true;
+
+    [Tooltip(
+        "비밀방 생성에 실패해도 기본 맵 생성을 계속 진행합니다."
+    )]
+    [SerializeField]
+    private bool allowMapWithoutSecretRoom = true;
+
     [Header("Random")]
 
     [Tooltip(
@@ -103,12 +127,41 @@ public sealed class StageMapGenerator :
 
     private void Awake()
     {
+        FindReferences();
         NormalizeSettings();
     }
 
     private void OnValidate()
     {
+        FindReferences();
         NormalizeSettings();
+    }
+
+    private void FindReferences()
+    {
+        if (secretRoomCoordinateSelector == null)
+        {
+            secretRoomCoordinateSelector =
+                GetComponent<
+                    SecretRoomCoordinateSelector
+                >();
+        }
+
+        if (secretRoomCoordinateSelector == null)
+        {
+            secretRoomCoordinateSelector =
+                FindFirstObjectByType<
+                    SecretRoomCoordinateSelector
+                >();
+        }
+
+        if (secretRoomState == null)
+        {
+            secretRoomState =
+                FindFirstObjectByType<
+                    SecretRoomState
+                >();
+        }
     }
 
     public StageMap GenerateTestStage()
@@ -121,6 +174,7 @@ public sealed class StageMapGenerator :
     public StageMap GenerateStage(
         int stageNumber)
     {
+        FindReferences();
         NormalizeSettings();
 
         stageNumber =
@@ -241,6 +295,8 @@ public sealed class StageMapGenerator :
                 this
             );
 
+            ClearSecretRoomState();
+
             return null;
         }
 
@@ -275,6 +331,32 @@ public sealed class StageMapGenerator :
             );
         }
 
+        bool secretRoomCreated =
+            TryCreateSecretRoom(
+                generatedMap,
+                baseSeed,
+                successfulAttemptIndex
+            );
+
+        if (generateSecretRoom &&
+            !secretRoomCreated &&
+            !allowMapWithoutSecretRoom)
+        {
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "비밀방 생성이 필수이지만 비밀방을 " +
+                "생성하지 못했습니다.",
+                this
+            );
+
+            currentMap =
+                null;
+
+            ClearSecretRoomState();
+
+            return null;
+        }
+
         generatedMap.RebuildLookup();
 
         currentMap =
@@ -288,6 +370,7 @@ public sealed class StageMapGenerator :
                 $"스테이지 {stageNumber} 맵 생성 완료. " +
                 $"Base Seed={baseSeed}, " +
                 $"Layout Attempt={successfulAttemptIndex + 1}, " +
+                $"SecretRoomCreated={secretRoomCreated}, " +
                 $"{validationMessage}",
                 this
             );
@@ -416,14 +499,6 @@ public sealed class StageMapGenerator :
                 continue;
             }
 
-            /*
-             * 새 방은 생성 기준이 된 부모 방 하나와만
-             * 연결합니다.
-             *
-             * 후보 위치를 선택할 때 다른 방과의 인접을
-             * 이미 차단했으므로 맵 전체는 순환 없는
-             * 트리 구조를 유지합니다.
-             */
             bool connected =
                 generatedMap.ConnectRooms(
                     parentRoom.RoomId,
@@ -447,6 +522,318 @@ public sealed class StageMapGenerator :
         }
 
         return generatedMap;
+    }
+
+    private bool TryCreateSecretRoom(
+        StageMap map,
+        int baseSeed,
+        int successfulAttemptIndex)
+    {
+        ClearSecretRoomState();
+
+        if (!generateSecretRoom)
+        {
+            return false;
+        }
+
+        if (map == null)
+        {
+            return false;
+        }
+
+        if (secretRoomCoordinateSelector == null)
+        {
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "SecretRoomCoordinateSelector가 없어 " +
+                "비밀방을 생성할 수 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        int secretRoomSeed =
+            CreateAttemptSeed(
+                baseSeed,
+                maximumLayoutGenerationAttempts *
+                    2 +
+                Mathf.Max(
+                    successfulAttemptIndex,
+                    0
+                ) +
+                1
+            );
+
+        System.Random secretRoomRandom =
+            new System.Random(
+                secretRoomSeed
+            );
+
+        bool foundPosition =
+            secretRoomCoordinateSelector
+                .TryFindSecretRoomPosition(
+                    map,
+                    secretRoomRandom,
+                    out Vector2Int secretRoomPosition
+                );
+
+        if (!foundPosition)
+        {
+            Debug.LogWarning(
+                "StageMapGenerator: " +
+                "비밀방 후보 좌표를 찾지 못했습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        List<RoomNode> entranceRooms =
+            secretRoomCoordinateSelector
+                .GetEntranceRooms(
+                    map,
+                    secretRoomPosition
+                );
+
+        if (entranceRooms == null ||
+            entranceRooms.Count <= 0)
+        {
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "비밀방 좌표를 찾았지만 연결할 입구 방이 없습니다. " +
+                $"Position={secretRoomPosition}",
+                this
+            );
+
+            return false;
+        }
+
+        int secretRoomId =
+            FindNextRoomId(
+                map
+            );
+
+        RoomNode secretRoom =
+            new RoomNode(
+                secretRoomId,
+                secretRoomPosition,
+                RoomType.Secret
+            );
+
+        if (!map.AddRoom(
+                secretRoom
+            ))
+        {
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "비밀방을 StageMap에 추가하지 못했습니다. " +
+                $"RoomId={secretRoomId}, " +
+                $"Position={secretRoomPosition}",
+                this
+            );
+
+            return false;
+        }
+
+        List<SecretRoomEntrance> entrances =
+            new List<SecretRoomEntrance>();
+
+        for (int i = 0;
+             i < entranceRooms.Count;
+             i++)
+        {
+            RoomNode entranceRoom =
+                entranceRooms[i];
+
+            if (entranceRoom == null)
+            {
+                continue;
+            }
+
+            bool connected =
+                map.ConnectRooms(
+                    entranceRoom.RoomId,
+                    secretRoom.RoomId
+                );
+
+            if (!connected)
+            {
+                Debug.LogWarning(
+                    "StageMapGenerator: " +
+                    "비밀방 입구 연결에 실패했습니다. " +
+                    $"EntranceRoomId={entranceRoom.RoomId}, " +
+                    $"SecretRoomId={secretRoom.RoomId}",
+                    this
+                );
+
+                continue;
+            }
+
+            if (!TryGetDirection(
+                    entranceRoom.GridPosition,
+                    secretRoom.GridPosition,
+                    out RoomDirection direction))
+            {
+                Debug.LogError(
+                    "StageMapGenerator: " +
+                    "비밀방 입구 방향을 계산하지 못했습니다. " +
+                    $"EntrancePosition=" +
+                    $"{entranceRoom.GridPosition}, " +
+                    $"SecretPosition={secretRoom.GridPosition}",
+                    this
+                );
+
+                continue;
+            }
+
+            SecretRoomEntrance entrance =
+                new SecretRoomEntrance(
+                    secretRoom.RoomId,
+                    entranceRoom.RoomId,
+                    direction
+                );
+
+            entrances.Add(
+                entrance
+            );
+        }
+
+        if (entrances.Count <= 0)
+        {
+            Debug.LogError(
+                "StageMapGenerator: " +
+                "비밀방은 생성했지만 유효한 입구를 " +
+                "하나도 만들지 못했습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        map.RebuildLookup();
+
+        if (secretRoomState != null)
+        {
+            secretRoomState.Initialize(
+                secretRoom.RoomId,
+                entrances
+            );
+        }
+        else
+        {
+            Debug.LogWarning(
+                "StageMapGenerator: " +
+                "SecretRoomState가 없어 생성된 비밀방의 " +
+                "잠금 상태를 초기화하지 못했습니다.",
+                this
+            );
+        }
+
+        Debug.Log(
+            "StageMapGenerator: " +
+            "비밀방 생성 완료\n" +
+            $"RoomId={secretRoom.RoomId}\n" +
+            $"Position={secretRoom.GridPosition}\n" +
+            $"EntranceCount={entrances.Count}\n" +
+            $"Seed={secretRoomSeed}",
+            this
+        );
+
+        return true;
+    }
+
+    private void ClearSecretRoomState()
+    {
+        if (secretRoomState == null)
+        {
+            return;
+        }
+
+        secretRoomState.Clear();
+    }
+
+    private static int FindNextRoomId(
+        StageMap map)
+    {
+        if (map == null ||
+            map.Rooms == null)
+        {
+            return 0;
+        }
+
+        int highestRoomId = -1;
+
+        IReadOnlyList<RoomNode> rooms =
+            map.Rooms;
+
+        for (int i = 0;
+             i < rooms.Count;
+             i++)
+        {
+            RoomNode room =
+                rooms[i];
+
+            if (room == null)
+            {
+                continue;
+            }
+
+            highestRoomId =
+                Mathf.Max(
+                    highestRoomId,
+                    room.RoomId
+                );
+        }
+
+        return highestRoomId + 1;
+    }
+
+    private static bool TryGetDirection(
+        Vector2Int originPosition,
+        Vector2Int targetPosition,
+        out RoomDirection direction)
+    {
+        Vector2Int difference =
+            targetPosition -
+            originPosition;
+
+        if (difference == Vector2Int.up)
+        {
+            direction =
+                RoomDirection.Up;
+
+            return true;
+        }
+
+        if (difference == Vector2Int.right)
+        {
+            direction =
+                RoomDirection.Right;
+
+            return true;
+        }
+
+        if (difference == Vector2Int.down)
+        {
+            direction =
+                RoomDirection.Down;
+
+            return true;
+        }
+
+        if (difference == Vector2Int.left)
+        {
+            direction =
+                RoomDirection.Left;
+
+            return true;
+        }
+
+        direction =
+            default;
+
+        return false;
     }
 
     private static int CreateAttemptSeed(
@@ -724,16 +1111,6 @@ public sealed class StageMapGenerator :
             }
         }
 
-        /*
-         * 후보 위치는 부모 방 하나하고만
-         * 상하좌우로 맞닿아 있어야 합니다.
-         *
-         * 이 규칙으로 다음을 동시에 막습니다.
-         *
-         * - 연결되지 않은 방끼리 바로 붙는 구조
-         * - 2x2 형태의 밀집 배치
-         * - 의도하지 않은 순환 경로
-         */
         return
             adjacentRoomCount == 1 &&
             isParentAdjacent;
@@ -1145,7 +1522,8 @@ public sealed class StageMapGenerator :
             $"Boss={map.CountRoomsOfType(RoomType.Boss)}, " +
             $"Shop={map.CountRoomsOfType(RoomType.Shop)}, " +
             $"Reward={map.CountRoomsOfType(RoomType.Reward)}, " +
-            $"Event={map.CountRoomsOfType(RoomType.Event)}",
+            $"Event={map.CountRoomsOfType(RoomType.Event)}, " +
+            $"Secret={map.CountRoomsOfType(RoomType.Secret)}",
             this
         );
     }

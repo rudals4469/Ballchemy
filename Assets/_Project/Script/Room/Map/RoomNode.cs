@@ -39,19 +39,25 @@ public sealed class RoomNode
 
     public bool IsCombatRoom =>
         roomType ==
-        RoomType.NormalCombat ||
+            RoomType.NormalCombat ||
         roomType ==
-        RoomType.NamedCombat ||
+            RoomType.NamedCombat ||
         roomType ==
-        RoomType.Boss;
+            RoomType.Boss;
 
     public bool IsSpecialRoom =>
         roomType ==
-        RoomType.Shop ||
+            RoomType.Shop ||
         roomType ==
-        RoomType.Reward ||
+            RoomType.Reward ||
         roomType ==
-        RoomType.Event;
+            RoomType.Event ||
+        roomType ==
+            RoomType.Secret;
+
+    public bool IsSecretRoom =>
+        roomType ==
+            RoomType.Secret;
 
     public RoomNode(
         int roomId,

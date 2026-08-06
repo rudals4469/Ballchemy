@@ -16,6 +16,9 @@ public sealed class StageMapUI :
         transitionController;
 
     [SerializeField]
+    private SecretRoomState secretRoomState;
+
+    [SerializeField]
     private RectTransform mapContent;
 
     [SerializeField]
@@ -116,6 +119,9 @@ public sealed class StageMapUI :
     [SerializeField]
     private string eventRoomSymbol = "?";
 
+    [SerializeField]
+    private string secretRoomSymbol = "X";
+
     [Header("Optional Room Icons")]
 
     [SerializeField]
@@ -135,6 +141,9 @@ public sealed class StageMapUI :
 
     [SerializeField]
     private Sprite eventRoomIcon;
+
+    [SerializeField]
+    private Sprite secretRoomIcon;
 
     [Header("Debug")]
 
@@ -209,6 +218,14 @@ public sealed class StageMapUI :
                 >();
         }
 
+        if (secretRoomState == null)
+        {
+            secretRoomState =
+                FindFirstObjectByType<
+                    SecretRoomState
+                >();
+        }
+
         if (mapContent == null)
         {
             mapContent =
@@ -266,6 +283,12 @@ public sealed class StageMapUI :
                 eventRoomSymbol,
                 "?"
             );
+
+        secretRoomSymbol =
+            NormalizeSymbol(
+                secretRoomSymbol,
+                "X"
+            );
     }
 
     private static string NormalizeSymbol(
@@ -295,6 +318,16 @@ public sealed class StageMapUI :
             Debug.LogError(
                 "StageMapUI: " +
                 "RoomTransitionController가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (secretRoomState == null)
+        {
+            Debug.LogError(
+                "StageMapUI: " +
+                "SecretRoomState가 연결되지 않았습니다. " +
+                "비밀방 지도 공개 상태를 갱신할 수 없습니다.",
                 this
             );
         }
@@ -353,6 +386,15 @@ public sealed class StageMapUI :
                 .TransitionStateChanged +=
                 HandleTransitionStateChanged;
         }
+
+        if (secretRoomState != null)
+        {
+            secretRoomState.StateChanged -=
+                HandleSecretRoomStateChanged;
+
+            secretRoomState.StateChanged +=
+                HandleSecretRoomStateChanged;
+        }
     }
 
     private void UnsubscribeEvents()
@@ -375,6 +417,12 @@ public sealed class StageMapUI :
             transitionController
                 .TransitionStateChanged -=
                 HandleTransitionStateChanged;
+        }
+
+        if (secretRoomState != null)
+        {
+            secretRoomState.StateChanged -=
+                HandleSecretRoomStateChanged;
         }
     }
 
@@ -418,6 +466,11 @@ public sealed class StageMapUI :
 
     private void HandleTransitionStateChanged(
         bool isTransitioning)
+    {
+        RefreshAllNodes();
+    }
+
+    private void HandleSecretRoomStateChanged()
     {
         RefreshAllNodes();
     }
@@ -755,9 +808,40 @@ public sealed class StageMapUI :
                     room.RoomId
                 );
 
+            case RoomType.Secret:
+                return ShouldShowSecretRoom(
+                    room
+                );
+
             default:
                 return false;
         }
+    }
+
+    private bool ShouldShowSecretRoom(
+        RoomNode room)
+    {
+        if (room == null ||
+            room.RoomType !=
+            RoomType.Secret)
+        {
+            return false;
+        }
+
+        if (navigator != null &&
+            navigator.IsRoomVisited(
+                room.RoomId
+            ))
+        {
+            return true;
+        }
+
+        return
+            secretRoomState != null &&
+            secretRoomState.HasSecretRoom &&
+            secretRoomState.SecretRoomId ==
+                room.RoomId &&
+            secretRoomState.IsSecretRoomUnlocked;
     }
 
     private bool IsRoomDisplayedAsCleared(
@@ -811,6 +895,9 @@ public sealed class StageMapUI :
             case RoomType.Event:
                 return eventRoomSymbol;
 
+            case RoomType.Secret:
+                return secretRoomSymbol;
+
             default:
                 return string.Empty;
         }
@@ -838,6 +925,9 @@ public sealed class StageMapUI :
 
             case RoomType.Event:
                 return eventRoomIcon;
+
+            case RoomType.Secret:
+                return secretRoomIcon;
 
             case RoomType.NormalCombat:
             default:

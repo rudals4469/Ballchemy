@@ -3856,6 +3856,8 @@ GameObject:
   - component: {fileID: 372114442}
   - component: {fileID: 372114444}
   - component: {fileID: 372114443}
+  - component: {fileID: 372114446}
+  - component: {fileID: 372114445}
   m_Layer: 0
   m_Name: StageMapSystem
   m_TagString: Untagged
@@ -4023,6 +4025,44 @@ MonoBehaviour:
   enemyAttackIntervalBonusTurns: 0
   goldGainIncreaseRatio: 0
   showDebugLog: 1
+--- !u!114 &372114445
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 372114435}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9433bbc56c17c1b4ea28241d3f5c3198, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SecretRoomCoordinateSelector
+  minimumAdjacentEntranceRooms: 2
+  allowNormalCombatEntrance: 1
+  allowNamedCombatEntrance: 1
+  scorePerEntranceRoom: 100
+  distanceFromCenterPenalty: 5
+  startRoomAdjacentPenalty: 1000
+  bossRoomAdjacentPenalty: 1000
+  specialRoomAdjacentPenalty: 500
+  logCandidateScores: 0
+  logSelectedCandidate: 1
+--- !u!114 &372114446
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 372114435}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eaf76be8dbb90014cac3bc5b4d432600, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SecretRoomState
+  secretRoomId: -1
+  isSecretRoomUnlocked: 0
+  hasEnteredSecretRoom: 0
+  entrances: []
 --- !u!1 &373605221
 GameObject:
   m_ObjectHideFlags: 0

@@ -25,6 +25,9 @@ public sealed class StageRoomNavigator :
     [SerializeField]
     private StageKeyState stageKeyState;
 
+    [SerializeField]
+    private SecretRoomState secretRoomState;
+
     private StageMap currentMap;
 
     private RoomNode currentRoom;
@@ -219,6 +222,14 @@ public sealed class StageRoomNavigator :
                     StageKeyState
                 >();
         }
+
+        if (secretRoomState == null)
+        {
+            secretRoomState =
+                FindFirstObjectByType<
+                    SecretRoomState
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -279,6 +290,16 @@ public sealed class StageRoomNavigator :
                 this
             );
         }
+
+        if (secretRoomState == null)
+        {
+            Debug.LogError(
+                "StageRoomNavigator: " +
+                "SecretRoomState를 찾지 못했습니다. " +
+                "잠긴 비밀방의 이동을 제어할 수 없습니다.",
+                this
+            );
+        }
     }
 
     private void SubscribeEvents()
@@ -321,6 +342,15 @@ public sealed class StageRoomNavigator :
             blockGridManager.RoomCleared +=
                 HandleRoomCleared;
         }
+
+        if (secretRoomState != null)
+        {
+            secretRoomState.StateChanged -=
+                HandleSecretRoomStateChanged;
+
+            secretRoomState.StateChanged +=
+                HandleSecretRoomStateChanged;
+        }
     }
 
     private void UnsubscribeEvents()
@@ -347,6 +377,12 @@ public sealed class StageRoomNavigator :
 
             blockGridManager.RoomCleared -=
                 HandleRoomCleared;
+        }
+
+        if (secretRoomState != null)
+        {
+            secretRoomState.StateChanged -=
+                HandleSecretRoomStateChanged;
         }
     }
 
@@ -598,6 +634,14 @@ public sealed class StageRoomNavigator :
             return null;
         }
 
+        if (!CanExposeConnection(
+                currentRoom,
+                targetRoom
+            ))
+        {
+            return null;
+        }
+
         return targetRoom;
     }
 
@@ -628,7 +672,8 @@ public sealed class StageRoomNavigator :
         {
             Debug.LogWarning(
                 "StageRoomNavigator: " +
-                $"{direction} 방향에 연결된 방이 없습니다.",
+                $"{direction} 방향에 현재 이용 가능한 " +
+                "연결 방이 없습니다.",
                 this
             );
 
@@ -678,6 +723,21 @@ public sealed class StageRoomNavigator :
             Debug.LogWarning(
                 "StageRoomNavigator: " +
                 "직전 방이 현재 방과 연결되어 있지 않습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        if (!CanExposeConnection(
+                currentRoom,
+                previousRoom
+            ))
+        {
+            Debug.LogWarning(
+                "StageRoomNavigator: " +
+                "직전 방으로 이어지는 비밀방 입구가 " +
+                "아직 개방되지 않았습니다.",
                 this
             );
 
@@ -788,6 +848,14 @@ public sealed class StageRoomNavigator :
             return false;
         }
 
+        if (!CanExposeConnection(
+                currentRoom,
+                targetRoom
+            ))
+        {
+            return false;
+        }
+
         if (!CanEnterRoom(
                 targetRoom
             ))
@@ -841,11 +909,6 @@ public sealed class StageRoomNavigator :
                 targetRoom.RoomId
             );
 
-        /*
-         * 첫 이벤트방 입장을 하나의 이동 처리로 묶습니다.
-         * 여기까지 왔다면 CanEnterRoom을 통과했으므로
-         * 열쇠를 정상적으로 소비할 수 있어야 합니다.
-         */
         if (isFirstEventRoomEntry)
         {
             if (stageKeyState == null ||
@@ -882,6 +945,15 @@ public sealed class StageRoomNavigator :
             currentRoom.RoomId
         );
 
+        if (currentRoom.RoomType ==
+            RoomType.Secret)
+        {
+            secretRoomState
+                ?.MarkSecretRoomEntered(
+                    currentRoom.RoomId
+                );
+        }
+
         ConfigureCurrentRoomOnEntry();
 
         Debug.Log(
@@ -914,10 +986,66 @@ public sealed class StageRoomNavigator :
     }
 
     /*
-     * 이벤트방 최초 입장에만 열쇠를 요구합니다.
+     * 비밀방이 포함되지 않은 연결은 항상 노출합니다.
      *
-     * 이미 방문한 이벤트방은 콘텐츠 이용이 끝난 빈 방으로
-     * 취급하며 열쇠 없이 다시 통과할 수 있습니다.
+     * 일반방 -> 비밀방:
+     * 연결된 일반방 ID와 비밀방 ID로 입구 상태를 검사합니다.
+     *
+     * 비밀방 -> 일반방:
+     * 일반방 ID와 현재 비밀방 ID로 같은 입구 상태를 검사합니다.
+     */
+    private bool CanExposeConnection(
+        RoomNode sourceRoom,
+        RoomNode targetRoom)
+    {
+        if (sourceRoom == null ||
+            targetRoom == null)
+        {
+            return false;
+        }
+
+        bool sourceIsSecret =
+            sourceRoom.RoomType ==
+            RoomType.Secret;
+
+        bool targetIsSecret =
+            targetRoom.RoomType ==
+            RoomType.Secret;
+
+        if (!sourceIsSecret &&
+            !targetIsSecret)
+        {
+            return true;
+        }
+
+        if (secretRoomState == null ||
+            !secretRoomState.IsSecretRoomUnlocked)
+        {
+            return false;
+        }
+
+        if (targetIsSecret)
+        {
+            return secretRoomState.CanUseEntrance(
+                sourceRoom.RoomId,
+                targetRoom.RoomId
+            );
+        }
+
+        if (sourceIsSecret)
+        {
+            return secretRoomState.CanUseEntrance(
+                targetRoom.RoomId,
+                sourceRoom.RoomId
+            );
+        }
+
+        return false;
+    }
+
+    /*
+     * 이벤트방은 최초 입장 시 스테이지 열쇠를 요구합니다.
+     * 비밀방은 SecretRoomState에서 개방된 뒤에만 입장할 수 있습니다.
      */
     private bool CanEnterRoom(
         RoomNode targetRoom)
@@ -925,6 +1053,15 @@ public sealed class StageRoomNavigator :
         if (targetRoom == null)
         {
             return false;
+        }
+
+        if (targetRoom.RoomType ==
+            RoomType.Secret)
+        {
+            return
+                secretRoomState != null &&
+                secretRoomState
+                    .IsSecretRoomUnlocked;
         }
 
         if (targetRoom.RoomType !=
@@ -1004,6 +1141,16 @@ public sealed class StageRoomNavigator :
                 return true;
             }
 
+            RoomNode currentPathRoom =
+                currentMap.GetRoomById(
+                    roomId
+                );
+
+            if (currentPathRoom == null)
+            {
+                continue;
+            }
+
             List<RoomNode> connectedRooms =
                 currentMap.GetConnectedRooms(
                     roomId
@@ -1024,6 +1171,14 @@ public sealed class StageRoomNavigator :
                 if (connectedRoom == null ||
                     checkedRoomIds.Contains(
                         connectedRoom.RoomId))
+                {
+                    continue;
+                }
+
+                if (!CanExposeConnection(
+                        currentPathRoom,
+                        connectedRoom
+                    ))
                 {
                     continue;
                 }
@@ -1061,6 +1216,15 @@ public sealed class StageRoomNavigator :
             RoomType.Start)
         {
             return true;
+        }
+
+        if (room.RoomType ==
+            RoomType.Secret)
+        {
+            return
+                secretRoomState != null &&
+                secretRoomState
+                    .IsSecretRoomUnlocked;
         }
 
         if (room.IsCombatRoom)
@@ -1230,6 +1394,12 @@ public sealed class StageRoomNavigator :
 
     private void HandleRoomStateChanged(
         RoomCombatState roomState)
+    {
+        NavigationAvailabilityChanged
+            ?.Invoke();
+    }
+
+    private void HandleSecretRoomStateChanged()
     {
         NavigationAvailabilityChanged
             ?.Invoke();

@@ -6,5 +6,6 @@ public enum RoomType
     Boss,
     Shop,
     Reward,
-    Event
+    Event,
+    Secret
 }

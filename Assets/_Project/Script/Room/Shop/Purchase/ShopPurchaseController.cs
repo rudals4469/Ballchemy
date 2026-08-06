@@ -22,6 +22,12 @@ public sealed class ShopPurchaseController :
     [SerializeField]
     private StageModifierState stageModifierState;
 
+    [SerializeField]
+    private SecretRoomKeyState secretRoomKeyState;
+
+    [SerializeField]
+    private SecretRoomState secretRoomState;
+
     [Header("Healing Price")]
 
     [Tooltip(
@@ -236,6 +242,13 @@ public sealed class ShopPurchaseController :
                     item
                 );
 
+            case ShopItemEffectType.GrantSecretRoomKey:
+                return TryPurchaseSecretRoomKey(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
             default:
                 return Fail(
                     $"아직 구매 효과가 구현되지 않은 상품입니다. " +
@@ -364,6 +377,148 @@ public sealed class ShopPurchaseController :
             $"Healing={appliedHealing}, " +
             $"Health={playerHealth.CurrentHealth}/" +
             $"{playerHealth.MaxHealth}"
+        );
+
+        NotifyPurchaseSucceeded(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+
+        return true;
+    }
+
+    private bool TryPurchaseSecretRoomKey(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        if (item == null)
+        {
+            return Fail(
+                "비밀방 열쇠 상품 정보가 없습니다."
+            );
+        }
+
+        if (item.Category !=
+            ShopItemCategory.Special)
+        {
+            return Fail(
+                "GrantSecretRoomKey 효과의 상품 카테고리가 " +
+                "Special이 아닙니다."
+            );
+        }
+
+        if (currencyState == null ||
+            shopRoomState == null ||
+            secretRoomKeyState == null ||
+            secretRoomState == null)
+        {
+            return Fail(
+                "비밀방 열쇠 구매에 필요한 런타임 참조가 없습니다."
+            );
+        }
+
+        if (!secretRoomState.HasSecretRoom)
+        {
+            return Fail(
+                "현재 스테이지에 생성된 비밀방이 없습니다."
+            );
+        }
+
+        if (secretRoomState.IsSecretRoomUnlocked)
+        {
+            return Fail(
+                "현재 스테이지의 비밀방이 이미 개방되어 있습니다."
+            );
+        }
+
+        if (secretRoomKeyState.HasKey)
+        {
+            return Fail(
+                "이미 비밀문 공명석을 보유하고 있습니다."
+            );
+        }
+
+        int price =
+            GetCurrentPrice(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        if (!currencyState.CanAfford(
+                price
+            ))
+        {
+            return Fail(
+                $"골드가 부족합니다. " +
+                $"필요={price}G, " +
+                $"보유={currencyState.CurrentGold}G"
+            );
+        }
+
+        if (!currencyState.TrySpendGold(
+                price
+            ))
+        {
+            return Fail(
+                "골드 차감에 실패했습니다."
+            );
+        }
+
+        bool keyAcquired =
+            secretRoomKeyState.AcquireKey();
+
+        if (!keyAcquired)
+        {
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "비밀문 공명석 지급에 실패하여 " +
+                "구매를 취소했습니다."
+            );
+        }
+
+        bool purchaseRecorded =
+            shopRoomState.TryMarkSlotPurchased(
+                roomId,
+                inventorySlotIndex
+            );
+
+        if (!purchaseRecorded)
+        {
+            bool keyRolledBack =
+                secretRoomKeyState.TryConsumeKey();
+
+            currencyState.TryAddGold(
+                price
+            );
+
+            if (!keyRolledBack)
+            {
+                Debug.LogError(
+                    "ShopPurchaseController: " +
+                    "비밀방 열쇠 구매 상태 기록 실패 후 " +
+                    "열쇠 롤백에도 실패했습니다.",
+                    this
+                );
+            }
+
+            return Fail(
+                "상품 구매 상태 기록에 실패하여 " +
+                "열쇠와 골드를 되돌렸습니다."
+            );
+        }
+
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            "SecretRoomKeyAcquired=True"
         );
 
         NotifyPurchaseSucceeded(
@@ -883,6 +1038,22 @@ public sealed class ShopPurchaseController :
                     StageModifierState
                 >();
         }
+
+        if (secretRoomKeyState == null)
+        {
+            secretRoomKeyState =
+                FindFirstObjectByType<
+                    SecretRoomKeyState
+                >();
+        }
+
+        if (secretRoomState == null)
+        {
+            secretRoomState =
+                FindFirstObjectByType<
+                    SecretRoomState
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -928,6 +1099,26 @@ public sealed class ShopPurchaseController :
             Debug.LogError(
                 "ShopPurchaseController: " +
                 "StageModifierState가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (secretRoomKeyState == null)
+        {
+            Debug.LogError(
+                "ShopPurchaseController: " +
+                "SecretRoomKeyState가 연결되지 않았습니다. " +
+                "비밀문 공명석 구매 효과를 적용할 수 없습니다.",
+                this
+            );
+        }
+
+        if (secretRoomState == null)
+        {
+            Debug.LogError(
+                "ShopPurchaseController: " +
+                "SecretRoomState가 연결되지 않았습니다. " +
+                "비밀방 개방 상태를 확인할 수 없습니다.",
                 this
             );
         }
