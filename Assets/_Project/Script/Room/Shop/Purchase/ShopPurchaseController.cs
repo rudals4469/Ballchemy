@@ -28,6 +28,9 @@ public sealed class ShopPurchaseController :
     [SerializeField]
     private SecretRoomState secretRoomState;
 
+    [SerializeField]
+    private StageMapRevealState stageMapRevealState;
+
     [Header("Healing Price")]
 
     [Tooltip(
@@ -244,6 +247,13 @@ public sealed class ShopPurchaseController :
 
             case ShopItemEffectType.GrantSecretRoomKey:
                 return TryPurchaseSecretRoomKey(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            case ShopItemEffectType.RevealEntireStageMap:
+                return TryPurchaseRevealEntireStageMap(
                     roomId,
                     inventorySlotIndex,
                     item
@@ -519,6 +529,124 @@ public sealed class ShopPurchaseController :
             item,
             price,
             "SecretRoomKeyAcquired=True"
+        );
+
+        NotifyPurchaseSucceeded(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+
+        return true;
+    }
+
+    private bool TryPurchaseRevealEntireStageMap(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        if (item == null)
+        {
+            return Fail(
+                "전체 지도 공개 상품 정보가 없습니다."
+            );
+        }
+
+        if (item.Category !=
+            ShopItemCategory.Special)
+        {
+            return Fail(
+                "RevealEntireStageMap 효과의 상품 카테고리가 " +
+                "Special이 아닙니다."
+            );
+        }
+
+        if (currencyState == null ||
+            shopRoomState == null ||
+            stageMapRevealState == null)
+        {
+            return Fail(
+                "전체 지도 공개 구매에 필요한 런타임 참조가 없습니다."
+            );
+        }
+
+        if (stageMapRevealState
+                .IsEntireStageMapRevealed)
+        {
+            return Fail(
+                "현재 스테이지의 지도가 이미 모두 공개되어 있습니다."
+            );
+        }
+
+        int price =
+            GetCurrentPrice(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        if (!currencyState.CanAfford(
+                price
+            ))
+        {
+            return Fail(
+                $"골드가 부족합니다. " +
+                $"필요={price}G, " +
+                $"보유={currencyState.CurrentGold}G"
+            );
+        }
+
+        if (!currencyState.TrySpendGold(
+                price
+            ))
+        {
+            return Fail(
+                "골드 차감에 실패했습니다."
+            );
+        }
+
+        bool mapRevealed =
+            stageMapRevealState
+                .RevealEntireStageMap();
+
+        if (!mapRevealed)
+        {
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "전체 지도 공개 적용에 실패하여 " +
+                "구매를 취소했습니다."
+            );
+        }
+
+        bool purchaseRecorded =
+            shopRoomState.TryMarkSlotPurchased(
+                roomId,
+                inventorySlotIndex
+            );
+
+        if (!purchaseRecorded)
+        {
+            stageMapRevealState.Clear();
+
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "상품 구매 상태 기록에 실패하여 " +
+                "지도 공개와 골드를 되돌렸습니다."
+            );
+        }
+
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            "EntireStageMapRevealed=True"
         );
 
         NotifyPurchaseSucceeded(
@@ -1054,6 +1182,14 @@ public sealed class ShopPurchaseController :
                     SecretRoomState
                 >();
         }
+
+        if (stageMapRevealState == null)
+        {
+            stageMapRevealState =
+                FindFirstObjectByType<
+                    StageMapRevealState
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -1119,6 +1255,16 @@ public sealed class ShopPurchaseController :
                 "ShopPurchaseController: " +
                 "SecretRoomState가 연결되지 않았습니다. " +
                 "비밀방 개방 상태를 확인할 수 없습니다.",
+                this
+            );
+        }
+
+        if (stageMapRevealState == null)
+        {
+            Debug.LogError(
+                "ShopPurchaseController: " +
+                "StageMapRevealState가 연결되지 않았습니다. " +
+                "전체 지도 공개 효과를 적용할 수 없습니다.",
                 this
             );
         }

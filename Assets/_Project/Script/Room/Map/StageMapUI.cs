@@ -19,6 +19,10 @@ public sealed class StageMapUI :
     private SecretRoomState secretRoomState;
 
     [SerializeField]
+    private StageMapRevealState
+        stageMapRevealState;
+
+    [SerializeField]
     private RectTransform mapContent;
 
     [SerializeField]
@@ -226,6 +230,14 @@ public sealed class StageMapUI :
                 >();
         }
 
+        if (stageMapRevealState == null)
+        {
+            stageMapRevealState =
+                FindFirstObjectByType<
+                    StageMapRevealState
+                >();
+        }
+
         if (mapContent == null)
         {
             mapContent =
@@ -332,6 +344,16 @@ public sealed class StageMapUI :
             );
         }
 
+        if (stageMapRevealState == null)
+        {
+            Debug.LogError(
+                "StageMapUI: " +
+                "StageMapRevealState가 연결되지 않았습니다. " +
+                "전체 지도 공개 상태를 갱신할 수 없습니다.",
+                this
+            );
+        }
+
         if (mapContent == null)
         {
             Debug.LogError(
@@ -395,6 +417,15 @@ public sealed class StageMapUI :
             secretRoomState.StateChanged +=
                 HandleSecretRoomStateChanged;
         }
+
+        if (stageMapRevealState != null)
+        {
+            stageMapRevealState.StateChanged -=
+                HandleStageMapRevealStateChanged;
+
+            stageMapRevealState.StateChanged +=
+                HandleStageMapRevealStateChanged;
+        }
     }
 
     private void UnsubscribeEvents()
@@ -423,6 +454,12 @@ public sealed class StageMapUI :
         {
             secretRoomState.StateChanged -=
                 HandleSecretRoomStateChanged;
+        }
+
+        if (stageMapRevealState != null)
+        {
+            stageMapRevealState.StateChanged -=
+                HandleStageMapRevealStateChanged;
         }
     }
 
@@ -471,6 +508,11 @@ public sealed class StageMapUI :
     }
 
     private void HandleSecretRoomStateChanged()
+    {
+        RefreshAllNodes();
+    }
+
+    private void HandleStageMapRevealStateChanged()
     {
         RefreshAllNodes();
     }
@@ -804,9 +846,11 @@ public sealed class StageMapUI :
 
             case RoomType.NormalCombat:
             case RoomType.NamedCombat:
-                return navigator.IsRoomVisited(
-                    room.RoomId
-                );
+                return
+                    navigator.IsRoomVisited(
+                        room.RoomId
+                    ) ||
+                    IsEntireStageMapRevealed();
 
             case RoomType.Secret:
                 return ShouldShowSecretRoom(
@@ -816,6 +860,14 @@ public sealed class StageMapUI :
             default:
                 return false;
         }
+    }
+
+    private bool IsEntireStageMapRevealed()
+    {
+        return
+            stageMapRevealState != null &&
+            stageMapRevealState
+                .IsEntireStageMapRevealed;
     }
 
     private bool ShouldShowSecretRoom(
@@ -836,6 +888,10 @@ public sealed class StageMapUI :
             return true;
         }
 
+        /*
+         * 전체 지도 공개 상품으로는
+         * 비밀방을 공개하지 않습니다.
+         */
         return
             secretRoomState != null &&
             secretRoomState.HasSecretRoom &&
