@@ -31,6 +31,9 @@ public sealed class ShopPurchaseController :
     [SerializeField]
     private StageMapRevealState stageMapRevealState;
 
+    [SerializeField]
+    private RunRewardState runRewardState;
+
     [Header("Healing Price")]
 
     [Tooltip(
@@ -254,6 +257,13 @@ public sealed class ShopPurchaseController :
 
             case ShopItemEffectType.RevealEntireStageMap:
                 return TryPurchaseRevealEntireStageMap(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            case ShopItemEffectType.UpgradeNextRewardTier:
+                return TryPurchaseUpgradeNextRewardTier(
                     roomId,
                     inventorySlotIndex,
                     item
@@ -647,6 +657,142 @@ public sealed class ShopPurchaseController :
             item,
             price,
             "EntireStageMapRevealed=True"
+        );
+
+        NotifyPurchaseSucceeded(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+
+        return true;
+    }
+
+    private bool TryPurchaseUpgradeNextRewardTier(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        if (item == null)
+        {
+            return Fail(
+                "다음 보상 등급 증가 상품 정보가 없습니다."
+            );
+        }
+
+        if (item.Category !=
+            ShopItemCategory.Special)
+        {
+            return Fail(
+                "UpgradeNextRewardTier 효과의 상품 카테고리가 " +
+                "Special이 아닙니다."
+            );
+        }
+
+        if (currencyState == null ||
+            shopRoomState == null ||
+            runRewardState == null)
+        {
+            return Fail(
+                "다음 보상 등급 증가 구매에 필요한 " +
+                "런타임 참조가 없습니다."
+            );
+        }
+
+        if (runRewardState
+                .HasPendingRewardUpgrade)
+        {
+            return Fail(
+                "이미 다음 전투방 보상 등급 증가가 " +
+                "예약되어 있습니다."
+            );
+        }
+
+        int upgradeAmount =
+            item.IntegerValue;
+
+        if (upgradeAmount <= 0)
+        {
+            return Fail(
+                "보상 등급 증가 단계가 0 이하입니다. " +
+                $"ItemId={item.ItemId}, " +
+                $"IntegerValue={upgradeAmount}"
+            );
+        }
+
+        int price =
+            GetCurrentPrice(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        if (!currencyState.CanAfford(
+                price
+            ))
+        {
+            return Fail(
+                $"골드가 부족합니다. " +
+                $"필요={price}G, " +
+                $"보유={currencyState.CurrentGold}G"
+            );
+        }
+
+        if (!currencyState.TrySpendGold(
+                price
+            ))
+        {
+            return Fail(
+                "골드 차감에 실패했습니다."
+            );
+        }
+
+        bool upgradeReserved =
+            runRewardState
+                .AddPendingRewardTierIncrease(
+                    upgradeAmount
+                );
+
+        if (!upgradeReserved)
+        {
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "다음 보상 등급 증가 예약에 실패하여 " +
+                "구매를 취소했습니다."
+            );
+        }
+
+        bool purchaseRecorded =
+            shopRoomState.TryMarkSlotPurchased(
+                roomId,
+                inventorySlotIndex
+            );
+
+        if (!purchaseRecorded)
+        {
+            runRewardState
+                .ClearPendingRewardUpgrade();
+
+            currencyState.TryAddGold(
+                price
+            );
+
+            return Fail(
+                "상품 구매 상태 기록에 실패하여 " +
+                "보상 증가 예약과 골드를 되돌렸습니다."
+            );
+        }
+
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            "PendingRewardTierIncrease=" +
+            runRewardState.PendingRewardTierIncrease
         );
 
         NotifyPurchaseSucceeded(
@@ -1190,6 +1336,14 @@ public sealed class ShopPurchaseController :
                     StageMapRevealState
                 >();
         }
+
+        if (runRewardState == null)
+        {
+            runRewardState =
+                FindFirstObjectByType<
+                    RunRewardState
+                >();
+        }
     }
 
     private void ValidateReferences()
@@ -1265,6 +1419,16 @@ public sealed class ShopPurchaseController :
                 "ShopPurchaseController: " +
                 "StageMapRevealState가 연결되지 않았습니다. " +
                 "전체 지도 공개 효과를 적용할 수 없습니다.",
+                this
+            );
+        }
+
+        if (runRewardState == null)
+        {
+            Debug.LogError(
+                "ShopPurchaseController: " +
+                "RunRewardState가 연결되지 않았습니다. " +
+                "다음 보상 등급 증가 효과를 적용할 수 없습니다.",
                 this
             );
         }
