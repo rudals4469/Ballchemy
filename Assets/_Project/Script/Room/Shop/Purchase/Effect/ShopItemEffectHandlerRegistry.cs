@@ -8,8 +8,10 @@ public sealed class ShopItemEffectHandlerRegistry :
     [Header("Handler Source")]
 
     [Tooltip(
-        "활성화하면 이 GameObject와 모든 활성 자식에서 " +
-        "IShopItemEffectHandler 구현 컴포넌트를 자동 수집합니다."
+        "활성화하면 이 GameObject와 모든 자식에서 " +
+        "IShopItemEffectHandler 구현 컴포넌트를 수집합니다.\n" +
+        "비활성 핸들러도 등록하지만 구매 시점에는 " +
+        "활성 상태인 핸들러만 반환합니다."
     )]
     [SerializeField]
     private bool includeChildren = true;
@@ -31,13 +33,42 @@ public sealed class ShopItemEffectHandlerRegistry :
     public int HandlerCount =>
         handlerByEffectType.Count;
 
+    public int ActiveHandlerCount
+    {
+        get
+        {
+            int count = 0;
+
+            foreach (
+                KeyValuePair<
+                    ShopItemEffectType,
+                    IShopItemEffectHandler
+                > pair in handlerByEffectType)
+            {
+                if (IsHandlerActive(
+                        pair.Value
+                    ))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+    }
+
     private void Awake()
     {
         Rebuild();
     }
 
-    private void OnEnable()
+    private void OnValidate()
     {
+        if (!Application.isPlaying)
+        {
+            return;
+        }
+
         Rebuild();
     }
 
@@ -51,13 +82,14 @@ public sealed class ShopItemEffectHandlerRegistry :
                 ? GetComponentsInChildren<
                     MonoBehaviour
                 >(
-                    false
+                    true
                 )
                 : GetComponents<
                     MonoBehaviour
                 >();
 
-        if (behaviours == null)
+        if (behaviours == null ||
+            behaviours.Length == 0)
         {
             LogRegistryState();
 
@@ -75,10 +107,13 @@ public sealed class ShopItemEffectHandlerRegistry :
                 ReferenceEquals(
                     behaviour,
                     this
-                ) ||
-                !behaviour.isActiveAndEnabled ||
-                !(behaviour is
-                    IShopItemEffectHandler handler))
+                ))
+            {
+                continue;
+            }
+
+            if (!(behaviour is
+                IShopItemEffectHandler handler))
             {
                 continue;
             }
@@ -104,20 +139,34 @@ public sealed class ShopItemEffectHandlerRegistry :
             return false;
         }
 
-        return TryGetActiveHandler(
-            item.EffectType,
-            item,
-            out handler
-        );
+        if (!TryGetRegisteredHandler(
+                item.EffectType,
+                out IShopItemEffectHandler
+                    registeredHandler
+            ))
+        {
+            return false;
+        }
+
+        if (!registeredHandler.CanHandle(
+                item
+            ))
+        {
+            return false;
+        }
+
+        handler =
+            registeredHandler;
+
+        return true;
     }
 
     public bool TryGetHandler(
         ShopItemEffectType effectType,
         out IShopItemEffectHandler handler)
     {
-        return TryGetActiveHandler(
+        return TryGetRegisteredHandler(
             effectType,
-            null,
             out handler
         );
     }
@@ -131,9 +180,8 @@ public sealed class ShopItemEffectHandlerRegistry :
         );
     }
 
-    private bool TryGetActiveHandler(
+    private bool TryGetRegisteredHandler(
         ShopItemEffectType effectType,
-        ShopItemDefinition item,
         out IShopItemEffectHandler handler)
     {
         handler =
@@ -146,7 +194,7 @@ public sealed class ShopItemEffectHandlerRegistry :
             ))
         {
             /*
-             * 런타임에 핸들러가 새로 활성화됐을 수 있으므로
+             * 런타임 중 자식 구조가 변경되었을 가능성을 고려해
              * 한 번 재수집합니다.
              */
             Rebuild();
@@ -160,20 +208,12 @@ public sealed class ShopItemEffectHandlerRegistry :
             }
         }
 
+        /*
+         * Registry에는 비활성 핸들러도 등록하지만,
+         * 실제 구매 시점에는 활성 핸들러만 사용할 수 있습니다.
+         */
         if (!IsHandlerActive(
                 registeredHandler
-            ))
-        {
-            handlerByEffectType.Remove(
-                effectType
-            );
-
-            return false;
-        }
-
-        if (item != null &&
-            !registeredHandler.CanHandle(
-                item
             ))
         {
             return false;
@@ -190,8 +230,7 @@ public sealed class ShopItemEffectHandlerRegistry :
         MonoBehaviour sourceComponent)
     {
         if (handler == null ||
-            sourceComponent == null ||
-            !sourceComponent.isActiveAndEnabled)
+            sourceComponent == null)
         {
             return;
         }
@@ -207,9 +246,11 @@ public sealed class ShopItemEffectHandlerRegistry :
         {
             Debug.LogError(
                 "ShopItemEffectHandlerRegistry: " +
-                "같은 효과 타입의 핸들러가 중복 등록되었습니다. " +
+                "같은 효과 타입의 핸들러가 " +
+                "중복 등록되었습니다. " +
                 $"EffectType={effectType}, " +
-                $"Existing={GetHandlerName(existingHandler)}, " +
+                $"Existing=" +
+                $"{GetHandlerName(existingHandler)}, " +
                 $"Duplicate={sourceComponent.name}",
                 sourceComponent
             );
@@ -234,7 +275,7 @@ public sealed class ShopItemEffectHandlerRegistry :
 
         return
             behaviour != null &&
-            behaviour.isActiveAndEnabled &&
+            behaviour.enabled &&
             behaviour.gameObject
                 .activeInHierarchy;
     }
@@ -248,8 +289,9 @@ public sealed class ShopItemEffectHandlerRegistry :
 
         Debug.Log(
             "ShopItemEffectHandlerRegistry: " +
-            $"활성 상점 효과 핸들러 " +
-            $"{handlerByEffectType.Count}개 등록 완료.",
+            $"상점 효과 핸들러 " +
+            $"{HandlerCount}개 등록 완료. " +
+            $"현재 활성 핸들러={ActiveHandlerCount}개",
             this
         );
     }
@@ -261,7 +303,9 @@ public sealed class ShopItemEffectHandlerRegistry :
             MonoBehaviour behaviour &&
             behaviour != null)
         {
-            return behaviour.name;
+            return
+                $"{behaviour.gameObject.name}/" +
+                $"{behaviour.GetType().Name}";
         }
 
         return handler != null
