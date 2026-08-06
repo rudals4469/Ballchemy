@@ -29,10 +29,8 @@ public sealed class ShopPurchaseController :
     private SecretRoomState secretRoomState;
 
     [SerializeField]
-    private StageMapRevealState stageMapRevealState;
-
-    [SerializeField]
-    private RunRewardState runRewardState;
+    private ShopItemEffectHandlerRegistry
+        effectHandlerRegistry;
 
     [Header("Healing Price")]
 
@@ -116,9 +114,10 @@ public sealed class ShopPurchaseController :
 
         int purchaseCount =
             shopRoomState != null
-                ? shopRoomState.GetHealingPurchaseCount(
-                    roomId
-                )
+                ? shopRoomState
+                    .GetHealingPurchaseCount(
+                        roomId
+                    )
                 : 0;
 
         return basePrice +
@@ -171,7 +170,7 @@ public sealed class ShopPurchaseController :
             ))
         {
             return Fail(
-                $"현재 상점방의 재고 상태가 없습니다. " +
+                "현재 상점방의 재고 상태가 없습니다. " +
                 $"RoomId={roomId}"
             );
         }
@@ -189,7 +188,8 @@ public sealed class ShopPurchaseController :
             ))
         {
             return Fail(
-                "선택한 상품과 상점 재고 정보가 일치하지 않습니다."
+                "선택한 상품과 상점 재고 정보가 " +
+                "일치하지 않습니다."
             );
         }
 
@@ -256,14 +256,8 @@ public sealed class ShopPurchaseController :
                 );
 
             case ShopItemEffectType.RevealEntireStageMap:
-                return TryPurchaseRevealEntireStageMap(
-                    roomId,
-                    inventorySlotIndex,
-                    item
-                );
-
             case ShopItemEffectType.UpgradeNextRewardTier:
-                return TryPurchaseUpgradeNextRewardTier(
+                return TryPurchaseWithEffectHandler(
                     roomId,
                     inventorySlotIndex,
                     item
@@ -271,11 +265,202 @@ public sealed class ShopPurchaseController :
 
             default:
                 return Fail(
-                    $"아직 구매 효과가 구현되지 않은 상품입니다. " +
+                    "아직 구매 효과가 구현되지 않은 상품입니다. " +
                     $"ItemId={item.ItemId}, " +
                     $"EffectType={item.EffectType}"
                 );
         }
+    }
+
+    private bool TryPurchaseWithEffectHandler(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        if (effectHandlerRegistry == null)
+        {
+            return Fail(
+                "상점 효과 핸들러 Registry가 " +
+                "연결되지 않았습니다."
+            );
+        }
+
+        if (currencyState == null ||
+            shopRoomState == null)
+        {
+            return Fail(
+                "핸들러 상품 구매에 필요한 " +
+                "공통 런타임 참조가 없습니다."
+            );
+        }
+
+        if (!effectHandlerRegistry.TryGetHandler(
+                item,
+                out IShopItemEffectHandler handler
+            ))
+        {
+            return Fail(
+                "상품 효과를 처리할 핸들러를 " +
+                "찾지 못했습니다. " +
+                $"EffectType={item.EffectType}"
+            );
+        }
+
+        int price =
+            GetCurrentPrice(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        ShopPurchaseContext context =
+            new ShopPurchaseContext(
+                roomId,
+                inventorySlotIndex,
+                price,
+                item
+            );
+
+        ShopItemEffectApplyResult
+            validationResult =
+                handler.Validate(
+                    context
+                );
+
+        if (!validationResult.IsSuccess)
+        {
+            return Fail(
+                ResolveFailureMessage(
+                    validationResult,
+                    "상품 효과를 적용할 수 없습니다."
+                )
+            );
+        }
+
+        if (!currencyState.CanAfford(
+                price
+            ))
+        {
+            return Fail(
+                $"골드가 부족합니다. " +
+                $"필요={price}G, " +
+                $"보유={currencyState.CurrentGold}G"
+            );
+        }
+
+        if (!currencyState.TrySpendGold(
+                price
+            ))
+        {
+            return Fail(
+                "골드 차감에 실패했습니다."
+            );
+        }
+
+        ShopItemEffectApplyResult
+            applyResult =
+                handler.Apply(
+                    context
+                );
+
+        if (!applyResult.IsSuccess)
+        {
+            bool refundSucceeded =
+                currencyState.TryAddGold(
+                    price
+                );
+
+            if (!refundSucceeded)
+            {
+                Debug.LogError(
+                    "ShopPurchaseController: " +
+                    "효과 적용 실패 후 골드 반환에 " +
+                    "실패했습니다. " +
+                    $"Price={price}",
+                    this
+                );
+            }
+
+            return Fail(
+                ResolveFailureMessage(
+                    applyResult,
+                    "상품 효과 적용에 실패했습니다."
+                )
+            );
+        }
+
+        bool purchaseRecorded =
+            shopRoomState.TryMarkSlotPurchased(
+                roomId,
+                inventorySlotIndex
+            );
+
+        if (!purchaseRecorded)
+        {
+            bool rollbackSucceeded =
+                handler.Rollback(
+                    context
+                );
+
+            bool refundSucceeded =
+                currencyState.TryAddGold(
+                    price
+                );
+
+            if (!rollbackSucceeded)
+            {
+                Debug.LogError(
+                    "ShopPurchaseController: " +
+                    "구매 기록 실패 후 효과 롤백에 " +
+                    "실패했습니다. " +
+                    $"EffectType={item.EffectType}",
+                    this
+                );
+            }
+
+            if (!refundSucceeded)
+            {
+                Debug.LogError(
+                    "ShopPurchaseController: " +
+                    "구매 기록 실패 후 골드 반환에 " +
+                    "실패했습니다. " +
+                    $"Price={price}",
+                    this
+                );
+            }
+
+            return Fail(
+                "상품 구매 상태 기록에 실패하여 " +
+                "효과와 골드를 되돌렸습니다."
+            );
+        }
+
+        LogPurchaseSuccess(
+            roomId,
+            inventorySlotIndex,
+            item,
+            price,
+            applyResult.EffectDescription
+        );
+
+        NotifyPurchaseSucceeded(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+
+        return true;
+    }
+
+    private static string ResolveFailureMessage(
+        ShopItemEffectApplyResult result,
+        string fallbackMessage)
+    {
+        return string.IsNullOrWhiteSpace(
+                result.Message
+            )
+            ? fallbackMessage
+            : result.Message;
     }
 
     private bool TryPurchaseHealing(
@@ -287,7 +472,8 @@ public sealed class ShopPurchaseController :
             ShopItemCategory.Healing)
         {
             return Fail(
-                "RecoverHealth 효과의 상품 카테고리가 Healing이 아닙니다."
+                "RecoverHealth 효과의 상품 카테고리가 " +
+                "Healing이 아닙니다."
             );
         }
 
@@ -303,7 +489,8 @@ public sealed class ShopPurchaseController :
         if (playerHealth.IsDead)
         {
             return Fail(
-                "플레이어가 사망한 상태에서는 치료할 수 없습니다."
+                "플레이어가 사망한 상태에서는 " +
+                "치료할 수 없습니다."
             );
         }
 
@@ -383,7 +570,8 @@ public sealed class ShopPurchaseController :
         {
             Debug.LogError(
                 "ShopPurchaseController: " +
-                "치료는 적용됐지만 구매 횟수 기록에 실패했습니다. " +
+                "치료는 적용됐지만 구매 횟수 기록에 " +
+                "실패했습니다. " +
                 $"RoomId={roomId}",
                 this
             );
@@ -435,7 +623,8 @@ public sealed class ShopPurchaseController :
             secretRoomState == null)
         {
             return Fail(
-                "비밀방 열쇠 구매에 필요한 런타임 참조가 없습니다."
+                "비밀방 열쇠 구매에 필요한 " +
+                "런타임 참조가 없습니다."
             );
         }
 
@@ -449,7 +638,8 @@ public sealed class ShopPurchaseController :
         if (secretRoomState.IsSecretRoomUnlocked)
         {
             return Fail(
-                "현재 스테이지의 비밀방이 이미 개방되어 있습니다."
+                "현재 스테이지의 비밀방이 " +
+                "이미 개방되어 있습니다."
             );
         }
 
@@ -539,260 +729,6 @@ public sealed class ShopPurchaseController :
             item,
             price,
             "SecretRoomKeyAcquired=True"
-        );
-
-        NotifyPurchaseSucceeded(
-            roomId,
-            inventorySlotIndex,
-            item
-        );
-
-        return true;
-    }
-
-    private bool TryPurchaseRevealEntireStageMap(
-        int roomId,
-        int inventorySlotIndex,
-        ShopItemDefinition item)
-    {
-        if (item == null)
-        {
-            return Fail(
-                "전체 지도 공개 상품 정보가 없습니다."
-            );
-        }
-
-        if (item.Category !=
-            ShopItemCategory.Special)
-        {
-            return Fail(
-                "RevealEntireStageMap 효과의 상품 카테고리가 " +
-                "Special이 아닙니다."
-            );
-        }
-
-        if (currencyState == null ||
-            shopRoomState == null ||
-            stageMapRevealState == null)
-        {
-            return Fail(
-                "전체 지도 공개 구매에 필요한 런타임 참조가 없습니다."
-            );
-        }
-
-        if (stageMapRevealState
-                .IsEntireStageMapRevealed)
-        {
-            return Fail(
-                "현재 스테이지의 지도가 이미 모두 공개되어 있습니다."
-            );
-        }
-
-        int price =
-            GetCurrentPrice(
-                roomId,
-                inventorySlotIndex,
-                item
-            );
-
-        if (!currencyState.CanAfford(
-                price
-            ))
-        {
-            return Fail(
-                $"골드가 부족합니다. " +
-                $"필요={price}G, " +
-                $"보유={currencyState.CurrentGold}G"
-            );
-        }
-
-        if (!currencyState.TrySpendGold(
-                price
-            ))
-        {
-            return Fail(
-                "골드 차감에 실패했습니다."
-            );
-        }
-
-        bool mapRevealed =
-            stageMapRevealState
-                .RevealEntireStageMap();
-
-        if (!mapRevealed)
-        {
-            currencyState.TryAddGold(
-                price
-            );
-
-            return Fail(
-                "전체 지도 공개 적용에 실패하여 " +
-                "구매를 취소했습니다."
-            );
-        }
-
-        bool purchaseRecorded =
-            shopRoomState.TryMarkSlotPurchased(
-                roomId,
-                inventorySlotIndex
-            );
-
-        if (!purchaseRecorded)
-        {
-            stageMapRevealState.Clear();
-
-            currencyState.TryAddGold(
-                price
-            );
-
-            return Fail(
-                "상품 구매 상태 기록에 실패하여 " +
-                "지도 공개와 골드를 되돌렸습니다."
-            );
-        }
-
-        LogPurchaseSuccess(
-            roomId,
-            inventorySlotIndex,
-            item,
-            price,
-            "EntireStageMapRevealed=True"
-        );
-
-        NotifyPurchaseSucceeded(
-            roomId,
-            inventorySlotIndex,
-            item
-        );
-
-        return true;
-    }
-
-    private bool TryPurchaseUpgradeNextRewardTier(
-        int roomId,
-        int inventorySlotIndex,
-        ShopItemDefinition item)
-    {
-        if (item == null)
-        {
-            return Fail(
-                "다음 보상 등급 증가 상품 정보가 없습니다."
-            );
-        }
-
-        if (item.Category !=
-            ShopItemCategory.Special)
-        {
-            return Fail(
-                "UpgradeNextRewardTier 효과의 상품 카테고리가 " +
-                "Special이 아닙니다."
-            );
-        }
-
-        if (currencyState == null ||
-            shopRoomState == null ||
-            runRewardState == null)
-        {
-            return Fail(
-                "다음 보상 등급 증가 구매에 필요한 " +
-                "런타임 참조가 없습니다."
-            );
-        }
-
-        if (runRewardState
-                .HasPendingRewardUpgrade)
-        {
-            return Fail(
-                "이미 다음 전투방 보상 등급 증가가 " +
-                "예약되어 있습니다."
-            );
-        }
-
-        int upgradeAmount =
-            item.IntegerValue;
-
-        if (upgradeAmount <= 0)
-        {
-            return Fail(
-                "보상 등급 증가 단계가 0 이하입니다. " +
-                $"ItemId={item.ItemId}, " +
-                $"IntegerValue={upgradeAmount}"
-            );
-        }
-
-        int price =
-            GetCurrentPrice(
-                roomId,
-                inventorySlotIndex,
-                item
-            );
-
-        if (!currencyState.CanAfford(
-                price
-            ))
-        {
-            return Fail(
-                $"골드가 부족합니다. " +
-                $"필요={price}G, " +
-                $"보유={currencyState.CurrentGold}G"
-            );
-        }
-
-        if (!currencyState.TrySpendGold(
-                price
-            ))
-        {
-            return Fail(
-                "골드 차감에 실패했습니다."
-            );
-        }
-
-        bool upgradeReserved =
-            runRewardState
-                .AddPendingRewardTierIncrease(
-                    upgradeAmount
-                );
-
-        if (!upgradeReserved)
-        {
-            currencyState.TryAddGold(
-                price
-            );
-
-            return Fail(
-                "다음 보상 등급 증가 예약에 실패하여 " +
-                "구매를 취소했습니다."
-            );
-        }
-
-        bool purchaseRecorded =
-            shopRoomState.TryMarkSlotPurchased(
-                roomId,
-                inventorySlotIndex
-            );
-
-        if (!purchaseRecorded)
-        {
-            runRewardState
-                .ClearPendingRewardUpgrade();
-
-            currencyState.TryAddGold(
-                price
-            );
-
-            return Fail(
-                "상품 구매 상태 기록에 실패하여 " +
-                "보상 증가 예약과 골드를 되돌렸습니다."
-            );
-        }
-
-        LogPurchaseSuccess(
-            roomId,
-            inventorySlotIndex,
-            item,
-            price,
-            "PendingRewardTierIncrease=" +
-            runRewardState.PendingRewardTierIncrease
         );
 
         NotifyPurchaseSucceeded(
@@ -1240,6 +1176,13 @@ public sealed class ShopPurchaseController :
                 ? item.ItemId
                 : "None";
 
+        string description =
+            string.IsNullOrWhiteSpace(
+                effectDescription
+            )
+                ? "EffectApplied=True"
+                : effectDescription;
+
         Debug.Log(
             "ShopPurchaseController: " +
             "상품 구매 완료. " +
@@ -1247,7 +1190,7 @@ public sealed class ShopPurchaseController :
             $"SlotIndex={inventorySlotIndex}, " +
             $"ItemId={itemId}, " +
             $"Price={price}G, " +
-            effectDescription,
+            description,
             this
         );
     }
@@ -1329,20 +1272,14 @@ public sealed class ShopPurchaseController :
                 >();
         }
 
-        if (stageMapRevealState == null)
+        if (effectHandlerRegistry == null)
         {
-            stageMapRevealState =
+            effectHandlerRegistry =
                 FindFirstObjectByType<
-                    StageMapRevealState
-                >();
-        }
-
-        if (runRewardState == null)
-        {
-            runRewardState =
-                FindFirstObjectByType<
-                    RunRewardState
-                >();
+                    ShopItemEffectHandlerRegistry
+                >(
+                    FindObjectsInactive.Include
+                );
         }
     }
 
@@ -1413,22 +1350,12 @@ public sealed class ShopPurchaseController :
             );
         }
 
-        if (stageMapRevealState == null)
+        if (effectHandlerRegistry == null)
         {
             Debug.LogError(
                 "ShopPurchaseController: " +
-                "StageMapRevealState가 연결되지 않았습니다. " +
-                "전체 지도 공개 효과를 적용할 수 없습니다.",
-                this
-            );
-        }
-
-        if (runRewardState == null)
-        {
-            Debug.LogError(
-                "ShopPurchaseController: " +
-                "RunRewardState가 연결되지 않았습니다. " +
-                "다음 보상 등급 증가 효과를 적용할 수 없습니다.",
+                "ShopItemEffectHandlerRegistry가 " +
+                "연결되지 않았습니다.",
                 this
             );
         }
