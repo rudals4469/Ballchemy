@@ -245,6 +245,7 @@ public sealed class ShopPurchaseController :
             case ShopItemEffectType.RevealEntireStageMap:
             case ShopItemEffectType.UpgradeNextRewardTier:
             case ShopItemEffectType.GrantSecretRoomKey:
+            case ShopItemEffectType.ReduceNextRetreatCost:
                 return TryPurchaseWithEffectHandler(
                     roomId,
                     inventorySlotIndex,

@@ -25,10 +25,14 @@ public sealed class RoomRetreatController :
     private RoomTransitionController
         transitionController;
 
+    [SerializeField]
+    private RetreatCostDiscountState
+        retreatCostDiscountState;
+
     [Header("Retreat Cost")]
 
     [Tooltip(
-        "후퇴 시 최대 체력에서 차감할 비율입니다. " +
+        "후퇴 시 최대 체력에서 차감할 기본 비율입니다. " +
         "0.1은 최대 체력의 10%입니다."
     )]
     [SerializeField, Range(0.01f, 1f)]
@@ -41,7 +45,7 @@ public sealed class RoomRetreatController :
     [SerializeField]
     private bool allowLethalRetreatCost;
 
-    public int RetreatCost
+    public int BaseRetreatCost
     {
         get
         {
@@ -60,6 +64,43 @@ public sealed class RoomRetreatController :
         }
     }
 
+    public float RetreatCostDiscountRatio =>
+        retreatCostDiscountState != null
+            ? retreatCostDiscountState
+                .DiscountRatio
+            : 0f;
+
+    public int RetreatCost
+    {
+        get
+        {
+            int baseCost =
+                BaseRetreatCost;
+
+            if (baseCost <= 0)
+            {
+                return 0;
+            }
+
+            float remainingRatio =
+                1f -
+                Mathf.Clamp01(
+                    RetreatCostDiscountRatio
+                );
+
+            /*
+             * 할인율이 100%라면 비용 0을 허용합니다.
+             */
+            return Mathf.Max(
+                0,
+                Mathf.CeilToInt(
+                    baseCost *
+                    remainingRatio
+                )
+            );
+        }
+    }
+
     public bool HasEnoughHealth
     {
         get
@@ -72,6 +113,11 @@ public sealed class RoomRetreatController :
 
             int cost =
                 RetreatCost;
+
+            if (cost <= 0)
+            {
+                return true;
+            }
 
             if (allowLethalRetreatCost)
             {
@@ -167,6 +213,16 @@ public sealed class RoomRetreatController :
                     RoomTransitionController
                 >();
         }
+
+        if (retreatCostDiscountState == null)
+        {
+            retreatCostDiscountState =
+                FindFirstObjectByType<
+                    RetreatCostDiscountState
+                >(
+                    FindObjectsInactive.Include
+                );
+        }
     }
 
     private void NormalizeSettings()
@@ -234,6 +290,16 @@ public sealed class RoomRetreatController :
                 this
             );
         }
+
+        if (retreatCostDiscountState == null)
+        {
+            Debug.LogError(
+                "RoomRetreatController: " +
+                "RetreatCostDiscountState가 " +
+                "연결되지 않았습니다.",
+                this
+            );
+        }
     }
 
     public void RequestRetreat()
@@ -274,8 +340,14 @@ public sealed class RoomRetreatController :
             return false;
         }
 
-        int cost =
+        int baseCost =
+            BaseRetreatCost;
+
+        int appliedCost =
             RetreatCost;
+
+        float discountRatio =
+            RetreatCostDiscountRatio;
 
         bool launchPositionReset =
             ballLauncher
@@ -332,17 +404,26 @@ public sealed class RoomRetreatController :
             return false;
         }
 
-        playerHealth.TakeDamage(
-            cost
-        );
+        if (appliedCost > 0)
+        {
+            playerHealth.TakeDamage(
+                appliedCost
+            );
+        }
 
+        /*
+         * 할인 상태는 런 지속형이므로
+         * 후퇴 성공 후에도 소비하거나 초기화하지 않습니다.
+         */
         RetreatCompleted?.Invoke(
-            cost
+            appliedCost
         );
 
         Debug.Log(
             "RoomRetreatController: 후퇴 완료, " +
-            $"체력 비용={cost}, " +
+            $"기본 비용={baseCost}, " +
+            $"할인율={discountRatio:P0}, " +
+            $"실제 체력 비용={appliedCost}, " +
             $"남은 체력=" +
             $"{playerHealth.CurrentHealth}/" +
             $"{playerHealth.MaxHealth}",
@@ -529,7 +610,9 @@ public sealed class RoomRetreatController :
                 "RoomRetreatController: " +
                 "후퇴에 필요한 체력이 부족합니다. " +
                 $"현재 체력={playerHealth.CurrentHealth}, " +
-                $"필요 체력={RetreatCost}",
+                $"기본 비용={BaseRetreatCost}, " +
+                $"할인율={RetreatCostDiscountRatio:P0}, " +
+                $"실제 필요 체력={RetreatCost}",
                 this
             );
 
