@@ -25,6 +25,28 @@ public sealed class BlockWavePatternBuilder
     [SerializeField, Min(1)]
     private int maximumRowsPerWave = 3;
 
+    [Header("Compact Row Spacing")]
+
+    [Tooltip(
+        "활성화하면 행 수가 적은 패턴의 논리 행 사이를 띄워 " +
+        "보드 세로 공간을 더 넓게 사용합니다."
+    )]
+    [SerializeField]
+    private bool enableCompactRowSpacing = true;
+
+    [Tooltip(
+        "이 값 이하의 행 수에 Compact Row Spacing을 적용합니다."
+    )]
+    [SerializeField, Min(1)]
+    private int maximumRowsForCompactSpacing = 4;
+
+    [Tooltip(
+        "작은 패턴에서 논리 행 사이에 적용할 실제 보드 행 간격입니다.\n" +
+        "2이면 0, 2, 4, 6행처럼 배치합니다."
+    )]
+    [SerializeField, Min(1)]
+    private int compactRowSpacing = 2;
+
     [Header("Blocks Per Row")]
 
     [SerializeField, Min(1)]
@@ -160,6 +182,20 @@ public sealed class BlockWavePatternBuilder
                     availableColumns - 1,
                     1
                 )
+            );
+
+        maximumRowsForCompactSpacing =
+            Mathf.Clamp(
+                maximumRowsForCompactSpacing,
+                1,
+                availableRows
+            );
+
+        compactRowSpacing =
+            Mathf.Clamp(
+                compactRowSpacing,
+                1,
+                availableRows
             );
 
         twinPocket.Normalize(
@@ -343,11 +379,23 @@ public sealed class BlockWavePatternBuilder
             boardRowCount
         );
 
-        int rowCount =
+        int logicalRowCount =
             Mathf.Clamp(
                 requestedRowCount,
                 1,
                 boardRowCount
+            );
+
+        int appliedRowSpacing =
+            GetAppliedRowSpacing(
+                logicalRowCount,
+                boardRowCount
+            );
+
+        int layoutRowCount =
+            GetLayoutRowCount(
+                logicalRowCount,
+                appliedRowSpacing
             );
 
         waveIndex =
@@ -362,7 +410,7 @@ public sealed class BlockWavePatternBuilder
         BlockWaveOccupancyMap occupancyMap =
             new BlockWaveOccupancyMap(
                 columnCount,
-                rowCount
+                layoutRowCount
             );
 
         if (featuredDefinition != null)
@@ -422,7 +470,7 @@ public sealed class BlockWavePatternBuilder
         if (useTwinPocket)
         {
             twinPocket.SelectEntryRows(
-                rowCount,
+                logicalRowCount,
                 out leftTwinPocketEntryRow,
                 out rightTwinPocketEntryRow
             );
@@ -440,9 +488,13 @@ public sealed class BlockWavePatternBuilder
                 : 1;
 
         for (int row = 0;
-             row < rowCount;
+             row < logicalRowCount;
              row++)
         {
+            int boardRow =
+                row *
+                appliedRowSpacing;
+
             int targetBlockCount =
                 GetRandomBlockCountPerRow(
                     columnCount
@@ -462,7 +514,7 @@ public sealed class BlockWavePatternBuilder
                     zigzagCorridor
                         .GetTargetBlockCountPerRow(
                             row,
-                            rowCount,
+                            logicalRowCount,
                             columnCount
                         );
             }
@@ -472,7 +524,7 @@ public sealed class BlockWavePatternBuilder
                     centerGate
                         .GetTargetBlockCountPerRow(
                             row,
-                            rowCount,
+                            logicalRowCount,
                             columnCount
                         );
             }
@@ -504,7 +556,7 @@ public sealed class BlockWavePatternBuilder
                 preferredColumns =
                     zigzagCorridor.CreateColumnPriority(
                         row,
-                        rowCount,
+                        logicalRowCount,
                         targetBlockCount,
                         columnCount,
                         firstCorridorOpeningOnLeft
@@ -515,7 +567,7 @@ public sealed class BlockWavePatternBuilder
                 preferredColumns =
                     centerGate.CreateColumnPriority(
                         row,
-                        rowCount,
+                        logicalRowCount,
                         columnCount,
                         firstGateShoulderOnLeft
                     );
@@ -547,7 +599,7 @@ public sealed class BlockWavePatternBuilder
 
             List<int> spawnedColumns =
                 FillRow(
-                    row,
+                    boardRow,
                     waveIndex,
                     targetBlockCount,
                     preferredColumns,
@@ -580,13 +632,54 @@ public sealed class BlockWavePatternBuilder
             requests,
             blockCatalog,
             columnCount,
-            rowCount,
+            layoutRowCount,
             waveIndex,
             featuredDefinition != null,
             baseHealth
         );
 
         return requests;
+    }
+
+    private int GetAppliedRowSpacing(
+        int logicalRowCount,
+        int boardRowCount)
+    {
+        if (!enableCompactRowSpacing ||
+            logicalRowCount <= 1 ||
+            logicalRowCount >
+            maximumRowsForCompactSpacing)
+        {
+            return 1;
+        }
+
+        int maximumFittingSpacing =
+            Mathf.Max(
+                (boardRowCount - 1) /
+                (logicalRowCount - 1),
+                1
+            );
+
+        return Mathf.Clamp(
+            compactRowSpacing,
+            1,
+            maximumFittingSpacing
+        );
+    }
+
+    private int GetLayoutRowCount(
+        int logicalRowCount,
+        int rowSpacing)
+    {
+        return Mathf.Max(
+            (logicalRowCount - 1) *
+            Mathf.Max(
+                rowSpacing,
+                1
+            ) +
+            1,
+            1
+        );
     }
 
     private BlockWavePatternType SelectPattern(
