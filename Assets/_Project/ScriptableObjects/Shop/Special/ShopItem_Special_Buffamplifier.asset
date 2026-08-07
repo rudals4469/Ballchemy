@@ -10,21 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f0d48dbbbce09364dbf38fc15d92a9bf, type: 3}
-  m_Name: ShopItem_Special_GoldGain
+  m_Name: ShopItem_Special_Buffamplifier
   m_EditorClassIdentifier: Assembly-CSharp::ShopItemDefinition
-  itemId: special_gold_gain
-  displayName: "\uD0D0\uC695\uC758 \uBC18\uC9C0"
-  description: "\uBE14\uB7ED \uD30C\uAD34 \uC2DC \uC5BB\uB294 \uACE8\uB4DC\uC758
-    \uC591\uC774 \uC99D\uAC00\uD569\uB2C8\uB2E4."
+  itemId: special_stage_buff_amplifier
+  displayName: "\uC5F0\uAE08 \uCD09\uB9E4"
+  description: "\uBC84\uD504 \uC0C1\uD488\uC758 \uD6A8\uACFC\uB97C \uC99D\uAC00\uC2DC\uD0B5\uB2C8\uB2E4."
   icon: {fileID: 0}
   category: 2
-  effectType: 19
+  effectType: 20
   canBeSelected: 1
-  selectionWeight: 60
+  selectionWeight: 70
   allowDuplicateInSameShop: 0
   baseGoldPrice: 70
   isRepeatable: 0
   becomesSoldOutAfterPurchase: 1
   integerValue: 0
-  ratioValue: 0.25
+  ratioValue: 0.5
   secondaryRatioValue: 0

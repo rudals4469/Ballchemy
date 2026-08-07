@@ -20,7 +20,7 @@ MonoBehaviour:
   category: 2
   effectType: 18
   canBeSelected: 1
-  selectionWeight: 60
+  selectionWeight: 70
   allowDuplicateInSameShop: 0
   baseGoldPrice: 70
   isRepeatable: 0

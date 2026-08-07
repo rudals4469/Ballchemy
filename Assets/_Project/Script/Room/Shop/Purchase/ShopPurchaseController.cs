@@ -30,6 +30,10 @@ public sealed class ShopPurchaseController :
     private ShopPriceDiscountState
         shopPriceDiscountState;
 
+    [SerializeField]
+    private StageBuffAmplificationState
+        stageBuffAmplificationState;
+
     [Header("Healing Price")]
 
     [Tooltip(
@@ -149,153 +153,153 @@ public sealed class ShopPurchaseController :
         );
     }
 
-   public bool TryPurchase(
-    int inventorySlotIndex,
-    ShopItemDefinition item)
-{
-    if (!TryGetCurrentShopRoom(
-            out RoomNode currentRoom
-        ))
+    public bool TryPurchase(
+        int inventorySlotIndex,
+        ShopItemDefinition item)
     {
-        return Fail(
-            "현재 상점방에 있지 않습니다."
-        );
-    }
-
-    if (item == null)
-    {
-        return Fail(
-            "구매할 상품 정보가 없습니다."
-        );
-    }
-
-    int roomId =
-        currentRoom.RoomId;
-
-    if (!IsValidInventorySlot(
-            inventorySlotIndex
-        ))
-    {
-        return Fail(
-            $"잘못된 상점 슬롯입니다. " +
-            $"SlotIndex={inventorySlotIndex}"
-        );
-    }
-
-    if (shopRoomState == null)
-    {
-        return Fail(
-            "상점 상태 참조가 없습니다."
-        );
-    }
-
-    if (!shopRoomState.HasInventory(
-            roomId
-        ))
-    {
-        return Fail(
-            "현재 상점방의 재고 상태가 없습니다. " +
-            $"RoomId={roomId}"
-        );
-    }
-
-    string storedProductId =
-        shopRoomState.GetProductId(
-            roomId,
-            inventorySlotIndex
-        );
-
-    if (!string.Equals(
-            storedProductId,
-            item.ItemId,
-            StringComparison.Ordinal
-        ))
-    {
-        return Fail(
-            "선택한 상품과 상점 재고 정보가 " +
-            "일치하지 않습니다."
-        );
-    }
-
-    if (!item.IsRepeatable &&
-        shopRoomState.IsSlotPurchased(
-            roomId,
-            inventorySlotIndex
-        ))
-    {
-        return Fail(
-            "이미 구매한 상품입니다."
-        );
-    }
-
-    /*
-     * Special 상품은 상품별 효과를
-     * ShopPurchaseController가 직접 알지 않습니다.
-     *
-     * 등록된 Handler가 전담합니다.
-     */
-    if (item.Category ==
-        ShopItemCategory.Special)
-    {
-        return TryPurchaseWithEffectHandler(
-            roomId,
-            inventorySlotIndex,
-            item
-        );
-    }
-
-    switch (item.EffectType)
-    {
-        case ShopItemEffectType.RecoverHealth:
-            return TryPurchaseHealing(
-                roomId,
-                inventorySlotIndex,
-                item
-            );
-
-        case ShopItemEffectType.IncreaseDirectDamage:
-            return TryPurchaseIncreaseDirectDamage(
-                roomId,
-                inventorySlotIndex,
-                item
-            );
-
-        case ShopItemEffectType.ReduceEnemyMaxHealth:
-            return TryPurchaseReduceEnemyMaxHealth(
-                roomId,
-                inventorySlotIndex,
-                item
-            );
-
-        case ShopItemEffectType.ReduceEnemyAttackDamage:
-            return TryPurchaseReduceEnemyAttackDamage(
-                roomId,
-                inventorySlotIndex,
-                item
-            );
-
-        case ShopItemEffectType.IncreaseEnemyAttackInterval:
-            return TryPurchaseIncreaseEnemyAttackInterval(
-                roomId,
-                inventorySlotIndex,
-                item
-            );
-
-        case ShopItemEffectType.IncreaseGoldGain:
-            return TryPurchaseIncreaseGoldGain(
-                roomId,
-                inventorySlotIndex,
-                item
-            );
-
-        default:
+        if (!TryGetCurrentShopRoom(
+                out RoomNode currentRoom
+            ))
+        {
             return Fail(
-                "아직 구매 효과가 구현되지 않은 상품입니다. " +
-                $"ItemId={item.ItemId}, " +
-                $"EffectType={item.EffectType}"
+                "현재 상점방에 있지 않습니다."
             );
+        }
+
+        if (item == null)
+        {
+            return Fail(
+                "구매할 상품 정보가 없습니다."
+            );
+        }
+
+        int roomId =
+            currentRoom.RoomId;
+
+        if (!IsValidInventorySlot(
+                inventorySlotIndex
+            ))
+        {
+            return Fail(
+                $"잘못된 상점 슬롯입니다. " +
+                $"SlotIndex={inventorySlotIndex}"
+            );
+        }
+
+        if (shopRoomState == null)
+        {
+            return Fail(
+                "상점 상태 참조가 없습니다."
+            );
+        }
+
+        if (!shopRoomState.HasInventory(
+                roomId
+            ))
+        {
+            return Fail(
+                "현재 상점방의 재고 상태가 없습니다. " +
+                $"RoomId={roomId}"
+            );
+        }
+
+        string storedProductId =
+            shopRoomState.GetProductId(
+                roomId,
+                inventorySlotIndex
+            );
+
+        if (!string.Equals(
+                storedProductId,
+                item.ItemId,
+                StringComparison.Ordinal
+            ))
+        {
+            return Fail(
+                "선택한 상품과 상점 재고 정보가 " +
+                "일치하지 않습니다."
+            );
+        }
+
+        if (!item.IsRepeatable &&
+            shopRoomState.IsSlotPurchased(
+                roomId,
+                inventorySlotIndex
+            ))
+        {
+            return Fail(
+                "이미 구매한 상품입니다."
+            );
+        }
+
+        /*
+         * Special 상품은 상품별 효과를
+         * ShopPurchaseController가 직접 알지 않습니다.
+         *
+         * 등록된 Handler가 전담합니다.
+         */
+        if (item.Category ==
+            ShopItemCategory.Special)
+        {
+            return TryPurchaseWithEffectHandler(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+        }
+
+        switch (item.EffectType)
+        {
+            case ShopItemEffectType.RecoverHealth:
+                return TryPurchaseHealing(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            case ShopItemEffectType.IncreaseDirectDamage:
+                return TryPurchaseIncreaseDirectDamage(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            case ShopItemEffectType.ReduceEnemyMaxHealth:
+                return TryPurchaseReduceEnemyMaxHealth(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            case ShopItemEffectType.ReduceEnemyAttackDamage:
+                return TryPurchaseReduceEnemyAttackDamage(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            case ShopItemEffectType.IncreaseEnemyAttackInterval:
+                return TryPurchaseIncreaseEnemyAttackInterval(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            case ShopItemEffectType.IncreaseGoldGain:
+                return TryPurchaseIncreaseGoldGain(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
+            default:
+                return Fail(
+                    "아직 구매 효과가 구현되지 않은 상품입니다. " +
+                    $"ItemId={item.ItemId}, " +
+                    $"EffectType={item.EffectType}"
+                );
+        }
     }
-}
 
     private bool TryPurchaseWithEffectHandler(
         int roomId,
@@ -626,26 +630,35 @@ public sealed class ShopPurchaseController :
         int inventorySlotIndex,
         ShopItemDefinition item)
     {
-        float ratio =
+        float baseRatio =
             item.RatioValue;
+
+        float appliedRatio =
+            ResolveStageBuffRatio(
+                baseRatio
+            );
 
         return TryPurchaseRatioStageBuff(
             roomId,
             inventorySlotIndex,
             item,
-            ratio,
+            appliedRatio,
             "직접 피해 증가율",
             () =>
                 stageModifierState
                     .TryAddDirectDamageIncreaseRatio(
-                        ratio
+                        appliedRatio
                     ),
             () =>
                 stageModifierState
                     .TryRemoveDirectDamageIncreaseRatio(
-                        ratio
+                        appliedRatio
                     ),
-            $"DirectDamageIncrease={ratio:P0}"
+            BuildRatioStageBuffDescription(
+                "DirectDamageIncrease",
+                baseRatio,
+                appliedRatio
+            )
         );
     }
 
@@ -654,26 +667,35 @@ public sealed class ShopPurchaseController :
         int inventorySlotIndex,
         ShopItemDefinition item)
     {
-        float ratio =
+        float baseRatio =
             item.RatioValue;
+
+        float appliedRatio =
+            ResolveStageBuffRatio(
+                baseRatio
+            );
 
         return TryPurchaseRatioStageBuff(
             roomId,
             inventorySlotIndex,
             item,
-            ratio,
+            appliedRatio,
             "적 최대 체력 감소율",
             () =>
                 stageModifierState
                     .TryAddEnemyMaxHealthReductionRatio(
-                        ratio
+                        appliedRatio
                     ),
             () =>
                 stageModifierState
                     .TryRemoveEnemyMaxHealthReductionRatio(
-                        ratio
+                        appliedRatio
                     ),
-            $"EnemyMaxHealthReduction={ratio:P0}"
+            BuildRatioStageBuffDescription(
+                "EnemyMaxHealthReduction",
+                baseRatio,
+                appliedRatio
+            )
         );
     }
 
@@ -682,26 +704,35 @@ public sealed class ShopPurchaseController :
         int inventorySlotIndex,
         ShopItemDefinition item)
     {
-        float ratio =
+        float baseRatio =
             item.RatioValue;
+
+        float appliedRatio =
+            ResolveStageBuffRatio(
+                baseRatio
+            );
 
         return TryPurchaseRatioStageBuff(
             roomId,
             inventorySlotIndex,
             item,
-            ratio,
+            appliedRatio,
             "적 공격력 감소율",
             () =>
                 stageModifierState
                     .TryAddEnemyAttackDamageReductionRatio(
-                        ratio
+                        appliedRatio
                     ),
             () =>
                 stageModifierState
                     .TryRemoveEnemyAttackDamageReductionRatio(
-                        ratio
+                        appliedRatio
                     ),
-            $"EnemyAttackDamageReduction={ratio:P0}"
+            BuildRatioStageBuffDescription(
+                "EnemyAttackDamageReduction",
+                baseRatio,
+                appliedRatio
+            )
         );
     }
 
@@ -710,26 +741,35 @@ public sealed class ShopPurchaseController :
         int inventorySlotIndex,
         ShopItemDefinition item)
     {
-        float ratio =
+        float baseRatio =
             item.RatioValue;
+
+        float appliedRatio =
+            ResolveStageBuffRatio(
+                baseRatio
+            );
 
         return TryPurchaseRatioStageBuff(
             roomId,
             inventorySlotIndex,
             item,
-            ratio,
+            appliedRatio,
             "골드 획득 증가율",
             () =>
                 stageModifierState
                     .TryAddGoldGainIncreaseRatio(
-                        ratio
+                        appliedRatio
                     ),
             () =>
                 stageModifierState
                     .TryRemoveGoldGainIncreaseRatio(
-                        ratio
+                        appliedRatio
                     ),
-            $"GoldGainIncrease={ratio:P0}"
+            BuildRatioStageBuffDescription(
+                "GoldGainIncrease",
+                baseRatio,
+                appliedRatio
+            )
         );
     }
 
@@ -984,6 +1024,65 @@ public sealed class ShopPurchaseController :
         return true;
     }
 
+    private float ResolveStageBuffRatio(
+        float baseRatio)
+    {
+        baseRatio =
+            Mathf.Max(
+                baseRatio,
+                0f
+            );
+
+        if (baseRatio <= 0f)
+        {
+            return baseRatio;
+        }
+
+        if (stageBuffAmplificationState == null)
+        {
+            stageBuffAmplificationState =
+                FindFirstObjectByType<
+                    StageBuffAmplificationState
+                >(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (stageBuffAmplificationState == null)
+        {
+            return baseRatio;
+        }
+
+        return stageBuffAmplificationState
+            .ApplyAmplification(
+                baseRatio
+            );
+    }
+
+    private static string
+        BuildRatioStageBuffDescription(
+            string effectName,
+            float baseRatio,
+            float appliedRatio)
+    {
+        bool amplified =
+            !Mathf.Approximately(
+                baseRatio,
+                appliedRatio
+            );
+
+        if (!amplified)
+        {
+            return
+                $"{effectName}={appliedRatio:P1}";
+        }
+
+        return
+            $"{effectName}={appliedRatio:P1}, " +
+            $"Base={baseRatio:P1}, " +
+            "Amplified=True";
+    }
+
     private int CalculateHealingAmount(
         ShopItemDefinition item)
     {
@@ -1156,6 +1255,16 @@ public sealed class ShopPurchaseController :
                     FindObjectsInactive.Include
                 );
         }
+
+        if (stageBuffAmplificationState == null)
+        {
+            stageBuffAmplificationState =
+                FindFirstObjectByType<
+                    StageBuffAmplificationState
+                >(
+                    FindObjectsInactive.Include
+                );
+        }
     }
 
     private void ValidateReferences()
@@ -1221,6 +1330,16 @@ public sealed class ShopPurchaseController :
                 "ShopPurchaseController: " +
                 "ShopPriceDiscountState가 " +
                 "연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (stageBuffAmplificationState == null)
+        {
+            Debug.LogWarning(
+                "ShopPurchaseController: " +
+                "StageBuffAmplificationState가 연결되지 않았습니다. " +
+                "연금 촉매 효과는 적용되지 않습니다.",
                 this
             );
         }

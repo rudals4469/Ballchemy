@@ -2177,7 +2177,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &188887639
 Transform:
   m_ObjectHideFlags: 0
@@ -8381,6 +8381,51 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1158030773}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &714435716
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 714435717}
+  - component: {fileID: 714435718}
+  m_Layer: 0
+  m_Name: RecoverHealthOnCombatRoomClearHandler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &714435717
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 714435716}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1599736081}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &714435718
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 714435716}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3da697023a097649bc8f648d7f6db31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RecoverHealthOnCombatRoomClearShopEffectHandler
+  roomClearHealingState: {fileID: 791556654}
 --- !u!1 &731827991
 GameObject:
   m_ObjectHideFlags: 0
@@ -9251,6 +9296,84 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &791556651
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 791556652}
+  - component: {fileID: 791556654}
+  - component: {fileID: 791556653}
+  - component: {fileID: 791556655}
+  m_Layer: 0
+  m_Name: RunPassiveEffects
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &791556652
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791556651}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 858936747}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &791556653
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791556651}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10fb61072631a9d4fa412b0b014796ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RoomClearHealingController
+  roomNavigator: {fileID: 372114439}
+  playerHealth: {fileID: 858936749}
+  healingState: {fileID: 791556654}
+  showDebugLog: 1
+--- !u!114 &791556654
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791556651}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aac73200b50314747b29132bae9b54e1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RoomClearHealingState
+  healingAmountPerCombatRoomClear: 0
+  showDebugLog: 1
+--- !u!114 &791556655
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 791556651}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7963ff71a42e2cb4ea1fceba12f172e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RunCombatGoldGainState
+  goldGainIncreaseRatio: 0
+  showDebugLog: 1
 --- !u!1 &792411630
 GameObject:
   m_ObjectHideFlags: 0
@@ -9862,7 +9985,8 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 791556652}
   m_Father: {fileID: 1667640564}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &858936748
@@ -10056,6 +10180,51 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 70, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &866631610
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 866631611}
+  - component: {fileID: 866631612}
+  m_Layer: 0
+  m_Name: ShopItemEffectHandlerRegistry
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &866631611
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 866631610}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1599736081}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &866631612
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 866631610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5433206071d47ef4ebb0018388ab1498, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::IncreaseRunCombatGoldGainShopEffectHandler
+  runCombatGoldGainState: {fileID: 791556655}
 --- !u!1 &868868926
 GameObject:
   m_ObjectHideFlags: 0
@@ -10389,7 +10558,7 @@ MonoBehaviour:
   minimumLaunchX: -4.3
   maximumLaunchX: 4.3
   showTemporaryUpgradeDebugLog: 0
-  showMultiDirectionDebugLog: 1
+  showMultiDirectionDebugLog: 0
 --- !u!114 &904823809
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10461,7 +10630,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallSealController
   maximumSealRatio: 0.8
-  showDebugLog: 1
+  showDebugLog: 0
 --- !u!114 &904823813
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10478,7 +10647,7 @@ MonoBehaviour:
   gatherDuration: 0.35
   maximumRandomStartDelay: 0.05
   gatherEase: 4
-  showDebugLog: 1
+  showDebugLog: 0
 --- !u!114 &904823814
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10548,7 +10717,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 59c1c0debc1efe147b2c187707130180, type: 2}
   randomDrawAmount: 1
   enableDrawOneOfEach: 1
-  showDebugLog: 1
+  showDebugLog: 0
 --- !u!114 &904823817
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10661,7 +10830,7 @@ MonoBehaviour:
   ballCollection: {fileID: 904823811}
   shuffleEveryTurn: 1
   avoidIdenticalTurnOrder: 1
-  showDebugLog: 1
+  showDebugLog: 0
 --- !u!114 &904823821
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10676,7 +10845,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RunAugmentState
   ballRuntimeStats: {fileID: 904823814}
   activeAugments: []
-  showDebugLog: 1
+  showDebugLog: 0
 --- !u!114 &904823822
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10695,7 +10864,7 @@ MonoBehaviour:
   blockGridManager: {fileID: 987057997}
   healthReductionPresenter: {fileID: 904823823}
   minimumEnemyHealth: 1
-  showDebugLog: 1
+  showDebugLog: 0
 --- !u!114 &904823823
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13559,6 +13728,7 @@ Transform:
   - {fileID: 188887639}
   - {fileID: 1053153345}
   - {fileID: 1332845385}
+  - {fileID: 1809394412}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1160936747
@@ -16914,6 +17084,51 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
+--- !u!1 &1417708348
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1417708349}
+  - component: {fileID: 1417708350}
+  m_Layer: 0
+  m_Name: ShopItemEffectHandlerRegistry
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1417708349
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1417708348}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1599736081}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1417708350
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1417708348}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94a7f2880a51564192b8f4da0446811, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AmplifyFutureStageBuffShopEffectHandler
+  stageBuffAmplificationState: {fileID: 1429675591}
 --- !u!1 &1425056062
 GameObject:
   m_ObjectHideFlags: 0
@@ -17200,6 +17415,7 @@ GameObject:
   - component: {fileID: 1429675588}
   - component: {fileID: 1429675589}
   - component: {fileID: 1429675590}
+  - component: {fileID: 1429675591}
   m_Layer: 0
   m_Name: RoomRestartSystem
   m_TagString: Untagged
@@ -17270,6 +17486,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShopPriceDiscountState
   discountRatio: 0
+  showDebugLog: 1
+--- !u!114 &1429675591
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1429675586}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 808c252af9479ea4093bc78c79dbf11c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StageBuffAmplificationState
+  amplificationRatio: 0
   showDebugLog: 1
 --- !u!1 &1442378391
 GameObject:
@@ -19927,6 +20157,9 @@ Transform:
   - {fileID: 249354236}
   - {fileID: 1233300505}
   - {fileID: 1623751218}
+  - {fileID: 714435717}
+  - {fileID: 866631611}
+  - {fileID: 1417708349}
   m_Father: {fileID: 1597443402}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1599736082
@@ -20025,6 +20258,7 @@ MonoBehaviour:
   stageModifierState: {fileID: 372114444}
   effectHandlerRegistry: {fileID: 1599736082}
   shopPriceDiscountState: {fileID: 1429675590}
+  stageBuffAmplificationState: {fileID: 1429675591}
   healingPriceIncreasePerPurchase: 5
   fallbackHealingRatio: 0.25
   showDebugLog: 1
@@ -20756,6 +20990,38 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1805056653}
   m_CullTransparentMesh: 1
+--- !u!1 &1809394411
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1809394412}
+  m_Layer: 0
+  m_Name: "\uBC1C\uC0AC \uC704\uCE58\uB97C \uB0B4\uAC00 \uC815\uD560 \uC218 \uC788\uAC8C
+    \uD574\uC8FC\uB294 3\uD2F0\uC5B4 \uBCF4\uC0C1"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1809394412
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1809394411}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1158030773}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1813367571
 GameObject:
   m_ObjectHideFlags: 0
@@ -23855,6 +24121,7 @@ MonoBehaviour:
   runCurrencyState: {fileID: 2091208933}
   roomGoldTransactionState: {fileID: 2091208935}
   stageModifierState: {fileID: 372114444}
+  runCombatGoldGainState: {fileID: 791556655}
   requiredEnemyGold: 4
   optionalGold: 0
   ignoreGold: 0

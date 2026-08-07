@@ -47,7 +47,12 @@ public enum ShopItemEffectType
      * 기존 ScriptableObject의 enum 직렬화 값을
      * 유지하기 위해 새 효과는 항상 뒤에 추가합니다.
      */
-    IncreaseRunCombatGoldGain
+    IncreaseRunCombatGoldGain,
+
+    /*
+     * 구매 이후 비율형 스테이지 버프 증폭
+     */
+    AmplifyFutureStageBuffs
 }
 
 [CreateAssetMenu(
