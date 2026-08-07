@@ -11733,6 +11733,7 @@ MonoBehaviour:
       minimumSpecialBlocksPerWave: 1
       maximumSpecialBlocksPerWave: 1
       allowInFeaturedWaves: 1
+      preferAdjacentPlacement: 1
       guaranteedRewardCount: 1
       rewardSpecialDefinitions: []
       randomSpecialDefinitions: []
@@ -11742,17 +11743,27 @@ MonoBehaviour:
       forcedSpecialDefinition: {fileID: 11400000, guid: 07a1e78f430ea7c48a1167689f7e7a9c, type: 2}
       forceSpawnEveryWaveInTestMode: 1
       forcedSpecialCount: 1
-    minimumRowsPerWave: 5
-    maximumRowsPerWave: 6
-    minimumBlocksPerRow: 1
-    maximumBlocksPerRow: 1
-    minimumPillarColumns: 1
-    maximumPillarColumns: 1
-    extraColumnCarryChance: 0.65
+    minimumRowsPerWave: 3
+    maximumRowsPerWave: 4
+    minimumBlocksPerRow: 2
+    maximumBlocksPerRow: 4
+    wallPocketChance: 1
+    wallPocketWidth: 5
+    wallPocketCorridorOffset: 1
+    horizontalStaggerDistance: 1
+  combatRoleAssigner:
+    enableEliteBlocks: 1
+    minimumEliteCount: 1
+    maximumEliteCount: 2
+    minimumFeaturedEliteCount: 2
+    maximumFeaturedEliteCount: 3
+    eliteHealthMultiplier: 1.5
+    eliteAttackMultiplier: 1
+    showDebugLog: 1
   defaultWaveBlockType: 0
-  startingBlockHealth: 4
+  startingBlockHealth: 30
   healthIncreasePerWave: 2
-  startingBlockAttack: 5
+  startingBlockAttack: 2
   attackIncreasePerWave: 0
 --- !u!114 &987058001
 MonoBehaviour:
@@ -12411,7 +12422,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1053153345
 Transform:
   m_ObjectHideFlags: 0
@@ -14779,7 +14790,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1222722143
 Transform:
   m_ObjectHideFlags: 0

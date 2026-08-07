@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 886c36495a3475f4f8ab51277a3e8675, type: 3}
   m_Name: EliteBlock_01
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
-  blockId: normal_01
-  displayName: Normal Block 01
+  blockId: elite_01
+  displayName: Elite Block 01
   blockType: 5
   destructionRule: 0
   clearRole: 0
