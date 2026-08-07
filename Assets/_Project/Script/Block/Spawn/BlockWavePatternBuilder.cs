@@ -78,6 +78,12 @@ public sealed class BlockWavePatternBuilder
     private ZigzagCorridorPatternBuilder zigzagCorridor =
         new ZigzagCorridorPatternBuilder();
 
+    [Header("Center Gate")]
+
+    [SerializeField]
+    private CenterGatePatternBuilder centerGate =
+        new CenterGatePatternBuilder();
+
     [Tooltip(
         "일반 지그재그 패턴에서 이전 줄 기준으로 " +
         "좌우 몇 칸 이동시킬지 결정합니다."
@@ -164,6 +170,10 @@ public sealed class BlockWavePatternBuilder
             availableColumns
         );
 
+        centerGate.Normalize(
+            availableColumns
+        );
+
         horizontalStaggerDistance =
             Mathf.Clamp(
                 horizontalStaggerDistance,
@@ -215,6 +225,12 @@ public sealed class BlockWavePatternBuilder
         {
             zigzagCorridor =
                 new ZigzagCorridorPatternBuilder();
+        }
+
+        if (centerGate == null)
+        {
+            centerGate =
+                new CenterGatePatternBuilder();
         }
     }
 
@@ -387,10 +403,17 @@ public sealed class BlockWavePatternBuilder
             selectedPattern ==
             BlockWavePatternType.ZigzagCorridor;
 
+        bool useCenterGate =
+            selectedPattern ==
+            BlockWavePatternType.CenterGate;
+
         bool pocketOnLeft =
             Random.value < 0.5f;
 
         bool firstCorridorOpeningOnLeft =
+            Random.value < 0.5f;
+
+        bool firstGateShoulderOnLeft =
             Random.value < 0.5f;
 
         int leftTwinPocketEntryRow = -1;
@@ -443,6 +466,16 @@ public sealed class BlockWavePatternBuilder
                             columnCount
                         );
             }
+            else if (useCenterGate)
+            {
+                targetBlockCount =
+                    centerGate
+                        .GetTargetBlockCountPerRow(
+                            row,
+                            rowCount,
+                            columnCount
+                        );
+            }
 
             List<int> preferredColumns;
 
@@ -475,6 +508,16 @@ public sealed class BlockWavePatternBuilder
                         targetBlockCount,
                         columnCount,
                         firstCorridorOpeningOnLeft
+                    );
+            }
+            else if (useCenterGate)
+            {
+                preferredColumns =
+                    centerGate.CreateColumnPriority(
+                        row,
+                        rowCount,
+                        columnCount,
+                        firstGateShoulderOnLeft
                     );
             }
             else if (row == 0 ||
@@ -514,7 +557,8 @@ public sealed class BlockWavePatternBuilder
                     occupancyMap,
                     requests,
                     useTwinPocket ||
-                    useZigzagCorridor
+                    useZigzagCorridor ||
+                    useCenterGate
                 );
 
             for (int i = 0;
@@ -548,6 +592,15 @@ public sealed class BlockWavePatternBuilder
     private BlockWavePatternType SelectPattern(
         int columnCount)
     {
+        if (patternType ==
+                BlockWavePatternType.CenterGate &&
+            centerGate.CanBuild(
+                columnCount
+            ))
+        {
+            return BlockWavePatternType.CenterGate;
+        }
+
         if (patternType ==
                 BlockWavePatternType.ZigzagCorridor &&
             zigzagCorridor.CanBuild(
