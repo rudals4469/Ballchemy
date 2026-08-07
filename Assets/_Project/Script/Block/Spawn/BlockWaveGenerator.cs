@@ -5,6 +5,7 @@ public sealed class BlockWaveGenerator :
     MonoBehaviour
 {
     [Header("Board")]
+        
 
     [SerializeField]
     private BoardGrid boardGrid;
