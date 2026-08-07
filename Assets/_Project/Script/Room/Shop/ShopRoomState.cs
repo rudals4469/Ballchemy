@@ -233,6 +233,24 @@ public sealed class ShopRoomState :
         );
     }
 
+    public bool TryReplaceProductId(
+        int roomId,
+        int slotIndex,
+        string productId)
+    {
+        if (!TryGetInventory(
+                roomId,
+                out ShopInventoryState inventory))
+        {
+            return false;
+        }
+
+        return inventory.TryReplaceProductId(
+            slotIndex,
+            productId
+        );
+    }
+
     public string GetProductId(
         int roomId,
         int slotIndex)
@@ -381,6 +399,27 @@ public sealed class ShopInventoryState
                 productIds[
                     slotIndex
                 ]))
+        {
+            return false;
+        }
+
+        productIds[
+            slotIndex
+        ] =
+            productId.Trim();
+
+        return true;
+    }
+
+    public bool TryReplaceProductId(
+        int slotIndex,
+        string productId)
+    {
+        if (!IsValidSlotIndex(
+                slotIndex) ||
+            string.IsNullOrWhiteSpace(
+                productId
+            ))
         {
             return false;
         }

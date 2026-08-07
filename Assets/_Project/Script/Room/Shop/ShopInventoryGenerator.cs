@@ -129,6 +129,59 @@ public sealed class ShopInventoryGenerator :
         return succeeded;
     }
 
+    public bool TryRerollUnpurchasedInventory(
+        int roomId,
+        int excludedSlotIndex,
+        string excludedProductId)
+    {
+        if (roomId < 0 ||
+            excludedSlotIndex < 0 ||
+            excludedSlotIndex >=
+            ShopRoomState.TotalSlotCount ||
+            itemCatalog == null ||
+            shopRoomState == null)
+        {
+            return false;
+        }
+
+        if (!shopRoomState.TryGetInventory(
+                roomId,
+                out ShopInventoryState inventory
+            ) ||
+            inventory == null)
+        {
+            return false;
+        }
+
+        Random.State previousRandomState =
+            Random.state;
+
+        if (!useRandomSelection)
+        {
+            Random.InitState(
+                fixedSeed +
+                roomId +
+                100000
+            );
+        }
+
+        bool succeeded =
+            TryBuildAndApplyReroll(
+                roomId,
+                inventory,
+                excludedSlotIndex,
+                excludedProductId
+            );
+
+        if (!useRandomSelection)
+        {
+            Random.state =
+                previousRandomState;
+        }
+
+        return succeeded;
+    }
+
     private bool TryFillInventory(
         int roomId)
     {
@@ -234,6 +287,320 @@ public sealed class ShopInventoryGenerator :
         }
 
         return true;
+    }
+
+    private bool TryBuildAndApplyReroll(
+        int roomId,
+        ShopInventoryState inventory,
+        int excludedSlotIndex,
+        string excludedProductId)
+    {
+        Dictionary<
+            int,
+            ShopItemDefinition
+        > replacements =
+            new Dictionary<
+                int,
+                ShopItemDefinition
+            >();
+
+        HashSet<string> reservedProductIds =
+            new HashSet<string>();
+
+        /*
+         * 갱신하지 않을 슬롯의 상품은
+         * 중복 방지 대상으로 먼저 예약합니다.
+         */
+        for (int slotIndex = 0;
+             slotIndex < inventory.SlotCount;
+             slotIndex++)
+        {
+            bool shouldKeep =
+                slotIndex ==
+                excludedSlotIndex ||
+                inventory.IsSlotPurchased(
+                    slotIndex
+                );
+
+            if (!shouldKeep)
+            {
+                continue;
+            }
+
+            AddReservedProductId(
+                inventory.GetProductId(
+                    slotIndex
+                ),
+                reservedProductIds
+            );
+        }
+
+        for (int slotIndex = 0;
+             slotIndex < inventory.SlotCount;
+             slotIndex++)
+        {
+            if (slotIndex ==
+                excludedSlotIndex)
+            {
+                continue;
+            }
+
+            if (inventory.IsSlotPurchased(
+                    slotIndex
+                ))
+            {
+                continue;
+            }
+
+            ShopItemCategory category =
+                GetCategoryForSlot(
+                    slotIndex
+                );
+
+            string currentProductId =
+                inventory.GetProductId(
+                    slotIndex
+                );
+
+            List<ShopItemDefinition> candidates =
+                BuildRerollCandidates(
+                    category,
+                    reservedProductIds,
+                    excludedProductId
+                );
+
+            /*
+             * 가능하면 기존 상품과 같은 상품이
+             * 다시 뽑히지 않도록 합니다.
+             *
+             * 단 해당 카테고리에 대체 후보가 없다면
+             * 기존 상품도 허용합니다.
+             */
+            if (candidates.Count > 1)
+            {
+                candidates.RemoveAll(
+                    item =>
+                        item != null &&
+                        item.ItemId ==
+                        currentProductId
+                );
+            }
+
+            if (candidates.Count <= 0)
+            {
+                candidates =
+                    BuildRerollCandidates(
+                        category,
+                        reservedProductIds,
+                        excludedProductId
+                    );
+            }
+
+            ShopItemDefinition selected =
+                SelectWeightedItem(
+                    candidates
+                );
+
+            if (selected == null)
+            {
+                Debug.LogError(
+                    "ShopInventoryGenerator: " +
+                    "재고 갱신 상품 추첨에 실패했습니다. " +
+                    $"RoomId={roomId}, " +
+                    $"SlotIndex={slotIndex}",
+                    this
+                );
+
+                return false;
+            }
+
+            replacements.Add(
+                slotIndex,
+                selected
+            );
+
+            if (!selected.AllowDuplicateInSameShop)
+            {
+                reservedProductIds.Add(
+                    selected.ItemId
+                );
+            }
+        }
+
+        if (replacements.Count <= 0)
+        {
+            return false;
+        }
+
+        Dictionary<int, string>
+            previousProductIds =
+                new Dictionary<int, string>();
+
+        foreach (
+            KeyValuePair<
+                int,
+                ShopItemDefinition
+            > pair in replacements)
+        {
+            previousProductIds.Add(
+                pair.Key,
+                inventory.GetProductId(
+                    pair.Key
+                )
+            );
+
+            bool replaced =
+                shopRoomState.TryReplaceProductId(
+                    roomId,
+                    pair.Key,
+                    pair.Value.ItemId
+                );
+
+            if (replaced)
+            {
+                continue;
+            }
+
+            foreach (
+                KeyValuePair<
+                    int,
+                    string
+                > previousPair
+                in previousProductIds)
+            {
+                if (string.IsNullOrWhiteSpace(
+                        previousPair.Value
+                    ))
+                {
+                    continue;
+                }
+
+                shopRoomState.TryReplaceProductId(
+                    roomId,
+                    previousPair.Key,
+                    previousPair.Value
+                );
+            }
+
+            return false;
+        }
+
+        if (showDebugLog)
+        {
+            Debug.Log(
+                "ShopInventoryGenerator: " +
+                "미구매 상품 재고 갱신 완료. " +
+                $"RoomId={roomId}, " +
+                $"ChangedSlots={replacements.Count}",
+                this
+            );
+        }
+
+        return true;
+    }
+
+    private List<ShopItemDefinition>
+        BuildRerollCandidates(
+            ShopItemCategory category,
+            HashSet<string> reservedProductIds,
+            string excludedProductId)
+    {
+        List<ShopItemDefinition> source =
+            itemCatalog.GetSelectableItems(
+                category
+            );
+
+        List<ShopItemDefinition> results =
+            new List<ShopItemDefinition>();
+
+        for (int i = 0;
+             i < source.Count;
+             i++)
+        {
+            ShopItemDefinition candidate =
+                source[i];
+
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(
+                    excludedProductId
+                ) &&
+                candidate.ItemId ==
+                excludedProductId)
+            {
+                continue;
+            }
+
+            if (!candidate.AllowDuplicateInSameShop &&
+                reservedProductIds.Contains(
+                    candidate.ItemId
+                ))
+            {
+                continue;
+            }
+
+            results.Add(
+                candidate
+            );
+        }
+
+        return results;
+    }
+
+    private void AddReservedProductId(
+        string productId,
+        HashSet<string> reservedProductIds)
+    {
+        if (string.IsNullOrWhiteSpace(
+                productId
+            ) ||
+            reservedProductIds == null ||
+            itemCatalog == null)
+        {
+            return;
+        }
+
+        if (!itemCatalog.TryGetItem(
+                productId,
+                out ShopItemDefinition item
+            ) ||
+            item == null)
+        {
+            return;
+        }
+
+        if (item.AllowDuplicateInSameShop)
+        {
+            return;
+        }
+
+        reservedProductIds.Add(
+            item.ItemId
+        );
+    }
+
+    private static ShopItemCategory
+        GetCategoryForSlot(
+            int slotIndex)
+    {
+        if (slotIndex ==
+            ShopRoomState.HealingSlotIndex)
+        {
+            return ShopItemCategory.Healing;
+        }
+
+        if (slotIndex ==
+                ShopRoomState.FirstStageBuffSlotIndex ||
+            slotIndex ==
+                ShopRoomState.SecondStageBuffSlotIndex)
+        {
+            return ShopItemCategory.StageBuff;
+        }
+
+        return ShopItemCategory.Special;
     }
 
     private ShopItemDefinition SelectSingleItem(

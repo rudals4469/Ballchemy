@@ -149,148 +149,153 @@ public sealed class ShopPurchaseController :
         );
     }
 
-    public bool TryPurchase(
-        int inventorySlotIndex,
-        ShopItemDefinition item)
+   public bool TryPurchase(
+    int inventorySlotIndex,
+    ShopItemDefinition item)
+{
+    if (!TryGetCurrentShopRoom(
+            out RoomNode currentRoom
+        ))
     {
-        if (!TryGetCurrentShopRoom(
-                out RoomNode currentRoom
-            ))
-        {
-            return Fail(
-                "현재 상점방에 있지 않습니다."
-            );
-        }
-
-        if (item == null)
-        {
-            return Fail(
-                "구매할 상품 정보가 없습니다."
-            );
-        }
-
-        int roomId =
-            currentRoom.RoomId;
-
-        if (!IsValidInventorySlot(
-                inventorySlotIndex
-            ))
-        {
-            return Fail(
-                $"잘못된 상점 슬롯입니다. " +
-                $"SlotIndex={inventorySlotIndex}"
-            );
-        }
-
-        if (shopRoomState == null)
-        {
-            return Fail(
-                "상점 상태 참조가 없습니다."
-            );
-        }
-
-        if (!shopRoomState.HasInventory(
-                roomId
-            ))
-        {
-            return Fail(
-                "현재 상점방의 재고 상태가 없습니다. " +
-                $"RoomId={roomId}"
-            );
-        }
-
-        string storedProductId =
-            shopRoomState.GetProductId(
-                roomId,
-                inventorySlotIndex
-            );
-
-        if (!string.Equals(
-                storedProductId,
-                item.ItemId,
-                StringComparison.Ordinal
-            ))
-        {
-            return Fail(
-                "선택한 상품과 상점 재고 정보가 " +
-                "일치하지 않습니다."
-            );
-        }
-
-        if (!item.IsRepeatable &&
-            shopRoomState.IsSlotPurchased(
-                roomId,
-                inventorySlotIndex
-            ))
-        {
-            return Fail(
-                "이미 구매한 상품입니다."
-            );
-        }
-
-        switch (item.EffectType)
-        {
-            case ShopItemEffectType.RecoverHealth:
-                return TryPurchaseHealing(
-                    roomId,
-                    inventorySlotIndex,
-                    item
-                );
-
-            case ShopItemEffectType.IncreaseDirectDamage:
-                return TryPurchaseIncreaseDirectDamage(
-                    roomId,
-                    inventorySlotIndex,
-                    item
-                );
-
-            case ShopItemEffectType.ReduceEnemyMaxHealth:
-                return TryPurchaseReduceEnemyMaxHealth(
-                    roomId,
-                    inventorySlotIndex,
-                    item
-                );
-
-            case ShopItemEffectType.ReduceEnemyAttackDamage:
-                return TryPurchaseReduceEnemyAttackDamage(
-                    roomId,
-                    inventorySlotIndex,
-                    item
-                );
-
-            case ShopItemEffectType.IncreaseEnemyAttackInterval:
-                return TryPurchaseIncreaseEnemyAttackInterval(
-                    roomId,
-                    inventorySlotIndex,
-                    item
-                );
-
-            case ShopItemEffectType.IncreaseGoldGain:
-                return TryPurchaseIncreaseGoldGain(
-                    roomId,
-                    inventorySlotIndex,
-                    item
-                );
-
-            case ShopItemEffectType.RevealEntireStageMap:
-            case ShopItemEffectType.UpgradeNextRewardTier:
-            case ShopItemEffectType.GrantSecretRoomKey:
-            case ShopItemEffectType.ReduceNextRetreatCost:
-            case ShopItemEffectType.ReduceShopPrice:
-                return TryPurchaseWithEffectHandler(
-                    roomId,
-                    inventorySlotIndex,
-                    item
-                );
-
-            default:
-                return Fail(
-                    "아직 구매 효과가 구현되지 않은 상품입니다. " +
-                    $"ItemId={item.ItemId}, " +
-                    $"EffectType={item.EffectType}"
-                );
-        }
+        return Fail(
+            "현재 상점방에 있지 않습니다."
+        );
     }
+
+    if (item == null)
+    {
+        return Fail(
+            "구매할 상품 정보가 없습니다."
+        );
+    }
+
+    int roomId =
+        currentRoom.RoomId;
+
+    if (!IsValidInventorySlot(
+            inventorySlotIndex
+        ))
+    {
+        return Fail(
+            $"잘못된 상점 슬롯입니다. " +
+            $"SlotIndex={inventorySlotIndex}"
+        );
+    }
+
+    if (shopRoomState == null)
+    {
+        return Fail(
+            "상점 상태 참조가 없습니다."
+        );
+    }
+
+    if (!shopRoomState.HasInventory(
+            roomId
+        ))
+    {
+        return Fail(
+            "현재 상점방의 재고 상태가 없습니다. " +
+            $"RoomId={roomId}"
+        );
+    }
+
+    string storedProductId =
+        shopRoomState.GetProductId(
+            roomId,
+            inventorySlotIndex
+        );
+
+    if (!string.Equals(
+            storedProductId,
+            item.ItemId,
+            StringComparison.Ordinal
+        ))
+    {
+        return Fail(
+            "선택한 상품과 상점 재고 정보가 " +
+            "일치하지 않습니다."
+        );
+    }
+
+    if (!item.IsRepeatable &&
+        shopRoomState.IsSlotPurchased(
+            roomId,
+            inventorySlotIndex
+        ))
+    {
+        return Fail(
+            "이미 구매한 상품입니다."
+        );
+    }
+
+    /*
+     * Special 상품은 상품별 효과를
+     * ShopPurchaseController가 직접 알지 않습니다.
+     *
+     * 등록된 Handler가 전담합니다.
+     */
+    if (item.Category ==
+        ShopItemCategory.Special)
+    {
+        return TryPurchaseWithEffectHandler(
+            roomId,
+            inventorySlotIndex,
+            item
+        );
+    }
+
+    switch (item.EffectType)
+    {
+        case ShopItemEffectType.RecoverHealth:
+            return TryPurchaseHealing(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        case ShopItemEffectType.IncreaseDirectDamage:
+            return TryPurchaseIncreaseDirectDamage(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        case ShopItemEffectType.ReduceEnemyMaxHealth:
+            return TryPurchaseReduceEnemyMaxHealth(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        case ShopItemEffectType.ReduceEnemyAttackDamage:
+            return TryPurchaseReduceEnemyAttackDamage(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        case ShopItemEffectType.IncreaseEnemyAttackInterval:
+            return TryPurchaseIncreaseEnemyAttackInterval(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        case ShopItemEffectType.IncreaseGoldGain:
+            return TryPurchaseIncreaseGoldGain(
+                roomId,
+                inventorySlotIndex,
+                item
+            );
+
+        default:
+            return Fail(
+                "아직 구매 효과가 구현되지 않은 상품입니다. " +
+                $"ItemId={item.ItemId}, " +
+                $"EffectType={item.EffectType}"
+            );
+    }
+}
 
     private bool TryPurchaseWithEffectHandler(
         int roomId,

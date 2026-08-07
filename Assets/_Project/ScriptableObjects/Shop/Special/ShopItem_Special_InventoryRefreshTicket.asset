@@ -10,21 +10,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f0d48dbbbce09364dbf38fc15d92a9bf, type: 3}
-  m_Name: ShopItem_Special_MerchantContract
+  m_Name: ShopItem_Special_InventoryRefreshTicket
   m_EditorClassIdentifier: Assembly-CSharp::ShopItemDefinition
-  itemId: special_merchant_contract
-  displayName: "\uC0C1\uC778\uC758 \uACC4\uC57D\uC11C"
-  description: "\uBAA8\uB4E0 \uC0C1\uC810 \uC0C1\uD488\uC758 \uAC00\uACA9\uC774 20%
-    \uAC10\uC18C\uD569\uB2C8\uB2E4."
+  itemId: special_secret_room_key
+  displayName: "\uBE44\uBC00\uBB38 \uACF5\uBA85\uC11D"
+  description: "\uC774\uBC88 \uC2A4\uD14C\uC774\uC9C0\uC758 \uC774\uBCA4\uD2B8\uBC29\uC744
+    \uBB34\uB8CC\uB85C \uAC1C\uBC29\uD560 \uC218 \uC788\uB294 \uC5F4\uC1E0\uB97C
+    \uD68D\uB4DD\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   category: 2
-  effectType: 16
+  effectType: 8
   canBeSelected: 1
-  selectionWeight: 100
+  selectionWeight: 60
   allowDuplicateInSameShop: 0
   baseGoldPrice: 70
   isRepeatable: 0
   becomesSoldOutAfterPurchase: 1
   integerValue: 0
-  ratioValue: 0.2
+  ratioValue: 0
   secondaryRatioValue: 0

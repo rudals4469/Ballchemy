@@ -37,7 +37,8 @@ public enum ShopItemEffectType
     ReduceNegativeSpecialBlockChance,
     GrantNextRewardReroll,
     ReduceNextRetreatCost,
-    ReduceShopPrice
+    ReduceShopPrice,
+    RefreshCurrentShopInventory
 }
 
 [CreateAssetMenu(
@@ -262,10 +263,6 @@ public sealed class ShopItemDefinition :
         switch (category)
         {
             case ShopItemCategory.Healing:
-                /*
-                 * 치료는 같은 슬롯에서 반복 구매하고
-                 * 구매 횟수에 따라 가격이 상승할 예정입니다.
-                 */
                 isRepeatable =
                     true;
 
