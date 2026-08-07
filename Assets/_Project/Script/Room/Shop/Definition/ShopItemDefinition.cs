@@ -39,7 +39,15 @@ public enum ShopItemEffectType
     ReduceNextRetreatCost,
     ReduceShopPrice,
     RefreshCurrentShopInventory,
-    RecoverHealthOnCombatRoomClear
+    RecoverHealthOnCombatRoomClear,
+
+    /*
+     * 런 전체 지속 효과
+     *
+     * 기존 ScriptableObject의 enum 직렬화 값을
+     * 유지하기 위해 새 효과는 항상 뒤에 추가합니다.
+     */
+    IncreaseRunCombatGoldGain
 }
 
 [CreateAssetMenu(

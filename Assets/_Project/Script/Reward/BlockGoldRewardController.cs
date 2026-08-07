@@ -25,6 +25,9 @@ public sealed class BlockGoldRewardController :
     [SerializeField]
     private StageModifierState stageModifierState;
 
+    [SerializeField]
+    private RunCombatGoldGainState runCombatGoldGainState;
+
     [Header("Gold Per Clear Role")]
 
     [Tooltip(
@@ -169,6 +172,16 @@ public sealed class BlockGoldRewardController :
                     StageModifierState
                 >();
         }
+
+        if (runCombatGoldGainState == null)
+        {
+            runCombatGoldGainState =
+                FindFirstObjectByType<
+                    RunCombatGoldGainState
+                >(
+                    FindObjectsInactive.Include
+                );
+        }
     }
 
     private void ValidateReferences()
@@ -223,7 +236,17 @@ public sealed class BlockGoldRewardController :
             Debug.LogWarning(
                 "BlockGoldRewardController: " +
                 "StageModifierState가 연결되지 않았습니다. " +
-                "골드 획득 증가 버프는 적용되지 않습니다.",
+                "스테이지 골드 획득 증가 버프는 적용되지 않습니다.",
+                this
+            );
+        }
+
+        if (runCombatGoldGainState == null)
+        {
+            Debug.LogWarning(
+                "BlockGoldRewardController: " +
+                "RunCombatGoldGainState가 연결되지 않았습니다. " +
+                "런 전체 전투방 골드 증가 효과는 적용되지 않습니다.",
                 this
             );
         }
@@ -608,6 +631,10 @@ public sealed class BlockGoldRewardController :
                 "BlockGoldRewardController: " +
                 $"블록 파괴 골드 +{rewardAmount}G, " +
                 $"기본={baseRewardAmount}G, " +
+                $"StageBonus=" +
+                $"{ResolveStageGoldGainIncreaseRatio():P0}, " +
+                $"RunBonus=" +
+                $"{ResolveRunGoldGainIncreaseRatio():P0}, " +
                 $"RoomId={currentRoom.RoomId}, " +
                 $"BlockId={block.BlockId}",
                 this
@@ -624,6 +651,46 @@ public sealed class BlockGoldRewardController :
                 0
             );
 
+        if (baseRewardAmount <= 0)
+        {
+            return baseRewardAmount;
+        }
+
+        float stageIncreaseRatio =
+            ResolveStageGoldGainIncreaseRatio();
+
+        float runIncreaseRatio =
+            ResolveRunGoldGainIncreaseRatio();
+
+        float totalIncreaseRatio =
+            Mathf.Max(
+                stageIncreaseRatio +
+                runIncreaseRatio,
+                0f
+            );
+
+        if (totalIncreaseRatio <= 0f)
+        {
+            return baseRewardAmount;
+        }
+
+        float modifiedGold =
+            baseRewardAmount *
+            (
+                1f +
+                totalIncreaseRatio
+            );
+
+        return Mathf.Max(
+            Mathf.CeilToInt(
+                modifiedGold
+            ),
+            1
+        );
+    }
+
+    private float ResolveStageGoldGainIncreaseRatio()
+    {
         if (stageModifierState == null)
         {
             stageModifierState =
@@ -634,13 +701,38 @@ public sealed class BlockGoldRewardController :
 
         if (stageModifierState == null)
         {
-            return baseRewardAmount;
+            return 0f;
         }
 
-        return stageModifierState
-            .ApplyGoldGainModifier(
-                baseRewardAmount
-            );
+        return Mathf.Max(
+            stageModifierState
+                .GoldGainIncreaseRatio,
+            0f
+        );
+    }
+
+    private float ResolveRunGoldGainIncreaseRatio()
+    {
+        if (runCombatGoldGainState == null)
+        {
+            runCombatGoldGainState =
+                FindFirstObjectByType<
+                    RunCombatGoldGainState
+                >(
+                    FindObjectsInactive.Include
+                );
+        }
+
+        if (runCombatGoldGainState == null)
+        {
+            return 0f;
+        }
+
+        return Mathf.Max(
+            runCombatGoldGainState
+                .GoldGainIncreaseRatio,
+            0f
+        );
     }
 
     private int ResolveBlockGold(
