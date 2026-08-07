@@ -133,22 +133,46 @@ public sealed class TwinPocketPatternBuilder
         List<int> result =
             new List<int>();
 
+        int zigzagEntryRow =
+            Mathf.Min(
+                leftEntryRow,
+                rightEntryRow
+            );
+
+        bool primaryPocketOnLeft =
+            leftEntryRow <
+            rightEntryRow;
+
+        bool isInsideZigzag =
+            row >= zigzagEntryRow;
+
+        bool usePrimarySide =
+            (row - zigzagEntryRow) % 2 == 0;
+
+        bool shiftLeft =
+            isInsideZigzag &&
+            (primaryPocketOnLeft ==
+             usePrimarySide);
+
+        bool shiftRight =
+            isInsideZigzag &&
+            !shiftLeft;
+
         int leftStartColumn =
             corridorOffset +
-            (row >= leftEntryRow
+            (shiftLeft
                 ? 1
                 : 0);
 
         int rightStartColumn =
             columnCount - 1 -
             corridorOffset -
-            (row >= rightEntryRow
+            (shiftRight
                 ? 1
                 : 0);
 
         bool canApplyUpperRowNoise =
-            row < leftEntryRow &&
-            row < rightEntryRow &&
+            !isInsideZigzag &&
             clusterDepth >= 2;
 
         bool noiseLeftInnerEdge =
