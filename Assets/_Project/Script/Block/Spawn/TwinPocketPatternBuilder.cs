@@ -93,30 +93,31 @@ public sealed class TwinPocketPatternBuilder
                 rowCount - 1
             );
 
-        leftEntryRow =
+        int primaryEntryRow =
             Random.Range(
                 firstEntryRow,
                 rowCount
             );
 
-        if (rowCount - firstEntryRow <= 1)
+        bool primaryPocketOnLeft =
+            Random.value < 0.5f;
+
+        if (primaryPocketOnLeft)
         {
+            leftEntryRow =
+                primaryEntryRow;
+
             rightEntryRow =
-                leftEntryRow;
+                rowCount;
 
             return;
         }
 
-        do
-        {
-            rightEntryRow =
-                Random.Range(
-                    firstEntryRow,
-                    rowCount
-                );
-        }
-        while (rightEntryRow ==
-               leftEntryRow);
+        leftEntryRow =
+            rowCount;
+
+        rightEntryRow =
+            primaryEntryRow;
     }
 
     public List<int> CreateColumnPriority(
