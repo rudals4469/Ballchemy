@@ -186,7 +186,7 @@ Secret
 - 발사 지점 주변 안전 영역 보장
 - 방 배치 패턴은 Inspector에서 Automatic / Wall Pocket / Twin Pocket / Zigzag Corridor를 선택해 테스트 가능
 - Twin Pocket은 좌우 벽에 포켓을 유지하면서 방마다 한쪽을 첫 진입 포켓으로 선택하고, 하단은 행마다 좌우 2칸 입구가 교대하는 지그재그 통로, 상단은 군집 안쪽 면의 1칸 비대칭 노이즈를 적용하며 중앙 4열은 항상 개방
-- Zigzag Corridor는 좌우 장벽과 반대편 입구가 완충 행을 사이에 두고 교대하며, 발사 지점 쪽 첫 입구는 중앙 열을 포함한다. Center Gate는 후속 단계에서 추가
+- Zigzag Corridor는 맨 윗줄을 비우고 좌우 장벽과 반대편 입구가 완충 행을 사이에 두고 교대하며, 발사 지점 쪽 첫 입구는 중앙 열을 포함한다. Center Gate는 후속 단계에서 추가
 - 생존 적은 일정 턴마다 플레이어 공격
 - RequiredEnemy 전멸 시 방 클리어
 - RequiredEnemy 전멸로 클리어하면 남은 Optional/Special 블록은 보상·페널티 없이 제거

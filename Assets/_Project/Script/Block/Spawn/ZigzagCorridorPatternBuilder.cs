@@ -89,6 +89,11 @@ public sealed class ZigzagCorridorPatternBuilder
             columnCount
         );
 
+        if (row <= 0)
+        {
+            return 0;
+        }
+
         int distanceFromEntrance =
             GetDistanceFromEntrance(
                 row,
