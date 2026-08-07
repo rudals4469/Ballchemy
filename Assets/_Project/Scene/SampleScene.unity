@@ -2203,14 +2203,13 @@ GameObject:
   m_Component:
   - component: {fileID: 210220107}
   - component: {fileID: 210220109}
-  - component: {fileID: 210220108}
   m_Layer: 0
   m_Name: RevealEntireStageMapHandler
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &210220107
 Transform:
   m_ObjectHideFlags: 0
@@ -2226,20 +2225,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1599736081}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &210220108
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 210220106}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ba357b06a2e73f74dab2be6140038bbd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShopItemEffectHandlerRegistry
-  includeChildren: 1
-  showDebugLog: 1
 --- !u!114 &210220109
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2715,6 +2700,51 @@ Transform:
   - {fileID: 358299590}
   m_Father: {fileID: 2127719889}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &249354235
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 249354236}
+  - component: {fileID: 249354237}
+  m_Layer: 0
+  m_Name: ReduceNextRetreatCostHandler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &249354236
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249354235}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1599736081}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &249354237
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 249354235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 259f50075d0f3614e9180eff206e38e8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ReduceNextRetreatCostShopEffectHandler
+  retreatCostDiscountState: {fileID: 1429675589}
 --- !u!1 &254261199
 GameObject:
   m_ObjectHideFlags: 0
@@ -14323,62 +14353,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!1 &1188078145
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1188078146}
-  - component: {fileID: 1188078147}
-  m_Layer: 0
-  m_Name: ShopPurchaseController
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1188078146
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1188078145}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1597443402}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1188078147
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1188078145}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c058a4aa40d6d44438f36b436264e102, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShopPurchaseController
-  roomNavigator: {fileID: 372114439}
-  shopRoomState: {fileID: 1597443403}
-  currencyState: {fileID: 2091208933}
-  playerHealth: {fileID: 858936749}
-  stageModifierState: {fileID: 372114444}
-  secretRoomKeyState: {fileID: 372114447}
-  secretRoomState: {fileID: 372114446}
-  runRewardState: {fileID: 2091208932}
-  effectHandlerRegistry: {fileID: 210220108}
-  healingPriceIncreasePerPurchase: 5
-  fallbackHealingRatio: 0.25
-  showDebugLog: 1
 --- !u!1 &1191725005
 GameObject:
   m_ObjectHideFlags: 0
@@ -14651,6 +14625,51 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1158030773}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1233300504
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1233300505}
+  - component: {fileID: 1233300506}
+  m_Layer: 0
+  m_Name: ReduceShopPriceShopEffectHandler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1233300505
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1233300504}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1599736081}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1233300506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1233300504}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 729d4cdbaf9e7994392cdbc57374b072, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ReduceShopPriceShopEffectHandler
+  shopPriceDiscountState: {fileID: 1429675590}
 --- !u!1 &1234309334
 GameObject:
   m_ObjectHideFlags: 0
@@ -17179,6 +17198,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1429675587}
   - component: {fileID: 1429675588}
+  - component: {fileID: 1429675589}
+  - component: {fileID: 1429675590}
   m_Layer: 0
   m_Name: RoomRestartSystem
   m_TagString: Untagged
@@ -17219,8 +17240,37 @@ MonoBehaviour:
   ballLauncher: {fileID: 904823807}
   navigator: {fileID: 372114439}
   transitionController: {fileID: 1386750354}
+  retreatCostDiscountState: {fileID: 1429675589}
   retreatCostRatio: 0.1
   allowLethalRetreatCost: 0
+--- !u!114 &1429675589
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1429675586}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10c843d0813cc71449dd6dd00b21d351, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RetreatCostDiscountState
+  discountRatio: 0
+  showDebugLog: 1
+--- !u!114 &1429675590
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1429675586}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72727ab5dde4672449711a400bebadd1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShopPriceDiscountState
+  discountRatio: 0.2
+  showDebugLog: 1
 --- !u!1 &1442378391
 GameObject:
   m_ObjectHideFlags: 0
@@ -19310,6 +19360,52 @@ RectTransform:
   m_AnchoredPosition: {x: 70, y: 15.9}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1560077612
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1560077613}
+  - component: {fileID: 1560077614}
+  m_Layer: 0
+  m_Name: GrantSecretRoomKeyHandler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1560077613
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1560077612}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1599736081}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1560077614
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1560077612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d033ef797a2550f4682bd67527c820f8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GrantSecretRoomKeyShopEffectHandler
+  secretRoomKeyState: {fileID: 372114447}
+  secretRoomState: {fileID: 372114446}
 --- !u!1 &1569475932
 GameObject:
   m_ObjectHideFlags: 0
@@ -19747,7 +19843,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1188078146}
   - {fileID: 1599736081}
   m_Father: {fileID: 1782851321}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -19805,6 +19900,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1599736081}
+  - component: {fileID: 1599736082}
   m_Layer: 0
   m_Name: ShopItemEffectHandlers
   m_TagString: Untagged
@@ -19826,8 +19922,26 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 210220107}
+  - {fileID: 1918922823}
+  - {fileID: 1560077613}
+  - {fileID: 249354236}
+  - {fileID: 1233300505}
   m_Father: {fileID: 1597443402}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1599736082
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1599736080}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba357b06a2e73f74dab2be6140038bbd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShopItemEffectHandlerRegistry
+  includeChildren: 1
+  showDebugLog: 1
 --- !u!1 &1611577202
 GameObject:
   m_ObjectHideFlags: 0
@@ -19908,10 +20022,8 @@ MonoBehaviour:
   currencyState: {fileID: 2091208933}
   playerHealth: {fileID: 858936749}
   stageModifierState: {fileID: 372114444}
-  secretRoomKeyState: {fileID: 372114447}
-  secretRoomState: {fileID: 372114446}
-  runRewardState: {fileID: 2091208932}
-  effectHandlerRegistry: {fileID: 210220108}
+  effectHandlerRegistry: {fileID: 1599736082}
+  shopPriceDiscountState: {fileID: 1429675590}
   healingPriceIncreasePerPurchase: 5
   fallbackHealingRatio: 0.25
   showDebugLog: 1
@@ -22027,6 +22139,51 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 10, y: 10}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1918922822
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1918922823}
+  - component: {fileID: 1918922824}
+  m_Layer: 0
+  m_Name: UpgradeNextRewardTierHandler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1918922823
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1918922822}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1599736081}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1918922824
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1918922822}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53571127fb3c4954bad5796b8a58de2f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UpgradeNextRewardTierShopEffectHandler
+  runRewardState: {fileID: 2091208932}
 --- !u!1 &1925471610
 GameObject:
   m_ObjectHideFlags: 0

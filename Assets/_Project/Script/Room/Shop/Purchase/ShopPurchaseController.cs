@@ -26,6 +26,10 @@ public sealed class ShopPurchaseController :
     private ShopItemEffectHandlerRegistry
         effectHandlerRegistry;
 
+    [SerializeField]
+    private ShopPriceDiscountState
+        shopPriceDiscountState;
+
     [Header("Healing Price")]
 
     [Tooltip(
@@ -100,23 +104,49 @@ public sealed class ShopPurchaseController :
                 0
             );
 
-        if (item.Category !=
+        int priceBeforeDiscount =
+            basePrice;
+
+        if (item.Category ==
             ShopItemCategory.Healing)
         {
-            return basePrice;
+            int purchaseCount =
+                shopRoomState != null
+                    ? shopRoomState
+                        .GetHealingPurchaseCount(
+                            roomId
+                        )
+                    : 0;
+
+            priceBeforeDiscount =
+                basePrice +
+                purchaseCount *
+                healingPriceIncreasePerPurchase;
         }
 
-        int purchaseCount =
-            shopRoomState != null
-                ? shopRoomState
-                    .GetHealingPurchaseCount(
-                        roomId
-                    )
-                : 0;
+        float discountRatio =
+            shopPriceDiscountState != null
+                ? Mathf.Clamp01(
+                    shopPriceDiscountState
+                        .DiscountRatio
+                )
+                : 0f;
 
-        return basePrice +
-               purchaseCount *
-               healingPriceIncreasePerPurchase;
+        if (discountRatio <= 0f)
+        {
+            return priceBeforeDiscount;
+        }
+
+        float remainingPriceRatio =
+            1f - discountRatio;
+
+        return Mathf.Max(
+            0,
+            Mathf.CeilToInt(
+                priceBeforeDiscount *
+                remainingPriceRatio
+            )
+        );
     }
 
     public bool TryPurchase(
@@ -246,6 +276,7 @@ public sealed class ShopPurchaseController :
             case ShopItemEffectType.UpgradeNextRewardTier:
             case ShopItemEffectType.GrantSecretRoomKey:
             case ShopItemEffectType.ReduceNextRetreatCost:
+            case ShopItemEffectType.ReduceShopPrice:
                 return TryPurchaseWithEffectHandler(
                     roomId,
                     inventorySlotIndex,
@@ -1110,6 +1141,16 @@ public sealed class ShopPurchaseController :
                     FindObjectsInactive.Include
                 );
         }
+
+        if (shopPriceDiscountState == null)
+        {
+            shopPriceDiscountState =
+                FindFirstObjectByType<
+                    ShopPriceDiscountState
+                >(
+                    FindObjectsInactive.Include
+                );
+        }
     }
 
     private void ValidateReferences()
@@ -1164,6 +1205,16 @@ public sealed class ShopPurchaseController :
             Debug.LogError(
                 "ShopPurchaseController: " +
                 "ShopItemEffectHandlerRegistry가 " +
+                "연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (shopPriceDiscountState == null)
+        {
+            Debug.LogError(
+                "ShopPurchaseController: " +
+                "ShopPriceDiscountState가 " +
                 "연결되지 않았습니다.",
                 this
             );

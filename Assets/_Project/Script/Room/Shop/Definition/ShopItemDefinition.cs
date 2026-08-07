@@ -36,7 +36,8 @@ public enum ShopItemEffectType
     UpgradeNextRewardTier,
     ReduceNegativeSpecialBlockChance,
     GrantNextRewardReroll,
-    ReduceNextRetreatCost
+    ReduceNextRetreatCost,
+    ReduceShopPrice
 }
 
 [CreateAssetMenu(
