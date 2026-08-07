@@ -10509,6 +10509,7 @@ GameObject:
   - component: {fileID: 904823823}
   - component: {fileID: 904823824}
   - component: {fileID: 904823825}
+  - component: {fileID: 904823826}
   m_Layer: 0
   m_Name: Launcher
   m_TagString: Untagged
@@ -10553,6 +10554,7 @@ MonoBehaviour:
   ballSealController: {fileID: 904823812}
   gatherAnimator: {fileID: 904823813}
   temporaryUpgradePresenter: {fileID: 904823824}
+  boardGrid: {fileID: 1710125463}
   launchInterval: 0.08
   allBallsReturnedDelay: 0.7
   minimumLaunchX: -4.3
@@ -10575,10 +10577,31 @@ MonoBehaviour:
   ballLauncher: {fileID: 904823807}
   multiTrajectoryPreview: {fileID: 904823825}
   roomNavigator: {fileID: 372114439}
+  firstTurnLaunchPositionController: {fileID: 904823826}
   minimumUpwardDirection: 0.15
   aimSmoothSpeed: 14
   aimMovementThresholdDegrees: 1.5
   stableAimDelay: 0.5
+--- !u!114 &904823826
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 904823805}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2e91d22da6949878cbd8ba4adbe4cab, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::FirstTurnLaunchPositionController
+  ballLauncher: {fileID: 904823807}
+  blockGridManager: {fileID: 987057997}
+  turnManager: {fileID: 1520316753}
+  markerHitRadius: 0.75
+  markerColor: {r: 1, g: 0.82, b: 0.18, a: 1}
+  markerWidth: 0.08
+  markerHeight: 0.7
+  markerSortingOrder: 20
 --- !u!114 &904823810
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -25,6 +25,10 @@ public sealed class BallAimController :
     [SerializeField]
     private StageRoomNavigator roomNavigator;
 
+    [SerializeField]
+    private FirstTurnLaunchPositionController
+        firstTurnLaunchPositionController;
+
     [Header("Aim Direction")]
 
     [SerializeField, Range(0.01f, 1f)]
@@ -127,6 +131,10 @@ public sealed class BallAimController :
          * 조준과 발사 입력을 모두 비활성화합니다.
          */
         if (!turnManager.CanAim ||
+            (
+                firstTurnLaunchPositionController != null &&
+                firstTurnLaunchPositionController.IsSelecting
+            ) ||
             ShouldSuppressAimForNavigation())
         {
             HandleAimingDisabled();
@@ -199,6 +207,14 @@ public sealed class BallAimController :
             roomNavigator =
                 FindFirstObjectByType<
                     StageRoomNavigator
+                >();
+        }
+
+        if (firstTurnLaunchPositionController == null)
+        {
+            firstTurnLaunchPositionController =
+                GetComponent<
+                    FirstTurnLaunchPositionController
                 >();
         }
     }

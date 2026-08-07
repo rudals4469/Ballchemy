@@ -39,6 +39,9 @@ public sealed class BallLauncher :
     private BallTemporaryUpgradePresenter
         temporaryUpgradePresenter;
 
+    [SerializeField]
+    private BoardGrid boardGrid;
+
     [Header("Launch Settings")]
 
     [Tooltip(
@@ -120,6 +123,12 @@ public sealed class BallLauncher :
             plannedBallCount -
             launchedBallCount,
             0
+        );
+
+    public Vector2 CurrentLaunchPosition =>
+        new Vector2(
+            transform.position.x,
+            launchBaselineY
         );
 
     public Ball LastLaunchedBall
@@ -237,6 +246,12 @@ public sealed class BallLauncher :
                 GetComponent<
                     BallTemporaryUpgradePresenter
                 >();
+        }
+
+        if (boardGrid == null)
+        {
+            boardGrid =
+                FindFirstObjectByType<BoardGrid>();
         }
     }
 
@@ -556,6 +571,50 @@ public sealed class BallLauncher :
         return true;
     }
 
+    public bool TrySetLaunchPositionX(
+        float requestedX)
+    {
+        if (!isInitialized ||
+            IsAttackInProgress ||
+            ballCollection == null)
+        {
+            return false;
+        }
+
+        ResolveLaunchPositionLimits();
+
+        Vector2 selectedPosition =
+            new Vector2(
+                Mathf.Clamp(
+                    requestedX,
+                    minimumLaunchX,
+                    maximumLaunchX
+                ),
+                launchBaselineY
+            );
+
+        currentTurnLaunchPosition =
+            selectedPosition;
+        nextTurnLaunchPosition =
+            selectedPosition;
+
+        ballCollection.AlignAll(
+            selectedPosition
+        );
+        ballCollection.SetStandbyPosition(
+            selectedPosition
+        );
+
+        transform.position =
+            new Vector3(
+                selectedPosition.x,
+                launchBaselineY,
+                transform.position.z
+            );
+
+        return true;
+    }
+
     private IEnumerator LaunchBallsRoutine(
         Vector2 baseDirection,
         MultiDirectionLaunchSettings
@@ -766,6 +825,8 @@ public sealed class BallLauncher :
         {
             return;
         }
+
+        ResolveLaunchPositionLimits();
 
         float normalizedReturnX =
             Mathf.Clamp(
@@ -1007,6 +1068,8 @@ public sealed class BallLauncher :
             return false;
         }
 
+        ResolveLaunchPositionLimits();
+
         float centerX =
             (
                 minimumLaunchX +
@@ -1051,6 +1114,47 @@ public sealed class BallLauncher :
         );
 
         return true;
+    }
+
+    private void ResolveLaunchPositionLimits()
+    {
+        if (boardGrid == null ||
+            boardGrid.Settings == null ||
+            BallPrefab == null)
+        {
+            return;
+        }
+
+        CircleCollider2D ballCollider =
+            BallPrefab.GetComponent<CircleCollider2D>();
+
+        if (ballCollider == null)
+        {
+            return;
+        }
+
+        Vector3 colliderScale =
+            ballCollider.transform.lossyScale;
+
+        float ballRadius =
+            ballCollider.radius *
+            Mathf.Max(
+                Mathf.Abs(colliderScale.x),
+                Mathf.Abs(colliderScale.y)
+            );
+
+        float halfBoardWidth =
+            boardGrid.Settings.HalfBoardWidth;
+
+        minimumLaunchX =
+            boardGrid.transform.position.x -
+            halfBoardWidth +
+            ballRadius;
+
+        maximumLaunchX =
+            boardGrid.transform.position.x +
+            halfBoardWidth -
+            ballRadius;
     }
 
     private void NormalizeLauncherPosition()
