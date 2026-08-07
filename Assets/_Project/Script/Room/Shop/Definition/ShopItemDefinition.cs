@@ -38,7 +38,8 @@ public enum ShopItemEffectType
     GrantNextRewardReroll,
     ReduceNextRetreatCost,
     ReduceShopPrice,
-    RefreshCurrentShopInventory
+    RefreshCurrentShopInventory,
+    RecoverHealthOnCombatRoomClear
 }
 
 [CreateAssetMenu(

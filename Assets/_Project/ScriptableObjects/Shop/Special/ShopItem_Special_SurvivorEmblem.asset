@@ -10,19 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f0d48dbbbce09364dbf38fc15d92a9bf, type: 3}
-  m_Name: ShopItem_Special_InventoryRefreshTicket
+  m_Name: ShopItem_Special_SurvivorEmblem
   m_EditorClassIdentifier: Assembly-CSharp::ShopItemDefinition
-  itemId: special_inventory_refresh_ticket
-  displayName: "\uC7AC\uACE0 \uAC31\uC2E0\uAD8C"
-  description: "\uD604\uC7AC \uC0C1\uC810\uC758 \uC544\uC9C1 \uAD6C\uB9E4\uD558\uC9C0
-    \uC54A\uC740 \uB2E4\uB978 \uC0C1\uD488\uC744 \uD55C \uBC88 \uC0C8\uB85C \uAC31\uC2E0\uD569\uB2C8\uB2E4."
+  itemId: special_secret_room_key
+  displayName: "\uBE44\uBC00\uBB38 \uACF5\uBA85\uC11D"
+  description: "\uC774\uBC88 \uC2A4\uD14C\uC774\uC9C0\uC758 \uC774\uBCA4\uD2B8\uBC29\uC744
+    \uBB34\uB8CC\uB85C \uAC1C\uBC29\uD560 \uC218 \uC788\uB294 \uC5F4\uC1E0\uB97C
+    \uD68D\uB4DD\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   category: 2
-  effectType: 17
+  effectType: 8
   canBeSelected: 1
   selectionWeight: 60
   allowDuplicateInSameShop: 0
-  baseGoldPrice: 40
+  baseGoldPrice: 70
   isRepeatable: 0
   becomesSoldOutAfterPurchase: 1
   integerValue: 0
