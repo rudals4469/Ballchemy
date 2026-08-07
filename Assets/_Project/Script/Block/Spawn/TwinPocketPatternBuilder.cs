@@ -145,19 +145,48 @@ public sealed class TwinPocketPatternBuilder
                 ? 1
                 : 0);
 
+        bool canApplyUpperRowNoise =
+            row < leftEntryRow &&
+            row < rightEntryRow &&
+            clusterDepth >= 2;
+
+        bool noiseLeftInnerEdge =
+            canApplyUpperRowNoise &&
+            Random.value < 0.5f;
+
+        bool noiseRightInnerEdge =
+            canApplyUpperRowNoise &&
+            !noiseLeftInnerEdge;
+
         for (int depth = 0;
              depth < clusterDepth;
              depth++)
         {
+            int leftDepthNoise =
+                noiseLeftInnerEdge &&
+                depth == clusterDepth - 1
+                    ? 1
+                    : 0;
+
+            int rightDepthNoise =
+                noiseRightInnerEdge &&
+                depth == clusterDepth - 1
+                    ? 1
+                    : 0;
+
             AddIfValid(
                 result,
-                leftStartColumn + depth,
+                leftStartColumn +
+                depth +
+                leftDepthNoise,
                 columnCount
             );
 
             AddIfValid(
                 result,
-                rightStartColumn - depth,
+                rightStartColumn -
+                depth -
+                rightDepthNoise,
                 columnCount
             );
         }
