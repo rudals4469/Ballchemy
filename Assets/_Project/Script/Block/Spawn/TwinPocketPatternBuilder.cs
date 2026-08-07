@@ -134,14 +134,14 @@ public sealed class TwinPocketPatternBuilder
 
         int leftStartColumn =
             corridorOffset +
-            (row == leftEntryRow
+            (row >= leftEntryRow
                 ? 1
                 : 0);
 
         int rightStartColumn =
             columnCount - 1 -
             corridorOffset -
-            (row == rightEntryRow
+            (row >= rightEntryRow
                 ? 1
                 : 0);
 
