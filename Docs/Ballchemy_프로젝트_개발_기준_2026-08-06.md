@@ -184,6 +184,9 @@ Secret
 - 블록 아래 방향 하강 안 함
 - 일반/네임드 전투방은 현재 랜덤 블록 배치 사용
 - 발사 지점 주변 안전 영역 보장
+- 방 배치 패턴은 Inspector에서 Automatic / Wall Pocket / Twin Pocket을 선택해 테스트 가능
+- Twin Pocket은 좌우 벽에 1칸 포켓과 서로 다른 입구 높이를 만들고 중앙 발사 경로를 유지
+- Zigzag Corridor / Center Gate는 후속 단계에서 추가
 - 생존 적은 일정 턴마다 플레이어 공격
 - RequiredEnemy 전멸 시 방 클리어
 - RequiredEnemy 전멸로 클리어하면 남은 Optional/Special 블록은 보상·페널티 없이 제거

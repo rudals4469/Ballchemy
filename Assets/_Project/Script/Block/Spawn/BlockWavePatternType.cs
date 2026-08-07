@@ -1,0 +1,7 @@
+public enum BlockWavePatternType
+{
+    Automatic = 0,
+    WallPocket = 1,
+    TwinPocket = 2,
+    Legacy = 3
+}

@@ -1,0 +1,232 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using Random = UnityEngine.Random;
+
+[Serializable]
+public sealed class TwinPocketPatternBuilder
+{
+    [Tooltip(
+        "각 벽과 주 블록 라인 사이의 빈 칸 수입니다.\n" +
+        "1이면 좌우에 1칸 폭 포켓을 만듭니다."
+    )]
+    [SerializeField, Min(1)]
+    private int corridorOffset = 1;
+
+    [Tooltip(
+        "각 포켓 군집이 안쪽으로 사용하는 블록 열 수입니다.\n" +
+        "9열 보드에서는 2를 권장합니다."
+    )]
+    [SerializeField, Min(1)]
+    private int clusterDepth = 2;
+
+    public void Normalize(
+        int availableColumns)
+    {
+        availableColumns =
+            Mathf.Max(
+                availableColumns,
+                1
+            );
+
+        corridorOffset =
+            Mathf.Clamp(
+                corridorOffset,
+                1,
+                Mathf.Max(
+                    (availableColumns - 3) / 2,
+                    1
+                )
+            );
+
+        clusterDepth =
+            Mathf.Clamp(
+                clusterDepth,
+                1,
+                GetMaximumClusterDepth(
+                    availableColumns
+                )
+            );
+    }
+
+    public bool CanBuild(
+        int columnCount)
+    {
+        Normalize(
+            columnCount
+        );
+
+        return columnCount >=
+               corridorOffset * 2 +
+               clusterDepth * 2 +
+               3;
+    }
+
+    public int GetTargetBlockCountPerRow(
+        int columnCount)
+    {
+        Normalize(
+            columnCount
+        );
+
+        return Mathf.Min(
+            clusterDepth * 2,
+            columnCount
+        );
+    }
+
+    public void SelectEntryRows(
+        int rowCount,
+        out int leftEntryRow,
+        out int rightEntryRow)
+    {
+        rowCount =
+            Mathf.Max(
+                rowCount,
+                1
+            );
+
+        int firstEntryRow =
+            Mathf.Clamp(
+                rowCount / 2,
+                0,
+                rowCount - 1
+            );
+
+        leftEntryRow =
+            Random.Range(
+                firstEntryRow,
+                rowCount
+            );
+
+        if (rowCount - firstEntryRow <= 1)
+        {
+            rightEntryRow =
+                leftEntryRow;
+
+            return;
+        }
+
+        do
+        {
+            rightEntryRow =
+                Random.Range(
+                    firstEntryRow,
+                    rowCount
+                );
+        }
+        while (rightEntryRow ==
+               leftEntryRow);
+    }
+
+    public List<int> CreateColumnPriority(
+        int row,
+        int columnCount,
+        int leftEntryRow,
+        int rightEntryRow)
+    {
+        Normalize(
+            columnCount
+        );
+
+        List<int> result =
+            new List<int>();
+
+        int leftStartColumn =
+            corridorOffset +
+            (row == leftEntryRow
+                ? 1
+                : 0);
+
+        int rightStartColumn =
+            columnCount - 1 -
+            corridorOffset -
+            (row == rightEntryRow
+                ? 1
+                : 0);
+
+        for (int depth = 0;
+             depth < clusterDepth;
+             depth++)
+        {
+            AddIfValid(
+                result,
+                leftStartColumn + depth,
+                columnCount
+            );
+
+            AddIfValid(
+                result,
+                rightStartColumn - depth,
+                columnCount
+            );
+        }
+
+        List<int> remainingColumns =
+            new List<int>();
+
+        for (int column = 0;
+             column < columnCount;
+             column++)
+        {
+            if (!result.Contains(
+                    column))
+            {
+                remainingColumns.Add(
+                    column
+                );
+            }
+        }
+
+        float center =
+            (columnCount - 1) *
+            0.5f;
+
+        remainingColumns.Sort(
+            (left, right) =>
+                Mathf.Abs(
+                    right - center
+                ).CompareTo(
+                    Mathf.Abs(
+                        left - center
+                    )
+                )
+        );
+
+        result.AddRange(
+            remainingColumns
+        );
+
+        return result;
+    }
+
+    private int GetMaximumClusterDepth(
+        int columnCount)
+    {
+        return Mathf.Max(
+            (columnCount -
+             corridorOffset * 2 -
+             3) /
+            2,
+            1
+        );
+    }
+
+    private void AddIfValid(
+        List<int> columns,
+        int column,
+        int columnCount)
+    {
+        if (column < 0 ||
+            column >= columnCount ||
+            columns.Contains(
+                column))
+        {
+            return;
+        }
+
+        columns.Add(
+            column
+        );
+    }
+}

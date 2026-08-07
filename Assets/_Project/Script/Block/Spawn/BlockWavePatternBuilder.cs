@@ -36,6 +36,14 @@ public sealed class BlockWavePatternBuilder
     [Header("Ricochet Pattern")]
 
     [Tooltip(
+        "Inspector에서 테스트할 방 배치 패턴을 선택합니다.\n" +
+        "Automatic은 기존 Wall Pocket 확률 규칙을 사용합니다."
+    )]
+    [SerializeField]
+    private BlockWavePatternType patternType =
+        BlockWavePatternType.Automatic;
+
+    [Tooltip(
         "Wall Pocket 패턴이 선택될 확률입니다.\n" +
         "현재 테스트 단계에서는 1로 두는 것을 권장합니다."
     )]
@@ -57,6 +65,12 @@ public sealed class BlockWavePatternBuilder
     )]
     [SerializeField, Min(1)]
     private int wallPocketCorridorOffset = 1;
+
+    [Header("Twin Pocket")]
+
+    [SerializeField]
+    private TwinPocketPatternBuilder twinPocket =
+        new TwinPocketPatternBuilder();
 
     [Tooltip(
         "일반 지그재그 패턴에서 이전 줄 기준으로 " +
@@ -136,6 +150,10 @@ public sealed class BlockWavePatternBuilder
                 )
             );
 
+        twinPocket.Normalize(
+            availableColumns
+        );
+
         horizontalStaggerDistance =
             Mathf.Clamp(
                 horizontalStaggerDistance,
@@ -175,6 +193,12 @@ public sealed class BlockWavePatternBuilder
         {
             specialInjector =
                 new BlockWaveSpecialInjector();
+        }
+
+        if (twinPocket == null)
+        {
+            twinPocket =
+                new TwinPocketPatternBuilder();
         }
     }
 
@@ -330,12 +354,33 @@ public sealed class BlockWavePatternBuilder
             }
         }
 
+        BlockWavePatternType selectedPattern =
+            SelectPattern(
+                columnCount
+            );
+
         bool useWallPocket =
-            columnCount >= 4 &&
-            Random.value <= wallPocketChance;
+            selectedPattern ==
+            BlockWavePatternType.WallPocket;
+
+        bool useTwinPocket =
+            selectedPattern ==
+            BlockWavePatternType.TwinPocket;
 
         bool pocketOnLeft =
             Random.value < 0.5f;
+
+        int leftTwinPocketEntryRow = -1;
+        int rightTwinPocketEntryRow = -1;
+
+        if (useTwinPocket)
+        {
+            twinPocket.SelectEntryRows(
+                rowCount,
+                out leftTwinPocketEntryRow,
+                out rightTwinPocketEntryRow
+            );
+        }
 
         HashSet<int> usedColumns =
             new HashSet<int>();
@@ -357,6 +402,15 @@ public sealed class BlockWavePatternBuilder
                     columnCount
                 );
 
+            if (useTwinPocket)
+            {
+                targetBlockCount =
+                    twinPocket
+                        .GetTargetBlockCountPerRow(
+                            columnCount
+                        );
+            }
+
             List<int> preferredColumns;
 
             if (useWallPocket)
@@ -367,6 +421,16 @@ public sealed class BlockWavePatternBuilder
                         targetBlockCount,
                         columnCount,
                         pocketOnLeft
+                    );
+            }
+            else if (useTwinPocket)
+            {
+                preferredColumns =
+                    twinPocket.CreateColumnPriority(
+                        row,
+                        columnCount,
+                        leftTwinPocketEntryRow,
+                        rightTwinPocketEntryRow
                     );
             }
             else if (row == 0 ||
@@ -404,7 +468,8 @@ public sealed class BlockWavePatternBuilder
                     baseHealth,
                     baseAttack,
                     occupancyMap,
-                    requests
+                    requests,
+                    useTwinPocket
                 );
 
             for (int i = 0;
@@ -433,6 +498,36 @@ public sealed class BlockWavePatternBuilder
         );
 
         return requests;
+    }
+
+    private BlockWavePatternType SelectPattern(
+        int columnCount)
+    {
+        if (patternType ==
+                BlockWavePatternType.TwinPocket &&
+            twinPocket.CanBuild(
+                columnCount
+            ))
+        {
+            return BlockWavePatternType.TwinPocket;
+        }
+
+        if (patternType ==
+            BlockWavePatternType.WallPocket)
+        {
+            return BlockWavePatternType.WallPocket;
+        }
+
+        if (patternType ==
+            BlockWavePatternType.Legacy)
+        {
+            return BlockWavePatternType.Legacy;
+        }
+
+        return columnCount >= 4 &&
+               Random.value <= wallPocketChance
+            ? BlockWavePatternType.WallPocket
+            : BlockWavePatternType.Legacy;
     }
 
     private List<int> CreateWallPocketColumnPriority(
@@ -698,7 +793,8 @@ public sealed class BlockWavePatternBuilder
         int blockHealth,
         int blockAttack,
         BlockWaveOccupancyMap occupancyMap,
-        List<BlockSpawnRequest> requests)
+        List<BlockSpawnRequest> requests,
+        bool requireUnitSize = false)
     {
         List<int> spawnedColumns =
             new List<int>();
@@ -731,6 +827,7 @@ public sealed class BlockWavePatternBuilder
                     blockHealth,
                     blockAttack,
                     occupancyMap,
+                    requireUnitSize,
                     out BlockSpawnRequest request))
             {
                 continue;
@@ -781,6 +878,7 @@ public sealed class BlockWavePatternBuilder
                     blockHealth,
                     blockAttack,
                     occupancyMap,
+                    requireUnitSize,
                     out BlockSpawnRequest request))
             {
                 continue;
@@ -806,6 +904,7 @@ public sealed class BlockWavePatternBuilder
         int blockHealth,
         int blockAttack,
         BlockWaveOccupancyMap occupancyMap,
+        bool requireUnitSize,
         out BlockSpawnRequest request)
     {
         request = null;
@@ -815,7 +914,8 @@ public sealed class BlockWavePatternBuilder
                 blockType,
                 startColumn,
                 startRow,
-                occupancyMap
+                occupancyMap,
+                requireUnitSize
             );
 
         Vector2Int gridSize;
@@ -874,7 +974,8 @@ public sealed class BlockWavePatternBuilder
         BlockType blockType,
         int startColumn,
         int startRow,
-        BlockWaveOccupancyMap occupancyMap)
+        BlockWaveOccupancyMap occupancyMap,
+        bool requireUnitSize)
     {
         if (blockCatalog == null)
         {
@@ -906,6 +1007,14 @@ public sealed class BlockWavePatternBuilder
 
             if (definition == null ||
                 definition.SelectionWeight <= 0)
+            {
+                continue;
+            }
+
+            if (requireUnitSize &&
+                NormalizeGridSize(
+                    definition.GridSize) !=
+                Vector2Int.one)
             {
                 continue;
             }
