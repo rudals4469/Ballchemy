@@ -8,6 +8,7 @@ public sealed class BlockDefinition :
     ScriptableObject
 {
     [Header("Identity")]
+
     [SerializeField]
     private string blockId;
 
@@ -19,6 +20,7 @@ public sealed class BlockDefinition :
         BlockType.Normal;
 
     [Header("Behaviour")]
+
     [SerializeField]
     private BlockDestructionRule destructionRule =
         BlockDestructionRule.Breakable;
@@ -32,6 +34,7 @@ public sealed class BlockDefinition :
         BlockClearRole.Auto;
 
     [Header("Special Feedback")]
+
     [Tooltip(
         "Special 블록의 시각적 분류입니다. " +
         "일반 블록은 None을 사용합니다."
@@ -41,11 +44,13 @@ public sealed class BlockDefinition :
         SpecialBlockCategory.None;
 
     [Header("Grid")]
+
     [SerializeField]
     private Vector2Int gridSize =
         Vector2Int.one;
 
     [Header("Visual")]
+
     [SerializeField]
     private Sprite sprite;
 
@@ -58,6 +63,7 @@ public sealed class BlockDefinition :
         Vector3.one;
 
     [Header("Selection")]
+
     [SerializeField, Min(0)]
     private int selectionWeight = 1;
 
@@ -96,7 +102,8 @@ public sealed class BlockDefinition :
 
     private BlockClearRole ResolveClearRole()
     {
-        if (clearRole != BlockClearRole.Auto)
+        if (clearRole !=
+            BlockClearRole.Auto)
         {
             return clearRole;
         }
@@ -104,6 +111,7 @@ public sealed class BlockDefinition :
         switch (blockType)
         {
             case BlockType.Normal:
+            case BlockType.Elite:
             case BlockType.Named:
             case BlockType.Boss:
                 return BlockClearRole.RequiredEnemy;

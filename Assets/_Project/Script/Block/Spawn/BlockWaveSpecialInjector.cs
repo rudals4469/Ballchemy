@@ -7,6 +7,7 @@ using Random = UnityEngine.Random;
 public sealed class BlockWaveSpecialInjector
 {
     [Header("Special Block Spawn")]
+
     [SerializeField]
     private bool enableSpecialBlocks = true;
 
@@ -45,7 +46,18 @@ public sealed class BlockWaveSpecialInjector
     [SerializeField]
     private bool allowInFeaturedWaves;
 
+    [Header("Special Placement")]
+
+    [Tooltip(
+        "활성화하면 특수 블록을 가능한 한 " +
+        "기존 블록과 붙어 있는 위치에 배치합니다.\n" +
+        "주변에 블록이 많은 후보를 우선합니다."
+    )]
+    [SerializeField]
+    private bool preferAdjacentPlacement = true;
+
     [Header("Guaranteed Reward")]
+
     [Tooltip(
         "한 웨이브에서 반드시 먼저 생성할 " +
         "보상 특수 블록 개수입니다."
@@ -63,6 +75,7 @@ public sealed class BlockWaveSpecialInjector
             new List<BlockDefinition>();
 
     [Header("Random Special Pool")]
+
     [Tooltip(
         "보장 슬롯 이후 랜덤으로 선택될 " +
         "Special Definition 목록입니다. " +
@@ -83,6 +96,7 @@ public sealed class BlockWaveSpecialInjector
         true;
 
     [Header("Special Block Health")]
+
     [Tooltip(
         "일반 블록 체력을 기준으로 특수 블록에 " +
         "적용되는 공통 체력 배율입니다."
@@ -91,6 +105,7 @@ public sealed class BlockWaveSpecialInjector
     private float specialHealthMultiplier = 1f;
 
     [Header("Special Block Test Mode")]
+
     [Tooltip(
         "활성화하면 일반 랜덤 선택을 무시하고 " +
         "지정한 특수 블록만 생성합니다."
@@ -431,6 +446,7 @@ public sealed class BlockWaveSpecialInjector
             $"웨이브 {waveNumber}에 " +
             $"특수 블록 {injectedCount}개 추가, " +
             $"보상 블록 {rewardInjectedCount}개, " +
+            $"인접 배치 우선={preferAdjacentPlacement}, " +
             $"기존 공 추가 블록 제외, " +
             $"일반 블록 교체 없음"
         );
@@ -684,7 +700,7 @@ public sealed class BlockWaveSpecialInjector
             return false;
         }
 
-        if (!TryGetRandomFittingPosition(
+        if (!TryGetPreferredFittingPosition(
                 definition,
                 occupancyMap,
                 out Vector2Int startPosition))
@@ -783,7 +799,7 @@ public sealed class BlockWaveSpecialInjector
         return false;
     }
 
-    private bool TryGetRandomFittingPosition(
+    private bool TryGetPreferredFittingPosition(
         BlockDefinition definition,
         BlockWaveOccupancyMap occupancyMap,
         out Vector2Int startPosition)
@@ -822,6 +838,12 @@ public sealed class BlockWaveSpecialInjector
         List<Vector2Int> fittingPositions =
             new List<Vector2Int>();
 
+        List<Vector2Int> bestPositions =
+            new List<Vector2Int>();
+
+        int bestAdjacencyScore =
+            -1;
+
         for (int row = 0;
              row <= maximumStartRow;
              row++)
@@ -838,18 +860,80 @@ public sealed class BlockWaveSpecialInjector
                     continue;
                 }
 
-                fittingPositions.Add(
+                Vector2Int candidatePosition =
                     new Vector2Int(
                         column,
                         row
-                    )
+                    );
+
+                fittingPositions.Add(
+                    candidatePosition
                 );
+
+                if (!preferAdjacentPlacement)
+                {
+                    continue;
+                }
+
+                int adjacencyScore =
+                    CalculateAdjacencyScore(
+                        column,
+                        row,
+                        gridSize,
+                        occupancyMap
+                    );
+
+                if (adjacencyScore >
+                    bestAdjacencyScore)
+                {
+                    bestAdjacencyScore =
+                        adjacencyScore;
+
+                    bestPositions.Clear();
+
+                    bestPositions.Add(
+                        candidatePosition
+                    );
+
+                    continue;
+                }
+
+                if (adjacencyScore ==
+                    bestAdjacencyScore)
+                {
+                    bestPositions.Add(
+                        candidatePosition
+                    );
+                }
             }
         }
 
         if (fittingPositions.Count == 0)
         {
             return false;
+        }
+
+        /*
+         * 인접 배치가 활성화되어 있고
+         * 최소 하나 이상의 기존 블록과 붙을 수 있다면
+         * 가장 높은 인접 점수를 가진 후보 중 하나를 고른다.
+         *
+         * 모든 빈칸이 완전히 고립되어 있다면
+         * 기존 방식처럼 전체 후보에서 랜덤 선택한다.
+         */
+        if (preferAdjacentPlacement &&
+            bestAdjacencyScore > 0 &&
+            bestPositions.Count > 0)
+        {
+            startPosition =
+                bestPositions[
+                    Random.Range(
+                        0,
+                        bestPositions.Count
+                    )
+                ];
+
+            return true;
         }
 
         startPosition =
@@ -861,6 +945,84 @@ public sealed class BlockWaveSpecialInjector
             ];
 
         return true;
+    }
+
+    private int CalculateAdjacencyScore(
+        int startColumn,
+        int startRow,
+        Vector2Int gridSize,
+        BlockWaveOccupancyMap occupancyMap)
+    {
+        int score = 0;
+
+        int endColumnExclusive =
+            startColumn +
+            gridSize.x;
+
+        int endRowExclusive =
+            startRow +
+            gridSize.y;
+
+        /*
+         * 위 / 아래 경계.
+         *
+         * 후보 블록 자체가 2x2 이상일 수도 있으므로
+         * 블록의 외곽 전체를 검사한다.
+         */
+        int topRow =
+            startRow - 1;
+
+        int bottomRow =
+            endRowExclusive;
+
+        for (int column = startColumn;
+             column < endColumnExclusive;
+             column++)
+        {
+            if (occupancyMap.IsOccupied(
+                    column,
+                    topRow))
+            {
+                score++;
+            }
+
+            if (occupancyMap.IsOccupied(
+                    column,
+                    bottomRow))
+            {
+                score++;
+            }
+        }
+
+        /*
+         * 왼쪽 / 오른쪽 경계.
+         */
+        int leftColumn =
+            startColumn - 1;
+
+        int rightColumn =
+            endColumnExclusive;
+
+        for (int row = startRow;
+             row < endRowExclusive;
+             row++)
+        {
+            if (occupancyMap.IsOccupied(
+                    leftColumn,
+                    row))
+            {
+                score++;
+            }
+
+            if (occupancyMap.IsOccupied(
+                    rightColumn,
+                    row))
+            {
+                score++;
+            }
+        }
+
+        return score;
     }
 
     private List<BlockDefinition>

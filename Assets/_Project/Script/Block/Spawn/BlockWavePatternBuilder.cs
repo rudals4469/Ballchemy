@@ -7,15 +7,18 @@ using Random = UnityEngine.Random;
 public sealed class BlockWavePatternBuilder
 {
     [Header("Block Data")]
+
     [SerializeField]
     private BlockCatalog blockCatalog;
 
     [Header("Special Blocks")]
+
     [SerializeField]
     private BlockWaveSpecialInjector specialInjector =
         new BlockWaveSpecialInjector();
 
     [Header("Wave Row Settings")]
+
     [SerializeField, Min(1)]
     private int minimumRowsPerWave = 3;
 
@@ -23,33 +26,44 @@ public sealed class BlockWavePatternBuilder
     private int maximumRowsPerWave = 3;
 
     [Header("Blocks Per Row")]
+
     [SerializeField, Min(1)]
     private int minimumBlocksPerRow = 4;
 
     [SerializeField, Min(1)]
     private int maximumBlocksPerRow = 5;
 
-    [Header("Vertical Pattern")]
-    [Tooltip(
-        "웨이브의 모든 줄에 공통으로 등장하는 " +
-        "최소 세로 기둥 개수입니다."
-    )]
-    [SerializeField, Min(1)]
-    private int minimumPillarColumns = 2;
+    [Header("Ricochet Pattern")]
 
     [Tooltip(
-        "웨이브의 모든 줄에 공통으로 등장하는 " +
-        "최대 세로 기둥 개수입니다."
-    )]
-    [SerializeField, Min(1)]
-    private int maximumPillarColumns = 3;
-
-    [Tooltip(
-        "이전 줄의 추가 블록 열이 " +
-        "다음 줄에도 이어질 확률입니다."
+        "Wall Pocket 패턴이 선택될 확률입니다.\n" +
+        "현재 테스트 단계에서는 1로 두는 것을 권장합니다."
     )]
     [SerializeField, Range(0f, 1f)]
-    private float extraColumnCarryChance = 0.65f;
+    private float wallPocketChance = 1f;
+
+    [Tooltip(
+        "Wall Pocket이 사용할 최대 가로 폭입니다.\n" +
+        "벽 근처에 블록을 밀집시켜 공이 벽과 블록 사이에서 " +
+        "여러 번 반사될 가능성을 높입니다."
+    )]
+    [SerializeField, Min(3)]
+    private int wallPocketWidth = 5;
+
+    [Tooltip(
+        "Wall Pocket의 주 블록 라인이 실제 벽에서 " +
+        "몇 칸 떨어질지 결정합니다.\n" +
+        "1이면 벽과 블록 사이에 1칸짜리 통로를 만듭니다."
+    )]
+    [SerializeField, Min(1)]
+    private int wallPocketCorridorOffset = 1;
+
+    [Tooltip(
+        "일반 지그재그 패턴에서 이전 줄 기준으로 " +
+        "좌우 몇 칸 이동시킬지 결정합니다."
+    )]
+    [SerializeField, Min(1)]
+    private int horizontalStaggerDistance = 1;
 
     public BlockCatalog BlockCatalog =>
         blockCatalog;
@@ -100,23 +114,36 @@ public sealed class BlockWavePatternBuilder
                 availableColumns
             );
 
-        minimumPillarColumns =
-            Mathf.Clamp(
-                minimumPillarColumns,
-                1,
-                minimumBlocksPerRow
-            );
-
-        maximumPillarColumns =
-            Mathf.Clamp(
-                maximumPillarColumns,
-                minimumPillarColumns,
-                minimumBlocksPerRow
-            );
-
-        extraColumnCarryChance =
+        wallPocketChance =
             Mathf.Clamp01(
-                extraColumnCarryChance
+                wallPocketChance
+            );
+
+        wallPocketWidth =
+            Mathf.Clamp(
+                wallPocketWidth,
+                3,
+                availableColumns
+            );
+
+        wallPocketCorridorOffset =
+            Mathf.Clamp(
+                wallPocketCorridorOffset,
+                1,
+                Mathf.Max(
+                    availableColumns - 1,
+                    1
+                )
+            );
+
+        horizontalStaggerDistance =
+            Mathf.Clamp(
+                horizontalStaggerDistance,
+                1,
+                Mathf.Max(
+                    availableColumns - 1,
+                    1
+                )
             );
 
         specialInjector.Normalize();
@@ -303,21 +330,23 @@ public sealed class BlockWavePatternBuilder
             }
         }
 
-        int pillarCount =
-            GetRandomPillarCount(
-                columnCount
-            );
+        bool useWallPocket =
+            columnCount >= 4 &&
+            Random.value <= wallPocketChance;
 
-        List<int> pillarColumns =
-            CreateRandomUniqueColumns(
-                pillarCount,
-                columnCount
-            );
+        bool pocketOnLeft =
+            Random.value < 0.5f;
+
+        HashSet<int> usedColumns =
+            new HashSet<int>();
 
         List<int> previousRowColumns =
-            new List<int>(
-                pillarColumns
-            );
+            new List<int>();
+
+        int initialStaggerDirection =
+            Random.value < 0.5f
+                ? -1
+                : 1;
 
         for (int row = 0;
              row < rowCount;
@@ -328,13 +357,42 @@ public sealed class BlockWavePatternBuilder
                     columnCount
                 );
 
-            List<int> preferredColumns =
-                CreateWaveRowColumns(
-                    targetBlockCount,
-                    pillarColumns,
-                    previousRowColumns,
-                    columnCount
-                );
+            List<int> preferredColumns;
+
+            if (useWallPocket)
+            {
+                preferredColumns =
+                    CreateWallPocketColumnPriority(
+                        row,
+                        targetBlockCount,
+                        columnCount,
+                        pocketOnLeft
+                    );
+            }
+            else if (row == 0 ||
+                     previousRowColumns.Count == 0)
+            {
+                preferredColumns =
+                    CreateFirstRowColumnPriority(
+                        targetBlockCount,
+                        columnCount
+                    );
+            }
+            else
+            {
+                int rowDirection =
+                    row % 2 == 1
+                        ? initialStaggerDirection
+                        : -initialStaggerDirection;
+
+                preferredColumns =
+                    CreateStaggeredColumnPriority(
+                        previousRowColumns,
+                        usedColumns,
+                        columnCount,
+                        rowDirection
+                    );
+            }
 
             List<int> spawnedColumns =
                 FillRow(
@@ -349,18 +407,21 @@ public sealed class BlockWavePatternBuilder
                     requests
                 );
 
+            for (int i = 0;
+                 i < spawnedColumns.Count;
+                 i++)
+            {
+                usedColumns.Add(
+                    spawnedColumns[i]
+                );
+            }
+
             previousRowColumns =
                 spawnedColumns.Count > 0
                     ? spawnedColumns
-                    : preferredColumns;
+                    : previousRowColumns;
         }
 
-        /*
-         * 일반 블록 생성이 끝난 뒤
-         * 남은 빈칸에 특수 블록을 추가한다.
-         *
-         * 기존 일반 블록 요청은 교체하지 않는다.
-         */
         specialInjector.InjectSpecialBlocks(
             requests,
             blockCatalog,
@@ -372,6 +433,182 @@ public sealed class BlockWavePatternBuilder
         );
 
         return requests;
+    }
+
+    private List<int> CreateWallPocketColumnPriority(
+        int row,
+        int targetBlockCount,
+        int columnCount,
+        bool pocketOnLeft)
+    {
+        List<int> result =
+            new List<int>();
+
+        targetBlockCount =
+            Mathf.Clamp(
+                targetBlockCount,
+                1,
+                columnCount
+            );
+
+        int direction =
+            pocketOnLeft
+                ? 1
+                : -1;
+
+        int wallColumn =
+            pocketOnLeft
+                ? 0
+                : columnCount - 1;
+
+        int corridorColumn =
+            wallColumn +
+            direction *
+            wallPocketCorridorOffset;
+
+        corridorColumn =
+            Mathf.Clamp(
+                corridorColumn,
+                0,
+                columnCount - 1
+            );
+
+        /*
+         * 매 줄마다 주 라인을 살짝 안쪽/바깥쪽으로
+         * 움직여 완전한 직선 벽이 되는 것을 피한다.
+         *
+         * row 0 : 벽에서 1칸
+         * row 1 : 벽에서 2칸
+         * row 2 : 다시 벽에서 1칸
+         */
+        int rowStagger =
+            row % 2;
+
+        int anchorColumn =
+            corridorColumn +
+            direction *
+            rowStagger;
+
+        anchorColumn =
+            Mathf.Clamp(
+                anchorColumn,
+                0,
+                columnCount - 1
+            );
+
+        AddColumnIfValid(
+            result,
+            anchorColumn,
+            columnCount
+        );
+
+        /*
+         * Anchor보다 안쪽으로 먼저 확장한다.
+         *
+         * 벽 바로 옆을 완전히 채우기보다는
+         * 벽과 블록 사이의 좁은 통로를 유지하면서
+         * 그 안쪽에 밀집 구역을 만든다.
+         */
+        for (int distance = 2;
+             distance < wallPocketWidth;
+             distance += 2)
+        {
+            AddColumnIfValid(
+                result,
+                anchorColumn +
+                direction *
+                distance,
+                columnCount
+            );
+        }
+
+        for (int distance = 1;
+             distance < wallPocketWidth;
+             distance += 2)
+        {
+            AddColumnIfValid(
+                result,
+                anchorColumn +
+                direction *
+                distance,
+                columnCount
+            );
+        }
+
+        /*
+         * 일부 행에서는 실제 벽쪽 칸도 후순위 후보로 둔다.
+         *
+         * 벽에 딱 붙은 블록과
+         * 한 칸 안쪽 블록이 섞이면
+         * 단순한 평행 통로만 반복되는 것을 줄일 수 있다.
+         */
+        if (row % 2 == 1)
+        {
+            AddColumnIfValid(
+                result,
+                wallColumn,
+                columnCount
+            );
+        }
+
+        /*
+         * Pocket 반대쪽으로도 몇 개의 블록이
+         * 존재할 수 있게 나머지 열을 추가한다.
+         *
+         * 앞쪽 후보가 목표 개수를 이미 채우면
+         * 실제 생성에는 사용되지 않는다.
+         */
+        List<int> remainingColumns =
+            CreateAllColumns(
+                columnCount
+            );
+
+        remainingColumns.RemoveAll(
+            column =>
+                result.Contains(
+                    column
+                )
+        );
+
+        /*
+         * 완전 무작위보다는 Pocket 가까운 열부터
+         * 뒤에 배치한다.
+         */
+        remainingColumns.Sort(
+            (a, b) =>
+            {
+                int distanceA =
+                    Mathf.Abs(
+                        a -
+                        corridorColumn
+                    );
+
+                int distanceB =
+                    Mathf.Abs(
+                        b -
+                        corridorColumn
+                    );
+
+                if (distanceA ==
+                    distanceB)
+                {
+                    return Random.value < 0.5f
+                        ? -1
+                        : 1;
+                }
+
+                return distanceA.CompareTo(
+                    distanceB
+                );
+            }
+        );
+
+        AddColumnsIfMissing(
+            result,
+            remainingColumns
+        );
+
+        return result;
     }
 
     private BlockSpawnRequest CreateFeaturedRequest(
@@ -748,40 +985,8 @@ public sealed class BlockWavePatternBuilder
         );
     }
 
-    private int GetRandomPillarCount(
-        int columnCount)
-    {
-        int maximumAllowedPillars =
-            Mathf.Clamp(
-                minimumBlocksPerRow,
-                1,
-                columnCount
-            );
-
-        int minimumPillars =
-            Mathf.Clamp(
-                minimumPillarColumns,
-                1,
-                maximumAllowedPillars
-            );
-
-        int maximumPillars =
-            Mathf.Clamp(
-                maximumPillarColumns,
-                minimumPillars,
-                maximumAllowedPillars
-            );
-
-        return Random.Range(
-            minimumPillars,
-            maximumPillars + 1
-        );
-    }
-
-    private List<int> CreateWaveRowColumns(
+    private List<int> CreateFirstRowColumnPriority(
         int targetBlockCount,
-        List<int> pillarColumns,
-        List<int> previousRowColumns,
         int columnCount)
     {
         targetBlockCount =
@@ -791,82 +996,345 @@ public sealed class BlockWavePatternBuilder
                 columnCount
             );
 
-        List<int> result =
+        List<int> selectedColumns =
             new List<int>();
 
-        for (int i = 0;
-             i < pillarColumns.Count;
-             i++)
-        {
-            AddColumnIfAvailable(
-                result,
-                pillarColumns[i],
-                targetBlockCount
+        int firstColumn =
+            Random.Range(
+                0,
+                columnCount
             );
-        }
 
-        for (int i = 0;
-             i < previousRowColumns.Count;
-             i++)
+        selectedColumns.Add(
+            firstColumn
+        );
+
+        while (selectedColumns.Count <
+               targetBlockCount)
         {
-            if (result.Count >=
-                targetBlockCount)
+            int nextColumn =
+                FindMostSeparatedColumn(
+                    selectedColumns,
+                    columnCount
+                );
+
+            if (nextColumn < 0)
             {
                 break;
             }
 
-            int previousColumn =
-                previousRowColumns[i];
-
-            if (result.Contains(
-                    previousColumn))
-            {
-                continue;
-            }
-
-            if (Random.value >
-                extraColumnCarryChance)
-            {
-                continue;
-            }
-
-            result.Add(
-                previousColumn
+            selectedColumns.Add(
+                nextColumn
             );
         }
 
-        while (result.Count <
-               targetBlockCount)
+        List<int> remainingColumns =
+            CreateAllColumns(
+                columnCount
+            );
+
+        remainingColumns.RemoveAll(
+            column =>
+                selectedColumns.Contains(
+                    column
+                )
+        );
+
+        ShuffleColumns(
+            remainingColumns
+        );
+
+        selectedColumns.AddRange(
+            remainingColumns
+        );
+
+        return selectedColumns;
+    }
+
+    private int FindMostSeparatedColumn(
+        IReadOnlyList<int> selectedColumns,
+        int columnCount)
+    {
+        int bestDistance = -1;
+
+        List<int> bestCandidates =
+            new List<int>();
+
+        for (int candidate = 0;
+             candidate < columnCount;
+             candidate++)
         {
-            int randomColumn =
-                Random.Range(
-                    0,
-                    columnCount
+            if (ContainsColumn(
+                    selectedColumns,
+                    candidate))
+            {
+                continue;
+            }
+
+            int minimumDistance =
+                int.MaxValue;
+
+            for (int i = 0;
+                 i < selectedColumns.Count;
+                 i++)
+            {
+                int distance =
+                    Mathf.Abs(
+                        candidate -
+                        selectedColumns[i]
+                    );
+
+                minimumDistance =
+                    Mathf.Min(
+                        minimumDistance,
+                        distance
+                    );
+            }
+
+            if (minimumDistance >
+                bestDistance)
+            {
+                bestDistance =
+                    minimumDistance;
+
+                bestCandidates.Clear();
+
+                bestCandidates.Add(
+                    candidate
                 );
 
-            if (!result.Contains(
-                    randomColumn))
+                continue;
+            }
+
+            if (minimumDistance ==
+                bestDistance)
             {
-                result.Add(
-                    randomColumn
+                bestCandidates.Add(
+                    candidate
                 );
             }
         }
 
+        if (bestCandidates.Count == 0)
+        {
+            return -1;
+        }
+
+        return bestCandidates[
+            Random.Range(
+                0,
+                bestCandidates.Count
+            )
+        ];
+    }
+
+    private List<int> CreateStaggeredColumnPriority(
+        IReadOnlyList<int> previousRowColumns,
+        HashSet<int> usedColumns,
+        int columnCount,
+        int staggerDirection)
+    {
+        List<int> result =
+            new List<int>();
+
+        HashSet<int> previousColumnSet =
+            new HashSet<int>(
+                previousRowColumns
+            );
+
+        List<int> shuffledPreviousColumns =
+            new List<int>(
+                previousRowColumns
+            );
+
         ShuffleColumns(
-            result
+            shuffledPreviousColumns
+        );
+
+        int normalizedDirection =
+            staggerDirection < 0
+                ? -1
+                : 1;
+
+        for (int i = 0;
+             i < shuffledPreviousColumns.Count;
+             i++)
+        {
+            int sourceColumn =
+                shuffledPreviousColumns[i];
+
+            int preferredColumn =
+                sourceColumn +
+                normalizedDirection *
+                horizontalStaggerDistance;
+
+            if (!IsValidColumn(
+                    preferredColumn,
+                    columnCount) ||
+                previousColumnSet.Contains(
+                    preferredColumn))
+            {
+                preferredColumn =
+                    sourceColumn -
+                    normalizedDirection *
+                    horizontalStaggerDistance;
+            }
+
+            if (!IsValidColumn(
+                    preferredColumn,
+                    columnCount))
+            {
+                continue;
+            }
+
+            if (previousColumnSet.Contains(
+                    preferredColumn))
+            {
+                continue;
+            }
+
+            AddColumnIfMissing(
+                result,
+                preferredColumn
+            );
+        }
+
+        List<int> unusedFreshColumns =
+            new List<int>();
+
+        for (int column = 0;
+             column < columnCount;
+             column++)
+        {
+            if (previousColumnSet.Contains(
+                    column))
+            {
+                continue;
+            }
+
+            if (usedColumns != null &&
+                usedColumns.Contains(
+                    column))
+            {
+                continue;
+            }
+
+            unusedFreshColumns.Add(
+                column
+            );
+        }
+
+        ShuffleColumns(
+            unusedFreshColumns
+        );
+
+        AddColumnsIfMissing(
+            result,
+            unusedFreshColumns
+        );
+
+        List<int> nonVerticalColumns =
+            new List<int>();
+
+        for (int column = 0;
+             column < columnCount;
+             column++)
+        {
+            if (previousColumnSet.Contains(
+                    column))
+            {
+                continue;
+            }
+
+            nonVerticalColumns.Add(
+                column
+            );
+        }
+
+        ShuffleColumns(
+            nonVerticalColumns
+        );
+
+        AddColumnsIfMissing(
+            result,
+            nonVerticalColumns
+        );
+
+        List<int> repeatedColumns =
+            new List<int>(
+                previousRowColumns
+            );
+
+        ShuffleColumns(
+            repeatedColumns
+        );
+
+        AddColumnsIfMissing(
+            result,
+            repeatedColumns
+        );
+
+        List<int> allColumns =
+            CreateAllColumns(
+                columnCount
+            );
+
+        ShuffleColumns(
+            allColumns
+        );
+
+        AddColumnsIfMissing(
+            result,
+            allColumns
         );
 
         return result;
     }
 
-    private void AddColumnIfAvailable(
+    private void AddColumnIfValid(
         List<int> columns,
         int column,
-        int maximumCount)
+        int columnCount)
     {
-        if (columns.Count >=
-            maximumCount)
+        if (!IsValidColumn(
+                column,
+                columnCount))
+        {
+            return;
+        }
+
+        AddColumnIfMissing(
+            columns,
+            column
+        );
+    }
+
+    private void AddColumnsIfMissing(
+        List<int> destination,
+        IReadOnlyList<int> source)
+    {
+        if (destination == null ||
+            source == null)
+        {
+            return;
+        }
+
+        for (int i = 0;
+             i < source.Count;
+             i++)
+        {
+            AddColumnIfMissing(
+                destination,
+                source[i]
+            );
+        }
+    }
+
+    private void AddColumnIfMissing(
+        List<int> columns,
+        int column)
+    {
+        if (columns == null)
         {
             return;
         }
@@ -882,35 +1350,35 @@ public sealed class BlockWavePatternBuilder
         );
     }
 
-    private List<int> CreateRandomUniqueColumns(
-        int count,
-        int columnCount)
+    private bool ContainsColumn(
+        IReadOnlyList<int> columns,
+        int column)
     {
-        count =
-            Mathf.Clamp(
-                count,
-                1,
-                columnCount
-            );
-
-        List<int> columns =
-            CreateAllColumns(
-                columnCount
-            );
-
-        ShuffleColumns(
-            columns
-        );
-
-        if (columns.Count > count)
+        if (columns == null)
         {
-            columns.RemoveRange(
-                count,
-                columns.Count - count
-            );
+            return false;
         }
 
-        return columns;
+        for (int i = 0;
+             i < columns.Count;
+             i++)
+        {
+            if (columns[i] ==
+                column)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsValidColumn(
+        int column,
+        int columnCount)
+    {
+        return column >= 0 &&
+               column < columnCount;
     }
 
     private List<int> CreateAllColumns(
@@ -934,6 +1402,11 @@ public sealed class BlockWavePatternBuilder
     private void ShuffleColumns(
         List<int> columns)
     {
+        if (columns == null)
+        {
+            return;
+        }
+
         for (int i = columns.Count - 1;
              i > 0;
              i--)
