@@ -133,7 +133,11 @@ public sealed class BallAimController :
         if (!turnManager.CanAim ||
             (
                 firstTurnLaunchPositionController != null &&
-                firstTurnLaunchPositionController.IsSelecting
+                (
+                    firstTurnLaunchPositionController.IsSelecting ||
+                    firstTurnLaunchPositionController
+                        .DidCompleteSelectionThisFrame
+                )
             ) ||
             ShouldSuppressAimForNavigation())
         {

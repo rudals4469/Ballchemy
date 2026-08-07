@@ -64,6 +64,15 @@ public sealed class BlockWaveGenerator :
         lastGeneratedRequests =
             new List<BlockSpawnRequest>();
 
+    private readonly Dictionary<
+        int,
+        List<BlockSpawnRequest>
+    > generatedRequestsByRoomId =
+        new Dictionary<
+            int,
+            List<BlockSpawnRequest>
+        >();
+
     public BoardGrid BoardGrid =>
         boardGrid;
 
@@ -367,6 +376,53 @@ public sealed class BlockWaveGenerator :
         );
 
         return generatedBlocks;
+    }
+
+    public bool HasGeneratedRoomWave(
+        int roomId)
+    {
+        return roomId >= 0 &&
+               generatedRequestsByRoomId
+                   .ContainsKey(roomId);
+    }
+
+    public void SaveLastWaveForRoom(
+        int roomId)
+    {
+        if (roomId < 0 ||
+            !HasLastGeneratedWave)
+        {
+            return;
+        }
+
+        generatedRequestsByRoomId[roomId] =
+            CreateRequestCopies(
+                lastGeneratedRequests
+            );
+    }
+
+    public List<Block> RegenerateRoomWave(
+        int roomId)
+    {
+        if (!generatedRequestsByRoomId.TryGetValue(
+                roomId,
+                out List<BlockSpawnRequest> savedRequests))
+        {
+            return new List<Block>();
+        }
+
+        List<BlockSpawnRequest> requests =
+            CreateRequestCopies(savedRequests);
+
+        SaveLastGeneratedRequests(requests);
+
+        return SpawnRequests(requests);
+    }
+
+    public void ClearRoomWaveSnapshots()
+    {
+        generatedRequestsByRoomId.Clear();
+        lastGeneratedRequests.Clear();
     }
 
     private List<Block> GenerateWaveInternal(

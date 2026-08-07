@@ -478,6 +478,9 @@ public sealed class StageRoomNavigator :
         currentMap =
             generatedMap;
 
+        blockGridManager
+            ?.ClearRoomWaveSnapshots();
+
         currentRoom =
             startRoom;
 
@@ -1311,7 +1314,8 @@ public sealed class StageRoomNavigator :
             bool started =
                 blockGridManager
                     .StartRoomCombat(
-                        currentRoom.RoomType
+                        currentRoom.RoomType,
+                        currentRoom.RoomId
                     );
 
             if (!started)

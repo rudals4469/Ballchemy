@@ -10597,11 +10597,6 @@ MonoBehaviour:
   ballLauncher: {fileID: 904823807}
   blockGridManager: {fileID: 987057997}
   turnManager: {fileID: 1520316753}
-  markerHitRadius: 0.75
-  markerColor: {r: 1, g: 0.82, b: 0.18, a: 1}
-  markerWidth: 0.08
-  markerHeight: 0.7
-  markerSortingOrder: 20
 --- !u!114 &904823810
 MonoBehaviour:
   m_ObjectHideFlags: 0

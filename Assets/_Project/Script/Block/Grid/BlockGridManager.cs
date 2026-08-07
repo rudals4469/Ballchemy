@@ -46,6 +46,7 @@ public sealed class BlockGridManager :
         enemyPhaseResolver;
 
     private int currentTurn;
+    private int currentRoomId = -1;
 
     private bool isCurrentRoomCleared;
     private bool isRuntimeInitialized;
@@ -445,7 +446,8 @@ public sealed class BlockGridManager :
      * 전투방에 입장했을 때 호출한다.
      */
     public bool StartRoomCombat(
-        RoomType roomType)
+        RoomType roomType,
+        int roomId)
     {
         if (roomType !=
                 RoomType.NormalCombat &&
@@ -478,11 +480,29 @@ public sealed class BlockGridManager :
 
         ballSealController?.ClearPendingSeal();
 
-        List<Block> generatedBlocks =
-            waveDirector.GenerateRoomWave(
-                waveGenerator,
-                roomType
+        currentRoomId = roomId;
+
+        bool hasSavedRoomWave =
+            waveGenerator.HasGeneratedRoomWave(
+                roomId
             );
+
+        List<Block> generatedBlocks =
+            hasSavedRoomWave
+                ? waveGenerator.RegenerateRoomWave(
+                    roomId
+                )
+                : waveDirector.GenerateRoomWave(
+                    waveGenerator,
+                    roomType
+                );
+
+        if (!hasSavedRoomWave)
+        {
+            waveGenerator.SaveLastWaveForRoom(
+                roomId
+            );
+        }
 
         blockRegistry.AddRange(
             generatedBlocks
@@ -532,6 +552,12 @@ public sealed class BlockGridManager :
         }
 
         return true;
+    }
+
+    public void ClearRoomWaveSnapshots()
+    {
+        currentRoomId = -1;
+        waveGenerator?.ClearRoomWaveSnapshots();
     }
 
     /*
@@ -702,7 +728,9 @@ public sealed class BlockGridManager :
         }
 
         List<Block> restoredBlocks =
-            waveGenerator.RegenerateLastWave();
+            waveGenerator.RegenerateRoomWave(
+                currentRoomId
+            );
 
         if (restoredBlocks == null ||
             restoredBlocks.Count == 0)

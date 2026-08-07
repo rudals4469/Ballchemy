@@ -16,33 +16,16 @@ public sealed class FirstTurnLaunchPositionController :
     [SerializeField]
     private TurnManager turnManager;
 
-    [Header("Drag")]
-
-    [SerializeField, Min(0.1f)]
-    private float markerHitRadius = 0.75f;
-
-    [Header("Marker")]
-
-    [SerializeField]
-    private Color markerColor =
-        new Color(1f, 0.82f, 0.18f, 1f);
-
-    [SerializeField, Min(0.01f)]
-    private float markerWidth = 0.08f;
-
-    [SerializeField, Min(0.1f)]
-    private float markerHeight = 0.7f;
-
-    [SerializeField]
-    private int markerSortingOrder = 20;
-
     private Camera mainCamera;
-    private LineRenderer marker;
     private bool isSelectionAvailable;
-    private bool isDragging;
+    private int selectionCompletedFrame = -1;
 
     public bool IsSelecting =>
         isSelectionAvailable;
+
+    public bool DidCompleteSelectionThisFrame =>
+        selectionCompletedFrame ==
+        Time.frameCount;
 
     public event Action SelectionStarted;
     public event Action<Vector2> SelectionCompleted;
@@ -51,7 +34,6 @@ public sealed class FirstTurnLaunchPositionController :
     {
         mainCamera = Camera.main;
         FindReferences();
-        CreateMarker();
         SetSelectionAvailable(false);
     }
 
@@ -69,7 +51,6 @@ public sealed class FirstTurnLaunchPositionController :
     {
         if (!CanHandleSelection())
         {
-            isDragging = false;
             return;
         }
 
@@ -152,21 +133,11 @@ public sealed class FirstTurnLaunchPositionController :
             isSelectionAvailable;
 
         isSelectionAvailable = available;
-        isDragging = false;
 
-        if (marker != null)
+        if (available &&
+            !wasAvailable)
         {
-            marker.enabled = available;
-        }
-
-        if (available)
-        {
-            UpdateMarkerPosition();
-
-            if (!wasAvailable)
-            {
-                SelectionStarted?.Invoke();
-            }
+            SelectionStarted?.Invoke();
         }
     }
 
@@ -188,104 +159,61 @@ public sealed class FirstTurnLaunchPositionController :
         Vector2 screenPosition =
             Input.mousePosition;
 
+        if (!IsValidScreenPosition(screenPosition) ||
+            IsPointerOverUi(-1))
+        {
+            return;
+        }
+
+        FollowPointer(screenPosition);
+
         if (Input.GetMouseButtonDown(0))
         {
-            TryBeginDrag(screenPosition, -1);
-        }
-
-        if (isDragging &&
-            Input.GetMouseButton(0))
-        {
-            UpdateDrag(screenPosition);
-        }
-
-        if (isDragging &&
-            Input.GetMouseButtonUp(0))
-        {
-            CompleteSelection(screenPosition);
+            CompleteSelection();
         }
     }
 
     private void HandleTouch(
         Touch touch)
     {
+        if (IsPointerOverUi(touch.fingerId))
+        {
+            return;
+        }
+
         switch (touch.phase)
         {
             case TouchPhase.Began:
-                TryBeginDrag(
-                    touch.position,
-                    touch.fingerId
-                );
-                break;
-
             case TouchPhase.Moved:
             case TouchPhase.Stationary:
-                if (isDragging)
-                {
-                    UpdateDrag(touch.position);
-                }
+                FollowPointer(touch.position);
                 break;
 
             case TouchPhase.Ended:
-                if (isDragging)
-                {
-                    CompleteSelection(
-                        touch.position
-                    );
-                }
-                break;
-
-            case TouchPhase.Canceled:
-                isDragging = false;
+                FollowPointer(touch.position);
+                CompleteSelection();
                 break;
         }
     }
 
-    private void TryBeginDrag(
-        Vector2 screenPosition,
-        int pointerId)
-    {
-        if (IsPointerOverUi(pointerId))
-        {
-            return;
-        }
-
-        Vector2 worldPosition =
-            ScreenToWorld(screenPosition);
-
-        if (Vector2.Distance(
-                worldPosition,
-                ballLauncher.CurrentLaunchPosition) >
-            markerHitRadius)
-        {
-            return;
-        }
-
-        isDragging = true;
-        UpdateDrag(screenPosition);
-    }
-
-    private void UpdateDrag(
+    private void FollowPointer(
         Vector2 screenPosition)
     {
         Vector2 worldPosition =
             ScreenToWorld(screenPosition);
 
-        if (ballLauncher.TrySetLaunchPositionX(
-                worldPosition.x))
-        {
-            UpdateMarkerPosition();
-        }
+        ballLauncher.TrySetLaunchPositionX(
+            worldPosition.x
+        );
     }
 
-    private void CompleteSelection(
-        Vector2 screenPosition)
+    private void CompleteSelection()
     {
-        UpdateDrag(screenPosition);
-        isDragging = false;
-
         Vector2 selectedPosition =
             ballLauncher.CurrentLaunchPosition;
+
+        selectionCompletedFrame =
+            Time.frameCount;
 
         SetSelectionAvailable(false);
         SelectionCompleted?.Invoke(
@@ -302,16 +230,13 @@ public sealed class FirstTurnLaunchPositionController :
                 transform.position.z
             );
 
-        Vector3 worldPosition =
-            mainCamera.ScreenToWorldPoint(
-                new Vector3(
-                    screenPosition.x,
-                    screenPosition.y,
-                    depth
-                )
-            );
-
-        return worldPosition;
+        return mainCamera.ScreenToWorldPoint(
+            new Vector3(
+                screenPosition.x,
+                screenPosition.y,
+                depth
+            )
+        );
     }
 
     private bool IsPointerOverUi(
@@ -329,63 +254,13 @@ public sealed class FirstTurnLaunchPositionController :
                 .IsPointerOverGameObject();
     }
 
-    private void CreateMarker()
+    private static bool IsValidScreenPosition(
+        Vector2 screenPosition)
     {
-        GameObject markerObject =
-            new GameObject(
-                "First Launch Position Marker"
-            );
-
-        markerObject.transform.SetParent(
-            transform,
-            false
-        );
-
-        marker =
-            markerObject.AddComponent<LineRenderer>();
-
-        marker.useWorldSpace = true;
-        marker.positionCount = 3;
-        marker.startWidth = markerWidth;
-        marker.endWidth = markerWidth;
-        marker.startColor = markerColor;
-        marker.endColor = markerColor;
-        marker.sortingOrder = markerSortingOrder;
-        marker.material =
-            new Material(
-                Shader.Find("Sprites/Default")
-            );
-    }
-
-    private void UpdateMarkerPosition()
-    {
-        if (marker == null ||
-            ballLauncher == null)
-        {
-            return;
-        }
-
-        Vector2 center =
-            ballLauncher.CurrentLaunchPosition;
-        float halfHeight =
-            markerHeight * 0.5f;
-        float halfWidth =
-            markerHeight * 0.35f;
-
-        marker.SetPosition(
-            0,
-            center +
-            new Vector2(-halfWidth, halfHeight)
-        );
-        marker.SetPosition(
-            1,
-            center
-        );
-        marker.SetPosition(
-            2,
-            center +
-            new Vector2(halfWidth, halfHeight)
-        );
+        return screenPosition.x >= 0f &&
+               screenPosition.x <= Screen.width &&
+               screenPosition.y >= 0f &&
+               screenPosition.y <= Screen.height;
     }
 
     private void OnDisable()
@@ -399,14 +274,5 @@ public sealed class FirstTurnLaunchPositionController :
         }
 
         SetSelectionAvailable(false);
-    }
-
-    private void OnDestroy()
-    {
-        if (marker != null &&
-            marker.material != null)
-        {
-            Destroy(marker.material);
-        }
     }
 }
