@@ -129,26 +129,6 @@ public sealed class BlockEnemyPhaseResolver
          */
         enemyAttackCycle.ResetCycle();
 
-        /*
-         * 기존 특수 블록 규칙은 이번 단계에서 유지한다.
-         *
-         * 적 공격 단계가 끝났을 때 남아 있는
-         * Special 블록을 보상 없이 만료시킨다.
-         */
-        int expiredSpecialBlockCount =
-            blockRegistry
-                .ExpireSpecialBlocksWithoutReward();
-
-        if (expiredSpecialBlockCount > 0)
-        {
-            Debug.Log(
-                "BlockEnemyPhaseResolver: " +
-                $"특수 블록 " +
-                $"{expiredSpecialBlockCount}개가 " +
-                "적 공격 후 사라졌습니다."
-            );
-        }
-
         blockRegistry.RemoveInvalidBlocks();
 
         if (enemyAttackSequence.IsTargetDead)

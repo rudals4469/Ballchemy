@@ -92,9 +92,9 @@ public sealed class BlockRegistry
         );
     }
 
-    public int ExpireSpecialBlocksWithoutReward()
+    public int RemoveOptionalAndSpecialBlocksWithoutEffects()
     {
-        int expiredBlockCount = 0;
+        int removedBlockCount = 0;
 
         for (int i =
                  activeBlocks.Count - 1;
@@ -114,7 +114,13 @@ public sealed class BlockRegistry
                 continue;
             }
 
-            if (block.BlockType !=
+            bool isOptional =
+                block.Definition != null &&
+                block.Definition.ClearRole ==
+                BlockClearRole.Optional;
+
+            if (!isOptional &&
+                block.BlockType !=
                 BlockType.Special)
             {
                 continue;
@@ -124,16 +130,18 @@ public sealed class BlockRegistry
                 i
             );
 
-            bool expired =
-                block.ExpireWithoutReward();
+            block.gameObject.SetActive(
+                false
+            );
 
-            if (expired)
-            {
-                expiredBlockCount++;
-            }
+            Object.Destroy(
+                block.gameObject
+            );
+
+            removedBlockCount++;
         }
 
-        return expiredBlockCount;
+        return removedBlockCount;
     }
 
     public void ClearAndDestroy()

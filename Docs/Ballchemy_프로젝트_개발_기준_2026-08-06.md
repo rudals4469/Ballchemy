@@ -186,6 +186,7 @@ Secret
 - 발사 지점 주변 안전 영역 보장
 - 생존 적은 일정 턴마다 플레이어 공격
 - RequiredEnemy 전멸 시 방 클리어
+- RequiredEnemy 전멸로 클리어하면 남은 Optional/Special 블록은 보상·페널티 없이 제거
 - 클리어한 방은 재전투/재보상 불가
 - 클리어한 방은 빈 이동 경로로 재사용
 - 방 이동 무료
@@ -261,7 +262,7 @@ EnemyAttackTurnUI
 - 일반/네임드 방 적 공격 실행
 - 보스전과 일반 적 공격 분리
 - 공격 후 `EnemyAttackCycle.ResetCycle()`
-- 기존 Special 블록 만료 처리
+- Special 블록은 적 공격 후 만료하지 않고 방 클리어 시 무효과로 정리
 - 블록 하강/다음 웨이브 생성 안 함
 
 보스전은 `BossEncounterController` 계열에서 별도로 처리한다.

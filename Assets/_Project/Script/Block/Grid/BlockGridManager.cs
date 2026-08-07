@@ -655,6 +655,10 @@ public sealed class BlockGridManager :
 
         isCurrentRoomCleared = true;
 
+        int removedOptionalBlockCount =
+            blockRegistry
+                .RemoveOptionalAndSpecialBlocksWithoutEffects();
+
         ChangeRoomState(
             RoomCombatState.Cleared
         );
@@ -667,6 +671,17 @@ public sealed class BlockGridManager :
             "현재 방을 클리어했습니다.",
             this
         );
+
+        if (removedOptionalBlockCount > 0)
+        {
+            Debug.Log(
+                "BlockGridManager: " +
+                $"남은 Optional/Special 블록 " +
+                $"{removedOptionalBlockCount}개를 " +
+                "보상과 페널티 없이 정리했습니다.",
+                this
+            );
+        }
 
         RoomCleared?.Invoke();
 
