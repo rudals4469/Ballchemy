@@ -308,6 +308,7 @@ MonoBehaviour:
   countLabel: {fileID: 18714753}
   normalTextFormat: x{0}
   sealedTextFormat: x{0}/{1}
+  selectionHintText: "시작 위치 선택\n클릭/터치로 고정"
   hideWhenZero: 1
   followBallVisibility: 1
   showDebugLog: 0
@@ -10598,6 +10599,9 @@ MonoBehaviour:
   blockGridManager: {fileID: 987057997}
   turnManager: {fileID: 1520316753}
   ballCountView: {fileID: 18714752}
+  ballCollection: {fileID: 904823811}
+  pulseScaleAmount: 0.12
+  pulseSpeed: 3
 --- !u!114 &904823810
 MonoBehaviour:
   m_ObjectHideFlags: 0

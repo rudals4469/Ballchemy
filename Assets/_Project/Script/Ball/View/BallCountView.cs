@@ -27,6 +27,10 @@ public sealed class BallCountView :
     private string sealedTextFormat =
         "x{0}/{1}";
 
+    [SerializeField]
+    private string selectionHintText =
+        "시작 위치 선택\n클릭/터치로 고정";
+
     [Header("Visibility")]
     [SerializeField]
     private bool hideWhenZero = true;
@@ -43,19 +47,19 @@ public sealed class BallCountView :
     private bool showDebugLog;
 
     private bool isShowingLaunchQueue;
-    private bool isExternallySuppressed;
+    private bool isSelectionHintVisible;
 
-    public void SetExternallySuppressed(
-        bool suppressed)
+    public void SetSelectionHintVisible(
+        bool visible)
     {
-        if (isExternallySuppressed ==
-            suppressed)
+        if (isSelectionHintVisible ==
+            visible)
         {
             return;
         }
 
-        isExternallySuppressed =
-            suppressed;
+        isSelectionHintVisible =
+            visible;
 
         RefreshCurrentDisplay();
     }
@@ -390,6 +394,12 @@ public sealed class BallCountView :
 
     private void RefreshCurrentDisplay()
     {
+        if (isSelectionHintVisible)
+        {
+            ShowSelectionHint();
+            return;
+        }
+
         if (isShowingLaunchQueue)
         {
             int remainingBallCount =
@@ -539,7 +549,7 @@ public sealed class BallCountView :
 
     private bool ShouldShowCount()
     {
-        if (isExternallySuppressed)
+        if (isSelectionHintVisible)
         {
             return false;
         }
@@ -555,6 +565,17 @@ public sealed class BallCountView :
         }
 
         return ballCollection.AreBallsVisible;
+    }
+
+    private void ShowSelectionHint()
+    {
+        if (countLabel == null)
+        {
+            return;
+        }
+
+        countLabel.enabled = true;
+        countLabel.text = selectionHintText;
     }
 
     private string FormatNormalCount(

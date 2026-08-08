@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -18,6 +19,21 @@ public sealed class FirstTurnLaunchPositionController :
 
     [SerializeField]
     private BallCountView ballCountView;
+
+    [SerializeField]
+    private BallCollection ballCollection;
+
+    [Header("Selection Feedback")]
+
+    [SerializeField, Range(0f, 0.5f)]
+    private float pulseScaleAmount = 0.12f;
+
+    [SerializeField, Min(0.1f)]
+    private float pulseSpeed = 3f;
+
+    private readonly List<BallVisualView>
+        pulseTargets =
+            new List<BallVisualView>();
 
     private Camera mainCamera;
     private bool isSelectionAvailable;
@@ -92,6 +108,12 @@ public sealed class FirstTurnLaunchPositionController :
                     true
                 );
         }
+
+        if (ballCollection == null)
+        {
+            ballCollection =
+                GetComponent<BallCollection>();
+        }
     }
 
     private void SubscribeEvents()
@@ -145,9 +167,18 @@ public sealed class FirstTurnLaunchPositionController :
 
         isSelectionAvailable = available;
 
-        ballCountView?.SetExternallySuppressed(
+        ballCountView?.SetSelectionHintVisible(
             available
         );
+
+        if (available)
+        {
+            RefreshPulseTargets();
+        }
+        else
+        {
+            ResetPulseTargets();
+        }
 
         if (available &&
             !wasAvailable)
@@ -167,6 +198,74 @@ public sealed class FirstTurnLaunchPositionController :
                blockGridManager.CurrentRoomState ==
                    RoomCombatState.InCombat &&
                blockGridManager.CurrentTurn == 0;
+    }
+
+    private void LateUpdate()
+    {
+        if (!isSelectionAvailable)
+        {
+            return;
+        }
+
+        float multiplier =
+            1f +
+            Mathf.Sin(
+                Time.unscaledTime * pulseSpeed
+            ) *
+            pulseScaleAmount;
+
+        for (int i = 0;
+             i < pulseTargets.Count;
+             i++)
+        {
+            pulseTargets[i]
+                ?.SetAttentionScaleMultiplier(
+                    multiplier
+                );
+        }
+    }
+
+    private void RefreshPulseTargets()
+    {
+        ResetPulseTargets();
+
+        if (ballCollection == null)
+        {
+            return;
+        }
+
+        List<Ball> balls =
+            ballCollection.CreateSnapshot();
+
+        for (int i = 0;
+             i < balls.Count;
+             i++)
+        {
+            BallVisualView view =
+                balls[i] != null
+                    ? balls[i].GetComponent<
+                        BallVisualView
+                    >()
+                    : null;
+
+            if (view != null)
+            {
+                pulseTargets.Add(view);
+            }
+        }
+    }
+
+    private void ResetPulseTargets()
+    {
+        for (int i = 0;
+             i < pulseTargets.Count;
+             i++)
+        {
+            pulseTargets[i]
+                ?.SetAttentionScaleMultiplier(1f);
+        }
+
+        pulseTargets.Clear();
     }
 
     private void HandleMouse()

@@ -13,6 +13,16 @@ public sealed class BallVisualView :
     private SpriteRenderer visualRenderer;
 
     private bool isSubscribed;
+    private float attentionScaleMultiplier = 1f;
+
+    public void SetAttentionScaleMultiplier(
+        float multiplier)
+    {
+        attentionScaleMultiplier =
+            Mathf.Max(multiplier, 0.01f);
+
+        ApplyVisualScale();
+    }
 
     private void Awake()
     {
@@ -132,11 +142,28 @@ public sealed class BallVisualView :
          * CircleCollider2D 크기도 바뀔 수 있으므로
          * 자식 Renderer에만 VisualScale을 적용한다.
          */
-        if (visualRenderer.transform !=
-            transform)
+        ApplyVisualScale();
+    }
+
+    private void ApplyVisualScale()
+    {
+        if (combatController == null ||
+            visualRenderer == null ||
+            visualRenderer.transform == transform)
         {
-            visualRenderer.transform.localScale =
-                definition.VisualScale;
+            return;
         }
+
+        BallDefinition definition =
+            combatController.Definition;
+
+        if (definition == null)
+        {
+            return;
+        }
+
+        visualRenderer.transform.localScale =
+            definition.VisualScale *
+            attentionScaleMultiplier;
     }
 }
