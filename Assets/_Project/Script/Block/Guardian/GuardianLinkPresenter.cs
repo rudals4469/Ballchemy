@@ -5,6 +5,8 @@ using UnityEngine;
 [RequireComponent(typeof(GuardianBlockController))]
 public sealed class GuardianLinkPresenter : MonoBehaviour
 {
+    private static Material runtimeLineMaterial;
+
     [Header("Guardian Links")]
     [SerializeField] private Material lineMaterial;
     [SerializeField] private Color lineColor = new Color(0.12f, 0.42f, 1f, 0.95f);
@@ -187,9 +189,12 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
             line.sortingLayerName = sortingLayerName;
             line.sortingOrder = sortingOrder;
 
-            if (lineMaterial != null)
+            Material resolvedMaterial =
+                ResolveLineMaterial();
+
+            if (resolvedMaterial != null)
             {
-                line.sharedMaterial = lineMaterial;
+                line.sharedMaterial = resolvedMaterial;
             }
 
             lines.Add(line);
@@ -207,6 +212,41 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
         }
 
         lines.Clear();
+    }
+
+    private Material ResolveLineMaterial()
+    {
+        if (lineMaterial != null)
+        {
+            return lineMaterial;
+        }
+
+        if (runtimeLineMaterial != null)
+        {
+            return runtimeLineMaterial;
+        }
+
+        Shader lineShader = Shader.Find(
+            "Universal Render Pipeline/2D/Sprite-Unlit-Default"
+        );
+
+        if (lineShader == null)
+        {
+            lineShader = Shader.Find("Sprites/Default");
+        }
+
+        if (lineShader == null)
+        {
+            return null;
+        }
+
+        runtimeLineMaterial = new Material(lineShader)
+        {
+            name = "Runtime_GuardianLink_Blue",
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        return runtimeLineMaterial;
     }
 
     private void OnValidate()

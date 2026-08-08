@@ -28,8 +28,8 @@ MonoBehaviour:
     prefab: {fileID: 5741669861215845034, guid: b550267d15fc96c4bad41c63122ad6d9, type: 3}
   - definition: {fileID: 11400000, guid: 07a1e78f430ea7c48a1167689f7e7a9c, type: 2}
     prefab: {fileID: 5741669861215845034, guid: 6f0531df0afb5f641a3065ed021cb503, type: 3}
-  - definition: {fileID: 0}
-    prefab: {fileID: 0}
+  - definition: {fileID: 11400000, guid: 8e4e12cbf7974b3b8459493744550d11, type: 2}
+    prefab: {fileID: 5741669861215845034, guid: a25ed5048d5a4d66b060988e1eac0d11, type: 3}
   - definition: {fileID: 0}
     prefab: {fileID: 0}
   - definition: {fileID: 0}
