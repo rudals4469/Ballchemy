@@ -661,6 +661,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b422095e2f16465cae11a5aaad120d22, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::TeleportPortalController
+  portalSizeRatio: 0.5
   exitPadding: 0.025
   maximumExitCorrection: 0.08
   exitCorrectionStep: 0.01
@@ -685,4 +686,3 @@ MonoBehaviour:
   responseColor: {r: 0.55, g: 0.9, b: 1, a: 1}
   responseDuration: 0.12
   responseScale: 1.12
-

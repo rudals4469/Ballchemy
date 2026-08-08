@@ -4,6 +4,8 @@ using UnityEngine;
 public sealed class BallTrajectoryPreview :
     MonoBehaviour
 {
+    private const int MaximumPreviewTeleports = 4;
+
     [Header("References")]
     [Tooltip(
         "Unity 기본 Circle Sprite로 만든 " +
@@ -607,6 +609,7 @@ public sealed class BallTrajectoryPreview :
             );
 
         int bounceCount = 0;
+        int teleportCount = 0;
         int safetyIteration = 0;
 
         Collider2D previousCollider =
@@ -670,6 +673,31 @@ public sealed class BallTrajectoryPreview :
             if (reachedReturnZone)
             {
                 break;
+            }
+
+            TeleportPortalController portal =
+                closestHit.collider != null
+                    ? closestHit.collider.GetComponent<TeleportPortalController>()
+                    : null;
+
+            if (portal != null &&
+                portal.IsLinked &&
+                teleportCount < MaximumPreviewTeleports &&
+                portal.Partner.TryResolvePredictedExit(
+                    castDirection,
+                    cachedTrajectoryRadius,
+                    out Vector2 portalExit,
+                    out Vector2 portalExitDirection))
+            {
+                AddPathBreak(outputPoints);
+                AddPathPoint(outputPoints, portalExit);
+
+                teleportCount++;
+                castDirection = portalExitDirection;
+                previousCollider = portal.Partner.GetComponent<Collider2D>();
+                castOrigin = portalExit + castDirection * trajectorySkinWidth;
+                remainingDistance -= trajectorySkinWidth;
+                continue;
             }
 
             if (bounceCount >=
@@ -780,10 +808,12 @@ public sealed class BallTrajectoryPreview :
                 continue;
             }
 
+            bool isTeleportPortal =
+                hit.collider.GetComponent<TeleportPortalController>() != null;
+
             if (hit.collider.isTrigger &&
-                !hit.collider.CompareTag(
-                    "ReturnZone"
-                ))
+                !hit.collider.CompareTag("ReturnZone") &&
+                !isTeleportPortal)
             {
                 continue;
             }
@@ -956,6 +986,12 @@ public sealed class BallTrajectoryPreview :
             Vector3 segmentEnd =
                 pathPoints[i];
 
+            if (!IsFinite(segmentStart) ||
+                !IsFinite(segmentEnd))
+            {
+                continue;
+            }
+
             float segmentLength =
                 Vector3.Distance(
                     segmentStart,
@@ -1119,6 +1155,11 @@ public sealed class BallTrajectoryPreview :
              i < points.Count;
              i++)
         {
+            if (!IsFinite(points[i - 1]) || !IsFinite(points[i]))
+            {
+                continue;
+            }
+
             totalLength +=
                 Vector3.Distance(
                     points[i - 1],
@@ -1159,5 +1200,23 @@ public sealed class BallTrajectoryPreview :
         points.Add(
             newPoint
         );
+    }
+
+    private void AddPathBreak(List<Vector3> points)
+    {
+        if (points.Count > 0 && IsFinite(points[points.Count - 1]))
+        {
+            points.Add(new Vector3(float.NaN, float.NaN, float.NaN));
+        }
+    }
+
+    private static bool IsFinite(Vector3 point)
+    {
+        return !float.IsNaN(point.x) &&
+               !float.IsNaN(point.y) &&
+               !float.IsNaN(point.z) &&
+               !float.IsInfinity(point.x) &&
+               !float.IsInfinity(point.y) &&
+               !float.IsInfinity(point.z);
     }
 }
