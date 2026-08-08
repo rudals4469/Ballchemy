@@ -41,14 +41,22 @@ public sealed class FirstTurnLaunchPositionController :
     [Header("Selection Arrow")]
 
     [SerializeField]
-    private Color arrowColor =
-        new Color(1f, 0.82f, 0.18f, 1f);
+    private Sprite selectionArrowSprite;
 
-    [SerializeField, Min(0.01f)]
-    private float arrowWidth = 0.09f;
+    [SerializeField]
+    private Vector2 selectionArrowOffset =
+        new Vector2(0f, 0.95f);
 
-    [SerializeField, Min(0.1f)]
-    private float arrowHeight = 0.85f;
+    [SerializeField]
+    private Vector2 selectionArrowScale =
+        Vector2.one;
+
+    [SerializeField]
+    private Color selectionArrowColor =
+        Color.white;
+
+    [SerializeField]
+    private int selectionArrowSortingOrder = 30;
 
     private readonly List<BallVisualView>
         pulseTargets =
@@ -59,8 +67,7 @@ public sealed class FirstTurnLaunchPositionController :
             new List<BallVisualView>();
 
     private Coroutine confirmationPulseCoroutine;
-    private LineRenderer arrowHead;
-    private Material arrowMaterial;
+    private SpriteRenderer selectionArrowRenderer;
 
     private Camera mainCamera;
     private bool isSelectionAvailable;
@@ -80,7 +87,7 @@ public sealed class FirstTurnLaunchPositionController :
     {
         mainCamera = Camera.main;
         FindReferences();
-        CreateSelectionArrow();
+        CreateSelectionArrowRenderer();
         SetSelectionAvailable(false);
     }
 
@@ -259,88 +266,52 @@ public sealed class FirstTurnLaunchPositionController :
                     multiplier
                 );
         }
-
-
-        UpdateSelectionArrow();
     }
 
-    private void CreateSelectionArrow()
+    private void CreateSelectionArrowRenderer()
     {
-        arrowMaterial =
-            new Material(
-                Shader.Find("Sprites/Default")
+        GameObject arrowObject =
+            new GameObject(
+                "First Launch Arrow Image"
             );
-
-        arrowHead = CreateArrowLine(
-            "First Launch Arrow",
-            3
-        );
-    }
-
-    private LineRenderer CreateArrowLine(
-        string objectName,
-        int positionCount)
-    {
-        GameObject lineObject =
-            new GameObject(objectName);
-        lineObject.transform.SetParent(
+        arrowObject.transform.SetParent(
             transform,
             false
         );
 
-        LineRenderer line =
-            lineObject.AddComponent<LineRenderer>();
-        line.useWorldSpace = true;
-        line.positionCount = positionCount;
-        line.startWidth = arrowWidth;
-        line.endWidth = arrowWidth;
-        line.startColor = arrowColor;
-        line.endColor = arrowColor;
-        line.sortingOrder = 30;
-        line.material = arrowMaterial;
-        line.enabled = false;
-        return line;
+        arrowObject.transform.localPosition =
+            new Vector3(
+                selectionArrowOffset.x,
+                selectionArrowOffset.y,
+                0f
+            );
+        arrowObject.transform.localScale =
+            new Vector3(
+                Mathf.Max(selectionArrowScale.x, 0.01f),
+                Mathf.Max(selectionArrowScale.y, 0.01f),
+                1f
+            );
+
+        selectionArrowRenderer =
+            arrowObject.AddComponent<SpriteRenderer>();
+        selectionArrowRenderer.sprite =
+            selectionArrowSprite;
+        selectionArrowRenderer.color =
+            selectionArrowColor;
+        selectionArrowRenderer.sortingOrder =
+            selectionArrowSortingOrder;
+        selectionArrowRenderer.enabled = false;
     }
 
     private void SetArrowVisible(
         bool visible)
     {
-        if (arrowHead != null)
+        if (selectionArrowRenderer != null)
         {
-            arrowHead.enabled = visible;
+            selectionArrowRenderer.enabled =
+                visible &&
+                selectionArrowSprite != null;
         }
-
-        if (visible)
-        {
-            UpdateSelectionArrow();
-        }
-    }
-
-    private void UpdateSelectionArrow()
-    {
-        if (arrowHead == null ||
-            ballLauncher == null)
-        {
-            return;
-        }
-
-        Vector2 ballPosition =
-            ballLauncher.CurrentLaunchPosition;
-        Vector3 tip =
-            ballPosition +
-            Vector2.up * 0.48f;
-        Vector3 headTop =
-            ballPosition +
-            Vector2.up * arrowHeight;
-        arrowHead.SetPosition(
-            0,
-            headTop + Vector3.left * 0.25f
-        );
-        arrowHead.SetPosition(1, tip);
-        arrowHead.SetPosition(
-            2,
-            headTop + Vector3.right * 0.25f
-        );
     }
 
     private void RefreshPulseTargets()
@@ -579,11 +550,4 @@ public sealed class FirstTurnLaunchPositionController :
         StopConfirmationPulse();
     }
 
-    private void OnDestroy()
-    {
-        if (arrowMaterial != null)
-        {
-            Destroy(arrowMaterial);
-        }
-    }
 }

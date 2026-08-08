@@ -10607,9 +10607,11 @@ MonoBehaviour:
   pulseSpeed: 3
   confirmationPulseScale: 1.4
   confirmationPulseDuration: 0.22
-  arrowColor: {r: 1, g: 0.82, b: 0.18, a: 1}
-  arrowWidth: 0.09
-  arrowHeight: 0.85
+  selectionArrowSprite: {fileID: 0}
+  selectionArrowOffset: {x: 0, y: 0.95}
+  selectionArrowScale: {x: 1, y: 1}
+  selectionArrowColor: {r: 1, g: 1, b: 1, a: 1}
+  selectionArrowSortingOrder: 30
 --- !u!114 &904823810
 MonoBehaviour:
   m_ObjectHideFlags: 0
