@@ -10607,6 +10607,9 @@ MonoBehaviour:
   pulseSpeed: 3
   confirmationPulseScale: 1.4
   confirmationPulseDuration: 0.22
+  arrowColor: {r: 1, g: 0.82, b: 0.18, a: 1}
+  arrowWidth: 0.09
+  arrowHeight: 0.85
 --- !u!114 &904823810
 MonoBehaviour:
   m_ObjectHideFlags: 0

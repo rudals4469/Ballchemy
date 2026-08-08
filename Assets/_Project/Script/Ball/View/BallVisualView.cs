@@ -14,6 +14,8 @@ public sealed class BallVisualView :
 
     private bool isSubscribed;
     private float attentionScaleMultiplier = 1f;
+    private static readonly Color AttentionColor =
+        new Color(1f, 0.72f, 0.12f, 1f);
 
     public void SetAttentionScaleMultiplier(
         float multiplier)
@@ -22,6 +24,7 @@ public sealed class BallVisualView :
             Mathf.Max(multiplier, 0.01f);
 
         ApplyVisualScale();
+        ApplyVisualColor();
     }
 
     private void Awake()
@@ -134,8 +137,7 @@ public sealed class BallVisualView :
                 definition.Sprite;
         }
 
-        visualRenderer.color =
-            definition.Color;
+        ApplyVisualColor();
 
         /*
          * 루트 오브젝트의 스케일을 변경하면
@@ -165,5 +167,36 @@ public sealed class BallVisualView :
         visualRenderer.transform.localScale =
             definition.VisualScale *
             attentionScaleMultiplier;
+    }
+
+    private void ApplyVisualColor()
+    {
+        if (combatController == null ||
+            visualRenderer == null)
+        {
+            return;
+        }
+
+        BallDefinition definition =
+            combatController.Definition;
+
+        if (definition == null)
+        {
+            return;
+        }
+
+        float highlightAmount =
+            Mathf.Clamp01(
+                Mathf.Abs(
+                    attentionScaleMultiplier - 1f
+                ) * 4f
+            );
+
+        visualRenderer.color =
+            Color.Lerp(
+                definition.Color,
+                AttentionColor,
+                highlightAmount
+            );
     }
 }

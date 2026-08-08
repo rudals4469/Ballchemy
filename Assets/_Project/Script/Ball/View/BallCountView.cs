@@ -65,7 +65,7 @@ public sealed class BallCountView :
     private TextAlignmentOptions defaultLabelAlignment;
     private bool hasDefaultLabelPresentation;
 
-    public void SetSelectionHintVisible(
+    public void SetCountSuppressed(
         bool visible)
     {
         if (isSelectionHintVisible ==
@@ -418,7 +418,11 @@ public sealed class BallCountView :
     {
         if (isSelectionHintVisible)
         {
-            ShowSelectionHint();
+            if (countLabel != null)
+            {
+                countLabel.enabled = false;
+            }
+
             return;
         }
 

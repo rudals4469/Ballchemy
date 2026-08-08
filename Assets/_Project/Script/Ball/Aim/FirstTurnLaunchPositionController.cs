@@ -38,6 +38,18 @@ public sealed class FirstTurnLaunchPositionController :
     [SerializeField, Min(0.05f)]
     private float confirmationPulseDuration = 0.22f;
 
+    [Header("Selection Arrow")]
+
+    [SerializeField]
+    private Color arrowColor =
+        new Color(1f, 0.82f, 0.18f, 1f);
+
+    [SerializeField, Min(0.01f)]
+    private float arrowWidth = 0.09f;
+
+    [SerializeField, Min(0.1f)]
+    private float arrowHeight = 0.85f;
+
     private readonly List<BallVisualView>
         pulseTargets =
             new List<BallVisualView>();
@@ -47,6 +59,9 @@ public sealed class FirstTurnLaunchPositionController :
             new List<BallVisualView>();
 
     private Coroutine confirmationPulseCoroutine;
+    private LineRenderer arrowStem;
+    private LineRenderer arrowHead;
+    private Material arrowMaterial;
 
     private Camera mainCamera;
     private bool isSelectionAvailable;
@@ -66,6 +81,7 @@ public sealed class FirstTurnLaunchPositionController :
     {
         mainCamera = Camera.main;
         FindReferences();
+        CreateSelectionArrow();
         SetSelectionAvailable(false);
     }
 
@@ -180,9 +196,11 @@ public sealed class FirstTurnLaunchPositionController :
 
         isSelectionAvailable = available;
 
-        ballCountView?.SetSelectionHintVisible(
+        ballCountView?.SetCountSuppressed(
             available
         );
+
+        SetArrowVisible(available);
 
         if (available)
         {
@@ -221,6 +239,11 @@ public sealed class FirstTurnLaunchPositionController :
             return;
         }
 
+        if (pulseTargets.Count == 0)
+        {
+            RefreshPulseTargets();
+        }
+
         float multiplier =
             1f +
             Mathf.Sin(
@@ -237,6 +260,104 @@ public sealed class FirstTurnLaunchPositionController :
                     multiplier
                 );
         }
+
+
+        UpdateSelectionArrow();
+    }
+
+    private void CreateSelectionArrow()
+    {
+        arrowMaterial =
+            new Material(
+                Shader.Find("Sprites/Default")
+            );
+
+        arrowStem = CreateArrowLine(
+            "First Launch Arrow Stem",
+            2
+        );
+        arrowHead = CreateArrowLine(
+            "First Launch Arrow Head",
+            3
+        );
+    }
+
+    private LineRenderer CreateArrowLine(
+        string objectName,
+        int positionCount)
+    {
+        GameObject lineObject =
+            new GameObject(objectName);
+        lineObject.transform.SetParent(
+            transform,
+            false
+        );
+
+        LineRenderer line =
+            lineObject.AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.positionCount = positionCount;
+        line.startWidth = arrowWidth;
+        line.endWidth = arrowWidth;
+        line.startColor = arrowColor;
+        line.endColor = arrowColor;
+        line.sortingOrder = 30;
+        line.material = arrowMaterial;
+        line.enabled = false;
+        return line;
+    }
+
+    private void SetArrowVisible(
+        bool visible)
+    {
+        if (arrowStem != null)
+        {
+            arrowStem.enabled = visible;
+        }
+
+        if (arrowHead != null)
+        {
+            arrowHead.enabled = visible;
+        }
+
+        if (visible)
+        {
+            UpdateSelectionArrow();
+        }
+    }
+
+    private void UpdateSelectionArrow()
+    {
+        if (arrowStem == null ||
+            arrowHead == null ||
+            ballLauncher == null)
+        {
+            return;
+        }
+
+        Vector2 ballPosition =
+            ballLauncher.CurrentLaunchPosition;
+        Vector3 tip =
+            ballPosition +
+            Vector2.up * 0.48f;
+        Vector3 headTop =
+            ballPosition +
+            Vector2.up * arrowHeight;
+        Vector3 stemTop =
+            ballPosition +
+            Vector2.up * (arrowHeight + 0.42f);
+
+        arrowStem.SetPosition(0, stemTop);
+        arrowStem.SetPosition(1, headTop);
+        arrowHead.SetPosition(
+            0,
+            headTop + Vector3.left * 0.25f
+        );
+        arrowHead.SetPosition(1, tip);
+        arrowHead.SetPosition(
+            2,
+            headTop + Vector3.right * 0.25f
+        );
     }
 
     private void RefreshPulseTargets()
@@ -473,5 +594,13 @@ public sealed class FirstTurnLaunchPositionController :
 
         SetSelectionAvailable(false);
         StopConfirmationPulse();
+    }
+
+    private void OnDestroy()
+    {
+        if (arrowMaterial != null)
+        {
+            Destroy(arrowMaterial);
+        }
     }
 }
