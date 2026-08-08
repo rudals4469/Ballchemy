@@ -8,16 +8,18 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
     [Header("Guardian Links")]
     [SerializeField] private Material lineMaterial;
     [SerializeField] private Color lineColor = new Color(0.2f, 0.9f, 1f, 0.9f);
-    [SerializeField, Min(0.005f)] private float lineWidth = 0.035f;
+    [SerializeField, Min(0.005f)] private float lineWidth = 0.06f;
     [SerializeField] private string sortingLayerName = "Default";
     [SerializeField] private int sortingOrder = 20;
 
     private readonly List<LineRenderer> lines = new List<LineRenderer>();
     private GuardianBlockController controller;
+    private Block guardian;
 
     private void Awake()
     {
         controller = GetComponent<GuardianBlockController>();
+        guardian = GetComponent<Block>();
     }
 
     private void OnEnable()
@@ -48,9 +50,113 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
                 continue;
             }
 
-            lines[i].SetPosition(0, transform.position);
-            lines[i].SetPosition(1, targets[i].transform.position);
+            GetClosestBoundaryPoints(
+                guardian,
+                targets[i],
+                out Vector3 guardianPoint,
+                out Vector3 targetPoint
+            );
+
+            lines[i].SetPosition(0, guardianPoint);
+            lines[i].SetPosition(1, targetPoint);
         }
+    }
+
+    private void GetClosestBoundaryPoints(
+        Block source,
+        Block target,
+        out Vector3 sourcePoint,
+        out Vector3 targetPoint)
+    {
+        sourcePoint = source != null
+            ? source.transform.position
+            : transform.position;
+
+        targetPoint = target != null
+            ? target.transform.position
+            : sourcePoint;
+
+        if (source == null || target == null)
+        {
+            return;
+        }
+
+        Collider2D sourceCollider =
+            source.GetComponent<Collider2D>();
+
+        Collider2D targetCollider =
+            target.GetComponent<Collider2D>();
+
+        if (sourceCollider == null ||
+            targetCollider == null)
+        {
+            return;
+        }
+
+        Bounds sourceBounds = sourceCollider.bounds;
+        Bounds targetBounds = targetCollider.bounds;
+
+        ResolveClosestAxis(
+            sourceBounds.min.x,
+            sourceBounds.max.x,
+            targetBounds.min.x,
+            targetBounds.max.x,
+            out float sourceX,
+            out float targetX
+        );
+
+        ResolveClosestAxis(
+            sourceBounds.min.y,
+            sourceBounds.max.y,
+            targetBounds.min.y,
+            targetBounds.max.y,
+            out float sourceY,
+            out float targetY
+        );
+
+        sourcePoint = new Vector3(
+            sourceX,
+            sourceY,
+            sourceBounds.center.z
+        );
+
+        targetPoint = new Vector3(
+            targetX,
+            targetY,
+            targetBounds.center.z
+        );
+    }
+
+    private void ResolveClosestAxis(
+        float sourceMinimum,
+        float sourceMaximum,
+        float targetMinimum,
+        float targetMaximum,
+        out float sourceCoordinate,
+        out float targetCoordinate)
+    {
+        if (sourceMaximum < targetMinimum)
+        {
+            sourceCoordinate = sourceMaximum;
+            targetCoordinate = targetMinimum;
+            return;
+        }
+
+        if (targetMaximum < sourceMinimum)
+        {
+            sourceCoordinate = sourceMinimum;
+            targetCoordinate = targetMaximum;
+            return;
+        }
+
+        float overlapMinimum =
+            Mathf.Max(sourceMinimum, targetMinimum);
+
+        float overlapMaximum =
+            Mathf.Min(sourceMaximum, targetMaximum);
+
+        sourceCoordinate = targetCoordinate =
+            (overlapMinimum + overlapMaximum) * 0.5f;
     }
 
     private void RebuildLines()
