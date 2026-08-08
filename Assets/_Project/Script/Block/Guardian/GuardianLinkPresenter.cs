@@ -7,8 +7,9 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
 {
     [Header("Guardian Links")]
     [SerializeField] private Material lineMaterial;
-    [SerializeField] private Color lineColor = new Color(0.2f, 0.9f, 1f, 0.9f);
+    [SerializeField] private Color lineColor = new Color(0.12f, 0.42f, 1f, 0.95f);
     [SerializeField, Min(0.005f)] private float lineWidth = 0.06f;
+    [SerializeField, Range(0f, 0.45f)] private float sourceInsetRatio = 0.14f;
     [SerializeField] private string sortingLayerName = "Default";
     [SerializeField] private int sortingOrder = 20;
 
@@ -117,7 +118,11 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
                 }
 
                 shortestSqrDistance = sqrDistance;
-                sourcePoint = sourceCandidate;
+                sourcePoint = Vector3.Lerp(
+                    sourceCandidate,
+                    sourceBounds.center,
+                    sourceInsetRatio
+                );
                 targetPoint = targetCandidate;
             }
         }
@@ -207,5 +212,6 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
     private void OnValidate()
     {
         lineWidth = Mathf.Max(lineWidth, 0.005f);
+        sourceInsetRatio = Mathf.Clamp(sourceInsetRatio, 0f, 0.45f);
     }
 }
