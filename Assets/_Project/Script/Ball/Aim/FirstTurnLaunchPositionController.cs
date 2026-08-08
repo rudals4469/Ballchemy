@@ -59,7 +59,6 @@ public sealed class FirstTurnLaunchPositionController :
             new List<BallVisualView>();
 
     private Coroutine confirmationPulseCoroutine;
-    private LineRenderer arrowStem;
     private LineRenderer arrowHead;
     private Material arrowMaterial;
 
@@ -272,12 +271,8 @@ public sealed class FirstTurnLaunchPositionController :
                 Shader.Find("Sprites/Default")
             );
 
-        arrowStem = CreateArrowLine(
-            "First Launch Arrow Stem",
-            2
-        );
         arrowHead = CreateArrowLine(
-            "First Launch Arrow Head",
+            "First Launch Arrow",
             3
         );
     }
@@ -310,11 +305,6 @@ public sealed class FirstTurnLaunchPositionController :
     private void SetArrowVisible(
         bool visible)
     {
-        if (arrowStem != null)
-        {
-            arrowStem.enabled = visible;
-        }
-
         if (arrowHead != null)
         {
             arrowHead.enabled = visible;
@@ -328,8 +318,7 @@ public sealed class FirstTurnLaunchPositionController :
 
     private void UpdateSelectionArrow()
     {
-        if (arrowStem == null ||
-            arrowHead == null ||
+        if (arrowHead == null ||
             ballLauncher == null)
         {
             return;
@@ -343,12 +332,6 @@ public sealed class FirstTurnLaunchPositionController :
         Vector3 headTop =
             ballPosition +
             Vector2.up * arrowHeight;
-        Vector3 stemTop =
-            ballPosition +
-            Vector2.up * (arrowHeight + 0.42f);
-
-        arrowStem.SetPosition(0, stemTop);
-        arrowStem.SetPosition(1, headTop);
         arrowHead.SetPosition(
             0,
             headTop + Vector3.left * 0.25f
