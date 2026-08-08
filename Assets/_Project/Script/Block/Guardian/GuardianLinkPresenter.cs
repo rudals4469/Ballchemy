@@ -50,7 +50,7 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
                 continue;
             }
 
-            GetClosestBoundaryPoints(
+            GetClosestSideCenterPoints(
                 guardian,
                 targets[i],
                 out Vector3 guardianPoint,
@@ -62,7 +62,7 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
         }
     }
 
-    private void GetClosestBoundaryPoints(
+    private void GetClosestSideCenterPoints(
         Block source,
         Block target,
         out Vector3 sourcePoint,
@@ -95,68 +95,68 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
 
         Bounds sourceBounds = sourceCollider.bounds;
         Bounds targetBounds = targetCollider.bounds;
+        float shortestSqrDistance = float.PositiveInfinity;
 
-        ResolveClosestAxis(
-            sourceBounds.min.x,
-            sourceBounds.max.x,
-            targetBounds.min.x,
-            targetBounds.max.x,
-            out float sourceX,
-            out float targetX
-        );
+        for (int sourceSide = 0; sourceSide < 4; sourceSide++)
+        {
+            Vector3 sourceCandidate =
+                GetSideCenter(sourceBounds, sourceSide);
 
-        ResolveClosestAxis(
-            sourceBounds.min.y,
-            sourceBounds.max.y,
-            targetBounds.min.y,
-            targetBounds.max.y,
-            out float sourceY,
-            out float targetY
-        );
+            for (int targetSide = 0; targetSide < 4; targetSide++)
+            {
+                Vector3 targetCandidate =
+                    GetSideCenter(targetBounds, targetSide);
 
-        sourcePoint = new Vector3(
-            sourceX,
-            sourceY,
-            sourceBounds.center.z
-        );
+                float sqrDistance =
+                    (targetCandidate - sourceCandidate)
+                    .sqrMagnitude;
 
-        targetPoint = new Vector3(
-            targetX,
-            targetY,
-            targetBounds.center.z
-        );
+                if (sqrDistance >= shortestSqrDistance)
+                {
+                    continue;
+                }
+
+                shortestSqrDistance = sqrDistance;
+                sourcePoint = sourceCandidate;
+                targetPoint = targetCandidate;
+            }
+        }
     }
 
-    private void ResolveClosestAxis(
-        float sourceMinimum,
-        float sourceMaximum,
-        float targetMinimum,
-        float targetMaximum,
-        out float sourceCoordinate,
-        out float targetCoordinate)
+    private Vector3 GetSideCenter(
+        Bounds bounds,
+        int sideIndex)
     {
-        if (sourceMaximum < targetMinimum)
+        switch (sideIndex)
         {
-            sourceCoordinate = sourceMaximum;
-            targetCoordinate = targetMinimum;
-            return;
+            case 0:
+                return new Vector3(
+                    bounds.center.x,
+                    bounds.max.y,
+                    bounds.center.z
+                );
+
+            case 1:
+                return new Vector3(
+                    bounds.center.x,
+                    bounds.min.y,
+                    bounds.center.z
+                );
+
+            case 2:
+                return new Vector3(
+                    bounds.min.x,
+                    bounds.center.y,
+                    bounds.center.z
+                );
+
+            default:
+                return new Vector3(
+                    bounds.max.x,
+                    bounds.center.y,
+                    bounds.center.z
+                );
         }
-
-        if (targetMaximum < sourceMinimum)
-        {
-            sourceCoordinate = sourceMinimum;
-            targetCoordinate = targetMaximum;
-            return;
-        }
-
-        float overlapMinimum =
-            Mathf.Max(sourceMinimum, targetMinimum);
-
-        float overlapMaximum =
-            Mathf.Min(sourceMaximum, targetMaximum);
-
-        sourceCoordinate = targetCoordinate =
-            (overlapMinimum + overlapMaximum) * 0.5f;
     }
 
     private void RebuildLines()
