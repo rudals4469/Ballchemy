@@ -125,7 +125,11 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
                     sourceBounds.center,
                     sourceInsetRatio
                 );
-                targetPoint = targetCandidate;
+                targetPoint = Vector3.Lerp(
+                    targetCandidate,
+                    targetBounds.center,
+                    sourceInsetRatio
+                );
             }
         }
     }

@@ -64,6 +64,15 @@ public sealed class BlockOutlineView :
             0.9f
         );
 
+    [SerializeField]
+    private Color guardianProtectionColor =
+        new Color(
+            0.12f,
+            0.42f,
+            1f,
+            0.95f
+        );
+
     [Tooltip(
         "분류 테두리보다 조금 크게 표시해 " +
         "두 아웃라인이 동시에 보이도록 합니다."
@@ -314,6 +323,9 @@ public sealed class BlockOutlineView :
         block.ShieldChanged +=
             HandleShieldChanged;
 
+        block.GuardianProtectionChanged +=
+            HandleGuardianProtectionChanged;
+
         isSubscribed = true;
     }
 
@@ -333,6 +345,9 @@ public sealed class BlockOutlineView :
 
         block.ShieldChanged -=
             HandleShieldChanged;
+
+        block.GuardianProtectionChanged -=
+            HandleGuardianProtectionChanged;
 
         isSubscribed = false;
     }
@@ -468,7 +483,8 @@ public sealed class BlockOutlineView :
             showShieldOutline &&
             block != null &&
             block.IsAlive &&
-            block.HasShield;
+            (block.HasShield ||
+             block.IsGuardianProtected);
 
         shieldOutlineRenderer.enabled =
             shouldShow;
@@ -479,7 +495,9 @@ public sealed class BlockOutlineView :
         }
 
         shieldOutlineRenderer.color =
-            shieldColor;
+            block.IsGuardianProtected
+                ? guardianProtectionColor
+                : shieldColor;
     }
 
     private void RefreshOutlineGeometry(
@@ -621,5 +639,17 @@ public sealed class BlockOutlineView :
                 this
             );
         }
+    }
+
+    private void HandleGuardianProtectionChanged(
+        Block changedBlock,
+        bool isProtected)
+    {
+        if (changedBlock != block)
+        {
+            return;
+        }
+
+        RefreshShieldOutline();
     }
 }
