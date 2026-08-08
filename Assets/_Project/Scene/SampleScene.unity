@@ -11783,6 +11783,10 @@ MonoBehaviour:
   healthIncreasePerWave: 2
   startingBlockAttack: 2
   attackIncreasePerWave: 0
+  statVariationSettings:
+    healthVariationRatio: 0.15
+    attackVariationRatio: 0.1
+    minimumAbsoluteAttackVariation: 1
 --- !u!114 &987058001
 MonoBehaviour:
   m_ObjectHideFlags: 0

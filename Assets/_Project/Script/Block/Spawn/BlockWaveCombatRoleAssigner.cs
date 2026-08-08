@@ -150,13 +150,12 @@ public sealed class BlockWaveCombatRoleAssigner
     public List<BlockSpawnRequest> ApplyCombatRoles(
         IReadOnlyList<BlockSpawnRequest> sourceRequests,
         BlockCatalog blockCatalog,
-        bool hasFeaturedDefinition,
-        int baseAttack)
+        bool hasFeaturedDefinition)
     {
         Normalize();
 
         List<BlockSpawnRequest> result =
-            CreateNormalAttackDisabledRequests(
+            CreateRequestCopies(
                 sourceRequests
             );
 
@@ -164,7 +163,9 @@ public sealed class BlockWaveCombatRoleAssigner
             result.Count == 0 ||
             blockCatalog == null)
         {
-            return result;
+            return CreateNormalAttackDisabledRequests(
+                result
+            );
         }
 
         List<BlockDefinition> eliteDefinitions =
@@ -183,7 +184,9 @@ public sealed class BlockWaveCombatRoleAssigner
                 );
             }
 
-            return result;
+            return CreateNormalAttackDisabledRequests(
+                result
+            );
         }
 
         int requestedEliteCount =
@@ -193,7 +196,9 @@ public sealed class BlockWaveCombatRoleAssigner
 
         if (requestedEliteCount <= 0)
         {
-            return result;
+            return CreateNormalAttackDisabledRequests(
+                result
+            );
         }
 
         List<int> candidateIndices =
@@ -247,7 +252,7 @@ public sealed class BlockWaveCombatRoleAssigner
 
             int eliteAttack =
                 CalculateEliteAttack(
-                    baseAttack
+                    normalRequest.Attack
                 );
 
             result[requestIndex] =
@@ -272,8 +277,39 @@ public sealed class BlockWaveCombatRoleAssigner
                 $"Elite {injectedCount}개 배정 완료, " +
                 $"요청={requestedEliteCount}, " +
                 $"Featured={hasFeaturedDefinition}, " +
-                $"EliteAttack={CalculateEliteAttack(baseAttack)}"
+                "개별 랜덤 스탯에 Elite 배율 적용"
             );
+        }
+
+        return CreateNormalAttackDisabledRequests(
+            result
+        );
+    }
+
+    private List<BlockSpawnRequest> CreateRequestCopies(
+        IReadOnlyList<BlockSpawnRequest> sourceRequests)
+    {
+        List<BlockSpawnRequest> result =
+            new List<BlockSpawnRequest>();
+
+        if (sourceRequests == null)
+        {
+            return result;
+        }
+
+        for (int i = 0;
+             i < sourceRequests.Count;
+             i++)
+        {
+            BlockSpawnRequest source =
+                sourceRequests[i];
+
+            if (source != null)
+            {
+                result.Add(
+                    source.CreateCopy()
+                );
+            }
         }
 
         return result;
@@ -586,13 +622,16 @@ public sealed class BlockWaveCombatRoleAssigner
     private int CalculateEliteAttack(
         int baseAttack)
     {
+        if (baseAttack <= 0 ||
+            eliteAttackMultiplier <= 0f)
+        {
+            return 0;
+        }
+
         return Mathf.Max(
-            0,
+            1,
             Mathf.RoundToInt(
-                Mathf.Max(
-                    baseAttack,
-                    0
-                ) *
+                baseAttack *
                 eliteAttackMultiplier
             )
         );

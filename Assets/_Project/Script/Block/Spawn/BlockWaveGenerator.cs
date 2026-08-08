@@ -60,6 +60,13 @@ public sealed class BlockWaveGenerator :
     [SerializeField, Min(0)]
     private int attackIncreasePerWave;
 
+    [Header("Block Stat Variation")]
+
+    [SerializeField]
+    private BlockStatVariationSettings
+        statVariationSettings =
+            new BlockStatVariationSettings();
+
     private readonly List<BlockSpawnRequest>
         lastGeneratedRequests =
             new List<BlockSpawnRequest>();
@@ -138,6 +145,12 @@ public sealed class BlockWaveGenerator :
             combatRoleAssigner =
                 new BlockWaveCombatRoleAssigner();
         }
+
+        if (statVariationSettings == null)
+        {
+            statVariationSettings =
+                new BlockStatVariationSettings();
+        }
     }
 
     private void FindReferences()
@@ -197,6 +210,7 @@ public sealed class BlockWaveGenerator :
         );
 
         combatRoleAssigner.Normalize();
+        statVariationSettings.Normalize();
     }
 
     private void ValidateReferences()
@@ -502,12 +516,16 @@ public sealed class BlockWaveGenerator :
          * 기존 요청을 유지합니다.
          */
         requests =
+            statVariationSettings.Apply(
+                requests
+            );
+
+        requests =
             combatRoleAssigner
                 .ApplyCombatRoles(
                     requests,
                     BlockCatalog,
-                    featuredDefinition != null,
-                    baseAttack
+                    featuredDefinition != null
                 );
 
         SaveLastGeneratedRequests(
