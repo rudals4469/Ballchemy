@@ -33,8 +33,14 @@ public sealed class GuardianBlockController : MonoBehaviour
             {
                 Block target = protectedTargets[i];
 
-                if (target != null &&
-                    target.RegisterGuardianProtection(guardian))
+                if (target == null)
+                {
+                    continue;
+                }
+
+                EnsureGuardianProtectionOutline(target);
+
+                if (target.RegisterGuardianProtection(guardian))
                 {
                     targets.Add(target);
                     target.Destroyed += HandleTargetRemoved;
@@ -50,6 +56,18 @@ public sealed class GuardianBlockController : MonoBehaviour
         }
 
         TargetsChanged?.Invoke();
+    }
+
+    private void EnsureGuardianProtectionOutline(
+        Block target)
+    {
+        if (target == null ||
+            target.GetComponent<BlockOutlineView>() != null)
+        {
+            return;
+        }
+
+        target.gameObject.AddComponent<BlockOutlineView>();
     }
 
     private void OnDisable()
