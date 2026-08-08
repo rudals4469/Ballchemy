@@ -11772,6 +11772,15 @@ MonoBehaviour:
       randomSpecialDefinitions: []
       preventDuplicateDefinitionsInSameWave: 1
       specialHealthMultiplier: 1
+      enableGuardianBlocks: 1
+      guardianDefinition: {fileID: 11400000, guid: 8e4e12cbf7974b3b8459493744550d11, type: 2}
+      guardianSpawnChance: 0.35
+      maximumGuardiansInNormalWave: 1
+      maximumGuardiansInFeaturedWave: 2
+      minimumGuardianTargets: 1
+      maximumGuardianTargets: 2
+      guardianHealthMultiplier: 1.2
+      allowGuardianWithOtherSpecials: 1
       enableTestMode: 0
       forcedSpecialDefinition: {fileID: 11400000, guid: 07a1e78f430ea7c48a1167689f7e7a9c, type: 2}
       forceSpawnEveryWaveInTestMode: 1

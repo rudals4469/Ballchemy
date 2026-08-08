@@ -104,6 +104,20 @@ public sealed class BlockWaveSpecialInjector
     [SerializeField, Min(0.1f)]
     private float specialHealthMultiplier = 1f;
 
+    [Header("Guardian Special")]
+    [SerializeField] private bool enableGuardianBlocks = true;
+    [SerializeField] private BlockDefinition guardianDefinition;
+    [SerializeField, Range(0f, 1f)] private float guardianSpawnChance = 0.35f;
+    [SerializeField, Min(1)] private int maximumGuardiansInNormalWave = 1;
+    [SerializeField, Min(1)] private int maximumGuardiansInFeaturedWave = 2;
+    [SerializeField, Min(1)] private int minimumGuardianTargets = 1;
+    [SerializeField, Min(1)] private int maximumGuardianTargets = 2;
+    [SerializeField, Min(0.1f)] private float guardianHealthMultiplier = 1.2f;
+    [SerializeField] private bool allowGuardianWithOtherSpecials = true;
+
+    public int MinimumGuardianTargets => minimumGuardianTargets;
+    public int MaximumGuardianTargets => maximumGuardianTargets;
+
     [Header("Special Block Test Mode")]
 
     [Tooltip(
@@ -171,6 +185,13 @@ public sealed class BlockWaveSpecialInjector
                 specialHealthMultiplier,
                 0.1f
             );
+
+        guardianSpawnChance = Mathf.Clamp01(guardianSpawnChance);
+        maximumGuardiansInNormalWave = Mathf.Max(maximumGuardiansInNormalWave, 1);
+        maximumGuardiansInFeaturedWave = Mathf.Max(maximumGuardiansInFeaturedWave, 1);
+        minimumGuardianTargets = Mathf.Max(minimumGuardianTargets, 1);
+        maximumGuardianTargets = Mathf.Max(maximumGuardianTargets, minimumGuardianTargets);
+        guardianHealthMultiplier = Mathf.Max(guardianHealthMultiplier, 0.1f);
 
         forcedSpecialCount =
             Mathf.Max(
@@ -287,6 +308,20 @@ public sealed class BlockWaveSpecialInjector
         Normalize();
 
         if (requests == null)
+        {
+            return;
+        }
+
+        int guardianCount = InjectGuardianBlocks(
+            requests,
+            columnCount,
+            rowCount,
+            waveIndex,
+            hasFeaturedDefinition,
+            baseHealth
+        );
+
+        if (guardianCount > 0 && !allowGuardianWithOtherSpecials)
         {
             return;
         }
@@ -450,6 +485,95 @@ public sealed class BlockWaveSpecialInjector
             $"기존 공 추가 블록 제외, " +
             $"일반 블록 교체 없음"
         );
+    }
+
+    private int InjectGuardianBlocks(
+        List<BlockSpawnRequest> requests,
+        int columnCount,
+        int rowCount,
+        int waveIndex,
+        bool hasFeaturedDefinition,
+        int baseHealth)
+    {
+        if (!enableGuardianBlocks || enableTestMode ||
+            guardianDefinition == null ||
+            guardianDefinition.BlockType != BlockType.Special ||
+            guardianDefinition.SpecialCategory != SpecialBlockCategory.Guardian ||
+            Random.value > guardianSpawnChance)
+        {
+            return 0;
+        }
+
+        bool hasProtectableEnemy = false;
+        for (int i = 0; i < requests.Count; i++)
+        {
+            BlockSpawnRequest request = requests[i];
+            if (request != null &&
+                request.RequestedBlockType != BlockType.Special &&
+                request.Definition != null &&
+                request.Definition.DestructionRule == BlockDestructionRule.Breakable)
+            {
+                hasProtectableEnemy = true;
+                break;
+            }
+        }
+
+        if (!hasProtectableEnemy)
+        {
+            return 0;
+        }
+
+        BlockWaveOccupancyMap occupancyMap = CreateOccupancyMap(requests, columnCount, rowCount);
+        int maximumCount = hasFeaturedDefinition
+            ? maximumGuardiansInFeaturedWave
+            : maximumGuardiansInNormalWave;
+        int requestedCount = Random.Range(1, maximumCount + 1);
+        int injectedCount = 0;
+
+        for (int i = 0; i < requestedCount; i++)
+        {
+            if (!TryAppendGuardianRequest(requests, occupancyMap, waveIndex, baseHealth))
+            {
+                break;
+            }
+
+            injectedCount++;
+        }
+
+        return injectedCount;
+    }
+
+    private bool TryAppendGuardianRequest(
+        List<BlockSpawnRequest> requests,
+        BlockWaveOccupancyMap occupancyMap,
+        int waveIndex,
+        int baseHealth)
+    {
+        if (!TryGetPreferredFittingPosition(guardianDefinition, occupancyMap, out Vector2Int startPosition))
+        {
+            return false;
+        }
+
+        Vector2Int gridSize = NormalizeGridSize(guardianDefinition.GridSize);
+        if (!occupancyMap.TryOccupy(startPosition.x, startPosition.y, gridSize))
+        {
+            return false;
+        }
+
+        int health = Mathf.Max(1, Mathf.RoundToInt(
+            Mathf.Max(baseHealth, 1) * specialHealthMultiplier * guardianHealthMultiplier));
+
+        requests.Add(new BlockSpawnRequest(
+            startPosition.x,
+            startPosition.y,
+            waveIndex,
+            guardianDefinition,
+            BlockType.Special,
+            gridSize,
+            health,
+            0));
+
+        return true;
     }
 
     private void InjectTestBlocks(
@@ -629,6 +753,11 @@ public sealed class BlockWaveSpecialInjector
                 continue;
             }
 
+            if (definition.SpecialCategory == SpecialBlockCategory.Guardian)
+            {
+                continue;
+            }
+
             if (preventDuplicateDefinitionsInSameWave &&
                 usedDefinitions.Contains(
                     definition))
@@ -729,7 +858,10 @@ public sealed class BlockWaveSpecialInjector
                         baseHealth,
                         1
                     ) *
-                    specialHealthMultiplier
+                    specialHealthMultiplier *
+                    (definition.SpecialCategory == SpecialBlockCategory.Guardian
+                        ? guardianHealthMultiplier
+                        : 1f)
                 )
             );
 

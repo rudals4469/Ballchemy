@@ -528,6 +528,12 @@ public sealed class BlockWaveGenerator :
                     featuredDefinition != null
                 );
 
+        requests = GuardianProtectionResolver.AssignTargets(
+            requests,
+            patternBuilder.MinimumGuardianTargets,
+            patternBuilder.MaximumGuardianTargets
+        );
+
         SaveLastGeneratedRequests(
             requests
         );
@@ -642,6 +648,11 @@ public sealed class BlockWaveGenerator :
                 generatedBlock
             );
         }
+
+        GuardianProtectionResolver.ConnectRuntime(
+            requests,
+            generatedBlocks
+        );
 
         return generatedBlocks;
     }

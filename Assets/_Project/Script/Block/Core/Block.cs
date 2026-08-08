@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(BoxCollider2D))]
@@ -166,6 +167,15 @@ public sealed class Block :
             GridSize
         );
 
+    private readonly HashSet<Block> guardianProtectionProviders =
+        new HashSet<Block>();
+
+    public bool IsGuardianProtected =>
+        guardianProtectionProviders.Count > 0;
+
+    public int GuardianProtectionCount =>
+        guardianProtectionProviders.Count;
+
     public bool IsTouchingBottomRow =>
         gridState != null &&
         gridState.IsTouchingBottomRow(
@@ -189,6 +199,12 @@ public sealed class Block :
 
     public event Action<Block, int>
         HitReceived;
+
+    public event Action<Block, int>
+        GuardianProtectedHitReceived;
+
+    public event Action<Block, bool>
+        GuardianProtectionChanged;
 
     public event Action<Block, int>
         HealingReceived;
@@ -288,6 +304,8 @@ public sealed class Block :
         isDestructionStarted =
             false;
 
+        ClearGuardianProtection();
+
         SetRuntimeStats(
             health,
             attack
@@ -326,6 +344,8 @@ public sealed class Block :
 
         isDestructionStarted =
             false;
+
+        ClearGuardianProtection();
 
         definition =
             blockDefinition;
@@ -657,6 +677,18 @@ public sealed class Block :
             return;
         }
 
+        RemoveInvalidGuardianProtectionProviders();
+
+        if (IsGuardianProtected)
+        {
+            GuardianProtectedHitReceived?.Invoke(
+                this,
+                damage
+            );
+
+            return;
+        }
+
         HitReceived?.Invoke(
             this,
             damage
@@ -723,6 +755,71 @@ public sealed class Block :
         {
             DestroyBlock();
         }
+    }
+
+    public bool RegisterGuardianProtection(
+        Block provider)
+    {
+        if (provider == null ||
+            provider == this ||
+            !provider.IsAlive ||
+            IsIndestructible ||
+            BlockType == BlockType.Special)
+        {
+            return false;
+        }
+
+        if (!guardianProtectionProviders.Add(provider))
+        {
+            return false;
+        }
+
+        GuardianProtectionChanged?.Invoke(
+            this,
+            IsGuardianProtected
+        );
+
+        return true;
+    }
+
+    public void UnregisterGuardianProtection(
+        Block provider)
+    {
+        if (provider == null ||
+            !guardianProtectionProviders.Remove(provider))
+        {
+            return;
+        }
+
+        GuardianProtectionChanged?.Invoke(
+            this,
+            IsGuardianProtected
+        );
+    }
+
+    public void ClearGuardianProtection()
+    {
+        if (guardianProtectionProviders.Count == 0)
+        {
+            return;
+        }
+
+        guardianProtectionProviders.Clear();
+
+        GuardianProtectionChanged?.Invoke(
+            this,
+            false
+        );
+    }
+
+    private void RemoveInvalidGuardianProtectionProviders()
+    {
+        guardianProtectionProviders.RemoveWhere(
+            provider =>
+                provider == null ||
+                !provider.IsAlive ||
+                !provider.gameObject.activeInHierarchy
+        );
     }
 
     public int ReduceMaxHealthByPercent(

@@ -27,5 +27,10 @@ public enum SpecialBlockCategory
      * 신규 전투 배치에서는 생성하지 않는다.
      * 기존 프리팹과 스크립트는 단계적으로 제거한다.
      */
-    LegacyAddBall = 4
+    LegacyAddBall = 4,
+
+    /*
+     * 살아 있는 동안 지정된 적 블록을 완전 보호하는 파괴 가능 특수 블록.
+     */
+    Guardian = 5
 }

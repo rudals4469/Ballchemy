@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class BlockSpawnRequest
@@ -42,6 +43,11 @@ public sealed class BlockSpawnRequest
         get;
     }
 
+    private readonly List<Vector2Int> guardianTargetPositions;
+
+    public IReadOnlyList<Vector2Int> GuardianTargetPositions =>
+        guardianTargetPositions;
+
     public BlockSpawnRequest(
         int startColumn,
         int startRow,
@@ -50,7 +56,8 @@ public sealed class BlockSpawnRequest
         BlockType requestedBlockType,
         Vector2Int gridSize,
         int health,
-        int attack)
+        int attack,
+        IReadOnlyList<Vector2Int> guardianTargets = null)
     {
         StartColumn =
             startColumn;
@@ -98,6 +105,11 @@ public sealed class BlockSpawnRequest
                     attack,
                     0
                 );
+
+        guardianTargetPositions =
+            guardianTargets != null
+                ? new List<Vector2Int>(guardianTargets)
+                : new List<Vector2Int>();
     }
 
     public BlockSpawnRequest(
@@ -126,7 +138,10 @@ public sealed class BlockSpawnRequest
                 : 1,
             source != null
                 ? source.Attack
-                : 0
+                : 0,
+            source != null
+                ? source.GuardianTargetPositions
+                : null
         )
     {
     }

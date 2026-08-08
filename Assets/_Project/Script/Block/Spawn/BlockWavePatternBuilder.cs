@@ -17,6 +17,12 @@ public sealed class BlockWavePatternBuilder
     private BlockWaveSpecialInjector specialInjector =
         new BlockWaveSpecialInjector();
 
+    public int MinimumGuardianTargets =>
+        specialInjector.MinimumGuardianTargets;
+
+    public int MaximumGuardianTargets =>
+        specialInjector.MaximumGuardianTargets;
+
     [Header("Wave Row Settings")]
 
     [SerializeField, Min(1)]
