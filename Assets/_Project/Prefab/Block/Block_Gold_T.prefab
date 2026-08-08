@@ -95,7 +95,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0debd842d3c5c94aa52e1b05ca211bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Block
-  definition: {fileID: 0}
+  definition: {fileID: 11400000, guid: dde3cded785e8174c873ec21571e3bc6, type: 2}
   layout:
     visualRenderer: {fileID: 5051892278997693569}
     boxCollider: {fileID: 8902717914776242626}

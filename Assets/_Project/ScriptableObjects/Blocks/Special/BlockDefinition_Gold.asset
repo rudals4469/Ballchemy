@@ -16,8 +16,10 @@ MonoBehaviour:
   displayName: gold
   blockType: 1
   destructionRule: 0
+  clearRole: 0
+  specialCategory: 1
   gridSize: {x: 1, y: 1}
   sprite: {fileID: 0}
   color: {r: 1, g: 0.99688405, b: 0, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
-  selectionWeight: 1
+  selectionWeight: 3

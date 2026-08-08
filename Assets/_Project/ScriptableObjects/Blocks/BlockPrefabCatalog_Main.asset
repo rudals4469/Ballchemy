@@ -30,8 +30,8 @@ MonoBehaviour:
     prefab: {fileID: 5741669861215845034, guid: 6f0531df0afb5f641a3065ed021cb503, type: 3}
   - definition: {fileID: 11400000, guid: 8e4e12cbf7974b3b8459493744550d11, type: 2}
     prefab: {fileID: 5741669861215845034, guid: a25ed5048d5a4d66b060988e1eac0d11, type: 3}
-  - definition: {fileID: 0}
-    prefab: {fileID: 0}
+  - definition: {fileID: 11400000, guid: dde3cded785e8174c873ec21571e3bc6, type: 2}
+    prefab: {fileID: 5741669861215845034, guid: d3507280f12675542ac1e393c564abe0, type: 3}
   - definition: {fileID: 11400000, guid: c22ed5048d5a4d66b060988e1eac0d22, type: 2}
     prefab: {fileID: 5741669861215845034, guid: c12ed5048d5a4d66b060988e1eac0d22, type: 3}
   - definition: {fileID: 0}

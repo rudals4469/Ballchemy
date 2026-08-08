@@ -16,8 +16,10 @@ MonoBehaviour:
   displayName: seal
   blockType: 1
   destructionRule: 0
+  clearRole: 0
+  specialCategory: 3
   gridSize: {x: 1, y: 1}
   sprite: {fileID: 0}
   color: {r: 0.6659298, g: 0, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
-  selectionWeight: 1
+  selectionWeight: 3

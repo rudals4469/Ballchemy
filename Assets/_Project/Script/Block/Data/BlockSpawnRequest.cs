@@ -170,4 +170,20 @@ public sealed class BlockSpawnRequest
             this
         );
     }
+
+    public BlockSpawnRequest CreateCopyWithStats(int health, int attack)
+    {
+        return new BlockSpawnRequest(
+            StartColumn,
+            StartRow,
+            WaveIndex,
+            Definition,
+            RequestedBlockType,
+            GridSize,
+            health,
+            attack,
+            GuardianTargetPositions,
+            TeleportPairId,
+            TeleportPartnerPosition);
+    }
 }

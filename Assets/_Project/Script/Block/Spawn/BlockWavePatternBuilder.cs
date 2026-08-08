@@ -634,17 +634,27 @@ public sealed class BlockWavePatternBuilder
                     : previousRowColumns;
         }
 
-        specialInjector.InjectSpecialBlocks(
+        return requests;
+    }
+
+    public void InjectScaledSpecialBlocks(
+        List<BlockSpawnRequest> requests,
+        int columnCount,
+        int rowCount,
+        int waveIndex,
+        bool isNamedRoom,
+        int baseHealth,
+        TeleportPairSpawnSettings teleportSettings)
+    {
+        specialInjector.InjectScaledSpecialBlocks(
             requests,
             blockCatalog,
             columnCount,
-            layoutRowCount,
+            rowCount,
             waveIndex,
-            featuredDefinition != null,
-            baseHealth
-        );
-
-        return requests;
+            isNamedRoom,
+            baseHealth,
+            teleportSettings);
     }
 
     private int GetAppliedRowSpacing(

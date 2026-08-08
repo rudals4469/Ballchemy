@@ -374,23 +374,33 @@ public sealed class BallBounceResolver
                 normalizedY
             );
 
-        /*
-         * 모서리에서는 X 또는 Y축 중 하나를 강제로
-         * 선택하지 않고 Unity 물리엔진이 계산한
-         * 실제 충돌 노멀을 사용한다.
-         *
-         * 축 하나만 반전시켜 공이 모서리에 계속
-         * 겹치는 현상을 방지한다.
-         */
-        if (edgeDifference <=
-            cornerTieTolerance)
-        {
-            return physicsNormal;
-        }
+        bool isCornerContact =
+            edgeDifference <= cornerTieTolerance;
 
-        bool useHorizontalNormal =
-            normalizedX >
-            normalizedY;
+        bool useHorizontalNormal;
+
+        if (isCornerContact)
+        {
+            float horizontalApproach = Mathf.Abs(localIncoming.x);
+            float verticalApproach = Mathf.Abs(localIncoming.y);
+            float approachDifference =
+                Mathf.Abs(horizontalApproach - verticalApproach);
+
+            if (approachDifference > minimumNormalMagnitude)
+            {
+                useHorizontalNormal = horizontalApproach > verticalApproach;
+            }
+            else
+            {
+                useHorizontalNormal =
+                    Mathf.Abs(localPhysicsNormal.x) >
+                    Mathf.Abs(localPhysicsNormal.y);
+            }
+        }
+        else
+        {
+            useHorizontalNormal = normalizedX > normalizedY;
+        }
 
         Vector2 localAxisNormal;
 

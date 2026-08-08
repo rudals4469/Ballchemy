@@ -22,4 +22,4 @@ MonoBehaviour:
   sprite: {fileID: 0}
   color: {r: 0.25, g: 0.35, b: 1, a: 1}
   visualScale: {x: 0.5, y: 0.5, z: 1}
-  selectionWeight: 0
+  selectionWeight: 3

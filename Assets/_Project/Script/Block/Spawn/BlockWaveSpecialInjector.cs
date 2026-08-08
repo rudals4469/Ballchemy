@@ -25,6 +25,10 @@ public sealed class BlockWaveSpecialInjector
     [SerializeField, Range(0f, 1f)]
     private float specialWaveChance = 1f;
 
+    [Tooltip("Special 슬롯 1개가 증가하는 기본 배치 블록 수입니다.")]
+    [SerializeField, Min(1)]
+    private int blocksPerSpecialSlot = 10;
+
     [Tooltip(
         "한 웨이브에 추가되는 " +
         "최소 특수 블록 개수입니다."
@@ -160,6 +164,8 @@ public sealed class BlockWaveSpecialInjector
             Mathf.Clamp01(
                 specialWaveChance
             );
+
+        blocksPerSpecialSlot = Mathf.Max(blocksPerSpecialSlot, 1);
 
         minimumSpecialBlocksPerWave =
             Mathf.Max(
@@ -485,6 +491,253 @@ public sealed class BlockWaveSpecialInjector
             $"기존 공 추가 블록 제외, " +
             $"일반 블록 교체 없음"
         );
+    }
+
+    public void InjectScaledSpecialBlocks(
+        List<BlockSpawnRequest> requests,
+        BlockCatalog blockCatalog,
+        int columnCount,
+        int boardRowCount,
+        int waveIndex,
+        bool isNamedRoom,
+        int baseHealth,
+        TeleportPairSpawnSettings teleportSettings)
+    {
+        Normalize();
+
+        if (requests == null || requests.Count == 0)
+        {
+            return;
+        }
+
+        int baseBlockCount = 0;
+        for (int i = 0; i < requests.Count; i++)
+        {
+            if (requests[i] != null &&
+                requests[i].RequestedBlockType != BlockType.Special)
+            {
+                baseBlockCount++;
+            }
+        }
+
+        if (baseBlockCount <= 0)
+        {
+            return;
+        }
+
+        int waveNumber = waveIndex + 1;
+        if (!ShouldInjectSpecialBlocks(waveNumber, isNamedRoom))
+        {
+            return;
+        }
+
+        int activeRowCount = ResolveActiveSpecialRowCount(requests, boardRowCount);
+        BlockWaveOccupancyMap occupancyMap =
+            CreateOccupancyMap(requests, columnCount, activeRowCount);
+
+        if (enableTestMode)
+        {
+            InjectTestBlocks(
+                requests,
+                occupancyMap,
+                waveIndex,
+                baseHealth,
+                waveNumber);
+            return;
+        }
+
+        int requestedSlotCount = Mathf.CeilToInt(
+            baseBlockCount / (float)blocksPerSpecialSlot);
+        bool canSelectGuardian =
+            enableGuardianBlocks &&
+            guardianDefinition != null &&
+            HasProtectableEnemy(requests);
+        bool canSelectTeleport =
+            teleportSettings != null &&
+            teleportSettings.CanSpawn(isNamedRoom);
+
+        List<BlockDefinition> pool = blockCatalog != null
+            ? blockCatalog.GetAll(BlockType.Special)
+            : GetRandomSpecialPool(blockCatalog);
+        HashSet<BlockDefinition> usedDefinitions = new HashSet<BlockDefinition>();
+        int injectedSlotCount = 0;
+
+        while (injectedSlotCount < requestedSlotCount)
+        {
+            BlockDefinition selected = SelectUnifiedDefinition(
+                pool,
+                occupancyMap,
+                usedDefinitions,
+                canSelectGuardian,
+                canSelectTeleport,
+                teleportSettings);
+
+            if (selected == null)
+            {
+                break;
+            }
+
+            usedDefinitions.Add(selected);
+            bool injected;
+
+            if (selected.SpecialCategory == SpecialBlockCategory.Teleport)
+            {
+                injected = TeleportPairInjector.TryInjectSelectedPair(
+                    requests,
+                    teleportSettings,
+                    columnCount,
+                    activeRowCount,
+                    waveIndex);
+            }
+            else if (selected.SpecialCategory == SpecialBlockCategory.Guardian)
+            {
+                injected = TryAppendGuardianRequest(
+                    requests,
+                    occupancyMap,
+                    waveIndex,
+                    baseHealth);
+            }
+            else
+            {
+                injected = TryAppendSpecialRequest(
+                    requests,
+                    occupancyMap,
+                    selected,
+                    waveIndex,
+                    baseHealth);
+            }
+
+            if (injected)
+            {
+                injectedSlotCount++;
+
+                if (selected.SpecialCategory == SpecialBlockCategory.Teleport)
+                {
+                    occupancyMap = CreateOccupancyMap(
+                        requests,
+                        columnCount,
+                        activeRowCount);
+                }
+            }
+        }
+
+        Debug.Log(
+            "BlockWaveSpecialInjector: " +
+            $"base blocks={baseBlockCount}, " +
+            $"requested special slots={requestedSlotCount}, " +
+            $"injected unique slots={injectedSlotCount}");
+    }
+
+    private BlockDefinition SelectUnifiedDefinition(
+        IReadOnlyList<BlockDefinition> definitions,
+        BlockWaveOccupancyMap occupancyMap,
+        HashSet<BlockDefinition> usedDefinitions,
+        bool canSelectGuardian,
+        bool canSelectTeleport,
+        TeleportPairSpawnSettings teleportSettings)
+    {
+        if (definitions == null)
+        {
+            return null;
+        }
+
+        List<BlockDefinition> candidates = new List<BlockDefinition>();
+        int totalWeight = 0;
+
+        for (int i = 0; i < definitions.Count; i++)
+        {
+            BlockDefinition definition = definitions[i];
+            if (!IsUnifiedSpecialDefinition(definition) ||
+                usedDefinitions.Contains(definition))
+            {
+                continue;
+            }
+
+            if (definition.SpecialCategory == SpecialBlockCategory.Guardian &&
+                (!canSelectGuardian || definition != guardianDefinition))
+            {
+                continue;
+            }
+
+            if (definition.SpecialCategory == SpecialBlockCategory.Teleport)
+            {
+                if (!canSelectTeleport ||
+                    teleportSettings == null ||
+                    definition != teleportSettings.Definition)
+                {
+                    continue;
+                }
+            }
+            else if (!HasFittingPosition(definition, occupancyMap))
+            {
+                continue;
+            }
+
+            candidates.Add(definition);
+            totalWeight += definition.SelectionWeight;
+        }
+
+        if (candidates.Count == 0 || totalWeight <= 0)
+        {
+            return null;
+        }
+
+        int roll = Random.Range(0, totalWeight);
+        int accumulated = 0;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            accumulated += candidates[i].SelectionWeight;
+            if (roll < accumulated)
+            {
+                return candidates[i];
+            }
+        }
+
+        return candidates[candidates.Count - 1];
+    }
+
+    private bool IsUnifiedSpecialDefinition(BlockDefinition definition)
+    {
+        return definition != null &&
+               definition.BlockType == BlockType.Special &&
+               definition.SelectionWeight > 0 &&
+               !IsLegacyAddBallDefinition(definition);
+    }
+
+    private bool HasProtectableEnemy(IReadOnlyList<BlockSpawnRequest> requests)
+    {
+        for (int i = 0; i < requests.Count; i++)
+        {
+            BlockSpawnRequest request = requests[i];
+            if (request != null &&
+                request.RequestedBlockType != BlockType.Special &&
+                request.Definition != null &&
+                request.Definition.DestructionRule == BlockDestructionRule.Breakable)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int ResolveActiveSpecialRowCount(
+        IReadOnlyList<BlockSpawnRequest> requests,
+        int boardRowCount)
+    {
+        int activeRows = 1;
+        for (int i = 0; i < requests.Count; i++)
+        {
+            BlockSpawnRequest request = requests[i];
+            if (request != null)
+            {
+                activeRows = Mathf.Max(
+                    activeRows,
+                    request.StartRow + Mathf.Max(request.GridSize.y, 1));
+            }
+        }
+
+        return Mathf.Clamp(activeRows, 1, Mathf.Max(boardRowCount, 1));
     }
 
     private int InjectGuardianBlocks(

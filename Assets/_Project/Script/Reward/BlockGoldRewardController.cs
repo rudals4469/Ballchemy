@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -50,6 +51,14 @@ public sealed class BlockGoldRewardController :
     )]
     [SerializeField, Min(0)]
     private int ignoreGold;
+
+    [Header("Gold Special Block")]
+
+    [SerializeField]
+    private string goldSpecialBlockId = "special_gold";
+
+    [SerializeField, Min(1)]
+    private int goldSpecialReward = 10;
 
     [Header("Debug")]
 
@@ -121,6 +130,13 @@ public sealed class BlockGoldRewardController :
                 ignoreGold,
                 0
             );
+
+        goldSpecialReward = Mathf.Max(goldSpecialReward, 1);
+
+        if (string.IsNullOrWhiteSpace(goldSpecialBlockId))
+        {
+            goldSpecialBlockId = "special_gold";
+        }
     }
 
     private void FindReferences()
@@ -742,6 +758,14 @@ public sealed class BlockGoldRewardController :
             block.Definition == null)
         {
             return 0;
+        }
+
+        if (string.Equals(
+                block.BlockId,
+                goldSpecialBlockId,
+                StringComparison.Ordinal))
+        {
+            return goldSpecialReward;
         }
 
         switch (block.Definition.ClearRole)

@@ -3,6 +3,42 @@ using UnityEngine;
 
 public static class TeleportPairInjector
 {
+    public static bool TryInjectSelectedPair(
+        List<BlockSpawnRequest> requests,
+        TeleportPairSpawnSettings settings,
+        int columnCount,
+        int boardRowCount,
+        int waveIndex)
+    {
+        if (requests == null || settings == null || settings.Definition == null)
+        {
+            return false;
+        }
+
+        int activeRowCount = ResolveActiveRowCount(requests, boardRowCount);
+        BlockWaveOccupancyMap occupancy =
+            new BlockWaveOccupancyMap(columnCount, activeRowCount);
+        OccupyExisting(requests, occupancy);
+
+        List<Vector2Int> candidates = CollectCandidates(occupancy);
+        Shuffle(candidates);
+
+        if (!TrySelectPair(
+                candidates,
+                occupancy,
+                settings.MinimumPortalSeparationCells,
+                out Vector2Int first,
+                out Vector2Int second))
+        {
+            return false;
+        }
+
+        int pairId = ResolveNextPairId(requests);
+        AddPortal(requests, settings.Definition, waveIndex, first, second, pairId);
+        AddPortal(requests, settings.Definition, waveIndex, second, first, pairId);
+        return true;
+    }
+
     public static List<BlockSpawnRequest> Inject(
         IReadOnlyList<BlockSpawnRequest> source,
         TeleportPairSpawnSettings settings,
@@ -58,6 +94,7 @@ public static class TeleportPairInjector
     {
         first = default;
         second = default;
+        int bestSeparation = -1;
 
         for (int i = 0; i < candidates.Count; i++)
         {
@@ -69,18 +106,19 @@ public static class TeleportPairInjector
 
                 if (separation < minimumSeparation ||
                     !HasCardinalExit(a, occupancy, b) ||
-                    !HasCardinalExit(b, occupancy, a))
+                    !HasCardinalExit(b, occupancy, a) ||
+                    separation <= bestSeparation)
                 {
                     continue;
                 }
 
                 first = a;
                 second = b;
-                return true;
+                bestSeparation = separation;
             }
         }
 
-        return false;
+        return bestSeparation >= minimumSeparation;
     }
 
     private static bool HasCardinalExit(
@@ -175,6 +213,21 @@ public static class TeleportPairInjector
         requests.Add(new BlockSpawnRequest(
             position.x, position.y, waveIndex, definition, BlockType.Special,
             Vector2Int.one, 1, 0, null, pairId, partner));
+    }
+
+    private static int ResolveNextPairId(IReadOnlyList<BlockSpawnRequest> requests)
+    {
+        int nextPairId = 0;
+        for (int i = 0; i < requests.Count; i++)
+        {
+            BlockSpawnRequest request = requests[i];
+            if (request != null && request.HasTeleportPair)
+            {
+                nextPairId = Mathf.Max(nextPairId, request.TeleportPairId + 1);
+            }
+        }
+
+        return nextPairId;
     }
 
     private static List<BlockSpawnRequest> Copy(IReadOnlyList<BlockSpawnRequest> source)

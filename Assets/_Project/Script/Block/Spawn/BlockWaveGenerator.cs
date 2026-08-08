@@ -513,6 +513,15 @@ public sealed class BlockWaveGenerator :
                 featuredAttackMultiplier
             );
 
+        patternBuilder.InjectScaledSpecialBlocks(
+            requests,
+            ColumnCount,
+            RowCount,
+            waveIndex,
+            featuredDefinition != null,
+            baseHealth,
+            teleportPairSettings);
+
         /*
          * 배치 자체가 모두 끝난 뒤
          * 블록의 전투 역할만 결정합니다.
@@ -539,15 +548,6 @@ public sealed class BlockWaveGenerator :
                     BlockCatalog,
                     featuredDefinition != null
                 );
-
-        requests = TeleportPairInjector.Inject(
-            requests,
-            teleportPairSettings,
-            ColumnCount,
-            RowCount,
-            waveIndex,
-            featuredDefinition != null
-        );
 
         requests = GuardianProtectionResolver.AssignTargets(
             requests,

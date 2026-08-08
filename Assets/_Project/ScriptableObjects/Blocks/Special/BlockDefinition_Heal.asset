@@ -16,6 +16,8 @@ MonoBehaviour:
   displayName: heal
   blockType: 1
   destructionRule: 0
+  clearRole: 0
+  specialCategory: 1
   gridSize: {x: 1, y: 1}
   sprite: {fileID: 0}
   color: {r: 0, g: 1, b: 0.19978666, a: 1}

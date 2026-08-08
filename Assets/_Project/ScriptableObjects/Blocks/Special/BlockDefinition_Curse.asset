@@ -16,6 +16,8 @@ MonoBehaviour:
   displayName: curse
   blockType: 1
   destructionRule: 0
+  clearRole: 0
+  specialCategory: 2
   gridSize: {x: 1, y: 1}
   sprite: {fileID: 0}
   color: {r: 1, g: 0, b: 0, a: 1}

@@ -12,7 +12,7 @@ public sealed class TeleportPairSpawnSettings
     [SerializeField, Range(0f, 1f)] private float normalRoomSpawnChance = 0.25f;
     [SerializeField, Range(0f, 1f)] private float namedRoomSpawnChance = 0.35f;
     [SerializeField, Min(1)] private int maximumPairsPerRoom = 1;
-    [SerializeField, Min(1)] private int minimumPortalSeparationCells = 2;
+    [SerializeField, Min(1)] private int minimumPortalSeparationCells = 6;
 
     public BlockDefinition Definition => teleportDefinition;
     public int MaximumPairsPerRoom => maximumPairsPerRoom;
@@ -30,6 +30,20 @@ public sealed class TeleportPairSpawnSettings
     {
         Normalize();
 
+        if (!CanSpawn(isNamedRoom))
+        {
+            return false;
+        }
+
+        return Random.value <= (isNamedRoom
+            ? namedRoomSpawnChance
+            : normalRoomSpawnChance);
+    }
+
+    public bool CanSpawn(bool isNamedRoom)
+    {
+        Normalize();
+
         if (!enableTeleportPair ||
             teleportDefinition == null ||
             teleportDefinition.BlockType != BlockType.Special ||
@@ -40,11 +54,6 @@ public sealed class TeleportPairSpawnSettings
             return false;
         }
 
-        if (isNamedRoom)
-        {
-            return allowInNamedRooms && Random.value <= namedRoomSpawnChance;
-        }
-
-        return allowInNormalRooms && Random.value <= normalRoomSpawnChance;
+        return isNamedRoom ? allowInNamedRooms : allowInNormalRooms;
     }
 }

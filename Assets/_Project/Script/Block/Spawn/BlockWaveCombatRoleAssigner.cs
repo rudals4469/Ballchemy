@@ -346,16 +346,9 @@ public sealed class BlockWaveCombatRoleAssigner
                     : source.Attack;
 
             result.Add(
-                new BlockSpawnRequest(
-                    source.StartColumn,
-                    source.StartRow,
-                    source.WaveIndex,
-                    source.Definition,
-                    source.RequestedBlockType,
-                    source.GridSize,
+                source.CreateCopyWithStats(
                     source.Health,
-                    attack
-                )
+                    attack)
             );
         }
 
