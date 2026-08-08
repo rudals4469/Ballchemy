@@ -43,6 +43,22 @@ public sealed class BallCountView :
     private bool showDebugLog;
 
     private bool isShowingLaunchQueue;
+    private bool isExternallySuppressed;
+
+    public void SetExternallySuppressed(
+        bool suppressed)
+    {
+        if (isExternallySuppressed ==
+            suppressed)
+        {
+            return;
+        }
+
+        isExternallySuppressed =
+            suppressed;
+
+        RefreshCurrentDisplay();
+    }
 
     private void Awake()
     {
@@ -523,6 +539,11 @@ public sealed class BallCountView :
 
     private bool ShouldShowCount()
     {
+        if (isExternallySuppressed)
+        {
+            return false;
+        }
+
         if (!followBallVisibility)
         {
             return true;

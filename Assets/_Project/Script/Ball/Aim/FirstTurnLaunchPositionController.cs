@@ -16,6 +16,9 @@ public sealed class FirstTurnLaunchPositionController :
     [SerializeField]
     private TurnManager turnManager;
 
+    [SerializeField]
+    private BallCountView ballCountView;
+
     private Camera mainCamera;
     private bool isSelectionAvailable;
     private int selectionCompletedFrame = -1;
@@ -81,6 +84,14 @@ public sealed class FirstTurnLaunchPositionController :
             turnManager =
                 FindFirstObjectByType<TurnManager>();
         }
+
+        if (ballCountView == null)
+        {
+            ballCountView =
+                GetComponentInChildren<BallCountView>(
+                    true
+                );
+        }
     }
 
     private void SubscribeEvents()
@@ -133,6 +144,10 @@ public sealed class FirstTurnLaunchPositionController :
             isSelectionAvailable;
 
         isSelectionAvailable = available;
+
+        ballCountView?.SetExternallySuppressed(
+            available
+        );
 
         if (available &&
             !wasAvailable)

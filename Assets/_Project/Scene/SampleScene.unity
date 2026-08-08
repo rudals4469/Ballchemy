@@ -10597,6 +10597,7 @@ MonoBehaviour:
   ballLauncher: {fileID: 904823807}
   blockGridManager: {fileID: 987057997}
   turnManager: {fileID: 1520316753}
+  ballCountView: {fileID: 18714752}
 --- !u!114 &904823810
 MonoBehaviour:
   m_ObjectHideFlags: 0
