@@ -48,6 +48,13 @@ public sealed class BlockSpawnRequest
     public IReadOnlyList<Vector2Int> GuardianTargetPositions =>
         guardianTargetPositions;
 
+    public int TeleportPairId { get; }
+
+    public Vector2Int TeleportPartnerPosition { get; }
+
+    public bool HasTeleportPair =>
+        TeleportPairId >= 0;
+
     public BlockSpawnRequest(
         int startColumn,
         int startRow,
@@ -57,7 +64,9 @@ public sealed class BlockSpawnRequest
         Vector2Int gridSize,
         int health,
         int attack,
-        IReadOnlyList<Vector2Int> guardianTargets = null)
+        IReadOnlyList<Vector2Int> guardianTargets = null,
+        int teleportPairId = -1,
+        Vector2Int teleportPartnerPosition = default)
     {
         StartColumn =
             startColumn;
@@ -110,6 +119,9 @@ public sealed class BlockSpawnRequest
             guardianTargets != null
                 ? new List<Vector2Int>(guardianTargets)
                 : new List<Vector2Int>();
+
+        TeleportPairId = teleportPairId;
+        TeleportPartnerPosition = teleportPartnerPosition;
     }
 
     public BlockSpawnRequest(
@@ -141,7 +153,13 @@ public sealed class BlockSpawnRequest
                 : 0,
             source != null
                 ? source.GuardianTargetPositions
-                : null
+                : null,
+            source != null
+                ? source.TeleportPairId
+                : -1,
+            source != null
+                ? source.TeleportPartnerPosition
+                : default
         )
     {
     }

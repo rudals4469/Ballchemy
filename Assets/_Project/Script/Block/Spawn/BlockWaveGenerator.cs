@@ -29,6 +29,12 @@ public sealed class BlockWaveGenerator :
         combatRoleAssigner =
             new BlockWaveCombatRoleAssigner();
 
+    [Header("Teleport Pair")]
+
+    [SerializeField]
+    private TeleportPairSpawnSettings teleportPairSettings =
+        new TeleportPairSpawnSettings();
+
     [Header("Default Wave")]
 
     [SerializeField]
@@ -151,6 +157,11 @@ public sealed class BlockWaveGenerator :
             statVariationSettings =
                 new BlockStatVariationSettings();
         }
+
+        if (teleportPairSettings == null)
+        {
+            teleportPairSettings = new TeleportPairSpawnSettings();
+        }
     }
 
     private void FindReferences()
@@ -211,6 +222,7 @@ public sealed class BlockWaveGenerator :
 
         combatRoleAssigner.Normalize();
         statVariationSettings.Normalize();
+        teleportPairSettings.Normalize();
     }
 
     private void ValidateReferences()
@@ -528,6 +540,15 @@ public sealed class BlockWaveGenerator :
                     featuredDefinition != null
                 );
 
+        requests = TeleportPairInjector.Inject(
+            requests,
+            teleportPairSettings,
+            ColumnCount,
+            RowCount,
+            waveIndex,
+            featuredDefinition != null
+        );
+
         requests = GuardianProtectionResolver.AssignTargets(
             requests,
             patternBuilder.MinimumGuardianTargets,
@@ -650,6 +671,11 @@ public sealed class BlockWaveGenerator :
         }
 
         GuardianProtectionResolver.ConnectRuntime(
+            requests,
+            generatedBlocks
+        );
+
+        TeleportPairRuntimeResolver.Connect(
             requests,
             generatedBlocks
         );

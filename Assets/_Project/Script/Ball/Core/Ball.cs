@@ -163,6 +163,9 @@ public sealed class Ball :
             ? body.linearVelocity
             : Vector2.zero;
 
+    public CircleCollider2D PhysicsCollider =>
+        circleCollider;
+
     public float VerticalVelocity =>
         body != null
             ? body.linearVelocity.y
@@ -711,6 +714,29 @@ public sealed class Ball :
             adjustedVelocity;
     }
 
+    public bool TryApplyTeleport(
+        Vector2 position,
+        Vector2 preservedVelocity)
+    {
+        if (!isMoving ||
+            body == null ||
+            !body.simulated ||
+            preservedVelocity.sqrMagnitude <= 0.0001f)
+        {
+            return false;
+        }
+
+        body.position = position;
+        body.linearVelocity = preservedVelocity;
+        lastPhysicsVelocity = preservedVelocity;
+
+        UpdateVerticalMovementState(
+            preservedVelocity.y
+        );
+
+        return true;
+    }
+
     public bool ApplyTemporaryUpgrade(
         TemporaryBallUpgradeResult result)
     {
@@ -930,6 +956,11 @@ public sealed class Ball :
 
     private void StopMovement()
     {
+        BallTeleportState teleportState =
+            GetComponent<BallTeleportState>();
+
+        teleportState?.ClearLock();
+
         ClearPiercingSensorRuntime();
         ResetBounceDamageRuntime();
         ClearTemporaryUpgradeRuntime();

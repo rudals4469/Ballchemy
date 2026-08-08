@@ -758,6 +758,11 @@ public sealed class BlockWaveSpecialInjector
                 continue;
             }
 
+            if (definition.SpecialCategory == SpecialBlockCategory.Teleport)
+            {
+                continue;
+            }
+
             if (preventDuplicateDefinitionsInSameWave &&
                 usedDefinitions.Contains(
                     definition))
@@ -1208,6 +1213,8 @@ public sealed class BlockWaveSpecialInjector
         return definition != null &&
                definition.BlockType ==
                BlockType.Special &&
+               definition.SpecialCategory !=
+               SpecialBlockCategory.Teleport &&
                definition.SelectionWeight > 0 &&
                !IsLegacyAddBallDefinition(
                    definition);

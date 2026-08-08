@@ -11802,6 +11802,15 @@ MonoBehaviour:
     eliteHealthMultiplier: 1.5
     eliteAttackMultiplier: 1
     showDebugLog: 1
+  teleportPairSettings:
+    enableTeleportPair: 1
+    teleportDefinition: {fileID: 11400000, guid: c22ed5048d5a4d66b060988e1eac0d22, type: 2}
+    allowInNormalRooms: 1
+    allowInNamedRooms: 1
+    normalRoomSpawnChance: 1
+    namedRoomSpawnChance: 1
+    maximumPairsPerRoom: 1
+    minimumPortalSeparationCells: 2
   defaultWaveBlockType: 0
   startingBlockHealth: 30
   healthIncreasePerWave: 2

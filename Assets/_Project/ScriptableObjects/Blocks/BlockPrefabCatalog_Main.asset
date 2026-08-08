@@ -32,5 +32,7 @@ MonoBehaviour:
     prefab: {fileID: 5741669861215845034, guid: a25ed5048d5a4d66b060988e1eac0d11, type: 3}
   - definition: {fileID: 0}
     prefab: {fileID: 0}
+  - definition: {fileID: 11400000, guid: c22ed5048d5a4d66b060988e1eac0d22, type: 2}
+    prefab: {fileID: 5741669861215845034, guid: c12ed5048d5a4d66b060988e1eac0d22, type: 3}
   - definition: {fileID: 0}
     prefab: {fileID: 0}

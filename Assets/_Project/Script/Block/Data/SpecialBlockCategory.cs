@@ -32,5 +32,8 @@ public enum SpecialBlockCategory
     /*
      * 살아 있는 동안 지정된 적 블록을 완전 보호하는 파괴 가능 특수 블록.
      */
-    Guardian = 5
+    Guardian = 5,
+
+    /* 파괴 불가 양방향 텔레포트 포탈. */
+    Teleport = 6
 }
