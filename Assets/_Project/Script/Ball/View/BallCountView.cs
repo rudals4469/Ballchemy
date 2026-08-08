@@ -29,7 +29,18 @@ public sealed class BallCountView :
 
     [SerializeField]
     private string selectionHintText =
-        "시작 위치 선택\n클릭/터치로 고정";
+        "▼";
+
+    [SerializeField]
+    private Vector2 selectionHintOffset =
+        new Vector2(-0.25f, 0.75f);
+
+    [SerializeField]
+    private Color selectionHintColor =
+        new Color(1f, 0.82f, 0.18f, 1f);
+
+    [SerializeField, Min(0.1f)]
+    private float selectionHintFontSize = 5f;
 
     [Header("Visibility")]
     [SerializeField]
@@ -48,6 +59,11 @@ public sealed class BallCountView :
 
     private bool isShowingLaunchQueue;
     private bool isSelectionHintVisible;
+    private Vector2 defaultLabelPosition;
+    private Color defaultLabelColor;
+    private float defaultLabelFontSize;
+    private TextAlignmentOptions defaultLabelAlignment;
+    private bool hasDefaultLabelPresentation;
 
     public void SetSelectionHintVisible(
         bool visible)
@@ -61,12 +77,18 @@ public sealed class BallCountView :
         isSelectionHintVisible =
             visible;
 
+        if (!visible)
+        {
+            RestoreDefaultLabelPresentation();
+        }
+
         RefreshCurrentDisplay();
     }
 
     private void Awake()
     {
         FindReferences();
+        CaptureDefaultLabelPresentation();
         NormalizeSettings();
         ValidateReferences();
     }
@@ -574,8 +596,48 @@ public sealed class BallCountView :
             return;
         }
 
+        CaptureDefaultLabelPresentation();
+
+        countLabel.rectTransform.anchoredPosition =
+            defaultLabelPosition +
+            selectionHintOffset;
+        countLabel.color = selectionHintColor;
+        countLabel.fontSize = selectionHintFontSize;
+        countLabel.alignment =
+            TextAlignmentOptions.Center;
         countLabel.enabled = true;
         countLabel.text = selectionHintText;
+    }
+
+    private void CaptureDefaultLabelPresentation()
+    {
+        if (hasDefaultLabelPresentation ||
+            countLabel == null)
+        {
+            return;
+        }
+
+        defaultLabelPosition =
+            countLabel.rectTransform.anchoredPosition;
+        defaultLabelColor = countLabel.color;
+        defaultLabelFontSize = countLabel.fontSize;
+        defaultLabelAlignment = countLabel.alignment;
+        hasDefaultLabelPresentation = true;
+    }
+
+    private void RestoreDefaultLabelPresentation()
+    {
+        if (!hasDefaultLabelPresentation ||
+            countLabel == null)
+        {
+            return;
+        }
+
+        countLabel.rectTransform.anchoredPosition =
+            defaultLabelPosition;
+        countLabel.color = defaultLabelColor;
+        countLabel.fontSize = defaultLabelFontSize;
+        countLabel.alignment = defaultLabelAlignment;
     }
 
     private string FormatNormalCount(

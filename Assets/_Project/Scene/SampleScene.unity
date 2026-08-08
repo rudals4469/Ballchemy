@@ -308,7 +308,10 @@ MonoBehaviour:
   countLabel: {fileID: 18714753}
   normalTextFormat: x{0}
   sealedTextFormat: x{0}/{1}
-  selectionHintText: "시작 위치 선택\n클릭/터치로 고정"
+  selectionHintText: "▼"
+  selectionHintOffset: {x: -0.25, y: 0.75}
+  selectionHintColor: {r: 1, g: 0.82, b: 0.18, a: 1}
+  selectionHintFontSize: 5
   hideWhenZero: 1
   followBallVisibility: 1
   showDebugLog: 0
@@ -10602,6 +10605,8 @@ MonoBehaviour:
   ballCollection: {fileID: 904823811}
   pulseScaleAmount: 0.12
   pulseSpeed: 3
+  confirmationPulseScale: 1.4
+  confirmationPulseDuration: 0.22
 --- !u!114 &904823810
 MonoBehaviour:
   m_ObjectHideFlags: 0

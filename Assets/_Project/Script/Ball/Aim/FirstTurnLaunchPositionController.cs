@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -31,9 +32,21 @@ public sealed class FirstTurnLaunchPositionController :
     [SerializeField, Min(0.1f)]
     private float pulseSpeed = 3f;
 
+    [SerializeField, Range(1f, 2f)]
+    private float confirmationPulseScale = 1.4f;
+
+    [SerializeField, Min(0.05f)]
+    private float confirmationPulseDuration = 0.22f;
+
     private readonly List<BallVisualView>
         pulseTargets =
             new List<BallVisualView>();
+
+    private readonly List<BallVisualView>
+        confirmationPulseTargets =
+            new List<BallVisualView>();
+
+    private Coroutine confirmationPulseCoroutine;
 
     private Camera mainCamera;
     private bool isSelectionAvailable;
@@ -173,6 +186,7 @@ public sealed class FirstTurnLaunchPositionController :
 
         if (available)
         {
+            StopConfirmationPulse();
             RefreshPulseTargets();
         }
         else
@@ -326,13 +340,83 @@ public sealed class FirstTurnLaunchPositionController :
         Vector2 selectedPosition =
             ballLauncher.CurrentLaunchPosition;
 
+        confirmationPulseTargets.Clear();
+        confirmationPulseTargets.AddRange(
+            pulseTargets
+        );
+
         selectionCompletedFrame =
             Time.frameCount;
 
         SetSelectionAvailable(false);
+
+        confirmationPulseCoroutine =
+            StartCoroutine(
+                PlayConfirmationPulseRoutine()
+            );
+
         SelectionCompleted?.Invoke(
             selectedPosition
         );
+    }
+
+    private IEnumerator PlayConfirmationPulseRoutine()
+    {
+        float elapsed = 0f;
+
+        while (elapsed <
+               confirmationPulseDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+
+            float progress =
+                Mathf.Clamp01(
+                    elapsed /
+                    confirmationPulseDuration
+                );
+
+            float multiplier =
+                Mathf.Lerp(
+                    confirmationPulseScale,
+                    1f,
+                    progress
+                );
+
+            for (int i = 0;
+                 i < confirmationPulseTargets.Count;
+                 i++)
+            {
+                confirmationPulseTargets[i]
+                    ?.SetAttentionScaleMultiplier(
+                        multiplier
+                    );
+            }
+
+            yield return null;
+        }
+
+        StopConfirmationPulse();
+    }
+
+    private void StopConfirmationPulse()
+    {
+        if (confirmationPulseCoroutine != null)
+        {
+            StopCoroutine(
+                confirmationPulseCoroutine
+            );
+            confirmationPulseCoroutine = null;
+        }
+
+        for (int i = 0;
+             i < confirmationPulseTargets.Count;
+             i++)
+        {
+            confirmationPulseTargets[i]
+                ?.SetAttentionScaleMultiplier(1f);
+        }
+
+        confirmationPulseTargets.Clear();
     }
 
     private Vector2 ScreenToWorld(
@@ -388,5 +472,6 @@ public sealed class FirstTurnLaunchPositionController :
         }
 
         SetSelectionAvailable(false);
+        StopConfirmationPulse();
     }
 }
