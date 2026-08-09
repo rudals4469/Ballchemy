@@ -36,6 +36,10 @@ public sealed class BossEncounterController :
     private Transform bossBlockContainer;
 
     [SerializeField]
+    private BossCatalog bossCatalog;
+
+    [Tooltip("기존 Scene 직렬화 보존 및 Catalog 누락 시 fallback용입니다.")]
+    [SerializeField]
     private BossPatternDefinition testPattern;
 
     [Header("Entrance")]
@@ -64,6 +68,8 @@ public sealed class BossEncounterController :
         >();
 
     private Block currentBossBlock;
+    private BossDefinition activeBossDefinition;
+    private BossPatternDefinition activePattern;
 
     private Coroutine startCoroutine;
     private Coroutine completeCoroutine;
@@ -131,7 +137,8 @@ public sealed class BossEncounterController :
             return;
         }
 
-        if (currentBossBlock != null)
+        if (blockGridManager != null &&
+            blockGridManager.RequiredEnemyCount > 0)
         {
             return;
         }
@@ -264,11 +271,19 @@ public sealed class BossEncounterController :
             );
         }
 
-        if (testPattern == null)
+        if (bossCatalog == null)
         {
             Debug.LogWarning(
                 "BossEncounterController: " +
-                "Test Pattern이 연결되지 않았습니다.",
+                "Boss Catalog가 연결되지 않아 레거시 Test Pattern fallback을 확인합니다.",
+                this
+            );
+        }
+
+        if (bossCatalog == null && testPattern == null)
+        {
+            Debug.LogError(
+                "BossEncounterController: 보스 데이터가 연결되지 않았습니다.",
                 this
             );
         }
@@ -412,14 +427,19 @@ public sealed class BossEncounterController :
             return false;
         }
 
-        if (!testPattern.TryValidatePattern(
+        if (!TrySelectBossDefinition())
+        {
+            return false;
+        }
+
+        if (!activePattern.TryValidatePattern(
                 out string validationMessage))
         {
             Debug.LogError(
                 "BossEncounterController: " +
                 "보스 패턴이 올바르지 않습니다.\n" +
                 validationMessage,
-                testPattern
+                activePattern
             );
 
             return false;
@@ -510,7 +530,7 @@ public sealed class BossEncounterController :
 
         bool spawnedPattern =
             TrySpawnPattern(
-                testPattern
+                activePattern
             );
 
         if (!spawnedPattern)
@@ -532,7 +552,7 @@ public sealed class BossEncounterController :
             );
 
         isEncounterActive =
-            currentBossBlock != null;
+            blockGridManager.RequiredEnemyCount > 0;
 
         isTransitioning = false;
         startCoroutine = null;
@@ -557,7 +577,7 @@ public sealed class BossEncounterController :
         Debug.Log(
             "BossEncounterController: " +
             $"보스전 시작 - " +
-            $"{testPattern.DisplayName}",
+            $"{GetActiveBossDisplayName()}",
             this
         );
     }
@@ -720,7 +740,8 @@ public sealed class BossEncounterController :
                 int health =
                     GetHealthForSymbol(
                         pattern,
-                        symbol
+                        symbol,
+                        definition
                     );
 
                 int attackPower =
@@ -756,8 +777,25 @@ public sealed class BossEncounterController :
             }
         }
 
-        if (currentBossBlock == null)
+        bool hasRequiredEnemy = false;
+
+        for (int i = 0; i < encounterBlocks.Count; i++)
         {
+            Block block = encounterBlocks[i];
+            if (block != null && block.Definition != null &&
+                block.Definition.ClearRole == BlockClearRole.RequiredEnemy)
+            {
+                hasRequiredEnemy = true;
+                break;
+            }
+        }
+
+        if (!hasRequiredEnemy)
+        {
+            Debug.LogError(
+                "BossEncounterController: 패턴에 RequiredEnemy 블록이 없습니다.",
+                pattern
+            );
             return false;
         }
 
@@ -1045,24 +1083,103 @@ public sealed class BossEncounterController :
 
     private int GetHealthForSymbol(
         BossPatternDefinition pattern,
-        char symbol)
+        char symbol,
+        BlockDefinition definition)
     {
+        int baseHealth;
+
         switch (symbol)
         {
             case 'B':
-                return pattern
+                baseHealth = pattern
                     .BossHealth;
+                break;
 
             case 'X':
-                return pattern
+                baseHealth = pattern
                     .PatternBlockHealth;
+                break;
 
             case '#':
-                return 1;
+                baseHealth = 1;
+                break;
 
             default:
-                return 1;
+                baseHealth = 1;
+                break;
         }
+
+        if (activeBossDefinition == null || definition == null ||
+            definition.ClearRole != BlockClearRole.RequiredEnemy)
+        {
+            return baseHealth;
+        }
+
+        return Mathf.Max(
+            Mathf.CeilToInt(baseHealth *
+                activeBossDefinition.RequiredEnemyHealthMultiplier),
+            1
+        );
+    }
+
+    private bool TrySelectBossDefinition()
+    {
+        activeBossDefinition = null;
+        activePattern = null;
+
+        int stageNumber =
+            roomNavigator != null && roomNavigator.CurrentMap != null
+                ? roomNavigator.CurrentMap.StageNumber
+                : 1;
+
+        if (bossCatalog != null && bossCatalog.TryResolve(
+                stageNumber,
+                out activeBossDefinition,
+                out bool usedFallback))
+        {
+            activePattern = activeBossDefinition.PatternDefinition;
+
+            if (usedFallback)
+            {
+                Debug.LogWarning(
+                    "BossEncounterController: " +
+                    $"스테이지 {stageNumber} 전용 보스가 없어 " +
+                    $"fallback '{activeBossDefinition.DisplayName}'을 사용합니다.",
+                    bossCatalog
+                );
+            }
+        }
+        else if (testPattern != null)
+        {
+            activePattern = testPattern;
+            Debug.LogWarning(
+                "BossEncounterController: Boss Catalog 선택에 실패해 " +
+                "레거시 Test Pattern을 사용합니다.",
+                this
+            );
+        }
+
+        if (activePattern != null)
+        {
+            return true;
+        }
+
+        Debug.LogError(
+            "BossEncounterController: 현재 스테이지에 사용할 보스 패턴이 없습니다.",
+            this
+        );
+        return false;
+    }
+
+    private string GetActiveBossDisplayName()
+    {
+        if (activeBossDefinition != null &&
+            !string.IsNullOrWhiteSpace(activeBossDefinition.DisplayName))
+        {
+            return activeBossDefinition.DisplayName;
+        }
+
+        return activePattern != null ? activePattern.DisplayName : "Boss";
     }
 
     private string GetSymbolName(
@@ -1166,7 +1283,7 @@ public sealed class BossEncounterController :
 
         Debug.Log(
             "BossEncounterController: " +
-            "보스전 종료 및 일반 웨이브 재개",
+            "보스전 종료 및 Boss 방 클리어 완료",
             this
         );
     }
@@ -1202,7 +1319,7 @@ public sealed class BossEncounterController :
                ballLauncher != null &&
                boardGrid != null &&
                blockPrefab != null &&
-               testPattern != null;
+               (bossCatalog != null || testPattern != null);
     }
 
     private void ClearEncounterObjects()

@@ -379,7 +379,9 @@ public sealed class BallBounceResolver
 
         if (isCornerContact)
         {
-            return -incomingVelocity.normalized;
+            // 진입 방향을 normal로 쓰면 항상 정반대로 되돌아가
+            // 인접 Collider 사이에서 같은 접점을 반복할 수 있다.
+            return physicsNormal;
         }
 
         bool useHorizontalNormal;
