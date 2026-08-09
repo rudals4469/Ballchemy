@@ -508,6 +508,20 @@ public sealed class StageRoomNavigator :
         currentMap =
             generatedMap;
 
+        if (blockGridManager != null &&
+            !blockGridManager.SynchronizeRoomStage(
+                currentMap.StageNumber))
+        {
+            Debug.LogError(
+                "StageRoomNavigator: " +
+                $"스테이지 {currentMap.StageNumber} 전투 상태를 " +
+                "초기화하지 못했습니다.",
+                this
+            );
+
+            return;
+        }
+
         blockGridManager
             ?.ClearRoomWaveSnapshots();
 

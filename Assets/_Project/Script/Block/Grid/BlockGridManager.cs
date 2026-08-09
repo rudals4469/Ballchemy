@@ -418,6 +418,41 @@ public sealed class BlockGridManager :
         return true;
     }
 
+    /*
+     * StageRoomNavigator가 생성한 방 맵의 스테이지 번호를 전투 런타임에 반영한다.
+     * 레거시 보스 완료 흐름처럼 다음 웨이브를 생성하지 않는다.
+     */
+    public bool SynchronizeRoomStage(
+        int stageNumber)
+    {
+        if (!InitializeRuntimeIfNeeded())
+        {
+            return false;
+        }
+
+        int normalizedStageNumber =
+            Mathf.Max(
+                stageNumber,
+                1
+            );
+
+        if (CurrentStageNumber ==
+            normalizedStageNumber)
+        {
+            return true;
+        }
+
+        waveDirector.SynchronizeRoomStage(
+            normalizedStageNumber
+        );
+
+        StageStarted?.Invoke(
+            CurrentStageNumber
+        );
+
+        return true;
+    }
+
     private void SubscribeEvents()
     {
         if (enemyAttackCycle != null)

@@ -11709,7 +11709,7 @@ MonoBehaviour:
   blockElementSystem: {fileID: 987058002}
   ballSealController: {fileID: 904823812}
   waveDirector:
-    totalStageCount: 5
+    totalStageCount: 6
     regularWaveCountPerStage: 9
     namedWaveInterval: 3
     namedHealthMultiplier: 3

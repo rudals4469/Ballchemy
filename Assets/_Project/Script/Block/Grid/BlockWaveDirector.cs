@@ -10,7 +10,7 @@ public sealed class BlockWaveDirector
         "한 런에서 진행할 전체 스테이지 수입니다."
     )]
     [SerializeField, Min(1)]
-    private int totalStageCount = 5;
+    private int totalStageCount = 6;
 
     [Tooltip(
         "보스전 전에 진행하는 일반 웨이브 수입니다.\n" +
@@ -120,6 +120,25 @@ public sealed class BlockWaveDirector
         isRunCompleted = false;
     }
 
+    /*
+     * 방 맵이 소유한 스테이지 번호를 레거시 웨이브 진행 상태에 반영한다.
+     * 다음 웨이브를 생성하지 않으며, 기존 보스 완료 API와도 독립적으로 동작한다.
+     */
+    public void SynchronizeRoomStage(
+        int stageNumber)
+    {
+        Normalize();
+
+        currentStageIndex =
+            Mathf.Max(
+                stageNumber - 1,
+                0
+            );
+
+        currentWaveIndex = 0;
+        isRunCompleted = false;
+    }
+
     public bool IsNamedWave(
         int waveNumber)
     {
@@ -173,20 +192,27 @@ public sealed class BlockWaveDirector
             waveGenerator
                 .GetRandomWaveRowCount();
 
+        int roomDifficultyIndex =
+            Mathf.Max(
+                currentStageIndex,
+                0
+            );
+
         switch (roomType)
         {
             case RoomType.NormalCombat:
                 return waveGenerator
                     .GenerateWave(
                         rowCount,
-                        currentWaveIndex,
+                        roomDifficultyIndex,
                         BlockType.Normal
                     );
 
             case RoomType.NamedCombat:
                 return GenerateNamedRoomWave(
                     waveGenerator,
-                    rowCount
+                    rowCount,
+                    roomDifficultyIndex
                 );
 
             default:
@@ -202,7 +228,8 @@ public sealed class BlockWaveDirector
 
     private List<Block> GenerateNamedRoomWave(
         BlockWaveGenerator waveGenerator,
-        int baseRowCount)
+        int baseRowCount,
+        int roomDifficultyIndex)
     {
         BlockDefinition namedDefinition =
             waveGenerator.GetRandomDefinition(
@@ -219,7 +246,7 @@ public sealed class BlockWaveDirector
 
             return waveGenerator.GenerateWave(
                 baseRowCount,
-                currentWaveIndex,
+                roomDifficultyIndex,
                 BlockType.Normal
             );
         }
@@ -232,7 +259,7 @@ public sealed class BlockWaveDirector
 
         return waveGenerator.GenerateFeaturedWave(
             requiredRowCount,
-            currentWaveIndex,
+            roomDifficultyIndex,
             namedDefinition,
             namedHealthMultiplier,
             namedAttackMultiplier
