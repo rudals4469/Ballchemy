@@ -57,6 +57,16 @@ public sealed class StageRoomNavigator :
     public RoomNode CurrentRoom =>
         currentRoom;
 
+    public bool CanAdvanceToNextStage =>
+        currentMap != null &&
+        currentRoom != null &&
+        currentRoom.RoomType == RoomType.Boss &&
+        IsRoomCleared(currentRoom.RoomId) &&
+        !isNavigationLocked &&
+        Ball.ActiveMovingBallCount <= 0 &&
+        turnManager != null &&
+        turnManager.CanAim;
+
     public RoomNode PreviousRoom =>
         previousRoom;
 
@@ -1442,6 +1452,42 @@ public sealed class StageRoomNavigator :
         TryMove(
             RoomDirection.Left
         );
+    }
+
+    public bool TryAdvanceToNextStage()
+    {
+        if (!CanAdvanceToNextStage || mapGenerator == null)
+        {
+            return false;
+        }
+
+        int nextStageNumber =
+            Mathf.Max(currentMap.StageNumber + 1, 1);
+
+        SetNavigationLocked(true);
+        turnManager?.SetInputLocked(true);
+
+        StageMap nextMap =
+            mapGenerator.GenerateStage(nextStageNumber);
+
+        if (nextMap != null && nextMap.RoomCount > 0)
+        {
+            Debug.Log(
+                "StageRoomNavigator: " +
+                $"스테이지 {nextStageNumber} 맵으로 전환했습니다.",
+                this
+            );
+            return true;
+        }
+
+        SetNavigationLocked(false);
+        turnManager?.SetInputLocked(false);
+
+        Debug.LogError(
+            "StageRoomNavigator: 다음 스테이지 맵 생성에 실패했습니다.",
+            this
+        );
+        return false;
     }
 
     private void HandleTurnStateChanged(

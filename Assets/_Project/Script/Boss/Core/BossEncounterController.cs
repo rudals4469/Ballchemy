@@ -36,6 +36,9 @@ public sealed class BossEncounterController :
     private Transform bossBlockContainer;
 
     [SerializeField]
+    private EnemyAttackSequence enemyAttackSequence;
+
+    [SerializeField]
     private BossCatalog bossCatalog;
 
     [Tooltip("기존 Scene 직렬화 보존 및 Catalog 누락 시 fallback용입니다.")]
@@ -78,6 +81,8 @@ public sealed class BossEncounterController :
     private bool isTransitioning;
     private bool isBossDefeatPending;
     private int activeBossRoomId = -1;
+    private int nextAttackIndex;
+    private int turnsUntilBossAttack;
 
     public bool IsEncounterActive =>
         isEncounterActive;
@@ -87,6 +92,9 @@ public sealed class BossEncounterController :
 
     public Block CurrentBossBlock =>
         currentBossBlock;
+
+    public int TurnsUntilBossAttack =>
+        turnsUntilBossAttack;
 
     public event Action
         BossEncounterStarted;
@@ -196,6 +204,12 @@ public sealed class BossEncounterController :
                 transform;
         }
 
+        if (enemyAttackSequence == null)
+        {
+            enemyAttackSequence =
+                FindFirstObjectByType<EnemyAttackSequence>();
+        }
+
         if (roomNavigator == null)
         {
             roomNavigator =
@@ -276,6 +290,14 @@ public sealed class BossEncounterController :
             Debug.LogWarning(
                 "BossEncounterController: " +
                 "Boss Catalog가 연결되지 않아 레거시 Test Pattern fallback을 확인합니다.",
+                this
+            );
+        }
+
+        if (enemyAttackSequence == null)
+        {
+            Debug.LogError(
+                "BossEncounterController: EnemyAttackSequence가 연결되지 않았습니다.",
                 this
             );
         }
@@ -470,6 +492,8 @@ public sealed class BossEncounterController :
 
         isTransitioning = true;
         isBossDefeatPending = false;
+        nextAttackIndex = 0;
+        turnsUntilBossAttack = 0;
         activeBossRoomId = roomId;
 
         turnManager?.SetInputLocked(
@@ -550,6 +574,14 @@ public sealed class BossEncounterController :
             .PlayRoutine(
                 entranceItems
             );
+
+        entranceItems.Clear();
+
+        nextAttackIndex = 0;
+        turnsUntilBossAttack =
+            activeBossDefinition != null
+                ? activeBossDefinition.AttackIntervalTurns
+                : 1;
 
         isEncounterActive =
             blockGridManager.RequiredEnemyCount > 0;
@@ -1288,6 +1320,210 @@ public sealed class BossEncounterController :
         );
     }
 
+    public IEnumerator ResolveBossTurnRoutine()
+    {
+        if (!isEncounterActive || isTransitioning ||
+            isBossDefeatPending || activeBossDefinition == null ||
+            blockGridManager == null ||
+            blockGridManager.RequiredEnemyCount <= 0)
+        {
+            yield break;
+        }
+
+        turnsUntilBossAttack =
+            Mathf.Max(turnsUntilBossAttack - 1, 0);
+
+        if (turnsUntilBossAttack > 0)
+        {
+            yield break;
+        }
+
+        BossAttackDefinition attack =
+            activeBossDefinition.GetAttack(nextAttackIndex);
+
+        nextAttackIndex++;
+        turnsUntilBossAttack =
+            activeBossDefinition.AttackIntervalTurns;
+
+        if (attack == null)
+        {
+            Debug.LogWarning(
+                "BossEncounterController: 실행할 보스 공격 데이터가 없습니다.",
+                activeBossDefinition
+            );
+            yield break;
+        }
+
+        List<Block> attackers =
+            CreateAttackers(attack);
+
+        if (attackers.Count > 0 && enemyAttackSequence != null)
+        {
+            Debug.Log(
+                "BossEncounterController: " +
+                $"'{attack.DisplayName}' 실행, 공격 블록 {attackers.Count}개",
+                this
+            );
+
+            yield return enemyAttackSequence.ResolveAttackRoutine(
+                attackers,
+                attack.Damage
+            );
+        }
+
+        if (turnManager != null && turnManager.IsGameOver)
+        {
+            yield break;
+        }
+
+        yield return SpawnPostAttackBlocksRoutine();
+    }
+
+    private List<Block> CreateAttackers(
+        BossAttackDefinition attack)
+    {
+        List<Block> result = new List<Block>();
+
+        if (attack.AttackType == BossAttackType.DirectBossAttack)
+        {
+            if (currentBossBlock != null && currentBossBlock.IsAlive)
+            {
+                result.Add(currentBossBlock);
+            }
+
+            return result;
+        }
+
+        for (int i = 0; i < encounterBlocks.Count; i++)
+        {
+            Block block = encounterBlocks[i];
+
+            if (block == null || !block.IsAlive ||
+                block.Definition == null || activePattern == null ||
+                block.Definition != activePattern.BreakablePatternDefinition)
+            {
+                continue;
+            }
+
+            result.Add(block);
+        }
+
+        Shuffle(result);
+
+        int selectedCount =
+            Mathf.Min(attack.SelectedBlockCount, result.Count);
+
+        if (result.Count > selectedCount)
+        {
+            result.RemoveRange(
+                selectedCount,
+                result.Count - selectedCount
+            );
+        }
+
+        return result;
+    }
+
+    private IEnumerator SpawnPostAttackBlocksRoutine()
+    {
+        int requestedCount =
+            activeBossDefinition.SpawnedBlockCountPerAttack;
+
+        BlockDefinition spawnDefinition =
+            activePattern != null
+                ? activePattern.BreakablePatternDefinition
+                : null;
+
+        if (requestedCount <= 0 || spawnDefinition == null)
+        {
+            yield break;
+        }
+
+        List<Vector2Int> emptyCells = FindEmptySpawnCells();
+        Shuffle(emptyCells);
+
+        int spawnCount = Mathf.Min(requestedCount, emptyCells.Count);
+        List<Block> spawnedBlocks = new List<Block>();
+        entranceItems.Clear();
+
+        for (int i = 0; i < spawnCount; i++)
+        {
+            Vector2Int cell = emptyCells[i];
+            Block spawnedBlock = SpawnPatternBlock(
+                spawnDefinition,
+                'X',
+                cell.x,
+                cell.y,
+                cell.y,
+                activeBossDefinition.SpawnedBlockHealth,
+                0
+            );
+
+            if (spawnedBlock == null)
+            {
+                continue;
+            }
+
+            encounterBlocks.Add(spawnedBlock);
+            spawnedBlocks.Add(spawnedBlock);
+        }
+
+        blockGridManager.RegisterBossEncounterBlocks(spawnedBlocks);
+
+        if (entranceItems.Count > 0)
+        {
+            yield return entranceAnimator.PlayRoutine(entranceItems);
+            entranceItems.Clear();
+        }
+    }
+
+    private List<Vector2Int> FindEmptySpawnCells()
+    {
+        List<Vector2Int> result = new List<Vector2Int>();
+
+        if (boardGrid == null)
+        {
+            return result;
+        }
+
+        int maximumSpawnRow = Mathf.Max(boardGrid.RowCount - 2, -1);
+
+        for (int row = 0; row <= maximumSpawnRow; row++)
+        {
+            for (int column = 0; column < boardGrid.ColumnCount; column++)
+            {
+                bool occupied = false;
+
+                for (int i = 0; i < encounterBlocks.Count; i++)
+                {
+                    Block block = encounterBlocks[i];
+                    if (block != null && block.IsAlive &&
+                        block.OccupiesCell(column, row))
+                    {
+                        occupied = true;
+                        break;
+                    }
+                }
+
+                if (!occupied)
+                {
+                    result.Add(new Vector2Int(column, row));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static void Shuffle<T>(List<T> items)
+    {
+        for (int i = items.Count - 1; i > 0; i--)
+        {
+            int swapIndex = UnityEngine.Random.Range(0, i + 1);
+            (items[i], items[swapIndex]) = (items[swapIndex], items[i]);
+        }
+    }
+
     private void RecoverFromFailedStart()
     {
         ClearEncounterObjects();
@@ -1319,6 +1555,7 @@ public sealed class BossEncounterController :
                ballLauncher != null &&
                boardGrid != null &&
                blockPrefab != null &&
+               enemyAttackSequence != null &&
                (bossCatalog != null || testPattern != null);
     }
 

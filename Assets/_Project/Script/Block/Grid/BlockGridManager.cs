@@ -31,6 +31,9 @@ public sealed class BlockGridManager :
     [SerializeField]
     private BallSealController ballSealController;
 
+    [SerializeField]
+    private BossEncounterController bossEncounterController;
+
     [Header("Wave Progression")]
     [SerializeField]
     private BlockWaveDirector waveDirector =
@@ -267,6 +270,12 @@ public sealed class BlockGridManager :
                 FindFirstObjectByType<
                     BallSealController
                 >();
+        }
+
+        if (bossEncounterController == null)
+        {
+            bossEncounterController =
+                FindFirstObjectByType<BossEncounterController>();
         }
     }
 
@@ -625,6 +634,12 @@ public sealed class BlockGridManager :
 
         if (bossMode.IsActive)
         {
+            if (bossEncounterController != null)
+            {
+                yield return bossEncounterController
+                    .ResolveBossTurnRoutine();
+            }
+
             Debug.Log(
                 "BlockGridManager: " +
                 $"스테이지 {CurrentStageNumber}, " +

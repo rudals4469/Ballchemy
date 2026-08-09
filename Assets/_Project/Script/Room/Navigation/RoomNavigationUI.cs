@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public sealed class RoomNavigationUI :
     MonoBehaviour
@@ -27,6 +28,10 @@ public sealed class RoomNavigationUI :
     [SerializeField]
     private Button leftButton;
 
+    [Header("Stage Progression")]
+    [SerializeField]
+    private Button nextStageButton;
+
     [Header("Display")]
 
     [Tooltip(
@@ -40,6 +45,7 @@ public sealed class RoomNavigationUI :
     private void Awake()
     {
         FindReferences();
+        CreateNextStageButtonIfNeeded();
         ValidateReferences();
         BindButtons();
     }
@@ -142,6 +148,10 @@ public sealed class RoomNavigationUI :
         leftButton?.onClick.AddListener(
             HandleLeftClicked
         );
+
+        nextStageButton?.onClick.AddListener(
+            HandleNextStageClicked
+        );
     }
 
     private void UnbindButtons()
@@ -160,6 +170,10 @@ public sealed class RoomNavigationUI :
 
         leftButton?.onClick.RemoveListener(
             HandleLeftClicked
+        );
+
+        nextStageButton?.onClick.RemoveListener(
+            HandleNextStageClicked
         );
     }
 
@@ -225,6 +239,22 @@ public sealed class RoomNavigationUI :
 
     public void Refresh()
     {
+        bool showNextStage =
+            navigator != null &&
+            navigator.CanAdvanceToNextStage;
+
+        if (nextStageButton != null)
+        {
+            nextStageButton.gameObject.SetActive(showNextStage);
+            nextStageButton.interactable = showNextStage;
+        }
+
+        if (showNextStage)
+        {
+            SetDirectionButtonsActive(false);
+            return;
+        }
+
         RefreshButton(
             upButton,
             RoomDirection.Up
@@ -312,6 +342,78 @@ public sealed class RoomNavigationUI :
             ?.TryMoveFromDirectionButton(
                 RoomDirection.Left
             );
+    }
+
+    private void HandleNextStageClicked()
+    {
+        if (navigator != null &&
+            navigator.TryAdvanceToNextStage())
+        {
+            Refresh();
+        }
+    }
+
+    private void SetDirectionButtonsActive(
+        bool isActive)
+    {
+        upButton?.gameObject.SetActive(isActive);
+        rightButton?.gameObject.SetActive(isActive);
+        downButton?.gameObject.SetActive(isActive);
+        leftButton?.gameObject.SetActive(isActive);
+    }
+
+    private void CreateNextStageButtonIfNeeded()
+    {
+        if (nextStageButton != null || upButton == null)
+        {
+            return;
+        }
+
+        nextStageButton = Instantiate(
+            upButton,
+            upButton.transform.parent
+        );
+
+        nextStageButton.name = "NextStageButton";
+        nextStageButton.onClick.RemoveAllListeners();
+
+        RectTransform sourceRect =
+            upButton.transform as RectTransform;
+        RectTransform targetRect =
+            nextStageButton.transform as RectTransform;
+
+        if (sourceRect != null && targetRect != null)
+        {
+            Vector2 sourceSize = sourceRect.rect.size;
+            targetRect.anchorMin = new Vector2(0.5f, 0.5f);
+            targetRect.anchorMax = new Vector2(0.5f, 0.5f);
+            targetRect.anchoredPosition = Vector2.zero;
+            targetRect.sizeDelta = new Vector2(
+                sourceSize.x > 0f
+                    ? sourceSize.x * 2f
+                    : 160f,
+                sourceSize.y > 0f
+                    ? sourceSize.y * 2f
+                    : 80f
+            );
+            targetRect.localScale = Vector3.one;
+        }
+
+        TMP_Text label =
+            nextStageButton.GetComponentInChildren<TMP_Text>(true);
+
+        if (label != null)
+        {
+            label.text = "다음 스테이지";
+        }
+
+        Image image = nextStageButton.targetGraphic as Image;
+        if (image != null)
+        {
+            image.color = new Color(0.35f, 0.85f, 0.45f, 1f);
+        }
+
+        nextStageButton.gameObject.SetActive(false);
     }
 
     private void HandleMapInitialized(

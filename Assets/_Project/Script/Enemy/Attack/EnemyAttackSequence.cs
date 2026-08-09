@@ -169,9 +169,20 @@ public sealed class EnemyAttackSequence :
     public IEnumerator ResolveAttackRoutine(
         IReadOnlyList<Block> blocks)
     {
+        yield return ResolveAttackRoutine(
+            blocks,
+            0
+        );
+    }
+
+    public IEnumerator ResolveAttackRoutine(
+        IReadOnlyList<Block> blocks,
+        int overrideAttackPower)
+    {
         List<Block> attackers =
             CreateAttackSnapshot(
-                blocks
+                blocks,
+                overrideAttackPower > 0
             );
 
         Debug.Log(
@@ -210,7 +221,9 @@ public sealed class EnemyAttackSequence :
 
             int damage =
                 CalculateModifiedAttackPower(
-                    attackingBlock.AttackPower
+                    overrideAttackPower > 0
+                        ? overrideAttackPower
+                        : attackingBlock.AttackPower
                 );
 
             if (damage <= 0)
@@ -379,7 +392,8 @@ public sealed class EnemyAttackSequence :
     }
 
     private List<Block> CreateAttackSnapshot(
-        IReadOnlyList<Block> blocks)
+        IReadOnlyList<Block> blocks,
+        bool includeBlocksWithoutAttackPower)
     {
         List<Block> result =
             new List<Block>();
@@ -393,7 +407,8 @@ public sealed class EnemyAttackSequence :
         {
             if (block == null ||
                 !block.IsAlive ||
-                block.AttackPower <= 0)
+                (!includeBlocksWithoutAttackPower &&
+                 block.AttackPower <= 0))
             {
                 continue;
             }
