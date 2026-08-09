@@ -9340,7 +9340,6 @@ GameObject:
   - component: {fileID: 752058832}
   - component: {fileID: 752058831}
   - component: {fileID: 752058830}
-  - component: {fileID: 752058829}
   m_Layer: 0
   m_Name: AlchemySlot03
   m_TagString: Untagged
@@ -9369,26 +9368,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &752058829
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 752058827}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 57dc427553e85da4f84ae9852f36dd2c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShopItemSlotPresenter
-  slotButton: {fileID: 752058831}
-  itemIcon: {fileID: 1173001125}
-  itemNameText: {fileID: 1990201967}
-  itemDescriptionText: {fileID: 1820222381}
-  priceText: {fileID: 0}
-  soldOutRoot: {fileID: 0}
-  goldSuffix: Gold
-  useSpaceBeforeGoldSuffix: 1
 --- !u!114 &752058830
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12328,7 +12307,6 @@ GameObject:
   - component: {fileID: 955334877}
   - component: {fileID: 955334876}
   - component: {fileID: 955334875}
-  - component: {fileID: 955334874}
   m_Layer: 0
   m_Name: AlchemySlot01
   m_TagString: Untagged
@@ -12357,26 +12335,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &955334874
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 955334872}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 57dc427553e85da4f84ae9852f36dd2c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShopItemSlotPresenter
-  slotButton: {fileID: 955334876}
-  itemIcon: {fileID: 1578434867}
-  itemNameText: {fileID: 1438580404}
-  itemDescriptionText: {fileID: 1764076949}
-  priceText: {fileID: 0}
-  soldOutRoot: {fileID: 0}
-  goldSuffix: Gold
-  useSpaceBeforeGoldSuffix: 1
 --- !u!114 &955334875
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17794,7 +17752,6 @@ GameObject:
   - component: {fileID: 1361539186}
   - component: {fileID: 1361539185}
   - component: {fileID: 1361539184}
-  - component: {fileID: 1361539183}
   m_Layer: 0
   m_Name: AlchemySlot02
   m_TagString: Untagged
@@ -17823,26 +17780,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1361539183
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1361539181}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 57dc427553e85da4f84ae9852f36dd2c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ShopItemSlotPresenter
-  slotButton: {fileID: 1361539185}
-  itemIcon: {fileID: 2008870997}
-  itemNameText: {fileID: 737661108}
-  itemDescriptionText: {fileID: 982592462}
-  priceText: {fileID: 0}
-  soldOutRoot: {fileID: 0}
-  goldSuffix: Gold
-  useSpaceBeforeGoldSuffix: 1
 --- !u!114 &1361539184
 MonoBehaviour:
   m_ObjectHideFlags: 0
