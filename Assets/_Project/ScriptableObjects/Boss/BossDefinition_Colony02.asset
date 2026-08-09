@@ -18,17 +18,26 @@ MonoBehaviour:
   encounterArchetype: 1
   requiredEnemyHealthMultiplier: 1
   attackIntervalTurns: 1
-  attacks: []
+  attacks:
+  - {fileID: 11400000, guid: bbfdca8c20684898a017c3719130821a, type: 2}
+  - {fileID: 11400000, guid: b3b235fb1cbf41ca8cb815a5f7a54312, type: 2}
+  - {fileID: 11400000, guid: 4bc70e0912b54ac69bd034780d472f12, type: 2}
   spawnedBlockCountPerAttack: 0
   spawnedBlockIncreasePerStage: 0
   spawnedBlockHealth: 3
-  specialBlockSpawnChance: 0
+  specialBlockSpawnChance: 0.1
   specialBlockHealth: 3
-  specialBlockDefinitions: []
+  specialBlockDefinitions:
+  - {fileID: 11400000, guid: 8234a9904e8bf67468de971f2a7187f2, type: 2}
+  - {fileID: 11400000, guid: f1d0f78eeea0dfe4fac344b6c180626e, type: 2}
+  - {fileID: 11400000, guid: c3b3611aeda1e614a86eea0895edde34, type: 2}
+  - {fileID: 11400000, guid: ee30b6b87a29ed24191f2b23c6c0ec57, type: 2}
+  - {fileID: 11400000, guid: 07a1e78f430ea7c48a1167689f7e7a9c, type: 2}
   colonyMinimumCoreCount: 2
   colonyMaximumCoreCount: 4
   colonyInitialGrowthCount: 3
-  colonyGrowthBlockHealth: 3
+  colonyMaximumSpawnRowRatio: 0.5
+  colonyGrowthHealthRatioRange: {x: 0.4, y: 0.6}
   colonyMinimumCoreDistance: 4
   colonyInitialGrowthStepDelay: 0.22
   colonyGrowthOutlineColor: {r: 0.25, g: 1, b: 0.35, a: 0.95}

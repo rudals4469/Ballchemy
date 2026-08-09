@@ -12211,7 +12211,7 @@ MonoBehaviour:
     impactPause: 0.025
     settleDuration: 0.12
   boardClearDelay: 0.15
-  enableBossTestKey: 0
+  enableBossTestKey: 1
 --- !u!114 &1004609281
 MonoBehaviour:
   m_ObjectHideFlags: 0

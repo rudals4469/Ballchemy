@@ -17,6 +17,21 @@ public sealed class BossCatalog : ScriptableObject
     [SerializeField] private BossDefinition[] bossPool = Array.Empty<BossDefinition>();
     [SerializeField] private BossDefinition fallbackBoss;
 
+    [Header("Boss Test Override")]
+    [Tooltip("활성화하면 모든 스테이지에서 아래 테스트 보스를 우선 사용합니다.")]
+    [SerializeField] private bool useTestBossOverride;
+    [SerializeField] private BossDefinition testBoss;
+
+    public bool TryGetTestBoss(
+        out BossDefinition boss)
+    {
+        boss = useTestBossOverride
+            ? testBoss
+            : null;
+
+        return boss != null;
+    }
+
     public int CopyUniqueBossesTo(
         List<BossDefinition> destination)
     {
@@ -32,6 +47,16 @@ public sealed class BossCatalog : ScriptableObject
             bossPool
         );
 
+        return destination.Count;
+    }
+
+    public bool TryGetStageBoss(
+        int stageNumber,
+        out BossDefinition boss)
+    {
+        boss = null;
+        stageNumber = Mathf.Max(stageNumber, 1);
+
         int entryCount =
             stageBosses != null
                 ? stageBosses.Length
@@ -42,37 +67,30 @@ public sealed class BossCatalog : ScriptableObject
             StageBossEntry entry =
                 stageBosses[i];
 
-            AddUniqueBoss(
-                destination,
-                entry != null
-                    ? entry.bossDefinition
-                    : null
-            );
+            if (entry == null ||
+                entry.stageNumber != stageNumber ||
+                entry.bossDefinition == null)
+            {
+                continue;
+            }
+
+            boss = entry.bossDefinition;
+            return true;
         }
 
-        AddUniqueBoss(
-            destination,
-            fallbackBoss
-        );
-
-        return destination.Count;
+        return false;
     }
 
     public bool TryResolve(int stageNumber, out BossDefinition boss, out bool usedFallback)
     {
         stageNumber = Mathf.Max(stageNumber, 1);
 
-        int entryCount = stageBosses != null ? stageBosses.Length : 0;
-
-        for (int i = 0; i < entryCount; i++)
+        if (TryGetStageBoss(
+                stageNumber,
+                out boss))
         {
-            StageBossEntry entry = stageBosses[i];
-            if (entry != null && entry.stageNumber == stageNumber && entry.bossDefinition != null)
-            {
-                boss = entry.bossDefinition;
-                usedFallback = false;
-                return true;
-            }
+            usedFallback = false;
+            return true;
         }
 
         boss = fallbackBoss;

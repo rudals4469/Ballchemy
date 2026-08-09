@@ -907,6 +907,83 @@ public sealed class BlockGridManager :
         blockRegistry.RemoveInvalidBlocks();
     }
 
+    public List<Block> GenerateBossEncounterWave(
+        int rowCount,
+        int waveIndex,
+        ISet<string> excludedSpecialBlockIds = null)
+    {
+        if (!bossMode.IsActive ||
+            waveGenerator == null)
+        {
+            return new List<Block>();
+        }
+
+        List<Block> generatedBlocks =
+            waveGenerator.GenerateWave(
+                rowCount,
+                waveIndex,
+                excludedSpecialBlockIds
+            );
+
+        blockRegistry.AddRange(generatedBlocks);
+        blockRegistry.RemoveInvalidBlocks();
+
+        return generatedBlocks;
+    }
+
+    public int GetBossEncounterWaveLayoutRowCount(
+        int requestedRowCount)
+    {
+        return waveGenerator != null
+            ? waveGenerator.GetWaveLayoutRowCount(
+                requestedRowCount
+            )
+            : Mathf.Max(requestedRowCount, 1);
+    }
+
+    public IEnumerator MoveBossEncounterBlocksDownRoutine(
+        int rowCount)
+    {
+        if (!bossMode.IsActive ||
+            gridMover == null)
+        {
+            yield break;
+        }
+
+        blockRegistry.RemoveInvalidBlocks();
+
+        List<Block> movingBlocks =
+            new List<Block>(
+                blockRegistry.ActiveBlocks
+            );
+
+        yield return gridMover.MoveDownRoutine(
+            movingBlocks,
+            rowCount
+        );
+
+        blockRegistry.RemoveInvalidBlocks();
+    }
+
+    public IEnumerator MoveBossEncounterBlocksDownRoutine(
+        IReadOnlyList<Block> blocks,
+        int rowCount)
+    {
+        if (!bossMode.IsActive ||
+            gridMover == null ||
+            blocks == null)
+        {
+            yield break;
+        }
+
+        yield return gridMover.MoveDownRoutine(
+            blocks,
+            rowCount
+        );
+
+        blockRegistry.RemoveInvalidBlocks();
+    }
+
     public bool CancelBossRoomEncounterMode()
     {
         if (!bossMode.CompleteRoomEncounter())

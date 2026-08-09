@@ -376,6 +376,9 @@ public sealed class BallCombatController :
                 0
             );
 
+        bool useAppliedDamageForText =
+            target.IsIndestructible;
+
         target.TakeDamage(
             calculatedDamage
         );
@@ -425,7 +428,10 @@ public sealed class BallCombatController :
                 calculatedDamage,
                 appliedHealthDamage,
                 hitPoint,
-                resolvedStyle
+                resolvedStyle,
+                useAppliedDamageForText
+                    ? appliedHealthDamage
+                    : -1
             )
         );
 

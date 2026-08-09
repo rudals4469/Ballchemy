@@ -203,6 +203,11 @@ public sealed class BallSealController :
         );
     }
 
+    public void ClearEncounterSeal()
+    {
+        ClearSeal("보스방 종료");
+    }
+
     /*
      * 실제 새 웨이브 생성이 완료됐을 때 호출한다.
      */

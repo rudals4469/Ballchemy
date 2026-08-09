@@ -410,7 +410,9 @@ public sealed class BlockHealthView :
 
         bool shouldShowHealth =
             block != null &&
-            block.IsBreakable;
+            (block.IsBreakable ||
+             (block.Definition != null &&
+              block.Definition.BlockType == BlockType.Boss));
 
         healthText.enabled =
             shouldShowHealth;

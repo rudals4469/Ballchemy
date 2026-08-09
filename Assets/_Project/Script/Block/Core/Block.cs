@@ -757,6 +757,48 @@ public sealed class Block :
         }
     }
 
+    public void TakeScriptedDamage(
+        int damage)
+    {
+        if (damage <= 0 ||
+            !IsAlive ||
+            isDestructionStarted)
+        {
+            return;
+        }
+
+        currentHealth = Mathf.Max(
+            currentHealth - damage,
+            0
+        );
+
+        HealthChanged?.Invoke(
+            currentHealth,
+            maxHealth
+        );
+
+        if (currentHealth <= 0)
+        {
+            DestroyBlock();
+        }
+    }
+
+    public void IncreaseMaxHealthAndHeal(int amount)
+    {
+        if (amount <= 0 || !IsAlive)
+        {
+            return;
+        }
+
+        maxHealth += amount;
+        currentHealth += amount;
+
+        HealthChanged?.Invoke(
+            currentHealth,
+            maxHealth
+        );
+    }
+
     public bool RegisterGuardianProtection(
         Block provider)
     {

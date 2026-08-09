@@ -657,6 +657,27 @@ public sealed class BlockWavePatternBuilder
             teleportSettings);
     }
 
+    public int CalculateLayoutRowCount(
+        int requestedRowCount,
+        int boardRowCount)
+    {
+        int logicalRowCount = Mathf.Clamp(
+            requestedRowCount,
+            1,
+            Mathf.Max(boardRowCount, 1)
+        );
+
+        int rowSpacing = GetAppliedRowSpacing(
+            logicalRowCount,
+            Mathf.Max(boardRowCount, 1)
+        );
+
+        return GetLayoutRowCount(
+            logicalRowCount,
+            rowSpacing
+        );
+    }
+
     private int GetAppliedRowSpacing(
         int logicalRowCount,
         int boardRowCount)

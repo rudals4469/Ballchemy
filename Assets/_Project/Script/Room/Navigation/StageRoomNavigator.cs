@@ -873,6 +873,62 @@ public sealed class StageRoomNavigator :
         );
     }
 
+    public bool TryDebugEnterBossRoom()
+    {
+        if (currentMap == null ||
+            currentRoom == null ||
+            isNavigationLocked ||
+            Ball.ActiveMovingBallCount > 0)
+        {
+            return false;
+        }
+
+        if (currentRoom.RoomType ==
+            RoomType.Boss)
+        {
+            return bossEncounterController != null &&
+                   bossEncounterController
+                       .StartBossEncounter();
+        }
+
+        IReadOnlyList<RoomNode> rooms =
+            currentMap.Rooms;
+
+        if (rooms == null)
+        {
+            return false;
+        }
+
+        for (int i = 0;
+             i < rooms.Count;
+             i++)
+        {
+            RoomNode room = rooms[i];
+
+            if (room == null ||
+                room.RoomType != RoomType.Boss ||
+                IsRoomCleared(room.RoomId))
+            {
+                continue;
+            }
+
+            Debug.Log(
+                "StageRoomNavigator: B키 디버그로 보스방에 입장합니다. " +
+                $"RoomId={room.RoomId}",
+                this
+            );
+
+            return CompleteRoomMove(room);
+        }
+
+        Debug.LogWarning(
+            "StageRoomNavigator: 입장할 수 있는 보스방을 찾지 못했습니다.",
+            this
+        );
+
+        return false;
+    }
+
     private bool MoveToAdjacentRoom(
         RoomNode targetRoom)
     {

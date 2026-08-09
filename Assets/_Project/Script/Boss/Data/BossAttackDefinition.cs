@@ -3,7 +3,8 @@ using UnityEngine;
 public enum BossAttackType
 {
     DirectBossAttack = 0,
-    SelectedBlockAttack = 1
+    SelectedBlockAttack = 1,
+    ColonyDoubleGrowth = 2
 }
 
 [CreateAssetMenu(

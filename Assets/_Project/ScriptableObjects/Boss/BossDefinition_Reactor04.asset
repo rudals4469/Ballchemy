@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43c816695e2f4c48a4dc80d9f5721467, type: 3}
+  m_Name: BossDefinition_Reactor04
+  m_EditorClassIdentifier: Assembly-CSharp::BossDefinition
+  bossId: boss_reactor_04
+  displayName: Bomb Reactor
+  patternDefinition: {fileID: 11400000, guid: cd19058352014c66a9667d80a0804112, type: 2}
+  encounterArchetype: 3
+  requiredEnemyHealthMultiplier: 1
+  attackIntervalTurns: 3
+  attacks: []
+  spawnedBlockCountPerAttack: 0
+  spawnedBlockIncreasePerStage: 0
+  spawnedBlockHealth: 1
+  specialBlockSpawnChance: 0
+  specialBlockHealth: 1
+  specialBlockDefinitions: []
+  colonyMinimumCoreCount: 2
+  colonyMaximumCoreCount: 4
+  colonyInitialGrowthCount: 3
+  colonyMaximumSpawnRowRatio: 0.5
+  colonyGrowthHealthRatioRange: {x: 0.4, y: 0.6}
+  colonyMinimumCoreDistance: 4
+  colonyInitialGrowthStepDelay: 0.22
+  colonyGrowthOutlineColor: {r: 0.25, g: 1, b: 0.35, a: 0.95}
+  descendingWaveCount: 10
+  descendingMinimumRowCount: 2
+  descendingMaximumRowCount: 4
+  descendingDamagePerEscapedBlock: 1
+  reactorBombDefinition: {fileID: 11400000, guid: b8ffbb2c9b494eaa9c4ed3ed5c7a02ac, type: 2}
+  reactorBombsToDestroy: 10
+  reactorBombHealth: 5
+  reactorInitialBombCount: 10
+  reactorBombsPerTurn: 10
+  reactorDescentRowCount: 1
+  reactorEscapedBombDamage: 2
+  reactorBombDamage: 20
+  reactorExplosionBlockDamage: 1
+  reactorChainBossDamageBonus: 5
+  reactorBaseAttackDamage: 2
+  reactorCrossLockBonusDamage: 20
+  reactorCrossLockAttackDelay: 1
+  reactorBlockerDefinition: {fileID: 11400000, guid: 9ed93fcc248c4d5aadc8310f7ee84ae9, type: 2}
+  reactorBlockerCount: 6
+  arenaNormalBlockDefinition: {fileID: 11400000, guid: 86b5baec405c41a8b94e40b80f60a7d2, type: 2}
+  arenaNormalBlockCount: 24
+  arenaNormalBlockHealth: 8
+  arenaNormalRegenerationIntervalTurns: 3
+  arenaNormalRegenerationCount: 6

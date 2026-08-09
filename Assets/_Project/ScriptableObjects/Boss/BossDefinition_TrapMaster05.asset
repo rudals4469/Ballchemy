@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43c816695e2f4c48a4dc80d9f5721467, type: 3}
+  m_Name: BossDefinition_TrapMaster05
+  m_EditorClassIdentifier: Assembly-CSharp::BossDefinition
+  bossId: boss_trap_master_05
+  displayName: Trap Master
+  patternDefinition: {fileID: 11400000, guid: 7ad7917cca484d2ca3a372f0c857a70d, type: 2}
+  encounterArchetype: 4
+  requiredEnemyHealthMultiplier: 1
+  attackIntervalTurns: 1
+  attacks: []
+  spawnedBlockCountPerAttack: 0
+  spawnedBlockIncreasePerStage: 0
+  spawnedBlockHealth: 1
+  specialBlockSpawnChance: 0
+  specialBlockHealth: 1
+  specialBlockDefinitions: []
+  trapDefinitions:
+  - {fileID: 11400000, guid: 05022a34b57c47239e99086d74e3f543, type: 2}
+  - {fileID: 11400000, guid: 111404b6f0af4650b39b3941f993a44c, type: 2}
+  - {fileID: 11400000, guid: 4d3783f9140b408c98e36a0389197811, type: 2}
+  - {fileID: 11400000, guid: 5511cd2e247e42b4a6acaf0b6a888d4d, type: 2}
+  - {fileID: 11400000, guid: 875b1e8aa37547a68f1091001085a163, type: 2}
+  trapTerrainDefinition: {fileID: 11400000, guid: 4488b2421ac447d7b5dd6c8617ec8154, type: 2}
+  trapAmplifierDefinition: {fileID: 11400000, guid: f3949ca2eb6c46459a7e2497b9bfc134, type: 2}
+  trapInitialCount: 4
+  trapSpawnCountPerTurn: 2
+  trapMaximumCount: 10
+  trapTerrainCount: 5
+  trapHealthBallRatio: 0.25
+  trapAmplifierHealthBallRatio: 0.75
+  trapBallSealRatio: 0.2
+  trapBossHealthIncrease: 20
+  trapAmplifierBaseShield: 2
+  arenaNormalBlockDefinition: {fileID: 11400000, guid: 86b5baec405c41a8b94e40b80f60a7d2, type: 2}
+  arenaNormalBlockCount: 24
+  arenaNormalBlockHealth: 8
+  arenaNormalRegenerationIntervalTurns: 3
+  arenaNormalRegenerationCount: 6

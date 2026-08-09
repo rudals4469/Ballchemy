@@ -27,6 +27,9 @@ public sealed class BossEncounterController :
     private BallCollection ballCollection;
 
     [SerializeField]
+    private BallSealController ballSealController;
+
+    [SerializeField]
     private BoardGrid boardGrid;
 
     [SerializeField]
@@ -40,6 +43,9 @@ public sealed class BossEncounterController :
 
     [SerializeField]
     private EnemyAttackSequence enemyAttackSequence;
+
+    [SerializeField]
+    private PlayerHealth playerHealth;
 
     [SerializeField]
     private BossCatalog bossCatalog;
@@ -60,7 +66,7 @@ public sealed class BossEncounterController :
 
     [Header("Debug")]
     [SerializeField]
-    private bool enableBossTestKey;
+    private bool enableBossTestKey = true;
 
     private readonly List<Block>
         encounterBlocks =
@@ -77,9 +83,31 @@ public sealed class BossEncounterController :
         growthOutlines =
             new List<BossGrowthCellOutline>();
 
+    private static readonly HashSet<string>
+        DescendingWaveExcludedSpecialBlockIds =
+            new HashSet<string>
+            {
+                "special_teleport",
+                "special_heal",
+                "special_curse",
+                "special_gold"
+            };
+
     private readonly BossColonyGrowthState
         colonyGrowthState =
             new BossColonyGrowthState();
+
+    private readonly List<Block> reactorBombs =
+        new List<Block>();
+
+    private readonly List<Block> reactorBlockers =
+        new List<Block>();
+
+    private readonly List<Block> trapBlocks = new List<Block>();
+    private readonly List<Block> trapTerrainBlocks = new List<Block>();
+    private readonly List<Block> temporaryTrapWalls = new List<Block>();
+    private readonly List<Block> bossArenaNormalBlocks = new List<Block>();
+    private Block trapAmplifierBlock;
 
     private Block currentBossBlock;
     private BossDefinition activeBossDefinition;
@@ -95,6 +123,13 @@ public sealed class BossEncounterController :
     private int activeBossRoomId = -1;
     private int nextAttackIndex;
     private int turnsUntilBossAttack;
+    private int descendingWavesSpawned;
+    private int descendingTurnsResolved;
+    private int destroyedReactorBombCount;
+    private int reactorExplosionDepth;
+    private int reactorBossHitAxisMask;
+    private bool reactorCrossLockTriggered;
+    private int bossArenaNormalRegenerationTurns;
 
     public bool IsEncounterActive =>
         isEncounterActive;
@@ -108,6 +143,21 @@ public sealed class BossEncounterController :
     public int TurnsUntilBossAttack =>
         turnsUntilBossAttack;
 
+    public bool IsDescendingWaveEncounter =>
+        isEncounterActive &&
+        activeBossDefinition != null &&
+        activeBossDefinition.IsDescendingWave;
+
+    public int RemainingDescendingWaves =>
+        activeBossDefinition != null &&
+        activeBossDefinition.IsDescendingWave
+            ? Mathf.Max(
+                activeBossDefinition.DescendingWaveCount -
+                descendingTurnsResolved,
+                0
+            )
+            : 0;
+
     public event Action
         BossEncounterStarted;
 
@@ -116,6 +166,9 @@ public sealed class BossEncounterController :
 
     public event Action<int>
         TurnsUntilBossAttackChanged;
+
+    public event Action<int>
+        DescendingWavesRemainingChanged;
 
     private void Awake()
     {
@@ -165,12 +218,22 @@ public sealed class BossEncounterController :
         if (enableBossTestKey &&
             WasBossTestKeyPressed())
         {
-            StartBossEncounter();
+            if (roomNavigator != null)
+            {
+                roomNavigator.TryDebugEnterBossRoom();
+            }
         }
 
         if (!isEncounterActive ||
             isTransitioning ||
             isBossDefeatPending)
+        {
+            return;
+        }
+
+        if (activeBossDefinition != null &&
+            (activeBossDefinition.IsDescendingWave ||
+             activeBossDefinition.IsBombReactor))
         {
             return;
         }
@@ -253,6 +316,22 @@ public sealed class BossEncounterController :
             ballCollection =
                 FindFirstObjectByType<
                     BallCollection
+                >();
+        }
+
+        if (ballSealController == null)
+        {
+            ballSealController =
+                FindFirstObjectByType<
+                    BallSealController
+                >();
+        }
+
+        if (playerHealth == null)
+        {
+            playerHealth =
+                FindFirstObjectByType<
+                    PlayerHealth
                 >();
         }
     }
@@ -366,6 +445,21 @@ public sealed class BossEncounterController :
 
         Ball.MovingBallCountChanged +=
             HandleMovingBallCountChanged;
+
+        if (blockGridManager != null)
+        {
+            blockGridManager.BlocksReachedBottom -=
+                HandleBlocksReachedBottom;
+
+            blockGridManager.BlocksReachedBottom +=
+                HandleBlocksReachedBottom;
+
+            blockGridManager.BlocksExceededBottom -=
+                HandleBlocksReachedBottom;
+
+            blockGridManager.BlocksExceededBottom +=
+                HandleBlocksReachedBottom;
+        }
     }
 
     private void UnsubscribeEvents()
@@ -378,6 +472,15 @@ public sealed class BossEncounterController :
 
         Ball.MovingBallCountChanged -=
             HandleMovingBallCountChanged;
+
+        if (blockGridManager != null)
+        {
+            blockGridManager.BlocksReachedBottom -=
+                HandleBlocksReachedBottom;
+
+            blockGridManager.BlocksExceededBottom -=
+                HandleBlocksReachedBottom;
+        }
     }
 
     private bool WasBossTestKeyPressed()
@@ -428,6 +531,60 @@ public sealed class BossEncounterController :
         }
 
         TryCompletePendingEncounter();
+    }
+
+    private void HandleBlocksReachedBottom(
+        IReadOnlyList<Block> blocks)
+    {
+        if (!isEncounterActive ||
+            activeBossDefinition == null ||
+            blocks == null)
+        {
+            return;
+        }
+
+        int escapedBlockCount = 0;
+
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            Block block = blocks[i];
+
+            if (block == null || !block.IsAlive)
+            {
+                continue;
+            }
+
+            bool isDescendingBlock =
+                activeBossDefinition.IsDescendingWave;
+
+            if (!isDescendingBlock)
+            {
+                continue;
+            }
+
+            escapedBlockCount++;
+            encounterBlocks.Remove(block);
+            reactorBombs.Remove(block);
+            block.ExpireWithoutReward();
+        }
+
+        if (escapedBlockCount <= 0)
+        {
+            return;
+        }
+
+        int damage =
+            escapedBlockCount *
+            activeBossDefinition.DescendingDamagePerEscapedBlock;
+
+        playerHealth?.TakeDamage(damage);
+
+        Debug.LogWarning(
+            "BossEncounterController: " +
+            $"하강 웨이브 블록 {escapedBlockCount}개 이탈, " +
+            $"플레이어 피해 {damage}",
+            this
+        );
     }
 
     public bool StartBossEncounter()
@@ -493,7 +650,21 @@ public sealed class BossEncounterController :
             return false;
         }
 
-        if (!activePattern.TryValidatePattern(
+        if (activeBossDefinition != null &&
+            activeBossDefinition.IsDescendingWave &&
+            playerHealth == null)
+        {
+            Debug.LogError(
+                "BossEncounterController: 하강 웨이브 피해를 적용할 PlayerHealth가 없습니다.",
+                this
+            );
+
+            return false;
+        }
+
+        if ((activeBossDefinition == null ||
+             !activeBossDefinition.IsDescendingWave) &&
+            !activePattern.TryValidatePattern(
                 out string validationMessage))
         {
             Debug.LogError(
@@ -533,6 +704,13 @@ public sealed class BossEncounterController :
         isBossDefeatPending = false;
         nextAttackIndex = 0;
         turnsUntilBossAttack = 0;
+        descendingWavesSpawned = 0;
+        descendingTurnsResolved = 0;
+        destroyedReactorBombCount = 0;
+        reactorExplosionDepth = 0;
+        reactorBossHitAxisMask = 0;
+        reactorCrossLockTriggered = false;
+        bossArenaNormalRegenerationTurns = 0;
         activeBossRoomId = roomId;
 
         turnManager?.SetInputLocked(
@@ -592,9 +770,12 @@ public sealed class BossEncounterController :
         }
 
         bool spawnedPattern =
-            TrySpawnPattern(
-                activePattern
-            );
+            activeBossDefinition != null &&
+            activeBossDefinition.IsDescendingWave
+                ? TrySpawnDescendingWave()
+                : TrySpawnPattern(
+                    activePattern
+                );
 
         if (!spawnedPattern)
         {
@@ -607,6 +788,32 @@ public sealed class BossEncounterController :
             RecoverFromFailedStart();
 
             yield break;
+        }
+
+        if (activeBossDefinition != null &&
+            activeBossDefinition.IsBombReactor)
+        {
+            currentBossBlock.HitReceived -=
+                HandleReactorBossHitReceived;
+
+            currentBossBlock.HitReceived +=
+                HandleReactorBossHitReceived;
+
+            SpawnReactorBlockers();
+        }
+        else if (activeBossDefinition != null &&
+                 activeBossDefinition.IsTrapMaster)
+        {
+            SpawnTrapMasterSetup();
+        }
+
+        if (activeBossDefinition != null &&
+            (activeBossDefinition.IsBombReactor ||
+             activeBossDefinition.IsTrapMaster))
+        {
+            SpawnBossArenaNormalBlocks(
+                activeBossDefinition.ArenaNormalBlockCount
+            );
         }
 
         yield return entranceAnimator
@@ -623,6 +830,23 @@ public sealed class BossEncounterController :
                 RunInitialColonyGrowthRoutine();
         }
 
+        else if (activeBossDefinition != null &&
+                 activeBossDefinition.IsBombReactor)
+        {
+            SpawnReactorBombs(
+                activeBossDefinition.ReactorInitialBombCount
+            );
+
+            if (entranceItems.Count > 0)
+            {
+                yield return entranceAnimator.PlayRoutine(
+                    entranceItems
+                );
+
+                entranceItems.Clear();
+            }
+        }
+
         nextAttackIndex = 0;
         turnsUntilBossAttack =
             activeBossDefinition != null &&
@@ -635,7 +859,10 @@ public sealed class BossEncounterController :
         NotifyBossAttackTurnsChanged();
 
         isEncounterActive =
-            blockGridManager.RequiredEnemyCount > 0;
+            activeBossDefinition != null &&
+            activeBossDefinition.IsDescendingWave
+                ? descendingWavesSpawned > 0
+                : blockGridManager.RequiredEnemyCount > 0;
 
         isTransitioning = false;
         startCoroutine = null;
@@ -656,6 +883,13 @@ public sealed class BossEncounterController :
         }
 
         BossEncounterStarted?.Invoke();
+
+        if (IsDescendingWaveEncounter)
+        {
+            DescendingWavesRemainingChanged?.Invoke(
+                RemainingDescendingWaves
+            );
+        }
 
         Debug.Log(
             "BossEncounterController: " +
@@ -734,8 +968,10 @@ public sealed class BossEncounterController :
                 )
             );
 
-        if (bossGridSize.x % 2 == 0 ||
-            bossGridSize.y % 2 == 0)
+        if ((bossGridSize.x % 2 == 0 ||
+             bossGridSize.y % 2 == 0) &&
+            (activeBossDefinition == null ||
+             !activeBossDefinition.IsBombReactor))
         {
             Debug.LogError(
                 "BossEncounterController: " +
@@ -898,6 +1134,941 @@ public sealed class BossEncounterController :
         return true;
     }
 
+    private bool TrySpawnDescendingWave(
+        int rowCount = 0)
+    {
+        if (activeBossDefinition == null ||
+            !activeBossDefinition.IsDescendingWave ||
+            blockGridManager == null)
+        {
+            return false;
+        }
+
+        if (rowCount <= 0)
+        {
+            rowCount = UnityEngine.Random.Range(
+                activeBossDefinition.DescendingMinimumRowCount,
+                activeBossDefinition.DescendingMaximumRowCount + 1
+            );
+        }
+
+        List<Block> generatedBlocks =
+            blockGridManager.GenerateBossEncounterWave(
+                rowCount,
+                descendingWavesSpawned,
+                DescendingWaveExcludedSpecialBlockIds
+            );
+
+        if (generatedBlocks == null ||
+            generatedBlocks.Count == 0)
+        {
+            return false;
+        }
+
+        encounterBlocks.AddRange(generatedBlocks);
+        descendingWavesSpawned++;
+
+        Debug.Log(
+            "BossEncounterController: " +
+            $"하강 웨이브 {descendingWavesSpawned}/" +
+            $"{activeBossDefinition.DescendingWaveCount} 생성, " +
+            $"높이 {rowCount}줄",
+            this
+        );
+
+        return true;
+    }
+
+    private void SpawnReactorBombs(
+        int requestedCount)
+    {
+        if (activeBossDefinition == null ||
+            !activeBossDefinition.IsBombReactor ||
+            activeBossDefinition.ReactorBombDefinition == null ||
+            boardGrid == null)
+        {
+            return;
+        }
+
+        List<Vector2Int> emptyCells = FindEmptySpawnCells();
+        Shuffle(emptyCells);
+
+        int spawnCount = Mathf.Min(
+            Mathf.Max(requestedCount, 0),
+            emptyCells.Count
+        );
+
+        List<Block> spawnedBlocks = new List<Block>();
+
+        for (int i = 0; i < spawnCount; i++)
+        {
+            Vector2Int cell = emptyCells[i];
+            Block bomb = SpawnPatternBlock(
+                activeBossDefinition.ReactorBombDefinition,
+                'X',
+                cell.x,
+                cell.y,
+                cell.y,
+                activeBossDefinition.ReactorBombHealth,
+                0
+            );
+
+            if (bomb == null)
+            {
+                continue;
+            }
+
+            bomb.Destroyed += HandleReactorBombDestroyed;
+            reactorBombs.Add(bomb);
+            encounterBlocks.Add(bomb);
+            spawnedBlocks.Add(bomb);
+        }
+
+        blockGridManager.RegisterBossEncounterBlocks(
+            spawnedBlocks
+        );
+    }
+
+    private void HandleReactorBossHitReceived(
+        Block boss,
+        int unusedDamage)
+    {
+        if (boss == null ||
+            boss != currentBossBlock ||
+            activeBossDefinition == null ||
+            !activeBossDefinition.IsBombReactor)
+        {
+            return;
+        }
+
+        boss.TakeScriptedDamage(1);
+
+        if (!boss.IsAlive)
+        {
+            isBossDefeatPending = true;
+            TryCompletePendingEncounter();
+        }
+    }
+
+    private void SpawnReactorBlockers()
+    {
+        if (currentBossBlock == null ||
+            activeBossDefinition == null ||
+            activeBossDefinition.ReactorBlockerDefinition == null)
+        {
+            return;
+        }
+
+        List<Block> spawnedBlocks = new List<Block>();
+        List<Vector2Int> emptyCells = FindEmptySpawnCells();
+        Shuffle(emptyCells);
+
+        List<Vector2Int> blockerCells =
+            SelectSeparatedReactorBlockerCells(
+                emptyCells,
+                activeBossDefinition.ReactorBlockerCount
+            );
+
+        for (int i = 0; i < blockerCells.Count; i++)
+        {
+            Vector2Int cell = blockerCells[i];
+
+            Block blocker = SpawnPatternBlock(
+                activeBossDefinition.ReactorBlockerDefinition,
+                '#',
+                cell.x,
+                cell.y,
+                cell.y,
+                1,
+                0
+            );
+
+            if (blocker == null)
+            {
+                continue;
+            }
+
+            reactorBlockers.Add(blocker);
+            encounterBlocks.Add(blocker);
+            spawnedBlocks.Add(blocker);
+        }
+
+        blockGridManager.RegisterBossEncounterBlocks(spawnedBlocks);
+    }
+
+    private static List<Vector2Int>
+        SelectSeparatedReactorBlockerCells(
+            IReadOnlyList<Vector2Int> candidates,
+            int requestedCount)
+    {
+        List<Vector2Int> bestSelection = new List<Vector2Int>();
+
+        if (candidates == null || requestedCount <= 0)
+        {
+            return bestSelection;
+        }
+
+        const int maximumAttempts = 24;
+
+        for (int attempt = 0;
+             attempt < maximumAttempts;
+             attempt++)
+        {
+            List<Vector2Int> shuffledCandidates =
+                new List<Vector2Int>();
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                shuffledCandidates.Add(candidates[i]);
+            }
+
+            Shuffle(shuffledCandidates);
+            List<Vector2Int> selected = new List<Vector2Int>();
+
+            for (int i = 0;
+                 i < shuffledCandidates.Count &&
+                 selected.Count < requestedCount;
+                 i++)
+            {
+                Vector2Int candidate = shuffledCandidates[i];
+                bool touchesSelectedCell = false;
+
+                for (int selectedIndex = 0;
+                     selectedIndex < selected.Count;
+                     selectedIndex++)
+                {
+                    Vector2Int existing = selected[selectedIndex];
+
+                    if (Mathf.Abs(candidate.x - existing.x) <= 1 &&
+                        Mathf.Abs(candidate.y - existing.y) <= 1)
+                    {
+                        touchesSelectedCell = true;
+                        break;
+                    }
+                }
+
+                if (!touchesSelectedCell)
+                {
+                    selected.Add(candidate);
+                }
+            }
+
+            if (selected.Count > bestSelection.Count)
+            {
+                bestSelection = selected;
+            }
+
+            if (bestSelection.Count >= requestedCount)
+            {
+                break;
+            }
+        }
+
+        return bestSelection;
+    }
+
+    private void HandleReactorBombDestroyed(
+        Block bomb)
+    {
+        if (bomb == null ||
+            activeBossDefinition == null ||
+            !activeBossDefinition.IsBombReactor ||
+            !reactorBombs.Remove(bomb))
+        {
+            return;
+        }
+
+        bomb.Destroyed -= HandleReactorBombDestroyed;
+        destroyedReactorBombCount++;
+
+        bool isRootExplosion = reactorExplosionDepth == 0;
+        if (isRootExplosion)
+        {
+            reactorBossHitAxisMask = 0;
+            reactorCrossLockTriggered = false;
+        }
+
+        reactorExplosionDepth++;
+        ResolveReactorBombExplosion(bomb);
+        reactorExplosionDepth--;
+
+        if (currentBossBlock != null &&
+            currentBossBlock.IsAlive)
+        {
+            return;
+        }
+
+        isBossDefeatPending = true;
+        TryCompletePendingEncounter();
+    }
+
+    private void ResolveReactorBombExplosion(
+        Block bomb)
+    {
+        if (bomb == null || !bomb.HasGridPosition)
+        {
+            return;
+        }
+
+        Vector2Int center = bomb.GridPosition;
+
+        GameObject effectObject = new GameObject(
+            "ReactorCrossBlastEffect"
+        );
+
+        BossReactorBlastLineEffect lineEffect =
+            effectObject.AddComponent<
+                BossReactorBlastLineEffect
+            >();
+
+        lineEffect.Play(
+            boardGrid,
+            GetReactorBlastEndpoint(center, Vector2Int.left),
+            GetReactorBlastEndpoint(center, Vector2Int.right),
+            GetReactorBlastEndpoint(center, Vector2Int.down),
+            GetReactorBlastEndpoint(center, Vector2Int.up)
+        );
+
+        List<Block> targets = new List<Block>();
+
+        for (int i = 0; i < encounterBlocks.Count; i++)
+        {
+            Block target = encounterBlocks[i];
+
+            if (target == null ||
+                target == bomb ||
+                !target.IsAlive ||
+                !target.HasGridPosition)
+            {
+                continue;
+            }
+
+            if (TryGetReactorBlastAxis(
+                    center,
+                    target,
+                    out _))
+            {
+                targets.Add(target);
+            }
+        }
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            Block target = targets[i];
+
+            if (target == null || !target.IsAlive)
+            {
+                continue;
+            }
+
+            if (target == currentBossBlock)
+            {
+                TryGetReactorBlastAxis(
+                    center,
+                    target,
+                    out int hitAxis
+                );
+
+                reactorBossHitAxisMask |= hitAxis;
+
+                int bossDamage =
+                    activeBossDefinition.ReactorBombDamage;
+
+                if (!reactorCrossLockTriggered &&
+                    reactorBossHitAxisMask == 3)
+                {
+                    reactorCrossLockTriggered = true;
+                    bossDamage +=
+                        activeBossDefinition.ReactorCrossLockBonusDamage;
+
+                    turnsUntilBossAttack +=
+                        activeBossDefinition.ReactorCrossLockAttackDelay;
+
+                    NotifyBossAttackTurnsChanged();
+                }
+
+                target.TakeScriptedDamage(bossDamage);
+                continue;
+            }
+
+            target.TakeDamage(
+                activeBossDefinition.ReactorExplosionBlockDamage
+            );
+        }
+    }
+
+    private bool TryGetReactorBlastAxis(
+        Vector2Int center,
+        Block target,
+        out int hitAxis)
+    {
+        hitAxis = 0;
+
+        if (target == null || !target.HasGridPosition)
+        {
+            return false;
+        }
+
+        Vector2Int origin = target.GridPosition;
+        Vector2Int size = target.GridSize;
+
+        for (int rowOffset = 0; rowOffset < size.y; rowOffset++)
+        {
+            for (int columnOffset = 0;
+                 columnOffset < size.x;
+                 columnOffset++)
+            {
+                Vector2Int cell = origin + new Vector2Int(
+                    columnOffset,
+                    rowOffset
+                );
+
+                if (cell.y == center.y &&
+                    !IsReactorBlastBlocked(center, cell))
+                {
+                    hitAxis |= 1;
+                }
+
+                if (cell.x == center.x &&
+                    !IsReactorBlastBlocked(center, cell))
+                {
+                    hitAxis |= 2;
+                }
+            }
+        }
+
+        return hitAxis != 0;
+    }
+
+    private bool IsReactorBlastBlocked(
+        Vector2Int center,
+        Vector2Int target)
+    {
+        for (int i = 0; i < reactorBlockers.Count; i++)
+        {
+            Block blocker = reactorBlockers[i];
+
+            if (blocker == null ||
+                !blocker.IsAlive ||
+                !blocker.HasGridPosition)
+            {
+                continue;
+            }
+
+            Vector2Int blockerCell = blocker.GridPosition;
+
+            if (target.y == center.y &&
+                blockerCell.y == center.y &&
+                IsStrictlyBetween(
+                    blockerCell.x,
+                    center.x,
+                    target.x))
+            {
+                return true;
+            }
+
+            if (target.x == center.x &&
+                blockerCell.x == center.x &&
+                IsStrictlyBetween(
+                    blockerCell.y,
+                    center.y,
+                    target.y))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsStrictlyBetween(
+        int value,
+        int first,
+        int second)
+    {
+        return value > Mathf.Min(first, second) &&
+               value < Mathf.Max(first, second);
+    }
+
+    private Vector2Int GetReactorBlastEndpoint(
+        Vector2Int center,
+        Vector2Int direction)
+    {
+        Vector2Int endpoint = center;
+
+        while (true)
+        {
+            Vector2Int next = endpoint + direction;
+            if (next.x < 0 ||
+                next.x >= boardGrid.ColumnCount ||
+                next.y < 0 ||
+                next.y >= boardGrid.RowCount)
+            {
+                return endpoint;
+            }
+
+            endpoint = next;
+
+            for (int i = 0; i < reactorBlockers.Count; i++)
+            {
+                Block blocker = reactorBlockers[i];
+                if (blocker != null &&
+                    blocker.IsAlive &&
+                    blocker.OccupiesCell(endpoint))
+                {
+                    return endpoint;
+                }
+            }
+        }
+    }
+
+    private void SpawnTrapMasterSetup()
+    {
+        SpawnTrapTerrain(
+            activeBossDefinition.TrapTerrainCount
+        );
+
+        SpawnTrapBlocks(
+            activeBossDefinition.TrapInitialCount,
+            true
+        );
+
+        SpawnTrapAmplifier();
+    }
+
+    private void SpawnBossArenaNormalBlocks(int requestedCount)
+    {
+        BlockDefinition definition =
+            activeBossDefinition.ArenaNormalBlockDefinition;
+
+        if (definition == null ||
+            requestedCount <= 0)
+        {
+            return;
+        }
+
+        bossArenaNormalBlocks.RemoveAll(
+            block => block == null || !block.IsAlive
+        );
+
+        int availableCount = Mathf.Max(
+            activeBossDefinition.ArenaNormalBlockCount -
+            bossArenaNormalBlocks.Count,
+            0
+        );
+
+        List<Vector2Int> cells = FindEmptySpawnCells();
+        Shuffle(cells);
+
+        int count = Mathf.Min(
+            Mathf.Min(requestedCount, availableCount),
+            cells.Count
+        );
+
+        List<Block> spawned = new List<Block>();
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2Int cell = cells[i];
+            Block block = SpawnPatternBlock(
+                definition,
+                'X',
+                cell.x,
+                cell.y,
+                cell.y,
+                activeBossDefinition.ArenaNormalBlockHealth,
+                0
+            );
+
+            if (block == null)
+            {
+                continue;
+            }
+
+            encounterBlocks.Add(block);
+            bossArenaNormalBlocks.Add(block);
+            spawned.Add(block);
+        }
+
+        blockGridManager.RegisterBossEncounterBlocks(spawned);
+    }
+
+    private void AdvanceBossArenaNormalRegeneration()
+    {
+        bossArenaNormalRegenerationTurns++;
+
+        if (bossArenaNormalRegenerationTurns <
+            activeBossDefinition.ArenaNormalRegenerationIntervalTurns)
+        {
+            return;
+        }
+
+        bossArenaNormalRegenerationTurns = 0;
+
+        SpawnBossArenaNormalBlocks(
+            activeBossDefinition.ArenaNormalRegenerationCount
+        );
+    }
+
+    private void SpawnTrapTerrain(int requestedCount)
+    {
+        BlockDefinition definition =
+            activeBossDefinition.TrapTerrainDefinition;
+
+        if (definition == null || requestedCount <= 0)
+        {
+            return;
+        }
+
+        List<Vector2Int> cells = FindEmptySpawnCells();
+        Shuffle(cells);
+        int count = Mathf.Min(requestedCount, cells.Count);
+        List<Block> spawned = new List<Block>();
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2Int cell = cells[i];
+            Block terrain = SpawnPatternBlock(
+                definition,
+                '#',
+                cell.x,
+                cell.y,
+                cell.y,
+                1,
+                0
+            );
+
+            if (terrain == null)
+            {
+                continue;
+            }
+
+            trapTerrainBlocks.Add(terrain);
+            encounterBlocks.Add(terrain);
+            spawned.Add(terrain);
+        }
+
+        blockGridManager.RegisterBossEncounterBlocks(spawned);
+    }
+
+    private void SpawnTrapBlocks(
+        int requestedCount,
+        bool allowLifeTrap)
+    {
+        if (requestedCount <= 0 ||
+            activeBossDefinition.TrapDefinitionCount <= 0)
+        {
+            return;
+        }
+
+        trapBlocks.RemoveAll(
+            trap => trap == null || !trap.IsAlive
+        );
+
+        int availableCount = Mathf.Max(
+            activeBossDefinition.TrapMaximumCount -
+            trapBlocks.Count,
+            0
+        );
+
+        int spawnCount = Mathf.Min(requestedCount, availableCount);
+        List<Vector2Int> cells = FindEmptySpawnCells();
+        Shuffle(cells);
+        spawnCount = Mathf.Min(spawnCount, cells.Count);
+
+        int trapHealth = GetTrapHealth(
+            activeBossDefinition.TrapHealthBallRatio
+        );
+
+        List<Block> spawned = new List<Block>();
+
+        for (int i = 0; i < spawnCount; i++)
+        {
+            BlockDefinition definition =
+                SelectRandomTrapDefinition(allowLifeTrap);
+
+            if (definition == null)
+            {
+                continue;
+            }
+
+            Vector2Int cell = cells[i];
+            Block trap = SpawnPatternBlock(
+                definition,
+                'X',
+                cell.x,
+                cell.y,
+                cell.y,
+                trapHealth,
+                0
+            );
+
+            if (trap == null)
+            {
+                continue;
+            }
+
+            trap.Destroyed += HandleTrapDestroyed;
+            trapBlocks.Add(trap);
+            encounterBlocks.Add(trap);
+            spawned.Add(trap);
+        }
+
+        blockGridManager.RegisterBossEncounterBlocks(spawned);
+    }
+
+    private BlockDefinition SelectRandomTrapDefinition(
+        bool allowLifeTrap)
+    {
+        List<BlockDefinition> candidates =
+            new List<BlockDefinition>();
+
+        int livingLifeTrapCount = 0;
+        BlockDefinition lifeDefinition =
+            activeBossDefinition.GetTrapDefinition(0);
+
+        for (int i = 0; i < trapBlocks.Count; i++)
+        {
+            Block trap = trapBlocks[i];
+            if (trap != null &&
+                trap.IsAlive &&
+                trap.Definition == lifeDefinition)
+            {
+                livingLifeTrapCount++;
+            }
+        }
+
+        for (int i = 0;
+             i < activeBossDefinition.TrapDefinitionCount;
+             i++)
+        {
+            BlockDefinition definition =
+                activeBossDefinition.GetTrapDefinition(i);
+
+            if (definition == null ||
+                (i == 0 &&
+                 (!allowLifeTrap || livingLifeTrapCount >= 2)))
+            {
+                continue;
+            }
+
+            candidates.Add(definition);
+        }
+
+        return candidates.Count > 0
+            ? candidates[UnityEngine.Random.Range(0, candidates.Count)]
+            : null;
+    }
+
+    private void SpawnTrapAmplifier()
+    {
+        BlockDefinition definition =
+            activeBossDefinition.TrapAmplifierDefinition;
+
+        if (definition == null)
+        {
+            return;
+        }
+
+        List<Vector2Int> cells = FindEmptySpawnCells();
+        Shuffle(cells);
+
+        if (cells.Count <= 0)
+        {
+            return;
+        }
+
+        Vector2Int cell = cells[0];
+        int trapHealth = GetTrapHealth(
+            activeBossDefinition.TrapAmplifierHealthBallRatio
+        );
+
+        Block amplifier = SpawnPatternBlock(
+            definition,
+            'X',
+            cell.x,
+            cell.y,
+            cell.y,
+            trapHealth,
+            0
+        );
+
+        if (amplifier == null)
+        {
+            return;
+        }
+
+        amplifier.Destroyed += HandleTrapAmplifierDestroyed;
+        trapAmplifierBlock = amplifier;
+        encounterBlocks.Add(amplifier);
+        blockGridManager.RegisterBossEncounterBlocks(
+            new List<Block> { amplifier }
+        );
+    }
+
+    private int GetTrapHealth(float ballRatio)
+    {
+        int minimumBallCount = ballCollection != null
+            ? ballCollection.StartingBallCount
+            : 15;
+
+        return Mathf.Max(
+            Mathf.CeilToInt(minimumBallCount * ballRatio),
+            1
+        );
+    }
+
+    private void HandleTrapDestroyed(Block trap)
+    {
+        if (trap == null ||
+            activeBossDefinition == null ||
+            !activeBossDefinition.IsTrapMaster ||
+            !trapBlocks.Remove(trap))
+        {
+            return;
+        }
+
+        trap.Destroyed -= HandleTrapDestroyed;
+        BlockDefinition definition = trap.Definition;
+
+        if (definition == activeBossDefinition.GetTrapDefinition(0))
+        {
+            currentBossBlock?.IncreaseMaxHealthAndHeal(
+                activeBossDefinition.TrapBossHealthIncrease
+            );
+        }
+        else if (definition == activeBossDefinition.GetTrapDefinition(1))
+        {
+            if (ballSealController != null && ballCollection != null)
+            {
+                float ratio = ballSealController.HasPendingSeal
+                    ? Mathf.Min(
+                        activeBossDefinition.TrapBallSealRatio * 2f,
+                        0.4f)
+                    : activeBossDefinition.TrapBallSealRatio;
+
+                ballSealController.ApplySealRatio(
+                    ratio,
+                    ballCollection.Count
+                );
+            }
+        }
+        else if (definition == activeBossDefinition.GetTrapDefinition(2))
+        {
+            MoveTrapMasterBossToRandomCell();
+        }
+        else if (definition == activeBossDefinition.GetTrapDefinition(3))
+        {
+            SpawnTrapBlocks(2, false);
+        }
+        else if (definition == activeBossDefinition.GetTrapDefinition(4))
+        {
+            SpawnTemporaryTrapWalls(2);
+        }
+    }
+
+    private void HandleTrapAmplifierDestroyed(Block amplifier)
+    {
+        if (amplifier == null ||
+            activeBossDefinition == null ||
+            !activeBossDefinition.IsTrapMaster ||
+            amplifier != trapAmplifierBlock)
+        {
+            return;
+        }
+
+        amplifier.Destroyed -= HandleTrapAmplifierDestroyed;
+        trapAmplifierBlock = null;
+
+        if (currentBossBlock != null && currentBossBlock.IsAlive)
+        {
+            int shieldCount =
+                activeBossDefinition.TrapAmplifierBaseShield +
+                GetCurrentStageNumber();
+
+            currentBossBlock.AddShield(
+                shieldCount,
+                shieldCount
+            );
+        }
+    }
+
+    private void SpawnTemporaryTrapWalls(int requestedCount)
+    {
+        BlockDefinition definition =
+            activeBossDefinition.TrapTerrainDefinition;
+
+        if (definition == null || currentBossBlock == null)
+        {
+            return;
+        }
+
+        Vector2Int bossCell = currentBossBlock.GridPosition;
+        List<Vector2Int> candidates = new List<Vector2Int>
+        {
+            bossCell + Vector2Int.left,
+            bossCell + Vector2Int.right,
+            bossCell + Vector2Int.up,
+            bossCell + Vector2Int.down
+        };
+
+        Shuffle(candidates);
+        List<Block> spawned = new List<Block>();
+
+        for (int i = 0;
+             i < candidates.Count && spawned.Count < requestedCount;
+             i++)
+        {
+            Vector2Int cell = candidates[i];
+
+            if (cell.x < 0 ||
+                cell.x >= boardGrid.ColumnCount ||
+                cell.y < 0 ||
+                cell.y >= boardGrid.RowCount ||
+                IsEncounterCellOccupied(cell))
+            {
+                continue;
+            }
+
+            Block wall = SpawnPatternBlock(
+                definition,
+                '#',
+                cell.x,
+                cell.y,
+                cell.y,
+                1,
+                0
+            );
+
+            if (wall == null)
+            {
+                continue;
+            }
+
+            temporaryTrapWalls.Add(wall);
+            encounterBlocks.Add(wall);
+            spawned.Add(wall);
+        }
+
+        blockGridManager.RegisterBossEncounterBlocks(spawned);
+    }
+
+    private bool IsEncounterCellOccupied(Vector2Int cell)
+    {
+        for (int i = 0; i < encounterBlocks.Count; i++)
+        {
+            Block block = encounterBlocks[i];
+            if (block != null &&
+                block.IsAlive &&
+                block.OccupiesCell(cell))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private bool TrySpawnColonyPattern(
         BossPatternDefinition pattern)
     {
@@ -1028,12 +2199,12 @@ public sealed class BossEncounterController :
         int maximumSpawnRow =
             GetMaximumBossSpawnRow();
 
-        for (int row = 0;
+        for (int row = 1;
              row <= maximumSpawnRow;
              row++)
         {
-            for (int column = 0;
-                 column < boardGrid.ColumnCount;
+            for (int column = 1;
+                 column < boardGrid.ColumnCount - 1;
                  column++)
             {
                 candidates.Add(
@@ -1228,15 +2399,39 @@ public sealed class BossEncounterController :
                 continue;
             }
 
+            bool spawnSpecial =
+                UnityEngine.Random.value <
+                activeBossDefinition.SpecialBlockSpawnChance;
+
+            BlockDefinition selectedDefinition =
+                spawnSpecial
+                    ? activeBossDefinition
+                        .GetRandomSpecialBlockDefinition()
+                    : null;
+
+            char symbol = selectedDefinition != null
+                ? 'S'
+                : 'X';
+
+            if (selectedDefinition == null)
+            {
+                selectedDefinition = growthDefinition;
+            }
+
+            int health =
+                activeBossDefinition
+                    .CalculateColonyGrowthBlockHealth(
+                        GetColonyBossHealth()
+                    );
+
             Block child =
                 SpawnPatternBlock(
-                    growthDefinition,
-                    'X',
+                    selectedDefinition,
+                    symbol,
                     reservation.Cell.x,
                     reservation.Cell.y,
                     reservation.Cell.y,
-                    activeBossDefinition
-                        .ColonyGrowthBlockHealth,
+                    health,
                     0
                 );
 
@@ -1295,12 +2490,39 @@ public sealed class BossEncounterController :
 
     private int GetMaximumBossSpawnRow()
     {
-        return boardGrid != null
-            ? Mathf.Max(
-                boardGrid.RowCount - 2,
-                0
-            )
-            : 0;
+        if (boardGrid == null)
+        {
+            return 0;
+        }
+
+        float maximumRowRatio =
+            activeBossDefinition != null
+                ? activeBossDefinition
+                    .ColonyMaximumSpawnRowRatio
+                : 0.5f;
+
+        return Mathf.Clamp(
+            Mathf.FloorToInt(
+                (boardGrid.RowCount - 1) *
+                maximumRowRatio
+            ),
+            0,
+            Mathf.Max(boardGrid.RowCount - 1, 0)
+        );
+    }
+
+    private int GetColonyBossHealth()
+    {
+        if (activePattern == null)
+        {
+            return 1;
+        }
+
+        return GetHealthForSymbol(
+            activePattern,
+            'B',
+            activePattern.BossDefinition
+        );
     }
 
     private int GetCurrentStageNumber()
@@ -1677,7 +2899,20 @@ public sealed class BossEncounterController :
 
         bool usedFallback = false;
 
-        if (bossRunSequence != null &&
+        if (bossCatalog != null &&
+            bossCatalog.TryGetTestBoss(
+                out activeBossDefinition))
+        {
+            activePattern =
+                activeBossDefinition.PatternDefinition;
+
+            Debug.LogWarning(
+                "BossEncounterController: Boss Catalog 테스트 오버라이드로 " +
+                $"'{activeBossDefinition.DisplayName}' 보스를 사용합니다.",
+                bossCatalog
+            );
+        }
+        else if (bossRunSequence != null &&
             bossRunSequence.TryResolve(
                 stageNumber,
                 out activeBossDefinition))
@@ -1708,6 +2943,12 @@ public sealed class BossEncounterController :
                 "레거시 Test Pattern을 사용합니다.",
                 this
             );
+        }
+
+        if (activeBossDefinition != null &&
+            activeBossDefinition.IsDescendingWave)
+        {
+            return true;
         }
 
         if (activePattern != null)
@@ -1846,25 +3087,31 @@ public sealed class BossEncounterController :
     {
         if (!isEncounterActive || isTransitioning ||
             isBossDefeatPending || activeBossDefinition == null ||
-            blockGridManager == null ||
-            blockGridManager.RequiredEnemyCount <= 0)
+            blockGridManager == null)
         {
             yield break;
         }
 
-        if (activeBossDefinition.IsProliferatingColony)
+        if (activeBossDefinition.IsDescendingWave)
         {
-            SpawnReservedColonyGrowthBlocks();
+            yield return ResolveDescendingWaveTurnRoutine();
+            yield break;
+        }
 
-            if (blockGridManager.RequiredEnemyCount > 0)
-            {
-                PrepareColonyGrowthPreview();
-            }
+        if (activeBossDefinition.IsBombReactor)
+        {
+            yield return ResolveBombReactorTurnRoutine();
+            yield break;
+        }
 
-            turnsUntilBossAttack = 1;
-            NotifyBossAttackTurnsChanged();
+        if (activeBossDefinition.IsTrapMaster)
+        {
+            yield return ResolveTrapMasterTurnRoutine();
+            yield break;
+        }
 
-            yield return null;
+        if (blockGridManager.RequiredEnemyCount <= 0)
+        {
             yield break;
         }
 
@@ -1878,6 +3125,25 @@ public sealed class BossEncounterController :
             yield break;
         }
 
+        if (activeBossDefinition.AttackCount <= 0)
+        {
+            turnsUntilBossAttack = 0;
+            NotifyBossAttackTurnsChanged();
+            yield break;
+        }
+
+        if (activeBossDefinition.IsProliferatingColony)
+        {
+            SpawnReservedColonyGrowthBlocks();
+
+            if (blockGridManager.RequiredEnemyCount <= 0)
+            {
+                yield break;
+            }
+
+            PrepareColonyGrowthPreview();
+        }
+
         BossAttackDefinition attack =
             activeBossDefinition.GetAttack(nextAttackIndex);
 
@@ -1888,6 +3154,17 @@ public sealed class BossEncounterController :
             Debug.LogWarning(
                 "BossEncounterController: 실행할 보스 공격 데이터가 없습니다.",
                 activeBossDefinition
+            );
+
+            ResetBossAttackTurns();
+            yield break;
+        }
+
+        if (attack.AttackType ==
+            BossAttackType.ColonyDoubleGrowth)
+        {
+            yield return ResolveColonyDoubleGrowthRoutine(
+                attack.TelegraphDuration
             );
 
             ResetBossAttackTurns();
@@ -1931,6 +3208,356 @@ public sealed class BossEncounterController :
         ResetBossAttackTurns();
     }
 
+    private IEnumerator ResolveDescendingWaveTurnRoutine()
+    {
+        int rowCount = UnityEngine.Random.Range(
+            activeBossDefinition.DescendingMinimumRowCount,
+            activeBossDefinition.DescendingMaximumRowCount + 1
+        );
+
+        int movementRowCount =
+            blockGridManager.GetBossEncounterWaveLayoutRowCount(
+                rowCount
+            );
+
+        yield return blockGridManager
+            .MoveBossEncounterBlocksDownRoutine(
+                movementRowCount
+            );
+
+        descendingTurnsResolved++;
+
+        DescendingWavesRemainingChanged?.Invoke(
+            RemainingDescendingWaves
+        );
+
+        if (turnManager != null && turnManager.IsGameOver)
+        {
+            yield break;
+        }
+
+        if (descendingTurnsResolved >=
+            activeBossDefinition.DescendingWaveCount)
+        {
+            isBossDefeatPending = true;
+
+            Debug.Log(
+                "BossEncounterController: " +
+                $"하강 웨이브 {activeBossDefinition.DescendingWaveCount}회 생존 완료",
+                this
+            );
+
+            TryCompletePendingEncounter();
+            yield break;
+        }
+
+        if (!TrySpawnDescendingWave(rowCount))
+        {
+            Debug.LogError(
+                "BossEncounterController: 다음 하강 웨이브 생성에 실패했습니다.",
+                this
+            );
+        }
+    }
+
+    private IEnumerator ResolveBombReactorTurnRoutine()
+    {
+        reactorBombs.RemoveAll(
+            bomb => bomb == null || !bomb.IsAlive
+        );
+
+        turnsUntilBossAttack = Mathf.Max(
+            turnsUntilBossAttack - 1,
+            0
+        );
+
+        NotifyBossAttackTurnsChanged();
+
+        if (turnsUntilBossAttack <= 0 &&
+            currentBossBlock != null &&
+            currentBossBlock.IsAlive)
+        {
+            int attackDamage =
+                activeBossDefinition.ReactorBaseAttackDamage +
+                reactorBombs.Count;
+
+            yield return enemyAttackSequence.ResolveAttackRoutine(
+                new List<Block> { currentBossBlock },
+                attackDamage
+            );
+
+            turnsUntilBossAttack =
+                activeBossDefinition.AttackIntervalTurns;
+
+            NotifyBossAttackTurnsChanged();
+
+            if (turnManager != null && turnManager.IsGameOver)
+            {
+                yield break;
+            }
+        }
+
+        MoveReactorBossToRandomEmptyCell();
+
+        AdvanceBossArenaNormalRegeneration();
+
+        SpawnReactorBombs(
+            activeBossDefinition.ReactorBombsPerTurn
+        );
+
+        if (entranceItems.Count > 0)
+        {
+            yield return entranceAnimator.PlayRoutine(
+                entranceItems
+            );
+
+            entranceItems.Clear();
+        }
+    }
+
+    private IEnumerator ResolveTrapMasterTurnRoutine()
+    {
+        ClearTemporaryTrapWalls();
+        MoveTrapMasterBossToRandomCell();
+        AdvanceBossArenaNormalRegeneration();
+
+        SpawnTrapBlocks(
+            activeBossDefinition.TrapSpawnCountPerTurn,
+            true
+        );
+
+        if (entranceItems.Count > 0)
+        {
+            yield return entranceAnimator.PlayRoutine(
+                entranceItems
+            );
+
+            entranceItems.Clear();
+        }
+    }
+
+    private void MoveTrapMasterBossToRandomCell()
+    {
+        if (currentBossBlock == null ||
+            !currentBossBlock.IsAlive ||
+            boardGrid == null)
+        {
+            return;
+        }
+
+        Vector2Int size = currentBossBlock.GridSize;
+        int maximumRow = Mathf.Min(
+            boardGrid.RowCount - size.y - 1,
+            Mathf.FloorToInt(boardGrid.RowCount * 0.7f)
+        );
+
+        int maximumColumn = boardGrid.ColumnCount - size.x;
+        List<Vector2Int> candidates = new List<Vector2Int>();
+
+        for (int row = 2; row <= maximumRow; row++)
+        {
+            for (int column = 0; column <= maximumColumn; column++)
+            {
+                Vector2Int candidate = new Vector2Int(column, row);
+
+                if (candidate != currentBossBlock.GridPosition &&
+                    CanPlaceReactorBossAt(candidate, size))
+                {
+                    candidates.Add(candidate);
+                }
+            }
+        }
+
+        if (candidates.Count <= 0)
+        {
+            return;
+        }
+
+        Vector2Int target = candidates[
+            UnityEngine.Random.Range(0, candidates.Count)
+        ];
+
+        currentBossBlock.SetGridPosition(
+            boardGrid,
+            target.x,
+            target.y,
+            true
+        );
+    }
+
+    private void ClearTemporaryTrapWalls()
+    {
+        for (int i = temporaryTrapWalls.Count - 1; i >= 0; i--)
+        {
+            Block wall = temporaryTrapWalls[i];
+            temporaryTrapWalls.RemoveAt(i);
+
+            if (wall == null)
+            {
+                continue;
+            }
+
+            encounterBlocks.Remove(wall);
+            wall.ExpireWithoutReward();
+        }
+    }
+
+    private void MoveReactorBossToRandomEmptyCell()
+    {
+        if (currentBossBlock == null ||
+            !currentBossBlock.IsAlive ||
+            boardGrid == null)
+        {
+            return;
+        }
+
+        List<Vector2Int> candidates = new List<Vector2Int>();
+
+        Vector2Int bossSize = currentBossBlock.GridSize;
+        int maximumRow = boardGrid.RowCount - bossSize.y - 1;
+        int maximumColumn = boardGrid.ColumnCount - bossSize.x;
+
+        for (int row = 1; row <= maximumRow; row++)
+        {
+            for (int column = 0; column <= maximumColumn; column++)
+            {
+                Vector2Int candidate = new Vector2Int(column, row);
+
+                if (candidate == currentBossBlock.GridPosition ||
+                    !CanPlaceReactorBossAt(candidate, bossSize))
+                {
+                    continue;
+                }
+
+                candidates.Add(candidate);
+            }
+        }
+
+        if (candidates.Count <= 0)
+        {
+            return;
+        }
+
+        Vector2Int target = candidates[
+            UnityEngine.Random.Range(0, candidates.Count)
+        ];
+
+        currentBossBlock.SetGridPosition(
+            boardGrid,
+            target.x,
+            target.y,
+            true
+        );
+
+        MoveReactorBlockersToRandomEmptyCells();
+    }
+
+    private bool CanPlaceReactorBossAt(
+        Vector2Int origin,
+        Vector2Int size)
+    {
+        for (int rowOffset = 0; rowOffset < size.y; rowOffset++)
+        {
+            for (int columnOffset = 0;
+                 columnOffset < size.x;
+                 columnOffset++)
+            {
+                Vector2Int cell = origin + new Vector2Int(
+                    columnOffset,
+                    rowOffset
+                );
+
+                for (int i = 0; i < encounterBlocks.Count; i++)
+                {
+                    Block block = encounterBlocks[i];
+
+                    if (block == null ||
+                        block == currentBossBlock ||
+                        reactorBlockers.Contains(block) ||
+                        !block.IsAlive)
+                    {
+                        continue;
+                    }
+
+                    if (block.OccupiesCell(cell))
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private void MoveReactorBlockersToRandomEmptyCells()
+    {
+        List<Vector2Int> emptyCells = new List<Vector2Int>();
+
+        for (int row = 0; row < boardGrid.RowCount - 1; row++)
+        {
+            for (int column = 0;
+                 column < boardGrid.ColumnCount;
+                 column++)
+            {
+                Vector2Int cell = new Vector2Int(column, row);
+                bool occupied = false;
+
+                for (int i = 0; i < encounterBlocks.Count; i++)
+                {
+                    Block block = encounterBlocks[i];
+
+                    if (block == null ||
+                        reactorBlockers.Contains(block) ||
+                        !block.IsAlive)
+                    {
+                        continue;
+                    }
+
+                    if (block.OccupiesCell(cell))
+                    {
+                        occupied = true;
+                        break;
+                    }
+                }
+
+                if (!occupied)
+                {
+                    emptyCells.Add(cell);
+                }
+            }
+        }
+
+        Shuffle(emptyCells);
+        List<Vector2Int> blockerCells =
+            SelectSeparatedReactorBlockerCells(
+                emptyCells,
+                reactorBlockers.Count
+            );
+
+        int nextCellIndex = 0;
+
+        for (int i = 0; i < reactorBlockers.Count; i++)
+        {
+            Block blocker = reactorBlockers[i];
+
+            if (blocker == null ||
+                !blocker.IsAlive ||
+                nextCellIndex >= blockerCells.Count)
+            {
+                continue;
+            }
+
+            Vector2Int cell = blockerCells[nextCellIndex++];
+            blocker.SetGridPosition(
+                boardGrid,
+                cell.x,
+                cell.y,
+                true
+            );
+        }
+    }
+
     private List<Block> CreateAttackers(
         BossAttackDefinition attack)
     {
@@ -1958,6 +3585,14 @@ public sealed class BossEncounterController :
                 continue;
             }
 
+            if (activeBossDefinition != null &&
+                activeBossDefinition.IsProliferatingColony &&
+                activePattern != null &&
+                block.Definition == activePattern.BossDefinition)
+            {
+                continue;
+            }
+
             result.Add(block);
         }
 
@@ -1975,6 +3610,26 @@ public sealed class BossEncounterController :
         }
 
         return result;
+    }
+
+    private IEnumerator ResolveColonyDoubleGrowthRoutine(
+        float stepDelay)
+    {
+        if (stepDelay > 0f)
+        {
+            yield return new WaitForSeconds(stepDelay);
+        }
+        else
+        {
+            yield return null;
+        }
+
+        SpawnReservedColonyGrowthBlocks();
+
+        if (blockGridManager.RequiredEnemyCount > 0)
+        {
+            PrepareColonyGrowthPreview();
+        }
     }
 
     private IEnumerator SpawnPostAttackBlocksRoutine()
@@ -2209,6 +3864,56 @@ public sealed class BossEncounterController :
         HideGrowthOutlines();
         colonyGrowthState.Clear();
 
+        if (activeBossDefinition != null &&
+            activeBossDefinition.IsTrapMaster)
+        {
+            ballSealController?.ClearEncounterSeal();
+        }
+
+        if (currentBossBlock != null)
+        {
+            currentBossBlock.HitReceived -=
+                HandleReactorBossHitReceived;
+        }
+
+        for (int i = 0; i < reactorBombs.Count; i++)
+        {
+            Block bomb = reactorBombs[i];
+            if (bomb != null)
+            {
+                bomb.Destroyed -= HandleReactorBombDestroyed;
+            }
+        }
+
+        reactorBombs.Clear();
+        reactorBlockers.Clear();
+
+        for (int i = 0; i < trapBlocks.Count; i++)
+        {
+            Block trap = trapBlocks[i];
+            if (trap == null)
+            {
+                continue;
+            }
+
+            trap.Destroyed -= HandleTrapDestroyed;
+            trap.Destroyed -= HandleTrapAmplifierDestroyed;
+        }
+
+        trapBlocks.Clear();
+
+        if (trapAmplifierBlock != null)
+        {
+            trapAmplifierBlock.Destroyed -=
+                HandleTrapAmplifierDestroyed;
+
+            trapAmplifierBlock = null;
+        }
+
+        trapTerrainBlocks.Clear();
+        temporaryTrapWalls.Clear();
+        bossArenaNormalBlocks.Clear();
+
         for (int i = 0;
              i < encounterBlocks.Count;
              i++)
@@ -2267,5 +3972,118 @@ public sealed class BossEncounterController :
         roomNavigator?.SetNavigationLocked(
             false
         );
+    }
+}
+
+[DisallowMultipleComponent]
+public sealed class BossReactorBlastLineEffect : MonoBehaviour
+{
+    private const float Duration = 0.28f;
+    private LineRenderer horizontalLine;
+    private LineRenderer verticalLine;
+    private Material runtimeMaterial;
+    private Color baseColor;
+    private float elapsedTime;
+
+    public void Play(
+        BoardGrid grid,
+        Vector2Int leftCell,
+        Vector2Int rightCell,
+        Vector2Int bottomCell,
+        Vector2Int topCell)
+    {
+        if (grid == null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        baseColor = new Color(1f, 0.04f, 0.02f, 0.95f);
+        Shader shader = Shader.Find("Sprites/Default");
+
+        if (shader != null)
+        {
+            runtimeMaterial = new Material(shader);
+        }
+
+        horizontalLine = CreateLine("HorizontalBlastLine", grid);
+        verticalLine = CreateLine("VerticalBlastLine", grid);
+
+        horizontalLine.SetPosition(0, grid.GetCellWorldPosition(leftCell.x, leftCell.y));
+        horizontalLine.SetPosition(1, grid.GetCellWorldPosition(rightCell.x, rightCell.y));
+        verticalLine.SetPosition(0, grid.GetCellWorldPosition(bottomCell.x, bottomCell.y));
+        verticalLine.SetPosition(1, grid.GetCellWorldPosition(topCell.x, topCell.y));
+
+        ApplyColor(baseColor);
+    }
+
+    private LineRenderer CreateLine(string lineName, BoardGrid grid)
+    {
+        GameObject lineObject = new GameObject(lineName);
+        lineObject.transform.SetParent(transform, false);
+
+        LineRenderer line = lineObject.AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.positionCount = 2;
+        line.numCapVertices = 4;
+        line.startWidth = grid.CellSize * 0.14f;
+        line.endWidth = grid.CellSize * 0.14f;
+        line.sortingOrder = 120;
+
+        if (runtimeMaterial != null)
+        {
+            line.sharedMaterial = runtimeMaterial;
+        }
+
+        return line;
+    }
+
+    private void Update()
+    {
+        elapsedTime += Time.deltaTime;
+        float progress = Mathf.Clamp01(elapsedTime / Duration);
+        Color color = baseColor;
+        color.a *= 1f - progress;
+        ApplyColor(color);
+
+        float width = Mathf.Lerp(1f, 0.25f, progress);
+        ApplyWidth(horizontalLine, width);
+        ApplyWidth(verticalLine, width);
+
+        if (elapsedTime >= Duration)
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void ApplyColor(Color color)
+    {
+        if (horizontalLine != null)
+        {
+            horizontalLine.startColor = color;
+            horizontalLine.endColor = color;
+        }
+
+        if (verticalLine != null)
+        {
+            verticalLine.startColor = color;
+            verticalLine.endColor = color;
+        }
+    }
+
+    private static void ApplyWidth(LineRenderer line, float width)
+    {
+        if (line != null)
+        {
+            line.widthMultiplier = width;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (runtimeMaterial != null)
+        {
+            Destroy(runtimeMaterial);
+        }
     }
 }

@@ -55,6 +55,8 @@ public sealed class BossColonyGrowthState
     private readonly List<Vector2Int> directionBuffer =
         new List<Vector2Int>(Directions.Length);
 
+    private Vector2 colonyCenter;
+
     public IReadOnlyList<BossColonyGrowthReservation> Reservations =>
         reservations;
 
@@ -104,6 +106,7 @@ public sealed class BossColonyGrowthState
 
         CollectOccupiedCells(blockers);
         CollectLivingParents();
+        CalculateColonyCenter();
         Shuffle(parentBuffer);
 
         for (int i = 0;
@@ -116,6 +119,10 @@ public sealed class BossColonyGrowthState
             directionBuffer.Clear();
             directionBuffer.AddRange(Directions);
             Shuffle(directionBuffer);
+
+            bool foundTarget = false;
+            Vector2Int selectedTarget = default;
+            float selectedDistance = float.MinValue;
 
             for (int directionIndex = 0;
                  directionIndex < directionBuffer.Count;
@@ -135,19 +142,80 @@ public sealed class BossColonyGrowthState
                     continue;
                 }
 
-                reservations.Add(
-                    new BossColonyGrowthReservation(
-                        parent,
-                        targetCell
-                    )
-                );
+                // 이미 둘 이상의 블록과 맞닿는 칸은 내부를 메우는
+                // 위치이므로 건너뛰어 군체가 가지처럼 바깥으로 퍼지게 한다.
+                if (CountOccupiedNeighbors(targetCell) > 1)
+                {
+                    continue;
+                }
 
-                reservedCells.Add(targetCell);
-                break;
+                float outwardDistance =
+                    (targetCell - colonyCenter).sqrMagnitude;
+
+                if (foundTarget &&
+                    outwardDistance <= selectedDistance)
+                {
+                    continue;
+                }
+
+                foundTarget = true;
+                selectedTarget = targetCell;
+                selectedDistance = outwardDistance;
             }
+
+            if (!foundTarget)
+            {
+                continue;
+            }
+
+            reservations.Add(
+                new BossColonyGrowthReservation(
+                    parent,
+                    selectedTarget
+                )
+            );
+
+            reservedCells.Add(selectedTarget);
         }
 
         return reservations.Count;
+    }
+
+    private int CountOccupiedNeighbors(
+        Vector2Int cell)
+    {
+        int count = 0;
+
+        for (int i = 0; i < Directions.Length; i++)
+        {
+            Vector2Int neighbor = cell + Directions[i];
+
+            if (occupiedCells.Contains(neighbor) ||
+                reservedCells.Contains(neighbor))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private void CalculateColonyCenter()
+    {
+        if (parentBuffer.Count <= 0)
+        {
+            colonyCenter = Vector2.zero;
+            return;
+        }
+
+        Vector2 total = Vector2.zero;
+
+        for (int i = 0; i < parentBuffer.Count; i++)
+        {
+            total += (Vector2)parentBuffer[i].GridPosition;
+        }
+
+        colonyCenter = total / parentBuffer.Count;
     }
 
     public bool CanResolve(

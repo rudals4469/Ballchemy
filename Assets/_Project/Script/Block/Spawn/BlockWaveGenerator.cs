@@ -313,7 +313,24 @@ public sealed class BlockWaveGenerator :
             blockType,
             null,
             1f,
-            1f
+            1f,
+            null
+        );
+    }
+
+    public List<Block> GenerateWave(
+        int rowCount,
+        int waveIndex,
+        ISet<string> excludedSpecialBlockIds)
+    {
+        return GenerateWaveInternal(
+            rowCount,
+            waveIndex,
+            defaultWaveBlockType,
+            null,
+            1f,
+            1f,
+            excludedSpecialBlockIds
         );
     }
 
@@ -352,7 +369,8 @@ public sealed class BlockWaveGenerator :
             BlockType.Normal,
             featuredDefinition,
             featuredHealthMultiplier,
-            featuredAttackMultiplier
+            featuredAttackMultiplier,
+            null
         );
     }
 
@@ -427,6 +445,17 @@ public sealed class BlockWaveGenerator :
             );
     }
 
+    public int GetWaveLayoutRowCount(
+        int requestedRowCount)
+    {
+        EnsureHelpers();
+
+        return patternBuilder.CalculateLayoutRowCount(
+            requestedRowCount,
+            Mathf.Max(RowCount, 1)
+        );
+    }
+
     public List<Block> RegenerateRoomWave(
         int roomId)
     {
@@ -457,7 +486,8 @@ public sealed class BlockWaveGenerator :
         BlockType fillBlockType,
         BlockDefinition featuredDefinition,
         float featuredHealthMultiplier,
-        float featuredAttackMultiplier)
+        float featuredAttackMultiplier,
+        ISet<string> excludedSpecialBlockIds)
     {
         List<Block> generatedBlocks =
             new List<Block>();
@@ -521,6 +551,11 @@ public sealed class BlockWaveGenerator :
             featuredDefinition != null,
             baseHealth,
             teleportPairSettings);
+
+        RemoveExcludedSpecialRequests(
+            requests,
+            excludedSpecialBlockIds
+        );
 
         /*
          * 배치 자체가 모두 끝난 뒤
@@ -598,6 +633,28 @@ public sealed class BlockWaveGenerator :
         );
 
         return generatedBlocks;
+    }
+
+    private static void RemoveExcludedSpecialRequests(
+        List<BlockSpawnRequest> requests,
+        ISet<string> excludedSpecialBlockIds)
+    {
+        if (requests == null ||
+            excludedSpecialBlockIds == null ||
+            excludedSpecialBlockIds.Count == 0)
+        {
+            return;
+        }
+
+        requests.RemoveAll(
+            request =>
+                request != null &&
+                request.RequestedBlockType == BlockType.Special &&
+                request.Definition != null &&
+                excludedSpecialBlockIds.Contains(
+                    request.Definition.BlockId
+                )
+        );
     }
 
     private int CountRequestType(

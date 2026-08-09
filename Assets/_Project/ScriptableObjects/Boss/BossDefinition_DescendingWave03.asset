@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43c816695e2f4c48a4dc80d9f5721467, type: 3}
+  m_Name: BossDefinition_DescendingWave03
+  m_EditorClassIdentifier: Assembly-CSharp::BossDefinition
+  bossId: boss_descending_wave_03
+  displayName: Collapse Front
+  patternDefinition: {fileID: 0}
+  encounterArchetype: 2
+  requiredEnemyHealthMultiplier: 1
+  attackIntervalTurns: 1
+  attacks: []
+  spawnedBlockCountPerAttack: 0
+  spawnedBlockIncreasePerStage: 0
+  spawnedBlockHealth: 1
+  specialBlockSpawnChance: 0
+  specialBlockHealth: 1
+  specialBlockDefinitions: []
+  colonyMinimumCoreCount: 2
+  colonyMaximumCoreCount: 4
+  colonyInitialGrowthCount: 3
+  colonyMaximumSpawnRowRatio: 0.5
+  colonyGrowthHealthRatioRange: {x: 0.4, y: 0.6}
+  colonyMinimumCoreDistance: 4
+  colonyInitialGrowthStepDelay: 0.22
+  colonyGrowthOutlineColor: {r: 0.25, g: 1, b: 0.35, a: 0.95}
+  descendingWaveCount: 10
+  descendingMinimumRowCount: 2
+  descendingMaximumRowCount: 4
+  descendingDamagePerEscapedBlock: 1

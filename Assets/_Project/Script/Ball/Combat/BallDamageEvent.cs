@@ -39,6 +39,8 @@ public readonly struct BallDamageEvent
         get;
     }
 
+    private readonly int displayedDamage;
+
     /*
      * 현재 데미지 텍스트는 계산된 피해를 표시합니다.
      *
@@ -46,7 +48,7 @@ public readonly struct BallDamageEvent
      * 이 프로퍼티만 바꾸면 됩니다.
      */
     public int DisplayedDamage =>
-        CalculatedDamage;
+        displayedDamage;
 
     /*
      * 기존 Damage 프로퍼티를 참조하는 코드가 있어도
@@ -72,7 +74,8 @@ public readonly struct BallDamageEvent
         int calculatedDamage,
         int appliedHealthDamage,
         Vector2 hitPoint,
-        BallDamageTextStyleDefinition style)
+        BallDamageTextStyleDefinition style,
+        int displayedDamageOverride = -1)
     {
         SourceBall =
             sourceBall;
@@ -94,6 +97,11 @@ public readonly struct BallDamageEvent
                 appliedHealthDamage,
                 0
             );
+
+        displayedDamage =
+            displayedDamageOverride >= 0
+                ? displayedDamageOverride
+                : CalculatedDamage;
 
         HitPoint =
             hitPoint;

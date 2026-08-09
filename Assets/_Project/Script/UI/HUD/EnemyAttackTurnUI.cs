@@ -204,6 +204,10 @@ public sealed class EnemyAttackTurnUI :
                 HandleTurnsUntilAttackChanged;
             bossEncounterController.TurnsUntilBossAttackChanged +=
                 HandleTurnsUntilAttackChanged;
+            bossEncounterController.DescendingWavesRemainingChanged -=
+                HandleTurnsUntilAttackChanged;
+            bossEncounterController.DescendingWavesRemainingChanged +=
+                HandleTurnsUntilAttackChanged;
             bossEncounterController.BossEncounterStarted -=
                 HandleBossEncounterChanged;
             bossEncounterController.BossEncounterStarted +=
@@ -245,6 +249,8 @@ public sealed class EnemyAttackTurnUI :
         if (bossEncounterController != null)
         {
             bossEncounterController.TurnsUntilBossAttackChanged -=
+                HandleTurnsUntilAttackChanged;
+            bossEncounterController.DescendingWavesRemainingChanged -=
                 HandleTurnsUntilAttackChanged;
             bossEncounterController.BossEncounterStarted -=
                 HandleBossEncounterChanged;
@@ -359,7 +365,9 @@ public sealed class EnemyAttackTurnUI :
             roomNavigator.CurrentRoom != null &&
             roomNavigator.CurrentRoom.RoomType == RoomType.Boss &&
             bossEncounterController != null
-                ? bossEncounterController.TurnsUntilBossAttack
+                ? bossEncounterController.IsDescendingWaveEncounter
+                    ? bossEncounterController.RemainingDescendingWaves
+                    : bossEncounterController.TurnsUntilBossAttack
                 : blockGridManager.TurnsUntilAttack
         );
     }
@@ -369,6 +377,18 @@ public sealed class EnemyAttackTurnUI :
     {
         if (turnText == null)
         {
+            return;
+        }
+
+        if (bossEncounterController != null &&
+            bossEncounterController.IsDescendingWaveEncounter)
+        {
+            turnText.text =
+                Mathf.Max(
+                    remainingTurns,
+                    0
+                ).ToString();
+
             return;
         }
 
