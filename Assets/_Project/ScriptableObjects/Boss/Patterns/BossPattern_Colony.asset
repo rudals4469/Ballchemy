@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9328d4ba4949a7d4d9aeee6e14b5a00b, type: 3}
+  m_Name: BossPattern_Colony
+  m_EditorClassIdentifier: Assembly-CSharp::BossPatternDefinition
+  patternId: boss_pattern_colony
+  displayName: Proliferating Colony
+  bossDefinition: {fileID: 11400000, guid: a103880a764e47389fd4b3302587628c, type: 2}
+  breakablePatternDefinition: {fileID: 11400000, guid: b24f59917a6a43b6a2b05f305256b276, type: 2}
+  indestructiblePatternDefinition: {fileID: 0}
+  bossHealth: 30
+  bossAttackPower: 0
+  patternBlockHealth: 3
+  patternText: '.........
+
+    .........
+
+    .........
+
+    .........
+
+    .........
+
+    .........
+
+    .........
+
+    ....B....
+
+    .........
+
+    .........
+
+    .........
+
+    .........
+
+    .........
+
+    .........
+
+    .........'

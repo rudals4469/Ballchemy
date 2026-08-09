@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43c816695e2f4c48a4dc80d9f5721467, type: 3}
+  m_Name: BossDefinition_Colony02
+  m_EditorClassIdentifier: Assembly-CSharp::BossDefinition
+  bossId: boss_colony_02
+  displayName: Proliferating Colony
+  patternDefinition: {fileID: 11400000, guid: c392370c1e3f40a7a20101b7bb04b46f, type: 2}
+  encounterArchetype: 1
+  requiredEnemyHealthMultiplier: 1
+  attackIntervalTurns: 1
+  attacks: []
+  spawnedBlockCountPerAttack: 0
+  spawnedBlockIncreasePerStage: 0
+  spawnedBlockHealth: 3
+  specialBlockSpawnChance: 0
+  specialBlockHealth: 3
+  specialBlockDefinitions: []
+  colonyMinimumCoreCount: 2
+  colonyMaximumCoreCount: 4
+  colonyInitialGrowthCount: 3
+  colonyGrowthBlockHealth: 3
+  colonyMinimumCoreDistance: 4
+  colonyInitialGrowthStepDelay: 0.22
+  colonyGrowthOutlineColor: {r: 0.25, g: 1, b: 0.35, a: 0.95}

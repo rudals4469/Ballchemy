@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 886c36495a3475f4f8ab51277a3e8675, type: 3}
+  m_Name: BossColonyCore
+  m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
+  blockId: boss_colony_core
+  displayName: Colony Core
+  blockType: 3
+  destructionRule: 0
+  clearRole: 1
+  specialCategory: 0
+  gridSize: {x: 1, y: 1}
+  sprite: {fileID: 0}
+  color: {r: 0.14, g: 0.82, b: 0.27, a: 1}
+  visualScale: {x: 1, y: 1, z: 1}
+  selectionWeight: 0

@@ -17,4 +17,5 @@ MonoBehaviour:
     bossDefinition: {fileID: 11400000, guid: cdd7f2fe201b4d85ad8d7858befd6eac, type: 2}
   bossPool:
   - {fileID: 11400000, guid: cdd7f2fe201b4d85ad8d7858befd6eac, type: 2}
+  - {fileID: 11400000, guid: d66b7e1239904f1abf99358703cb049e, type: 2}
   fallbackBoss: {fileID: 11400000, guid: cdd7f2fe201b4d85ad8d7858befd6eac, type: 2}

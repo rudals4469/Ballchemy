@@ -73,6 +73,14 @@ public sealed class BossEncounterController :
             BossPatternEntranceItem
         >();
 
+    private readonly List<BossGrowthCellOutline>
+        growthOutlines =
+            new List<BossGrowthCellOutline>();
+
+    private readonly BossColonyGrowthState
+        colonyGrowthState =
+            new BossColonyGrowthState();
+
     private Block currentBossBlock;
     private BossDefinition activeBossDefinition;
     private BossPatternDefinition activePattern;
@@ -608,9 +616,19 @@ public sealed class BossEncounterController :
 
         entranceItems.Clear();
 
+        if (activeBossDefinition != null &&
+            activeBossDefinition.IsProliferatingColony)
+        {
+            yield return
+                RunInitialColonyGrowthRoutine();
+        }
+
         nextAttackIndex = 0;
         turnsUntilBossAttack =
-            activeBossDefinition != null
+            activeBossDefinition != null &&
+            activeBossDefinition.IsProliferatingColony
+                ? 1
+                : activeBossDefinition != null
                 ? activeBossDefinition.AttackIntervalTurns
                 : 1;
 
@@ -673,6 +691,14 @@ public sealed class BossEncounterController :
             );
 
             return false;
+        }
+
+        if (activeBossDefinition != null &&
+            activeBossDefinition.IsProliferatingColony)
+        {
+            return TrySpawnColonyPattern(
+                pattern
+            );
         }
 
         if (!TryFindBossAnchor(
@@ -870,6 +896,437 @@ public sealed class BossEncounterController :
             );
 
         return true;
+    }
+
+    private bool TrySpawnColonyPattern(
+        BossPatternDefinition pattern)
+    {
+        BlockDefinition coreDefinition =
+            pattern.BossDefinition;
+
+        BlockDefinition growthDefinition =
+            pattern.BreakablePatternDefinition;
+
+        if (coreDefinition == null ||
+            growthDefinition == null)
+        {
+            Debug.LogError(
+                "BossEncounterController: 증식형 보스의 " +
+                "핵 또는 증식 블록 Definition이 비어 있습니다.",
+                pattern
+            );
+
+            return false;
+        }
+
+        if (coreDefinition.GridSize != Vector2Int.one ||
+            growthDefinition.GridSize != Vector2Int.one)
+        {
+            Debug.LogError(
+                "BossEncounterController: 현재 증식형 보스는 " +
+                "1×1 핵과 증식 블록만 지원합니다.",
+                pattern
+            );
+
+            return false;
+        }
+
+        int stageNumber =
+            GetCurrentStageNumber();
+
+        int requestedCoreCount =
+            activeBossDefinition
+                .CalculateColonyCoreCount(
+                    stageNumber
+                );
+
+        List<Vector2Int> coreCells =
+            SelectColonyCoreCells(
+                requestedCoreCount,
+                activeBossDefinition
+                    .ColonyMinimumCoreDistance
+            );
+
+        if (coreCells.Count < requestedCoreCount)
+        {
+            Debug.LogError(
+                "BossEncounterController: 증식형 보스 핵을 " +
+                $"{requestedCoreCount}개 배치하지 못했습니다. " +
+                $"배치 성공={coreCells.Count}",
+                this
+            );
+
+            return false;
+        }
+
+        colonyGrowthState.Clear();
+
+        for (int i = 0;
+             i < coreCells.Count;
+             i++)
+        {
+            Vector2Int cell = coreCells[i];
+
+            int health =
+                GetHealthForSymbol(
+                    pattern,
+                    'B',
+                    coreDefinition
+                );
+
+            Block core =
+                SpawnPatternBlock(
+                    coreDefinition,
+                    'B',
+                    cell.x,
+                    cell.y,
+                    cell.y,
+                    health,
+                    pattern.BossAttackPower
+                );
+
+            if (core == null)
+            {
+                continue;
+            }
+
+            core.name =
+                $"BossColony_Core_{i + 1}";
+
+            encounterBlocks.Add(core);
+            colonyGrowthState.RegisterMember(core);
+
+            if (currentBossBlock == null)
+            {
+                currentBossBlock = core;
+            }
+        }
+
+        blockGridManager.RegisterBossEncounterBlocks(
+            encounterBlocks
+        );
+
+        return blockGridManager.RequiredEnemyCount > 0;
+    }
+
+    private List<Vector2Int> SelectColonyCoreCells(
+        int requestedCount,
+        int preferredMinimumDistance)
+    {
+        List<Vector2Int> candidates =
+            new List<Vector2Int>();
+
+        List<Vector2Int> selected =
+            new List<Vector2Int>();
+
+        if (boardGrid == null ||
+            requestedCount <= 0)
+        {
+            return selected;
+        }
+
+        int maximumSpawnRow =
+            GetMaximumBossSpawnRow();
+
+        for (int row = 0;
+             row <= maximumSpawnRow;
+             row++)
+        {
+            for (int column = 0;
+                 column < boardGrid.ColumnCount;
+                 column++)
+            {
+                candidates.Add(
+                    new Vector2Int(
+                        column,
+                        row
+                    )
+                );
+            }
+        }
+
+        Shuffle(candidates);
+
+        for (int minimumDistance =
+                 Mathf.Max(preferredMinimumDistance, 0);
+             minimumDistance >= 0;
+             minimumDistance--)
+        {
+            selected.Clear();
+
+            for (int i = 0;
+                 i < candidates.Count &&
+                 selected.Count < requestedCount;
+                 i++)
+            {
+                Vector2Int candidate =
+                    candidates[i];
+
+                bool isFarEnough = true;
+
+                for (int selectedIndex = 0;
+                     selectedIndex < selected.Count;
+                     selectedIndex++)
+                {
+                    Vector2Int difference =
+                        candidate -
+                        selected[selectedIndex];
+
+                    int distance =
+                        Mathf.Abs(difference.x) +
+                        Mathf.Abs(difference.y);
+
+                    if (distance < minimumDistance)
+                    {
+                        isFarEnough = false;
+                        break;
+                    }
+                }
+
+                if (isFarEnough)
+                {
+                    selected.Add(candidate);
+                }
+            }
+
+            if (selected.Count >= requestedCount)
+            {
+                break;
+            }
+        }
+
+        return selected;
+    }
+
+    private IEnumerator RunInitialColonyGrowthRoutine()
+    {
+        int initialGrowthCount =
+            activeBossDefinition
+                .ColonyInitialGrowthCount;
+
+        for (int growthIndex = 0;
+             growthIndex < initialGrowthCount;
+             growthIndex++)
+        {
+            PrepareColonyGrowthPreview();
+
+            if (colonyGrowthState.Reservations.Count <= 0)
+            {
+                break;
+            }
+
+            float delay =
+                activeBossDefinition
+                    .ColonyInitialGrowthStepDelay;
+
+            if (delay > 0f)
+            {
+                yield return
+                    new WaitForSeconds(delay);
+            }
+            else
+            {
+                yield return null;
+            }
+
+            SpawnReservedColonyGrowthBlocks();
+            yield return null;
+        }
+
+        PrepareColonyGrowthPreview();
+    }
+
+    private void PrepareColonyGrowthPreview()
+    {
+        HideGrowthOutlines();
+
+        colonyGrowthState.PrepareReservations(
+            boardGrid,
+            encounterBlocks,
+            GetMaximumBossSpawnRow()
+        );
+
+        IReadOnlyList<BossColonyGrowthReservation>
+            reservations =
+                colonyGrowthState.Reservations;
+
+        for (int i = 0;
+             i < reservations.Count;
+             i++)
+        {
+            BossColonyGrowthReservation reservation =
+                reservations[i];
+
+            if (reservation == null)
+            {
+                continue;
+            }
+
+            GameObject outlineObject =
+                new GameObject(
+                    $"BossGrowthPreview_" +
+                    $"R{reservation.Cell.y}_" +
+                    $"C{reservation.Cell.x}"
+                );
+
+            outlineObject.transform.SetParent(
+                bossBlockContainer,
+                false
+            );
+
+            BossGrowthCellOutline outline =
+                outlineObject.AddComponent<
+                    BossGrowthCellOutline>();
+
+            outline.Configure(
+                boardGrid,
+                reservation.Cell,
+                activeBossDefinition
+                    .ColonyGrowthOutlineColor,
+                reservation.Parent
+            );
+
+            growthOutlines.Add(outline);
+        }
+    }
+
+    private void SpawnReservedColonyGrowthBlocks()
+    {
+        HideGrowthOutlines();
+
+        IReadOnlyList<BossColonyGrowthReservation>
+            reservations =
+                colonyGrowthState.Reservations;
+
+        List<Block> spawnedBlocks =
+            new List<Block>();
+
+        BlockDefinition growthDefinition =
+            activePattern != null
+                ? activePattern
+                    .BreakablePatternDefinition
+                : null;
+
+        if (growthDefinition == null)
+        {
+            colonyGrowthState.ClearReservations();
+            return;
+        }
+
+        for (int i = 0;
+             i < reservations.Count;
+             i++)
+        {
+            BossColonyGrowthReservation reservation =
+                reservations[i];
+
+            if (!colonyGrowthState.CanResolve(
+                    reservation) ||
+                IsCellOccupied(
+                    reservation.Cell))
+            {
+                continue;
+            }
+
+            Block child =
+                SpawnPatternBlock(
+                    growthDefinition,
+                    'X',
+                    reservation.Cell.x,
+                    reservation.Cell.y,
+                    reservation.Cell.y,
+                    activeBossDefinition
+                        .ColonyGrowthBlockHealth,
+                    0
+                );
+
+            if (child == null)
+            {
+                continue;
+            }
+
+            child.name =
+                $"BossColony_Growth_" +
+                $"R{reservation.Cell.y}_" +
+                $"C{reservation.Cell.x}";
+
+            encounterBlocks.Add(child);
+            spawnedBlocks.Add(child);
+            colonyGrowthState.RegisterMember(child);
+        }
+
+        for (int i = 0;
+             i < entranceItems.Count;
+             i++)
+        {
+            entranceItems[i]?.Complete();
+        }
+
+        entranceItems.Clear();
+        colonyGrowthState.ClearReservations();
+
+        blockGridManager.RegisterBossEncounterBlocks(
+            spawnedBlocks
+        );
+    }
+
+    private bool IsCellOccupied(
+        Vector2Int cell)
+    {
+        for (int i = 0;
+             i < encounterBlocks.Count;
+             i++)
+        {
+            Block block = encounterBlocks[i];
+
+            if (block != null &&
+                block.IsAlive &&
+                block.OccupiesCell(
+                    cell.x,
+                    cell.y
+                ))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private int GetMaximumBossSpawnRow()
+    {
+        return boardGrid != null
+            ? Mathf.Max(
+                boardGrid.RowCount - 2,
+                0
+            )
+            : 0;
+    }
+
+    private int GetCurrentStageNumber()
+    {
+        return roomNavigator != null &&
+               roomNavigator.CurrentMap != null
+            ? roomNavigator.CurrentMap.StageNumber
+            : 1;
+    }
+
+    private void HideGrowthOutlines()
+    {
+        for (int i = 0;
+             i < growthOutlines.Count;
+             i++)
+        {
+            BossGrowthCellOutline outline =
+                growthOutlines[i];
+
+            if (outline != null)
+            {
+                Destroy(outline.gameObject);
+            }
+        }
+
+        growthOutlines.Clear();
     }
 
     private bool TryFindBossAnchor(
@@ -1395,6 +1852,22 @@ public sealed class BossEncounterController :
             yield break;
         }
 
+        if (activeBossDefinition.IsProliferatingColony)
+        {
+            SpawnReservedColonyGrowthBlocks();
+
+            if (blockGridManager.RequiredEnemyCount > 0)
+            {
+                PrepareColonyGrowthPreview();
+            }
+
+            turnsUntilBossAttack = 1;
+            NotifyBossAttackTurnsChanged();
+
+            yield return null;
+            yield break;
+        }
+
         turnsUntilBossAttack =
             Mathf.Max(turnsUntilBossAttack - 1, 0);
 
@@ -1733,6 +2206,9 @@ public sealed class BossEncounterController :
 
     private void ClearEncounterObjects()
     {
+        HideGrowthOutlines();
+        colonyGrowthState.Clear();
+
         for (int i = 0;
              i < encounterBlocks.Count;
              i++)
