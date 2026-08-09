@@ -49,7 +49,7 @@ public sealed class BossPatternDefinition : ScriptableObject
         "X = 파괴 가능 블록\n" +
         "S = 보스가 선택하는 특수 블록\n" +
         "# = 파괴 불가능 블록\n\n" +
-        "현재 보드 규격은 가로 9칸, 세로 15칸입니다."
+        "현재 보드 규격은 가로 11칸, 세로 15칸입니다."
     )]
     [SerializeField, TextArea(15, 20)]
     private string patternText =

@@ -208,7 +208,7 @@ public sealed class BlockWaveGenerator :
         int availableColumns =
             boardGrid != null
                 ? boardGrid.ColumnCount
-                : 9;
+                : 11;
 
         int availableRows =
             boardGrid != null

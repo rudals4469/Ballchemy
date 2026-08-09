@@ -24,4 +24,4 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 1ae7d0cd5a684d7784fe5f9fff21e110, type: 2}
   fallbackBoss: {fileID: 11400000, guid: cdd7f2fe201b4d85ad8d7858befd6eac, type: 2}
   useTestBossOverride: 1
-  testBoss: {fileID: 11400000, guid: 1ae7d0cd5a684d7784fe5f9fff21e110, type: 2}
+  testBoss: {fileID: 11400000, guid: 931ceeab261649e7b555bfea5f01bae6, type: 2}

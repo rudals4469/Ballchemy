@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dbf5b87f34271554c985e389d84df804, type: 3}
   m_Name: MainBoardGridSettings
   m_EditorClassIdentifier: Assembly-CSharp::BoardGridSettings
-  columnCount: 9
+  columnCount: 11
   rowCount: 15
   cellSize: 1
