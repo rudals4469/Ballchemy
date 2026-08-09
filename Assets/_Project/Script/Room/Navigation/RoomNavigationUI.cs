@@ -249,12 +249,6 @@ public sealed class RoomNavigationUI :
             nextStageButton.interactable = showNextStage;
         }
 
-        if (showNextStage)
-        {
-            SetDirectionButtonsActive(false);
-            return;
-        }
-
         RefreshButton(
             upButton,
             RoomDirection.Up
@@ -351,15 +345,6 @@ public sealed class RoomNavigationUI :
         {
             Refresh();
         }
-    }
-
-    private void SetDirectionButtonsActive(
-        bool isActive)
-    {
-        upButton?.gameObject.SetActive(isActive);
-        rightButton?.gameObject.SetActive(isActive);
-        downButton?.gameObject.SetActive(isActive);
-        leftButton?.gameObject.SetActive(isActive);
     }
 
     private void CreateNextStageButtonIfNeeded()
