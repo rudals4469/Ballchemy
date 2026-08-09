@@ -404,7 +404,7 @@ public sealed class SecretRoomCoordinateSelector :
                     break;
 
                 case RoomType.Shop:
-                case RoomType.Reward:
+                case RoomType.Alchemy:
                 case RoomType.Event:
                     evaluation.AdjacentSpecialRoomCount++;
                     break;

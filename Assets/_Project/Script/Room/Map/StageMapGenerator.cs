@@ -68,7 +68,7 @@ public sealed class StageMapGenerator :
     private float branchPreference = 0.75f;
 
     [Tooltip(
-        "보스·상점·보상·이벤트방에 필요한 막다른 방이 " +
+        "보스·상점·연금술·이벤트방에 필요한 막다른 방이 " +
         "부족할 때 맵 생성을 다시 시도하는 최대 횟수입니다."
     )]
     [SerializeField, Min(1)]
@@ -1174,10 +1174,10 @@ public sealed class StageMapGenerator :
                 random
             );
 
-        bool rewardAssigned =
+        bool alchemyAssigned =
             AssignOneRoomType(
                 specialLeafRooms,
-                RoomType.Reward,
+                RoomType.Alchemy,
                 random
             );
 
@@ -1189,12 +1189,12 @@ public sealed class StageMapGenerator :
             );
 
         if (!shopAssigned ||
-            !rewardAssigned ||
+            !alchemyAssigned ||
             !eventAssigned)
         {
             Debug.LogError(
                 "StageMapGenerator: " +
-                "상점·보상·이벤트방을 모두 막다른 방에 " +
+                "상점·연금술·이벤트방을 모두 막다른 방에 " +
                 "배치하지 못했습니다.",
                 this
             );
@@ -1521,7 +1521,7 @@ public sealed class StageMapGenerator :
             $"Named={map.CountRoomsOfType(RoomType.NamedCombat)}, " +
             $"Boss={map.CountRoomsOfType(RoomType.Boss)}, " +
             $"Shop={map.CountRoomsOfType(RoomType.Shop)}, " +
-            $"Reward={map.CountRoomsOfType(RoomType.Reward)}, " +
+            $"Alchemy={map.CountRoomsOfType(RoomType.Alchemy)}, " +
             $"Event={map.CountRoomsOfType(RoomType.Event)}, " +
             $"Secret={map.CountRoomsOfType(RoomType.Secret)}",
             this

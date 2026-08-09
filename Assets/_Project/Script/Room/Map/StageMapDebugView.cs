@@ -425,7 +425,7 @@ public sealed class StageMapDebugView :
             case RoomType.Shop:
                 return Color.cyan;
 
-            case RoomType.Reward:
+            case RoomType.Alchemy:
                 return Color.yellow;
 
             case RoomType.Event:

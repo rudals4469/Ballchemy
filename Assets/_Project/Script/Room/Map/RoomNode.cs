@@ -49,7 +49,7 @@ public sealed class RoomNode
         roomType ==
             RoomType.Shop ||
         roomType ==
-            RoomType.Reward ||
+            RoomType.Alchemy ||
         roomType ==
             RoomType.Event ||
         roomType ==

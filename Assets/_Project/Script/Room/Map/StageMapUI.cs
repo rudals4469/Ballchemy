@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [DisallowMultipleComponent]
 public sealed class StageMapUI :
@@ -117,8 +118,9 @@ public sealed class StageMapUI :
     [SerializeField]
     private string shopRoomSymbol = "$";
 
+    [FormerlySerializedAs("rewardRoomSymbol")]
     [SerializeField]
-    private string rewardRoomSymbol = "G";
+    private string alchemyRoomSymbol = "A";
 
     [SerializeField]
     private string eventRoomSymbol = "?";
@@ -140,8 +142,9 @@ public sealed class StageMapUI :
     [SerializeField]
     private Sprite shopRoomIcon;
 
+    [FormerlySerializedAs("rewardRoomIcon")]
     [SerializeField]
-    private Sprite rewardRoomIcon;
+    private Sprite alchemyRoomIcon;
 
     [SerializeField]
     private Sprite eventRoomIcon;
@@ -284,10 +287,10 @@ public sealed class StageMapUI :
                 "$"
             );
 
-        rewardRoomSymbol =
+        alchemyRoomSymbol =
             NormalizeSymbol(
-                rewardRoomSymbol,
-                "G"
+                alchemyRoomSymbol,
+                "A"
             );
 
         eventRoomSymbol =
@@ -840,7 +843,7 @@ public sealed class StageMapUI :
             case RoomType.Start:
             case RoomType.Boss:
             case RoomType.Shop:
-            case RoomType.Reward:
+            case RoomType.Alchemy:
             case RoomType.Event:
                 return true;
 
@@ -945,8 +948,8 @@ public sealed class StageMapUI :
             case RoomType.Shop:
                 return shopRoomSymbol;
 
-            case RoomType.Reward:
-                return rewardRoomSymbol;
+            case RoomType.Alchemy:
+                return alchemyRoomSymbol;
 
             case RoomType.Event:
                 return eventRoomSymbol;
@@ -976,8 +979,8 @@ public sealed class StageMapUI :
             case RoomType.Shop:
                 return shopRoomIcon;
 
-            case RoomType.Reward:
-                return rewardRoomIcon;
+            case RoomType.Alchemy:
+                return alchemyRoomIcon;
 
             case RoomType.Event:
                 return eventRoomIcon;

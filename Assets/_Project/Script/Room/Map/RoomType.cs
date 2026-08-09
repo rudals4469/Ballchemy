@@ -5,7 +5,7 @@ public enum RoomType
     NamedCombat,
     Boss,
     Shop,
-    Reward,
+    Alchemy,
     Event,
     Secret
 }
