@@ -15,4 +15,6 @@ MonoBehaviour:
   stageBosses:
   - stageNumber: 1
     bossDefinition: {fileID: 11400000, guid: cdd7f2fe201b4d85ad8d7858befd6eac, type: 2}
+  bossPool:
+  - {fileID: 11400000, guid: cdd7f2fe201b4d85ad8d7858befd6eac, type: 2}
   fallbackBoss: {fileID: 11400000, guid: cdd7f2fe201b4d85ad8d7858befd6eac, type: 2}

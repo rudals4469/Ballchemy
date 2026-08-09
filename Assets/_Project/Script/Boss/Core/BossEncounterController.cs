@@ -76,6 +76,7 @@ public sealed class BossEncounterController :
     private Block currentBossBlock;
     private BossDefinition activeBossDefinition;
     private BossPatternDefinition activePattern;
+    private BossRunSequence bossRunSequence;
 
     private Coroutine startCoroutine;
     private Coroutine completeCoroutine;
@@ -113,6 +114,21 @@ public sealed class BossEncounterController :
         FindReferences();
         NormalizeSettings();
         ValidateReferences();
+        BeginNewBossRun();
+    }
+
+    public bool BeginNewBossRun()
+    {
+        if (bossRunSequence == null)
+        {
+            bossRunSequence =
+                new BossRunSequence();
+        }
+
+        return bossRunSequence.Initialize(
+            bossCatalog,
+            this
+        );
     }
 
     private void OnEnable()
@@ -1202,22 +1218,30 @@ public sealed class BossEncounterController :
                 ? roomNavigator.CurrentMap.StageNumber
                 : 1;
 
-        if (bossCatalog != null && bossCatalog.TryResolve(
+        bool usedFallback = false;
+
+        if (bossRunSequence != null &&
+            bossRunSequence.TryResolve(
                 stageNumber,
-                out activeBossDefinition,
-                out bool usedFallback))
+                out activeBossDefinition))
+        {
+            activePattern =
+                activeBossDefinition.PatternDefinition;
+        }
+        else if (bossCatalog != null && bossCatalog.TryResolve(
+                     stageNumber,
+                     out activeBossDefinition,
+                     out usedFallback))
         {
             activePattern = activeBossDefinition.PatternDefinition;
 
-            if (usedFallback)
-            {
-                Debug.LogWarning(
-                    "BossEncounterController: " +
-                    $"스테이지 {stageNumber} 전용 보스가 없어 " +
-                    $"fallback '{activeBossDefinition.DisplayName}'을 사용합니다.",
-                    bossCatalog
-                );
-            }
+            Debug.LogWarning(
+                "BossEncounterController: " +
+                $"런 순서의 스테이지 {stageNumber} 보스가 없어 " +
+                $"Catalog {(usedFallback ? "fallback" : "레거시 배정")} " +
+                $"'{activeBossDefinition.DisplayName}'을 사용합니다.",
+                bossCatalog
+            );
         }
         else if (testPattern != null)
         {
