@@ -21,6 +21,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 931ceeab261649e7b555bfea5f01bae6, type: 2}
   - {fileID: 11400000, guid: e4b45ef5a85d4200b4a9d9c230e033e6, type: 2}
   - {fileID: 11400000, guid: 24dc39b0c55140599c9fbf9a290371b5, type: 2}
+  - {fileID: 11400000, guid: 1ae7d0cd5a684d7784fe5f9fff21e110, type: 2}
   fallbackBoss: {fileID: 11400000, guid: cdd7f2fe201b4d85ad8d7858befd6eac, type: 2}
-  useTestBossOverride: 0
-  testBoss: {fileID: 11400000, guid: d66b7e1239904f1abf99358703cb049e, type: 2}
+  useTestBossOverride: 1
+  testBoss: {fileID: 11400000, guid: 1ae7d0cd5a684d7784fe5f9fff21e110, type: 2}

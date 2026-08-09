@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43c816695e2f4c48a4dc80d9f5721467, type: 3}
   m_Name: BossDefinition_Test01
   m_EditorClassIdentifier: Assembly-CSharp::BossDefinition
-  bossId: boss_test_01
-  displayName: Boss Test 01
+  bossId: boss_frontline_commander_01
+  displayName: Frontline Commander
   patternDefinition: {fileID: 11400000, guid: 857ddb12d0c98184696e4c48bc4a068f, type: 2}
   encounterArchetype: 0
   requiredEnemyHealthMultiplier: 1
@@ -40,3 +40,47 @@ MonoBehaviour:
   colonyMinimumCoreDistance: 4
   colonyInitialGrowthStepDelay: 0.22
   colonyGrowthOutlineColor: {r: 0.25, g: 1, b: 0.35, a: 0.95}
+  randomizePatternObstacles: 1
+  randomBreakableObstacleCount: 24
+  randomIndestructibleObstacleCount: 10
+  randomObstacleMaximumNeighborCount: 1
+  descendingWaveCount: 10
+  descendingMinimumRowCount: 2
+  descendingMaximumRowCount: 4
+  descendingDamagePerEscapedBlock: 1
+  reactorBombDefinition: {fileID: 0}
+  reactorBombsToDestroy: 5
+  reactorBombHealth: 5
+  reactorInitialBombCount: 2
+  reactorBombsPerTurn: 1
+  reactorDescentRowCount: 1
+  reactorEscapedBombDamage: 2
+  reactorBombDamage: 10
+  reactorExplosionBlockDamage: 1
+  reactorChainBossDamageBonus: 5
+  reactorBaseAttackDamage: 2
+  reactorCrossLockBonusDamage: 20
+  reactorCrossLockAttackDelay: 1
+  reactorBlockerDefinition: {fileID: 0}
+  reactorBlockerCount: 4
+  trapDefinitions: []
+  trapTerrainDefinition: {fileID: 0}
+  trapAmplifierDefinition: {fileID: 0}
+  trapInitialCount: 4
+  trapSpawnCountPerTurn: 2
+  trapMaximumCount: 10
+  trapTerrainCount: 5
+  trapHealthBallRatio: 0.25
+  trapAmplifierHealthBallRatio: 0.75
+  trapBallSealRatio: 0.2
+  trapBossHealthIncrease: 20
+  trapAmplifierBaseShield: 2
+  arenaNormalBlockDefinition: {fileID: 0}
+  arenaNormalBlockCount: 24
+  arenaNormalBlockHealth: 8
+  arenaNormalRegenerationIntervalTurns: 3
+  arenaNormalRegenerationCount: 6
+  teleportCircuitPortalDefinition: {fileID: 0}
+  teleportCircuitPortalCount: 6
+  teleportCircuitBonusThreshold: 3
+  teleportCircuitBossDamageMultiplier: 1.5

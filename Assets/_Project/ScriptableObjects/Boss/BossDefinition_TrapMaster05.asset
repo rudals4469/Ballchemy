@@ -45,5 +45,5 @@ MonoBehaviour:
   arenaNormalBlockDefinition: {fileID: 11400000, guid: 86b5baec405c41a8b94e40b80f60a7d2, type: 2}
   arenaNormalBlockCount: 24
   arenaNormalBlockHealth: 8
-  arenaNormalRegenerationIntervalTurns: 3
-  arenaNormalRegenerationCount: 6
+  arenaNormalRegenerationIntervalTurns: 1
+  arenaNormalRegenerationCount: 10

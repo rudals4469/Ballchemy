@@ -107,6 +107,8 @@ public sealed class BossEncounterController :
     private readonly List<Block> trapTerrainBlocks = new List<Block>();
     private readonly List<Block> temporaryTrapWalls = new List<Block>();
     private readonly List<Block> bossArenaNormalBlocks = new List<Block>();
+    private readonly List<TeleportPortalController> teleportCircuitPortals =
+        new List<TeleportPortalController>();
     private Block trapAmplifierBlock;
 
     private Block currentBossBlock;
@@ -806,6 +808,29 @@ public sealed class BossEncounterController :
         {
             SpawnTrapMasterSetup();
         }
+        else if (activeBossDefinition != null &&
+                 activeBossDefinition.IsTeleportCircuit)
+        {
+            SpawnTeleportCircuitPortals();
+            SpawnRandomPatternObstacles(activePattern);
+
+            BossTeleportDamageReceiver receiver =
+                currentBossBlock.gameObject.GetComponent<
+                    BossTeleportDamageReceiver
+                >();
+
+            if (receiver == null)
+            {
+                receiver = currentBossBlock.gameObject.AddComponent<
+                    BossTeleportDamageReceiver
+                >();
+            }
+
+            receiver.Configure(
+                activeBossDefinition.TeleportCircuitBonusThreshold,
+                activeBossDefinition.TeleportCircuitBossDamageMultiplier
+            );
+        }
 
         if (activeBossDefinition != null &&
             (activeBossDefinition.IsBombReactor ||
@@ -970,8 +995,7 @@ public sealed class BossEncounterController :
 
         if ((bossGridSize.x % 2 == 0 ||
              bossGridSize.y % 2 == 0) &&
-            (activeBossDefinition == null ||
-             !activeBossDefinition.IsBombReactor))
+            activeBossDefinition == null)
         {
             Debug.LogError(
                 "BossEncounterController: " +
@@ -1022,6 +1046,13 @@ public sealed class BossEncounterController :
                     );
 
                 if (symbol == '.')
+                {
+                    continue;
+                }
+
+                if (activeBossDefinition != null &&
+                    activeBossDefinition.RandomizePatternObstacles &&
+                    symbol != 'B')
                 {
                     continue;
                 }
@@ -1104,6 +1135,13 @@ public sealed class BossEncounterController :
             }
         }
 
+        if (activeBossDefinition != null &&
+            activeBossDefinition.RandomizePatternObstacles &&
+            !activeBossDefinition.IsTeleportCircuit)
+        {
+            SpawnRandomPatternObstacles(pattern);
+        }
+
         bool hasRequiredEnemy = false;
 
         for (int i = 0; i < encounterBlocks.Count; i++)
@@ -1132,6 +1170,351 @@ public sealed class BossEncounterController :
             );
 
         return true;
+    }
+
+    private void SpawnRandomPatternObstacles(
+        BossPatternDefinition pattern)
+    {
+        if (pattern == null || activeBossDefinition == null)
+        {
+            return;
+        }
+
+        BlockDefinition breakableDefinition =
+            pattern.BreakablePatternDefinition;
+
+        BlockDefinition indestructibleDefinition =
+            pattern.IndestructiblePatternDefinition;
+
+        int breakableCount =
+            activeBossDefinition.RandomBreakableObstacleCount;
+
+        int indestructibleCount =
+            activeBossDefinition.RandomIndestructibleObstacleCount;
+
+        if ((breakableDefinition == null && breakableCount > 0) ||
+            (indestructibleDefinition == null &&
+             indestructibleCount > 0))
+        {
+            Debug.LogError(
+                "BossEncounterController: 랜덤 방해 블록 Definition이 없습니다.",
+                activeBossDefinition
+            );
+
+            return;
+        }
+
+        if ((breakableDefinition != null &&
+             breakableDefinition.GridSize != Vector2Int.one) ||
+            (indestructibleDefinition != null &&
+             indestructibleDefinition.GridSize != Vector2Int.one))
+        {
+            Debug.LogError(
+                "BossEncounterController: 랜덤 방해 블록은 1×1만 지원합니다.",
+                activeBossDefinition
+            );
+
+            return;
+        }
+
+        int requestedCount = breakableCount + indestructibleCount;
+        List<Vector2Int> candidates = FindEmptySpawnCells();
+
+        if (teleportCircuitPortals.Count > 0)
+        {
+            candidates.RemoveAll(IsInsideTeleportPortalSafetyZone);
+        }
+
+        List<Vector2Int> selected = SelectRandomObstacleCells(
+            candidates,
+            requestedCount,
+            activeBossDefinition.RandomObstacleMaximumNeighborCount
+        );
+
+        Shuffle(selected);
+
+        for (int i = 0; i < selected.Count; i++)
+        {
+            bool spawnBreakable = i < breakableCount;
+            BlockDefinition definition = spawnBreakable
+                ? breakableDefinition
+                : indestructibleDefinition;
+
+            char symbol = spawnBreakable ? 'X' : '#';
+            Vector2Int cell = selected[i];
+
+            Block obstacle = SpawnPatternBlock(
+                definition,
+                symbol,
+                cell.x,
+                cell.y,
+                cell.y,
+                spawnBreakable ? pattern.PatternBlockHealth : 1,
+                0
+            );
+
+            if (obstacle != null)
+            {
+                encounterBlocks.Add(obstacle);
+            }
+        }
+
+        if (selected.Count < requestedCount)
+        {
+            Debug.LogWarning(
+                "BossEncounterController: 간격 조건으로 랜덤 방해 블록을 " +
+                $"{selected.Count}/{requestedCount}개 배치했습니다.",
+                activeBossDefinition
+            );
+        }
+    }
+
+    private bool IsInsideTeleportPortalSafetyZone(Vector2Int cell)
+    {
+        for (int i = 0; i < teleportCircuitPortals.Count; i++)
+        {
+            TeleportPortalController portal =
+                teleportCircuitPortals[i];
+
+            if (portal == null)
+            {
+                continue;
+            }
+
+            Block portalBlock = portal.GetComponent<Block>();
+            if (portalBlock == null || !portalBlock.HasGridPosition)
+            {
+                continue;
+            }
+
+            Vector2Int portalCell = portalBlock.GridPosition;
+
+            if (Mathf.Abs(cell.x - portalCell.x) <= 1 &&
+                Mathf.Abs(cell.y - portalCell.y) <= 1)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private List<Vector2Int> SelectRandomObstacleCells(
+        IReadOnlyList<Vector2Int> candidates,
+        int requestedCount,
+        int maximumNeighborCount)
+    {
+        List<Vector2Int> best = new List<Vector2Int>();
+
+        if (candidates == null || requestedCount <= 0)
+        {
+            return best;
+        }
+
+        maximumNeighborCount = Mathf.Clamp(
+            maximumNeighborCount,
+            0,
+            3
+        );
+
+        const int attemptCount = 32;
+
+        for (int attempt = 0; attempt < attemptCount; attempt++)
+        {
+            List<Vector2Int> shuffled =
+                new List<Vector2Int>();
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                shuffled.Add(candidates[i]);
+            }
+
+            Shuffle(shuffled);
+            List<Vector2Int> current = new List<Vector2Int>();
+
+            for (int i = 0;
+                 i < shuffled.Count && current.Count < requestedCount;
+                 i++)
+            {
+                Vector2Int candidate = shuffled[i];
+                int candidateNeighborCount =
+                    CountAdjacentObstacleCells(candidate, current);
+
+                if (candidateNeighborCount > maximumNeighborCount)
+                {
+                    continue;
+                }
+
+                bool exceedsExistingLimit = false;
+
+                for (int selectedIndex = 0;
+                     selectedIndex < current.Count;
+                     selectedIndex++)
+                {
+                    Vector2Int existing = current[selectedIndex];
+
+                    if (!AreObstacleCellsAdjacent(candidate, existing))
+                    {
+                        continue;
+                    }
+
+                    if (CountAdjacentObstacleCells(existing, current) >=
+                        maximumNeighborCount)
+                    {
+                        exceedsExistingLimit = true;
+                        break;
+                    }
+                }
+
+                if (!exceedsExistingLimit)
+                {
+                    current.Add(candidate);
+                }
+            }
+
+            while (current.Count > 0 &&
+                   !IsRandomArenaNavigable(current))
+            {
+                current.RemoveAt(current.Count - 1);
+            }
+
+            if (current.Count > best.Count)
+            {
+                best = current;
+            }
+
+            if (best.Count >= requestedCount)
+            {
+                break;
+            }
+        }
+
+        return best;
+    }
+
+    private bool IsRandomArenaNavigable(
+        IReadOnlyList<Vector2Int> proposedObstacles)
+    {
+        if (boardGrid == null)
+        {
+            return false;
+        }
+
+        HashSet<Vector2Int> blocked = new HashSet<Vector2Int>();
+
+        for (int i = 0; i < encounterBlocks.Count; i++)
+        {
+            Block block = encounterBlocks[i];
+
+            if (block == null ||
+                !block.IsAlive ||
+                !block.HasGridPosition ||
+                block.GetComponent<TeleportPortalController>() != null)
+            {
+                continue;
+            }
+
+            for (int row = block.StartRow;
+                 row <= block.EndRow;
+                 row++)
+            {
+                for (int column = block.StartColumn;
+                     column <= block.EndColumn;
+                     column++)
+                {
+                    blocked.Add(new Vector2Int(column, row));
+                }
+            }
+        }
+
+        for (int i = 0; i < proposedObstacles.Count; i++)
+        {
+            blocked.Add(proposedObstacles[i]);
+        }
+
+        Queue<Vector2Int> pending = new Queue<Vector2Int>();
+        HashSet<Vector2Int> reachable = new HashSet<Vector2Int>();
+
+        for (int column = 0;
+             column < boardGrid.ColumnCount;
+             column++)
+        {
+            Vector2Int entrance = new Vector2Int(column, 0);
+
+            if (!blocked.Contains(entrance) && reachable.Add(entrance))
+            {
+                pending.Enqueue(entrance);
+            }
+        }
+
+        if (pending.Count <= 0)
+        {
+            return false;
+        }
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.up,
+            Vector2Int.down,
+            Vector2Int.left,
+            Vector2Int.right
+        };
+
+        while (pending.Count > 0)
+        {
+            Vector2Int current = pending.Dequeue();
+
+            for (int i = 0; i < directions.Length; i++)
+            {
+                Vector2Int next = current + directions[i];
+
+                if (next.x < 0 ||
+                    next.x >= boardGrid.ColumnCount ||
+                    next.y < 0 ||
+                    next.y >= boardGrid.RowCount ||
+                    blocked.Contains(next) ||
+                    !reachable.Add(next))
+                {
+                    continue;
+                }
+
+                pending.Enqueue(next);
+            }
+        }
+
+        int openCellCount =
+            boardGrid.ColumnCount * boardGrid.RowCount - blocked.Count;
+
+        return reachable.Count >= openCellCount;
+    }
+
+    private static int CountAdjacentObstacleCells(
+        Vector2Int cell,
+        IReadOnlyList<Vector2Int> cells)
+    {
+        int count = 0;
+
+        for (int i = 0; i < cells.Count; i++)
+        {
+            if (AreObstacleCellsAdjacent(cell, cells[i]))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static bool AreObstacleCellsAdjacent(
+        Vector2Int first,
+        Vector2Int second)
+    {
+        int horizontalDistance = Mathf.Abs(first.x - second.x);
+        int verticalDistance = Mathf.Abs(first.y - second.y);
+
+        return horizontalDistance <= 1 &&
+               verticalDistance <= 1 &&
+               (horizontalDistance > 0 || verticalDistance > 0);
     }
 
     private bool TrySpawnDescendingWave(
@@ -1636,6 +2019,134 @@ public sealed class BossEncounterController :
         SpawnTrapAmplifier();
     }
 
+    private void SpawnTeleportCircuitPortals()
+    {
+        BlockDefinition definition =
+            activeBossDefinition.TeleportCircuitPortalDefinition;
+
+        if (definition == null)
+        {
+            return;
+        }
+
+        List<Vector2Int> cells = FindEmptySpawnCells();
+        cells.RemoveAll(
+            cell => !IsSafeTeleportPortalCell(cell)
+        );
+
+        List<Vector2Int> portalCells =
+            SelectSeparatedReactorBlockerCells(
+                cells,
+                activeBossDefinition.TeleportCircuitPortalCount
+            );
+
+        int count = Mathf.Min(
+            activeBossDefinition.TeleportCircuitPortalCount,
+            portalCells.Count
+        );
+
+        List<Block> spawned = new List<Block>();
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2Int cell = portalCells[i];
+            Block portalBlock = SpawnPatternBlock(
+                definition,
+                'S',
+                cell.x,
+                cell.y,
+                cell.y,
+                1,
+                0
+            );
+
+            if (portalBlock == null)
+            {
+                continue;
+            }
+
+            TeleportPortalController portal =
+                portalBlock.GetComponent<TeleportPortalController>();
+
+            if (portal == null)
+            {
+                Debug.LogError(
+                    "BossEncounterController: 텔레포트 보스 포탈 프리팹에 " +
+                    "TeleportPortalController가 없습니다.",
+                    portalBlock
+                );
+
+                portalBlock.ExpireWithoutReward();
+                continue;
+            }
+
+            encounterBlocks.Add(portalBlock);
+            teleportCircuitPortals.Add(portal);
+            spawned.Add(portalBlock);
+        }
+
+        blockGridManager.RegisterBossEncounterBlocks(spawned);
+        RewireTeleportCircuit();
+    }
+
+    private bool IsSafeTeleportPortalCell(Vector2Int cell)
+    {
+        if (cell.x <= 0 ||
+            cell.x >= boardGrid.ColumnCount - 1 ||
+            cell.y <= 0 ||
+            cell.y >= boardGrid.RowCount - 1)
+        {
+            return false;
+        }
+
+        for (int rowOffset = -1; rowOffset <= 1; rowOffset++)
+        {
+            for (int columnOffset = -1;
+                 columnOffset <= 1;
+                 columnOffset++)
+            {
+                Vector2Int neighbor = cell + new Vector2Int(
+                    columnOffset,
+                    rowOffset
+                );
+
+                if (IsEncounterCellOccupied(neighbor))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private void RewireTeleportCircuit()
+    {
+        teleportCircuitPortals.RemoveAll(
+            portal => portal == null || !portal.gameObject.activeInHierarchy
+        );
+
+        if (teleportCircuitPortals.Count < 3)
+        {
+            return;
+        }
+
+        Shuffle(teleportCircuitPortals);
+
+        for (int i = 0; i < teleportCircuitPortals.Count; i++)
+        {
+            TeleportPortalController source =
+                teleportCircuitPortals[i];
+
+            TeleportPortalController destination =
+                teleportCircuitPortals[
+                    (i + 1) % teleportCircuitPortals.Count
+                ];
+
+            source.Link(destination);
+        }
+    }
+
     private void SpawnBossArenaNormalBlocks(int requestedCount)
     {
         BlockDefinition definition =
@@ -2090,8 +2601,7 @@ public sealed class BossEncounterController :
             return false;
         }
 
-        if (coreDefinition.GridSize != Vector2Int.one ||
-            growthDefinition.GridSize != Vector2Int.one)
+        if (growthDefinition.GridSize != Vector2Int.one)
         {
             Debug.LogError(
                 "BossEncounterController: 현재 증식형 보스는 " +
@@ -2115,7 +2625,8 @@ public sealed class BossEncounterController :
             SelectColonyCoreCells(
                 requestedCoreCount,
                 activeBossDefinition
-                    .ColonyMinimumCoreDistance
+                    .ColonyMinimumCoreDistance,
+                coreDefinition.GridSize
             );
 
         if (coreCells.Count < requestedCoreCount)
@@ -2182,7 +2693,8 @@ public sealed class BossEncounterController :
 
     private List<Vector2Int> SelectColonyCoreCells(
         int requestedCount,
-        int preferredMinimumDistance)
+        int preferredMinimumDistance,
+        Vector2Int coreSize)
     {
         List<Vector2Int> candidates =
             new List<Vector2Int>();
@@ -2199,12 +2711,23 @@ public sealed class BossEncounterController :
         int maximumSpawnRow =
             GetMaximumBossSpawnRow();
 
+        coreSize = new Vector2Int(
+            Mathf.Max(coreSize.x, 1),
+            Mathf.Max(coreSize.y, 1)
+        );
+
+        int maximumStartRow =
+            maximumSpawnRow - coreSize.y + 1;
+
+        int maximumStartColumn =
+            boardGrid.ColumnCount - coreSize.x - 1;
+
         for (int row = 1;
-             row <= maximumSpawnRow;
+             row <= maximumStartRow;
              row++)
         {
             for (int column = 1;
-                 column < boardGrid.ColumnCount - 1;
+                 column <= maximumStartColumn;
                  column++)
             {
                 candidates.Add(
@@ -2247,7 +2770,12 @@ public sealed class BossEncounterController :
                         Mathf.Abs(difference.x) +
                         Mathf.Abs(difference.y);
 
-                    if (distance < minimumDistance)
+                    bool footprintsOverlap =
+                        Mathf.Abs(difference.x) < coreSize.x &&
+                        Mathf.Abs(difference.y) < coreSize.y;
+
+                    if (footprintsOverlap ||
+                        distance < minimumDistance)
                     {
                         isFarEnough = false;
                         break;
@@ -3110,6 +3638,11 @@ public sealed class BossEncounterController :
             yield break;
         }
 
+        if (activeBossDefinition.IsTeleportCircuit)
+        {
+            RewireTeleportCircuit();
+        }
+
         if (blockGridManager.RequiredEnemyCount <= 0)
         {
             yield break;
@@ -3914,6 +4447,13 @@ public sealed class BossEncounterController :
         temporaryTrapWalls.Clear();
         bossArenaNormalBlocks.Clear();
 
+        for (int i = 0; i < teleportCircuitPortals.Count; i++)
+        {
+            teleportCircuitPortals[i]?.Unlink();
+        }
+
+        teleportCircuitPortals.Clear();
+
         for (int i = 0;
              i < encounterBlocks.Count;
              i++)
@@ -4085,5 +4625,44 @@ public sealed class BossReactorBlastLineEffect : MonoBehaviour
         {
             Destroy(runtimeMaterial);
         }
+    }
+}
+
+[DisallowMultipleComponent]
+public sealed class BossTeleportDamageReceiver : MonoBehaviour
+{
+    private int requiredTeleportCount = 3;
+    private float damageMultiplier = 1.5f;
+
+    public void Configure(
+        int teleportCount,
+        float multiplier)
+    {
+        requiredTeleportCount = Mathf.Max(teleportCount, 1);
+        damageMultiplier = Mathf.Max(multiplier, 1f);
+    }
+
+    public int ModifyDamage(int damage, Ball sourceBall)
+    {
+        damage = Mathf.Max(damage, 1);
+
+        if (sourceBall == null)
+        {
+            return damage;
+        }
+
+        BallTeleportState teleportState =
+            sourceBall.GetComponent<BallTeleportState>();
+
+        if (teleportState == null ||
+            teleportState.SuccessfulTeleportCount < requiredTeleportCount)
+        {
+            return damage;
+        }
+
+        return Mathf.Max(
+            Mathf.RoundToInt(damage * damageMultiplier),
+            damage
+        );
     }
 }

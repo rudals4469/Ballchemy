@@ -55,6 +55,9 @@ public sealed class BossColonyGrowthState
     private readonly List<Vector2Int> directionBuffer =
         new List<Vector2Int>(Directions.Length);
 
+    private readonly List<Vector2Int> targetCellBuffer =
+        new List<Vector2Int>();
+
     private Vector2 colonyCenter;
 
     public IReadOnlyList<BossColonyGrowthReservation> Reservations =>
@@ -68,6 +71,7 @@ public sealed class BossColonyGrowthState
         occupiedCells.Clear();
         reservedCells.Clear();
         directionBuffer.Clear();
+        targetCellBuffer.Clear();
     }
 
     public void RegisterMember(
@@ -116,21 +120,19 @@ public sealed class BossColonyGrowthState
             Block parent =
                 parentBuffer[i];
 
-            directionBuffer.Clear();
-            directionBuffer.AddRange(Directions);
-            Shuffle(directionBuffer);
+            CollectGrowthTargets(parent);
+            Shuffle(targetCellBuffer);
 
             bool foundTarget = false;
             Vector2Int selectedTarget = default;
             float selectedDistance = float.MinValue;
 
             for (int directionIndex = 0;
-                 directionIndex < directionBuffer.Count;
+                 directionIndex < targetCellBuffer.Count;
                  directionIndex++)
             {
                 Vector2Int targetCell =
-                    parent.GridPosition +
-                    directionBuffer[directionIndex];
+                    targetCellBuffer[directionIndex];
 
                 if (targetCell.x < 0 ||
                     targetCell.x >= boardGrid.ColumnCount ||
@@ -181,6 +183,41 @@ public sealed class BossColonyGrowthState
         return reservations.Count;
     }
 
+    private void CollectGrowthTargets(Block parent)
+    {
+        targetCellBuffer.Clear();
+
+        if (parent == null || !parent.HasGridPosition)
+        {
+            return;
+        }
+
+        for (int row = parent.StartRow;
+             row <= parent.EndRow;
+             row++)
+        {
+            for (int column = parent.StartColumn;
+                 column <= parent.EndColumn;
+                 column++)
+            {
+                Vector2Int occupiedCell =
+                    new Vector2Int(column, row);
+
+                for (int i = 0; i < Directions.Length; i++)
+                {
+                    Vector2Int target =
+                        occupiedCell + Directions[i];
+
+                    if (!occupiedCells.Contains(target) &&
+                        !targetCellBuffer.Contains(target))
+                    {
+                        targetCellBuffer.Add(target);
+                    }
+                }
+            }
+        }
+    }
+
     private int CountOccupiedNeighbors(
         Vector2Int cell)
     {
@@ -212,7 +249,9 @@ public sealed class BossColonyGrowthState
 
         for (int i = 0; i < parentBuffer.Count; i++)
         {
-            total += (Vector2)parentBuffer[i].GridPosition;
+            Block parent = parentBuffer[i];
+            total += (Vector2)parent.GridPosition +
+                     ((Vector2)parent.GridSize - Vector2.one) * 0.5f;
         }
 
         colonyCenter = total / parentBuffer.Count;

@@ -7,7 +7,8 @@ public enum BossEncounterArchetype
     ProliferatingColony = 1,
     DescendingWave = 2,
     BombReactor = 3,
-    TrapMaster = 4
+    TrapMaster = 4,
+    TeleportCircuit = 5
 }
 
 [CreateAssetMenu(fileName = "BossDefinition", menuName = "Ballchemy/Boss/Boss Definition")]
@@ -87,6 +88,18 @@ public sealed class BossDefinition : ScriptableObject
     [SerializeField, Min(1)] private int arenaNormalRegenerationIntervalTurns = 3;
     [SerializeField, Min(1)] private int arenaNormalRegenerationCount = 6;
 
+    [Header("Teleport Circuit")]
+    [SerializeField] private BlockDefinition teleportCircuitPortalDefinition;
+    [SerializeField, Min(3)] private int teleportCircuitPortalCount = 6;
+    [SerializeField, Min(1)] private int teleportCircuitBonusThreshold = 3;
+    [SerializeField, Min(1f)] private float teleportCircuitBossDamageMultiplier = 1.5f;
+
+    [Header("Random Arena Obstacles")]
+    [SerializeField] private bool randomizePatternObstacles;
+    [SerializeField, Min(0)] private int randomBreakableObstacleCount = 20;
+    [SerializeField, Min(0)] private int randomIndestructibleObstacleCount = 8;
+    [SerializeField, Range(0, 3)] private int randomObstacleMaximumNeighborCount = 1;
+
     public string BossId => bossId;
     public string DisplayName => displayName;
     public BossPatternDefinition PatternDefinition => patternDefinition;
@@ -99,6 +112,8 @@ public sealed class BossDefinition : ScriptableObject
         encounterArchetype == BossEncounterArchetype.BombReactor;
     public bool IsTrapMaster =>
         encounterArchetype == BossEncounterArchetype.TrapMaster;
+    public bool IsTeleportCircuit =>
+        encounterArchetype == BossEncounterArchetype.TeleportCircuit;
     public float RequiredEnemyHealthMultiplier => Mathf.Max(requiredEnemyHealthMultiplier, 0.01f);
     public int AttackIntervalTurns => Mathf.Max(attackIntervalTurns, 1);
     public int AttackCount => attacks != null ? attacks.Length : 0;
@@ -153,6 +168,21 @@ public sealed class BossDefinition : ScriptableObject
         Mathf.Max(arenaNormalRegenerationIntervalTurns, 1);
     public int ArenaNormalRegenerationCount =>
         Mathf.Max(arenaNormalRegenerationCount, 1);
+    public BlockDefinition TeleportCircuitPortalDefinition =>
+        teleportCircuitPortalDefinition;
+    public int TeleportCircuitPortalCount =>
+        Mathf.Max(teleportCircuitPortalCount, 3);
+    public int TeleportCircuitBonusThreshold =>
+        Mathf.Max(teleportCircuitBonusThreshold, 1);
+    public float TeleportCircuitBossDamageMultiplier =>
+        Mathf.Max(teleportCircuitBossDamageMultiplier, 1f);
+    public bool RandomizePatternObstacles => randomizePatternObstacles;
+    public int RandomBreakableObstacleCount =>
+        Mathf.Max(randomBreakableObstacleCount, 0);
+    public int RandomIndestructibleObstacleCount =>
+        Mathf.Max(randomIndestructibleObstacleCount, 0);
+    public int RandomObstacleMaximumNeighborCount =>
+        Mathf.Clamp(randomObstacleMaximumNeighborCount, 0, 3);
 
     public int TrapDefinitionCount =>
         trapDefinitions != null ? trapDefinitions.Length : 0;
@@ -345,6 +375,31 @@ public sealed class BossDefinition : ScriptableObject
         arenaNormalRegenerationCount = Mathf.Max(
             arenaNormalRegenerationCount,
             1
+        );
+        teleportCircuitPortalCount = Mathf.Max(
+            teleportCircuitPortalCount,
+            3
+        );
+        teleportCircuitBonusThreshold = Mathf.Max(
+            teleportCircuitBonusThreshold,
+            1
+        );
+        teleportCircuitBossDamageMultiplier = Mathf.Max(
+            teleportCircuitBossDamageMultiplier,
+            1f
+        );
+        randomBreakableObstacleCount = Mathf.Max(
+            randomBreakableObstacleCount,
+            0
+        );
+        randomIndestructibleObstacleCount = Mathf.Max(
+            randomIndestructibleObstacleCount,
+            0
+        );
+        randomObstacleMaximumNeighborCount = Mathf.Clamp(
+            randomObstacleMaximumNeighborCount,
+            0,
+            3
         );
     }
 }

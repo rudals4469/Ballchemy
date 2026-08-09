@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 886c36495a3475f4f8ab51277a3e8675, type: 3}
-  m_Name: BossCore
+  m_Name: BossFrontlineCommanderCore
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
-  blockId: boss_core_test
-  displayName: Test Boss
+  blockId: boss_frontline_commander_core
+  displayName: Frontline Commander
   blockType: 3
   destructionRule: 0
-  gridSize: {x: 1, y: 1}
+  gridSize: {x: 2, y: 2}
   sprite: {fileID: 0}
   color: {r: 1, g: 0, b: 0, a: 1}
   visualScale: {x: 1, y: 1, z: 1}

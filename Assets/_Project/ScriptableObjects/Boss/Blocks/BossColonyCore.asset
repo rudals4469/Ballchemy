@@ -18,7 +18,7 @@ MonoBehaviour:
   destructionRule: 0
   clearRole: 1
   specialCategory: 0
-  gridSize: {x: 1, y: 1}
+  gridSize: {x: 2, y: 2}
   sprite: {fileID: 0}
   color: {r: 0.14, g: 0.82, b: 0.27, a: 1}
   visualScale: {x: 1, y: 1, z: 1}

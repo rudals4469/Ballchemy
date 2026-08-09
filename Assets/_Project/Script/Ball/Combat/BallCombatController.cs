@@ -370,6 +370,17 @@ public sealed class BallCombatController :
                 1
             );
 
+        BossTeleportDamageReceiver teleportReceiver =
+            target.GetComponent<BossTeleportDamageReceiver>();
+
+        if (teleportReceiver != null)
+        {
+            calculatedDamage = teleportReceiver.ModifyDamage(
+                calculatedDamage,
+                ball
+            );
+        }
+
         int healthBeforeDamage =
             Mathf.Max(
                 target.CurrentHealth,

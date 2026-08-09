@@ -131,6 +131,7 @@ public sealed class TeleportPortalController : MonoBehaviour
             return;
         }
 
+        state.RecordSuccessfulTeleport();
         state.LockUntilExited(partner);
         BallEntered?.Invoke(ball);
         partner.BallExited?.Invoke(ball);
