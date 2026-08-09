@@ -17,16 +17,19 @@ public sealed class BossAttackDefinition : ScriptableObject
     [SerializeField] private BossAttackType attackType;
     [SerializeField, Min(1)] private int damage = 1;
     [SerializeField, Min(1)] private int selectedBlockCount = 1;
+    [SerializeField, Min(0f)] private float telegraphDuration = 0.6f;
 
     public string AttackId => attackId;
     public string DisplayName => displayName;
     public BossAttackType AttackType => attackType;
     public int Damage => Mathf.Max(damage, 1);
     public int SelectedBlockCount => Mathf.Max(selectedBlockCount, 1);
+    public float TelegraphDuration => Mathf.Max(telegraphDuration, 0f);
 
     private void OnValidate()
     {
         damage = Mathf.Max(damage, 1);
         selectedBlockCount = Mathf.Max(selectedBlockCount, 1);
+        telegraphDuration = Mathf.Max(telegraphDuration, 0f);
     }
 }

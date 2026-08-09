@@ -21,4 +21,13 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bbfdca8c20684898a017c3719130821a, type: 2}
   - {fileID: 11400000, guid: b3b235fb1cbf41ca8cb815a5f7a54312, type: 2}
   spawnedBlockCountPerAttack: 2
+  spawnedBlockIncreasePerStage: 2
   spawnedBlockHealth: 10
+  specialBlockSpawnChance: 0.35
+  specialBlockHealth: 5
+  specialBlockDefinitions:
+  - {fileID: 11400000, guid: 76530a832fb6ed24590056d98d11b6c9, type: 2}
+  - {fileID: 11400000, guid: 8234a9904e8bf67468de971f2a7187f2, type: 2}
+  - {fileID: 11400000, guid: f1d0f78eeea0dfe4fac344b6c180626e, type: 2}
+  - {fileID: 11400000, guid: dde3cded785e8174c873ec21571e3bc6, type: 2}
+  - {fileID: 11400000, guid: 07a1e78f430ea7c48a1167689f7e7a9c, type: 2}

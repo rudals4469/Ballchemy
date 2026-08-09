@@ -12198,6 +12198,7 @@ MonoBehaviour:
   ballLauncher: {fileID: 904823807}
   boardGrid: {fileID: 1710125463}
   blockPrefab: {fileID: 5741669861215845034, guid: 6f7a787f1ac0e13419e6eed0592dc6a4, type: 3}
+  blockPrefabCatalog: {fileID: 11400000, guid: b53e06d3c1ffdf140b3c16ce9316c09f, type: 2}
   bossBlockContainer: {fileID: 137645039}
   bossCatalog: {fileID: 11400000, guid: 91a9a37114894bc4b9b3c61fdbf068aa, type: 2}
   testPattern: {fileID: 11400000, guid: 857ddb12d0c98184696e4c48bc4a068f, type: 2}
@@ -12354,6 +12355,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAttackTurnUI
   roomNavigator: {fileID: 372114439}
   blockGridManager: {fileID: 987057997}
+  bossEncounterController: {fileID: 1004609280}
   uiRoot: {fileID: 333104270}
   turnText: {fileID: 333104273}
   waitingTextFormat: '{0}'

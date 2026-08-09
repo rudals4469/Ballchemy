@@ -47,6 +47,7 @@ public sealed class BossPatternDefinition : ScriptableObject
         ". = 빈칸\n" +
         "B = 보스\n" +
         "X = 파괴 가능 블록\n" +
+        "S = 보스가 선택하는 특수 블록\n" +
         "# = 파괴 불가능 블록\n\n" +
         "현재 보드 규격은 가로 9칸, 세로 15칸입니다."
     )]
@@ -456,6 +457,7 @@ X...B...X
         return symbol == '.' ||
                symbol == 'B' ||
                symbol == 'X' ||
+               symbol == 'S' ||
                symbol == '#';
     }
 }

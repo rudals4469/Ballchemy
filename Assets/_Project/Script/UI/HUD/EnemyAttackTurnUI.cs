@@ -12,6 +12,9 @@ public sealed class EnemyAttackTurnUI :
     [SerializeField]
     private BlockGridManager blockGridManager;
 
+    [SerializeField]
+    private BossEncounterController bossEncounterController;
+
     [Tooltip(
         "적 공격 턴 UI 전체를 켜고 끌 표시용 루트입니다.\n" +
         "이 스크립트가 붙은 GameObject 자체가 아니라 " +
@@ -79,6 +82,12 @@ public sealed class EnemyAttackTurnUI :
                 >();
         }
 
+        if (bossEncounterController == null)
+        {
+            bossEncounterController =
+                FindFirstObjectByType<BossEncounterController>();
+        }
+
         if (turnText == null)
         {
             turnText =
@@ -120,6 +129,15 @@ public sealed class EnemyAttackTurnUI :
             Debug.LogError(
                 "EnemyAttackTurnUI: " +
                 "BlockGridManager가 연결되지 않았습니다.",
+                this
+            );
+        }
+
+        if (bossEncounterController == null)
+        {
+            Debug.LogWarning(
+                "EnemyAttackTurnUI: BossEncounterController가 없어 " +
+                "보스 공격 턴은 표시되지 않습니다.",
                 this
             );
         }
@@ -180,6 +198,22 @@ public sealed class EnemyAttackTurnUI :
                 HandleRoomStateChanged;
         }
 
+        if (bossEncounterController != null)
+        {
+            bossEncounterController.TurnsUntilBossAttackChanged -=
+                HandleTurnsUntilAttackChanged;
+            bossEncounterController.TurnsUntilBossAttackChanged +=
+                HandleTurnsUntilAttackChanged;
+            bossEncounterController.BossEncounterStarted -=
+                HandleBossEncounterChanged;
+            bossEncounterController.BossEncounterStarted +=
+                HandleBossEncounterChanged;
+            bossEncounterController.BossEncounterCompleted -=
+                HandleBossEncounterChanged;
+            bossEncounterController.BossEncounterCompleted +=
+                HandleBossEncounterChanged;
+        }
+
         isSubscribed =
             true;
     }
@@ -206,6 +240,16 @@ public sealed class EnemyAttackTurnUI :
             blockGridManager
                 .RoomStateChanged -=
                 HandleRoomStateChanged;
+        }
+
+        if (bossEncounterController != null)
+        {
+            bossEncounterController.TurnsUntilBossAttackChanged -=
+                HandleTurnsUntilAttackChanged;
+            bossEncounterController.BossEncounterStarted -=
+                HandleBossEncounterChanged;
+            bossEncounterController.BossEncounterCompleted -=
+                HandleBossEncounterChanged;
         }
 
         isSubscribed =
@@ -245,6 +289,12 @@ public sealed class EnemyAttackTurnUI :
         );
     }
 
+    private void HandleBossEncounterChanged()
+    {
+        RefreshVisibility();
+        RefreshTurnText();
+    }
+
     private void RefreshVisibility()
     {
         if (uiRoot == null)
@@ -273,13 +323,18 @@ public sealed class EnemyAttackTurnUI :
             return false;
         }
 
-        bool isSupportedCombatRoom =
+        bool isRegularCombatRoom =
             currentRoom.RoomType ==
                 RoomType.NormalCombat ||
             currentRoom.RoomType ==
                 RoomType.NamedCombat;
 
-        if (!isSupportedCombatRoom)
+        bool isActiveBossRoom =
+            currentRoom.RoomType == RoomType.Boss &&
+            bossEncounterController != null &&
+            bossEncounterController.IsEncounterActive;
+
+        if (!isRegularCombatRoom && !isActiveBossRoom)
         {
             return false;
         }
@@ -301,7 +356,11 @@ public sealed class EnemyAttackTurnUI :
         }
 
         UpdateTurnText(
-            blockGridManager.TurnsUntilAttack
+            roomNavigator.CurrentRoom != null &&
+            roomNavigator.CurrentRoom.RoomType == RoomType.Boss &&
+            bossEncounterController != null
+                ? bossEncounterController.TurnsUntilBossAttack
+                : blockGridManager.TurnsUntilAttack
         );
     }
 

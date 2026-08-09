@@ -33,6 +33,9 @@ public sealed class BossEncounterController :
     private Block blockPrefab;
 
     [SerializeField]
+    private BlockPrefabCatalog blockPrefabCatalog;
+
+    [SerializeField]
     private Transform bossBlockContainer;
 
     [SerializeField]
@@ -101,6 +104,9 @@ public sealed class BossEncounterController :
 
     public event Action
         BossEncounterCompleted;
+
+    public event Action<int>
+        TurnsUntilBossAttackChanged;
 
     private void Awake()
     {
@@ -290,6 +296,15 @@ public sealed class BossEncounterController :
             Debug.LogWarning(
                 "BossEncounterController: " +
                 "Boss Catalog가 연결되지 않아 레거시 Test Pattern fallback을 확인합니다.",
+                this
+            );
+        }
+
+        if (blockPrefabCatalog == null)
+        {
+            Debug.LogWarning(
+                "BossEncounterController: BlockPrefabCatalog가 없어 " +
+                "특수 블록도 기본 Prefab으로 생성됩니다.",
                 this
             );
         }
@@ -582,6 +597,8 @@ public sealed class BossEncounterController :
             activeBossDefinition != null
                 ? activeBossDefinition.AttackIntervalTurns
                 : 1;
+
+        NotifyBossAttackTurnsChanged();
 
         isEncounterActive =
             blockGridManager.RequiredEnemyCount > 0;
@@ -926,9 +943,19 @@ public sealed class BossEncounterController :
                     targetPosition
                 );
 
+        Block selectedPrefab =
+            blockPrefabCatalog != null
+                ? blockPrefabCatalog.ResolvePrefab(definition)
+                : blockPrefab;
+
+        if (selectedPrefab == null)
+        {
+            selectedPrefab = blockPrefab;
+        }
+
         Block newBlock =
             Instantiate(
-                blockPrefab,
+                selectedPrefab,
                 startPosition,
                 boardGrid.transform.rotation,
                 bossBlockContainer
@@ -1104,6 +1131,11 @@ public sealed class BossEncounterController :
                 return pattern
                     .BreakablePatternDefinition;
 
+            case 'S':
+                return activeBossDefinition != null
+                    ? activeBossDefinition.GetRandomSpecialBlockDefinition()
+                    : null;
+
             case '#':
                 return pattern
                     .IndestructiblePatternDefinition;
@@ -1130,6 +1162,12 @@ public sealed class BossEncounterController :
             case 'X':
                 baseHealth = pattern
                     .PatternBlockHealth;
+                break;
+
+            case 'S':
+                baseHealth = activeBossDefinition != null
+                    ? activeBossDefinition.SpecialBlockHealth
+                    : pattern.PatternBlockHealth;
                 break;
 
             case '#':
@@ -1224,6 +1262,9 @@ public sealed class BossEncounterController :
 
             case 'X':
                 return "Breakable";
+
+            case 'S':
+                return "Special";
 
             case '#':
                 return "Wall";
@@ -1333,6 +1374,8 @@ public sealed class BossEncounterController :
         turnsUntilBossAttack =
             Mathf.Max(turnsUntilBossAttack - 1, 0);
 
+        NotifyBossAttackTurnsChanged();
+
         if (turnsUntilBossAttack > 0)
         {
             yield break;
@@ -1342,8 +1385,6 @@ public sealed class BossEncounterController :
             activeBossDefinition.GetAttack(nextAttackIndex);
 
         nextAttackIndex++;
-        turnsUntilBossAttack =
-            activeBossDefinition.AttackIntervalTurns;
 
         if (attack == null)
         {
@@ -1351,11 +1392,21 @@ public sealed class BossEncounterController :
                 "BossEncounterController: 실행할 보스 공격 데이터가 없습니다.",
                 activeBossDefinition
             );
+
+            ResetBossAttackTurns();
             yield break;
         }
 
         List<Block> attackers =
             CreateAttackers(attack);
+
+        List<BossAttackTargetOutline> targetOutlines =
+            ShowAttackTargetOutlines(attack, attackers);
+
+        if (targetOutlines.Count > 0 && attack.TelegraphDuration > 0f)
+        {
+            yield return new WaitForSeconds(attack.TelegraphDuration);
+        }
 
         if (attackers.Count > 0 && enemyAttackSequence != null)
         {
@@ -1371,12 +1422,16 @@ public sealed class BossEncounterController :
             );
         }
 
+        HideAttackTargetOutlines(targetOutlines);
+
         if (turnManager != null && turnManager.IsGameOver)
         {
             yield break;
         }
 
         yield return SpawnPostAttackBlocksRoutine();
+
+        ResetBossAttackTurns();
     }
 
     private List<Block> CreateAttackers(
@@ -1399,8 +1454,9 @@ public sealed class BossEncounterController :
             Block block = encounterBlocks[i];
 
             if (block == null || !block.IsAlive ||
-                block.Definition == null || activePattern == null ||
-                block.Definition != activePattern.BreakablePatternDefinition)
+                block == currentBossBlock ||
+                block.Definition == null ||
+                block.IsIndestructible)
             {
                 continue;
             }
@@ -1426,8 +1482,13 @@ public sealed class BossEncounterController :
 
     private IEnumerator SpawnPostAttackBlocksRoutine()
     {
+        int stageNumber =
+            roomNavigator != null && roomNavigator.CurrentMap != null
+                ? roomNavigator.CurrentMap.StageNumber
+                : 1;
+
         int requestedCount =
-            activeBossDefinition.SpawnedBlockCountPerAttack;
+            activeBossDefinition.CalculateSpawnedBlockCount(stageNumber);
 
         BlockDefinition spawnDefinition =
             activePattern != null
@@ -1449,13 +1510,34 @@ public sealed class BossEncounterController :
         for (int i = 0; i < spawnCount; i++)
         {
             Vector2Int cell = emptyCells[i];
+
+            bool spawnSpecial =
+                UnityEngine.Random.value <
+                activeBossDefinition.SpecialBlockSpawnChance;
+
+            BlockDefinition selectedDefinition =
+                spawnSpecial
+                    ? activeBossDefinition.GetRandomSpecialBlockDefinition()
+                    : null;
+
+            char symbol = selectedDefinition != null ? 'S' : 'X';
+            if (selectedDefinition == null)
+            {
+                selectedDefinition = spawnDefinition;
+            }
+
+            int health =
+                symbol == 'S'
+                    ? activeBossDefinition.SpecialBlockHealth
+                    : activeBossDefinition.SpawnedBlockHealth;
+
             Block spawnedBlock = SpawnPatternBlock(
-                spawnDefinition,
-                'X',
+                selectedDefinition,
+                symbol,
                 cell.x,
                 cell.y,
                 cell.y,
-                activeBossDefinition.SpawnedBlockHealth,
+                health,
                 0
             );
 
@@ -1522,6 +1604,72 @@ public sealed class BossEncounterController :
             int swapIndex = UnityEngine.Random.Range(0, i + 1);
             (items[i], items[swapIndex]) = (items[swapIndex], items[i]);
         }
+    }
+
+    private List<BossAttackTargetOutline> ShowAttackTargetOutlines(
+        BossAttackDefinition attack,
+        IReadOnlyList<Block> attackers)
+    {
+        List<BossAttackTargetOutline> result =
+            new List<BossAttackTargetOutline>();
+
+        if (attack == null ||
+            attack.AttackType != BossAttackType.SelectedBlockAttack ||
+            attackers == null)
+        {
+            return result;
+        }
+
+        for (int i = 0; i < attackers.Count; i++)
+        {
+            Block block = attackers[i];
+            if (block == null)
+            {
+                continue;
+            }
+
+            BossAttackTargetOutline outline =
+                block.GetComponent<BossAttackTargetOutline>();
+
+            if (outline == null)
+            {
+                outline = block.gameObject.AddComponent<BossAttackTargetOutline>();
+            }
+
+            outline.Show(new Color(1f, 0.82f, 0.08f, 0.95f));
+            result.Add(outline);
+        }
+
+        return result;
+    }
+
+    private static void HideAttackTargetOutlines(
+        IReadOnlyList<BossAttackTargetOutline> outlines)
+    {
+        if (outlines == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < outlines.Count; i++)
+        {
+            outlines[i]?.Hide();
+        }
+    }
+
+    private void NotifyBossAttackTurnsChanged()
+    {
+        TurnsUntilBossAttackChanged?.Invoke(turnsUntilBossAttack);
+    }
+
+    private void ResetBossAttackTurns()
+    {
+        turnsUntilBossAttack =
+            activeBossDefinition != null
+                ? activeBossDefinition.AttackIntervalTurns
+                : 0;
+
+        NotifyBossAttackTurnsChanged();
     }
 
     private void RecoverFromFailedStart()

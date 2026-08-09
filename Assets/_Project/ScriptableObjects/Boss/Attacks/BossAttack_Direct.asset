@@ -17,3 +17,4 @@ MonoBehaviour:
   attackType: 0
   damage: 5
   selectedBlockCount: 1
+  telegraphDuration: 0

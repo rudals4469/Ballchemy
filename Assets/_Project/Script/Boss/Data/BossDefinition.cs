@@ -12,7 +12,11 @@ public sealed class BossDefinition : ScriptableObject
     [SerializeField, Min(1)] private int attackIntervalTurns = 2;
     [SerializeField] private BossAttackDefinition[] attacks = Array.Empty<BossAttackDefinition>();
     [SerializeField, Min(0)] private int spawnedBlockCountPerAttack = 2;
+    [SerializeField, Min(0)] private int spawnedBlockIncreasePerStage = 2;
     [SerializeField, Min(1)] private int spawnedBlockHealth = 10;
+    [SerializeField, Range(0f, 1f)] private float specialBlockSpawnChance = 0.35f;
+    [SerializeField, Min(1)] private int specialBlockHealth = 5;
+    [SerializeField] private BlockDefinition[] specialBlockDefinitions = Array.Empty<BlockDefinition>();
 
     public string BossId => bossId;
     public string DisplayName => displayName;
@@ -21,7 +25,57 @@ public sealed class BossDefinition : ScriptableObject
     public int AttackIntervalTurns => Mathf.Max(attackIntervalTurns, 1);
     public int AttackCount => attacks != null ? attacks.Length : 0;
     public int SpawnedBlockCountPerAttack => Mathf.Max(spawnedBlockCountPerAttack, 0);
+    public int SpawnedBlockIncreasePerStage => Mathf.Max(spawnedBlockIncreasePerStage, 0);
     public int SpawnedBlockHealth => Mathf.Max(spawnedBlockHealth, 1);
+    public float SpecialBlockSpawnChance => Mathf.Clamp01(specialBlockSpawnChance);
+    public int SpecialBlockHealth => Mathf.Max(specialBlockHealth, 1);
+
+    public int CalculateSpawnedBlockCount(int stageNumber)
+    {
+        return SpawnedBlockCountPerAttack +
+               Mathf.Max(stageNumber - 1, 0) * SpawnedBlockIncreasePerStage;
+    }
+
+    public BlockDefinition GetRandomSpecialBlockDefinition()
+    {
+        if (specialBlockDefinitions == null || specialBlockDefinitions.Length == 0)
+        {
+            return null;
+        }
+
+        int totalWeight = 0;
+        for (int i = 0; i < specialBlockDefinitions.Length; i++)
+        {
+            BlockDefinition definition = specialBlockDefinitions[i];
+            if (definition != null && definition.BlockType == BlockType.Special)
+            {
+                totalWeight += Mathf.Max(definition.SelectionWeight, 1);
+            }
+        }
+
+        if (totalWeight <= 0)
+        {
+            return null;
+        }
+
+        int randomValue = UnityEngine.Random.Range(0, totalWeight);
+        for (int i = 0; i < specialBlockDefinitions.Length; i++)
+        {
+            BlockDefinition definition = specialBlockDefinitions[i];
+            if (definition == null || definition.BlockType != BlockType.Special)
+            {
+                continue;
+            }
+
+            randomValue -= Mathf.Max(definition.SelectionWeight, 1);
+            if (randomValue < 0)
+            {
+                return definition;
+            }
+        }
+
+        return null;
+    }
 
     public BossAttackDefinition GetAttack(int index)
     {
@@ -39,6 +93,9 @@ public sealed class BossDefinition : ScriptableObject
         requiredEnemyHealthMultiplier = Mathf.Max(requiredEnemyHealthMultiplier, 0.01f);
         attackIntervalTurns = Mathf.Max(attackIntervalTurns, 1);
         spawnedBlockCountPerAttack = Mathf.Max(spawnedBlockCountPerAttack, 0);
+        spawnedBlockIncreasePerStage = Mathf.Max(spawnedBlockIncreasePerStage, 0);
         spawnedBlockHealth = Mathf.Max(spawnedBlockHealth, 1);
+        specialBlockSpawnChance = Mathf.Clamp01(specialBlockSpawnChance);
+        specialBlockHealth = Mathf.Max(specialBlockHealth, 1);
     }
 }
