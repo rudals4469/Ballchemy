@@ -74,4 +74,15 @@ public sealed class BlockGridBossMode
 
         return generatedBlocks;
     }
+
+    public bool CompleteRoomEncounter()
+    {
+        if (!IsActive)
+        {
+            return false;
+        }
+
+        IsActive = false;
+        return true;
+    }
 }

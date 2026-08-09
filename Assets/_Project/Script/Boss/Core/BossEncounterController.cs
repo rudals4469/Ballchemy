@@ -21,6 +21,12 @@ public sealed class BossEncounterController :
     private BallLauncher ballLauncher;
 
     [SerializeField]
+    private StageRoomNavigator roomNavigator;
+
+    [SerializeField]
+    private BallCollection ballCollection;
+
+    [SerializeField]
     private BoardGrid boardGrid;
 
     [SerializeField]
@@ -44,7 +50,7 @@ public sealed class BossEncounterController :
 
     [Header("Debug")]
     [SerializeField]
-    private bool enableBossTestKey = true;
+    private bool enableBossTestKey;
 
     private readonly List<Block>
         encounterBlocks =
@@ -65,6 +71,7 @@ public sealed class BossEncounterController :
     private bool isEncounterActive;
     private bool isTransitioning;
     private bool isBossDefeatPending;
+    private int activeBossRoomId = -1;
 
     public bool IsEncounterActive =>
         isEncounterActive;
@@ -181,6 +188,22 @@ public sealed class BossEncounterController :
             bossBlockContainer =
                 transform;
         }
+
+        if (roomNavigator == null)
+        {
+            roomNavigator =
+                FindFirstObjectByType<
+                    StageRoomNavigator
+                >();
+        }
+
+        if (ballCollection == null)
+        {
+            ballCollection =
+                FindFirstObjectByType<
+                    BallCollection
+                >();
+        }
     }
 
     private void NormalizeSettings()
@@ -253,17 +276,6 @@ public sealed class BossEncounterController :
 
     private void SubscribeEvents()
     {
-        if (blockGridManager != null)
-        {
-            blockGridManager
-                .BossEncounterRequested -=
-                HandleBossEncounterRequested;
-
-            blockGridManager
-                .BossEncounterRequested +=
-                HandleBossEncounterRequested;
-        }
-
         if (turnManager != null)
         {
             turnManager.StateChanged -=
@@ -282,13 +294,6 @@ public sealed class BossEncounterController :
 
     private void UnsubscribeEvents()
     {
-        if (blockGridManager != null)
-        {
-            blockGridManager
-                .BossEncounterRequested -=
-                HandleBossEncounterRequested;
-        }
-
         if (turnManager != null)
         {
             turnManager.StateChanged -=
@@ -350,6 +355,27 @@ public sealed class BossEncounterController :
     }
 
     public bool StartBossEncounter()
+    {
+        RoomNode currentRoom =
+            roomNavigator != null
+                ? roomNavigator.CurrentRoom
+                : null;
+
+        if (currentRoom == null ||
+            currentRoom.RoomType != RoomType.Boss ||
+            roomNavigator.IsRoomCleared(
+                currentRoom.RoomId))
+        {
+            return false;
+        }
+
+        return StartBossRoomEncounter(
+            currentRoom.RoomId
+        );
+    }
+
+    public bool StartBossRoomEncounter(
+        int roomId)
     {
         if (isEncounterActive ||
             isTransitioning)
@@ -424,14 +450,21 @@ public sealed class BossEncounterController :
 
         isTransitioning = true;
         isBossDefeatPending = false;
+        activeBossRoomId = roomId;
 
         turnManager?.SetInputLocked(
             true
         );
 
+        roomNavigator?.SetNavigationLocked(
+            true
+        );
+
         bool bossModeStarted =
             blockGridManager
-                .BeginBossEncounterMode();
+                .BeginBossRoomEncounterMode(
+                    roomId
+                );
 
         if (!bossModeStarted)
         {
@@ -440,6 +473,12 @@ public sealed class BossEncounterController :
             turnManager?.SetInputLocked(
                 false
             );
+
+            roomNavigator?.SetNavigationLocked(
+                false
+            );
+
+            activeBossRoomId = -1;
 
             return false;
         }
@@ -499,6 +538,10 @@ public sealed class BossEncounterController :
         startCoroutine = null;
 
         turnManager?.SetInputLocked(
+            false
+        );
+
+        roomNavigator?.SetNavigationLocked(
             false
         );
 
@@ -713,7 +756,17 @@ public sealed class BossEncounterController :
             }
         }
 
-        return currentBossBlock != null;
+        if (currentBossBlock == null)
+        {
+            return false;
+        }
+
+        blockGridManager
+            .RegisterBossEncounterBlocks(
+                encounterBlocks
+            );
+
+        return true;
     }
 
     private bool TryFindBossAnchor(
@@ -1078,17 +1131,36 @@ public sealed class BossEncounterController :
 
         yield return null;
 
-        blockGridManager
-            .CompleteBossEncounterMode();
+        ballCollection?.SetBallsVisible(
+            false
+        );
+
+        turnManager?.SetInputLocked(
+            false
+        );
+
+        roomNavigator?.SetNavigationLocked(
+            false
+        );
+
+        bool roomCompleted =
+            blockGridManager
+                .CompleteBossRoomEncounterMode();
+
+        if (!roomCompleted)
+        {
+            Debug.LogError(
+                "BossEncounterController: Boss 방 클리어 상태 전환에 실패했습니다. " +
+                $"RoomId={activeBossRoomId}",
+                this
+            );
+        }
 
         isBossDefeatPending = false;
         isTransitioning = false;
 
         completeCoroutine = null;
-
-        turnManager?.SetInputLocked(
-            false
-        );
+        activeBossRoomId = -1;
 
         BossEncounterCompleted?.Invoke();
 
@@ -1110,9 +1182,15 @@ public sealed class BossEncounterController :
         startCoroutine = null;
 
         blockGridManager
-            .CompleteBossEncounterMode();
+            .CancelBossRoomEncounterMode();
+
+        activeBossRoomId = -1;
 
         turnManager?.SetInputLocked(
+            false
+        );
+
+        roomNavigator?.SetNavigationLocked(
             false
         );
     }
@@ -1181,6 +1259,10 @@ public sealed class BossEncounterController :
         }
 
         turnManager?.SetInputLocked(
+            false
+        );
+
+        roomNavigator?.SetNavigationLocked(
             false
         );
     }

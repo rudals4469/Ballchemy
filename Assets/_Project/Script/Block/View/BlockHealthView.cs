@@ -249,8 +249,8 @@ public sealed class BlockHealthView :
         healthText.fontSizeMin =
             minimumFontSize;
 
-        healthText.enableWordWrapping =
-            false;
+        healthText.textWrappingMode =
+            TextWrappingModes.NoWrap;
 
         healthText.overflowMode =
             TextOverflowModes.Overflow;

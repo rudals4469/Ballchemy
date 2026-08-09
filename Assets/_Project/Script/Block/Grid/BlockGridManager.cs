@@ -434,11 +434,6 @@ public sealed class BlockGridManager :
                 HandleBlocksExceededBottom;
         }
 
-        if (enemyPhaseResolver != null)
-        {
-            enemyPhaseResolver.WaveGenerated +=
-                HandleWaveGenerated;
-        }
     }
 
     /*
@@ -778,6 +773,12 @@ public sealed class BlockGridManager :
 
     public bool BeginBossEncounterMode()
     {
+        return BeginBossRoomEncounterMode(-1);
+    }
+
+    public bool BeginBossRoomEncounterMode(
+        int roomId)
+    {
         if (!InitializeRuntimeIfNeeded() ||
             bossMode.IsActive ||
             IsRunCompleted)
@@ -786,6 +787,9 @@ public sealed class BlockGridManager :
         }
 
         ballSealController?.ClearPendingSeal();
+
+        currentRoomId = roomId;
+        currentTurn = 0;
 
         isCurrentRoomCleared = false;
 
@@ -808,6 +812,64 @@ public sealed class BlockGridManager :
             $"스테이지 {CurrentStageNumber}, " +
             $"웨이브 {CurrentBossWaveNumber} 보스전으로 전환",
             this
+        );
+
+        return true;
+    }
+
+    public bool CompleteBossRoomEncounterMode()
+    {
+        if (!bossMode.CompleteRoomEncounter())
+        {
+            return false;
+        }
+
+        blockRegistry.ClearAndDestroy();
+        isCurrentRoomCleared = true;
+        currentTurn = 0;
+        ballSealController?.ClearPendingSeal();
+
+        ChangeRoomState(
+            RoomCombatState.Cleared
+        );
+
+        RoomCleared?.Invoke();
+
+        Debug.Log(
+            "BlockGridManager: Boss 방 전투를 완료했습니다. " +
+            $"RoomId={currentRoomId}",
+            this
+        );
+
+        return true;
+    }
+
+    public void RegisterBossEncounterBlocks(
+        IEnumerable<Block> blocks)
+    {
+        if (!bossMode.IsActive ||
+            blocks == null)
+        {
+            return;
+        }
+
+        blockRegistry.AddRange(blocks);
+        blockRegistry.RemoveInvalidBlocks();
+    }
+
+    public bool CancelBossRoomEncounterMode()
+    {
+        if (!bossMode.CompleteRoomEncounter())
+        {
+            return false;
+        }
+
+        blockRegistry.ClearAndDestroy();
+        isCurrentRoomCleared = false;
+        currentTurn = 0;
+
+        ChangeRoomState(
+            RoomCombatState.Unvisited
         );
 
         return true;
@@ -916,20 +978,6 @@ public sealed class BlockGridManager :
         );
     }
 
-    private void HandleWaveGenerated(
-        int waveNumber)
-    {
-        isCurrentRoomCleared = false;
-
-        ChangeRoomState(
-            RoomCombatState.InCombat
-        );
-
-        WaveGenerated?.Invoke(
-            waveNumber
-        );
-    }
-
     private void HandleBlocksReachedBottom(
         IReadOnlyList<Block> blocks)
     {
@@ -1020,10 +1068,5 @@ public sealed class BlockGridManager :
                 HandleBlocksExceededBottom;
         }
 
-        if (enemyPhaseResolver != null)
-        {
-            enemyPhaseResolver.WaveGenerated -=
-                HandleWaveGenerated;
-        }
     }
 }

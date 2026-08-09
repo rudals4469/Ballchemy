@@ -148,9 +148,6 @@ public sealed class RoomRetreatController :
      *
      * 이동 중복을 막기 위해 더 이상 발생시키지 않습니다.
      */
-    public event Action
-        PreviousRoomMoveRequested;
-
     private void Awake()
     {
         FindReferences();

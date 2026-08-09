@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public sealed class TurnFastForwardController :
     MonoBehaviour
@@ -7,31 +8,35 @@ public sealed class TurnFastForwardController :
     [SerializeField]
     private BallLauncher ballLauncher;
 
-    [Header("Fast Forward")]
-    [Tooltip(
-        "마지막 공이 하강을 시작한 뒤, " +
-        "블록 타격이 없을 때 기다리는 시간입니다."
-    )]
+    [Header("Turn Timeout")]
+    [FormerlySerializedAs("noBlockHitDelay")]
     [SerializeField, Min(0.1f)]
-    private float noBlockHitDelay = 2f;
+    private float fastForwardDelay = 5f;
 
-    [Tooltip(
-        "복귀 구간에 적용할 배속입니다."
-    )]
+    [SerializeField, Min(0.1f)]
+    private float secondFastForwardDelay = 10f;
+
+    [SerializeField, Min(0.1f)]
+    private float forceRecallDelay = 15f;
+
     [SerializeField, Min(1f)]
-    private float fastForwardScale = 3f;
+    private float fastForwardScale = 1.5f;
+
+    [SerializeField, Min(1f)]
+    private float secondFastForwardScale = 2f;
 
     [Header("Debug")]
     [SerializeField]
     private bool showDebugLog = true;
 
     private float normalTimeScale = 1f;
-    private float lastBlockHitTime;
+    private float launchCompletedTime;
 
     private bool isAttackActive;
-    private bool hasEnteredReturnPhase;
+    private bool hasLaunchCompleted;
     private bool isFastForwarding;
-    private bool isSubscribed;
+    private bool hasSecondFastForwardStarted;
+    private bool hasRecallBeenRequested;
 
     public bool IsFastForwarding =>
         isFastForwarding;
@@ -39,27 +44,14 @@ public sealed class TurnFastForwardController :
     private void Awake()
     {
         FindReferences();
+        NormalizeSettings();
         ValidateReferences();
     }
 
     private void OnValidate()
     {
-        noBlockHitDelay =
-            Mathf.Max(
-                0.1f,
-                noBlockHitDelay
-            );
-
-        fastForwardScale =
-            Mathf.Max(
-                1f,
-                fastForwardScale
-            );
-    }
-
-    private void OnEnable()
-    {
-        Subscribe();
+        FindReferences();
+        NormalizeSettings();
     }
 
     private void Update()
@@ -88,28 +80,65 @@ public sealed class TurnFastForwardController :
             BeginAttack();
         }
 
-        if (!hasEnteredReturnPhase)
+        if (!hasLaunchCompleted)
         {
-            TryEnterReturnPhase();
-            return;
+            if (ballLauncher.IsLaunching)
+            {
+                return;
+            }
+
+            hasLaunchCompleted = true;
+            launchCompletedTime = Time.unscaledTime;
+
+            if (showDebugLog)
+            {
+                Debug.Log(
+                    "TurnFastForwardController: 마지막 공 발사 완료, " +
+                    "배속/전체 회수 타이머 시작",
+                    this
+                );
+            }
         }
 
-        if (isFastForwarding)
-        {
-            return;
-        }
-
-        float elapsedNoHitTime =
+        float elapsedTime =
             Time.unscaledTime -
-            lastBlockHitTime;
+            launchCompletedTime;
 
-        if (elapsedNoHitTime <
-            noBlockHitDelay)
+        if (!isFastForwarding &&
+            elapsedTime >= fastForwardDelay)
         {
-            return;
+            StartFastForward(
+                fastForwardScale,
+                fastForwardDelay
+            );
         }
 
-        StartFastForward();
+        if (!hasSecondFastForwardStarted &&
+            elapsedTime >= secondFastForwardDelay)
+        {
+            hasSecondFastForwardStarted = true;
+
+            StartFastForward(
+                secondFastForwardScale,
+                secondFastForwardDelay
+            );
+        }
+
+        if (!hasRecallBeenRequested &&
+            elapsedTime >= forceRecallDelay)
+        {
+            hasRecallBeenRequested = true;
+            ballLauncher.ForceRecallRemainingBalls();
+
+            if (showDebugLog)
+            {
+                Debug.Log(
+                    "TurnFastForwardController: 마지막 공 발사 후 " +
+                    $"{forceRecallDelay:0.##}초 경과, 전체 공 회수",
+                    this
+                );
+            }
+        }
     }
 
     private void FindReferences()
@@ -117,10 +146,35 @@ public sealed class TurnFastForwardController :
         if (ballLauncher == null)
         {
             ballLauncher =
-                FindFirstObjectByType<
-                    BallLauncher
-                >();
+                FindFirstObjectByType<BallLauncher>();
         }
+    }
+
+    private void NormalizeSettings()
+    {
+        fastForwardDelay =
+            Mathf.Max(fastForwardDelay, 0.1f);
+
+        secondFastForwardDelay =
+            Mathf.Max(
+                secondFastForwardDelay,
+                fastForwardDelay
+            );
+
+        forceRecallDelay =
+            Mathf.Max(
+                forceRecallDelay,
+                secondFastForwardDelay
+            );
+
+        fastForwardScale =
+            Mathf.Max(fastForwardScale, 1f);
+
+        secondFastForwardScale =
+            Mathf.Max(
+                secondFastForwardScale,
+                fastForwardScale
+            );
     }
 
     private void ValidateReferences()
@@ -128,187 +182,44 @@ public sealed class TurnFastForwardController :
         if (ballLauncher == null)
         {
             Debug.LogError(
-                "TurnFastForwardController: " +
-                "BallLauncher를 찾지 못했습니다.",
+                "TurnFastForwardController: BallLauncher를 찾지 못했습니다.",
                 this
             );
         }
-    }
-
-    private void Subscribe()
-    {
-        if (isSubscribed)
-        {
-            return;
-        }
-
-        Ball.BlockHitOccurred +=
-            HandleBlockHit;
-
-        Ball.MovingBallCountChanged +=
-            HandleMovingBallCountChanged;
-
-        isSubscribed = true;
-    }
-
-    private void Unsubscribe()
-    {
-        if (!isSubscribed)
-        {
-            return;
-        }
-
-        Ball.BlockHitOccurred -=
-            HandleBlockHit;
-
-        Ball.MovingBallCountChanged -=
-            HandleMovingBallCountChanged;
-
-        isSubscribed = false;
     }
 
     private void BeginAttack()
     {
         isAttackActive = true;
-        hasEnteredReturnPhase = false;
+        hasLaunchCompleted = false;
         isFastForwarding = false;
+        hasSecondFastForwardStarted = false;
+        hasRecallBeenRequested = false;
 
-        normalTimeScale =
-            Time.timeScale;
+        normalTimeScale = Time.timeScale;
 
         if (normalTimeScale <= 0f)
         {
             normalTimeScale = 1f;
         }
-
-        if (showDebugLog)
-        {
-            Debug.Log(
-                "TurnFastForwardController: " +
-                "새 공격 시작",
-                this
-            );
-        }
     }
 
-    private void TryEnterReturnPhase()
+    private void StartFastForward(
+        float scale,
+        float delay)
     {
-        // 모든 공이 발사되기 전에는
-        // 복귀 구간으로 판단하지 않는다.
-        if (ballLauncher.IsLaunching)
-        {
-            return;
-        }
-
-        Ball lastBall =
-            ballLauncher.LastLaunchedBall;
-
-        if (lastBall == null)
-        {
-            return;
-        }
-
-        if (!lastBall.HasStartedDescending)
-        {
-            return;
-        }
-
-        hasEnteredReturnPhase = true;
-
-        // 마지막 공이 하강을 시작한 순간부터
-        // 무타격 시간을 새로 측정한다.
-        lastBlockHitTime =
-            Time.unscaledTime;
-
-        if (showDebugLog)
-        {
-            Debug.Log(
-                "TurnFastForwardController: " +
-                "마지막 공 하강 시작, " +
-                "무타격 시간 측정 시작",
-                this
-            );
-        }
-    }
-
-    private void HandleBlockHit(
-        Ball hitBall)
-    {
-        if (hitBall == null)
-        {
-            return;
-        }
-
-        if (!isAttackActive)
-        {
-            BeginAttack();
-        }
-
-        if (!hasEnteredReturnPhase ||
-            isFastForwarding)
-        {
-            return;
-        }
-
-        // 하강 구간에 들어온 이후에는
-        // 어떤 공이 블록을 때려도 타이머를 초기화한다.
-        lastBlockHitTime =
-            Time.unscaledTime;
-
-        if (showDebugLog)
-        {
-            Debug.Log(
-                "TurnFastForwardController: " +
-                "하강 중 블록 타격, " +
-                "배속 타이머 초기화",
-                this
-            );
-        }
-    }
-
-    private void HandleMovingBallCountChanged(
-        int movingBallCount)
-    {
-        if (movingBallCount > 0)
-        {
-            if (!isAttackActive)
-            {
-                BeginAttack();
-            }
-
-            return;
-        }
-
-        if (ballLauncher != null &&
-            ballLauncher.IsLaunching)
-        {
-            return;
-        }
-
-        if (isAttackActive)
-        {
-            EndAttack();
-        }
-    }
-
-    private void StartFastForward()
-    {
-        if (isFastForwarding)
-        {
-            return;
-        }
-
         isFastForwarding = true;
 
         Time.timeScale =
             normalTimeScale *
-            fastForwardScale;
+            scale;
 
         if (showDebugLog)
         {
             Debug.Log(
-                "TurnFastForwardController: " +
-                $"{fastForwardScale}배속 시작",
+                "TurnFastForwardController: 마지막 공 발사 후 " +
+                $"{delay:0.##}초 경과, " +
+                $"{scale:0.##}배속 시작",
                 this
             );
         }
@@ -319,17 +230,10 @@ public sealed class TurnFastForwardController :
         RestoreTimeScale();
 
         isAttackActive = false;
-        hasEnteredReturnPhase = false;
+        hasLaunchCompleted = false;
         isFastForwarding = false;
-
-        if (showDebugLog)
-        {
-            Debug.Log(
-                "TurnFastForwardController: " +
-                "공 복귀 완료, 정상 속도 복구",
-                this
-            );
-        }
+        hasSecondFastForwardStarted = false;
+        hasRecallBeenRequested = false;
     }
 
     private void RestoreTimeScale()
@@ -339,23 +243,22 @@ public sealed class TurnFastForwardController :
             return;
         }
 
-        Time.timeScale =
-            normalTimeScale;
+        Time.timeScale = normalTimeScale;
     }
 
     private void OnDisable()
     {
-        Unsubscribe();
         RestoreTimeScale();
 
         isAttackActive = false;
-        hasEnteredReturnPhase = false;
+        hasLaunchCompleted = false;
         isFastForwarding = false;
+        hasSecondFastForwardStarted = false;
+        hasRecallBeenRequested = false;
     }
 
     private void OnDestroy()
     {
-        Unsubscribe();
         RestoreTimeScale();
     }
 }

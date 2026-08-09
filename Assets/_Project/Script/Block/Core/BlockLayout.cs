@@ -22,7 +22,7 @@ public sealed class BlockLayout
         "콜라이더와 셀 경계 사이의 간격입니다."
     )]
     [SerializeField, Min(0f)]
-    private float colliderInset = 0.02f;
+    private float colliderInset = 0.06f;
 
     public void Validate(
         GameObject owner)

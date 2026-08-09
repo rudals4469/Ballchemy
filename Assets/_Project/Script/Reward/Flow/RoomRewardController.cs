@@ -475,7 +475,9 @@ public sealed class RoomRewardController :
         return currentRoom.RoomType ==
                    RoomType.NormalCombat ||
                currentRoom.RoomType ==
-                   RoomType.NamedCombat;
+                   RoomType.NamedCombat ||
+               currentRoom.RoomType ==
+                   RoomType.Boss;
     }
 
     private static RewardTier ResolveRewardTier(

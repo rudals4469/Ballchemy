@@ -886,7 +886,7 @@ public sealed class BallLauncher :
         );
     }
 
-    private void ForceRecallRemainingBalls()
+    public void ForceRecallRemainingBalls()
     {
         if (isAttackCompleted ||
             isLaunching ||

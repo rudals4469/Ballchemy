@@ -50,9 +50,6 @@ public sealed class BlockEnemyPhaseResolver
      * 고정형 방 전투 중에는 새 웨이브를 생성하지 않으므로
      * 이 이벤트는 호출되지 않는다.
      */
-    public event Action<int>
-        WaveGenerated;
-
     public BlockEnemyPhaseResolver(
         BlockWaveGenerator waveGenerator,
         BlockGridMover gridMover,

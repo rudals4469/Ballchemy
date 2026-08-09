@@ -12,7 +12,7 @@ public sealed class BallTurnTempoController :
 
     [Header("Automatic Speed Up")]
     [SerializeField]
-    private bool enableAutomaticSpeedUp = true;
+    private bool enableAutomaticSpeedUp;
 
     [Tooltip(
         "남은 공의 비율이 이 값 이하가 되면 " +
@@ -42,7 +42,7 @@ public sealed class BallTurnTempoController :
 
     [Header("Automatic Recall")]
     [SerializeField]
-    private bool enableAutomaticRecall = true;
+    private bool enableAutomaticRecall;
 
     [Tooltip(
         "남은 공의 비율이 이 값 이하가 되면 " +

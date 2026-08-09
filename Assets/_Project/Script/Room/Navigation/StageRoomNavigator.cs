@@ -23,6 +23,10 @@ public sealed class StageRoomNavigator :
     private BallCollection ballCollection;
 
     [SerializeField]
+    private BossEncounterController
+        bossEncounterController;
+
+    [SerializeField]
     private StageKeyState stageKeyState;
 
     [SerializeField]
@@ -215,6 +219,14 @@ public sealed class StageRoomNavigator :
                 >();
         }
 
+        if (bossEncounterController == null)
+        {
+            bossEncounterController =
+                FindFirstObjectByType<
+                    BossEncounterController
+                >();
+        }
+
         if (stageKeyState == null)
         {
             stageKeyState =
@@ -277,6 +289,14 @@ public sealed class StageRoomNavigator :
             Debug.LogError(
                 "StageRoomNavigator: " +
                 "BallCollection을 찾지 못했습니다.",
+                this
+            );
+        }
+
+        if (bossEncounterController == null)
+        {
+            Debug.LogError(
+                "StageRoomNavigator: BossEncounterController를 찾지 못했습니다.",
                 this
             );
         }
@@ -1277,6 +1297,48 @@ public sealed class StageRoomNavigator :
         if (currentRoom == null ||
             blockGridManager == null)
         {
+            return;
+        }
+
+        if (currentRoom.RoomType ==
+            RoomType.Boss)
+        {
+            if (IsRoomCleared(
+                    currentRoom.RoomId))
+            {
+                ballCollection?.SetBallsVisible(
+                    false
+                );
+
+                blockGridManager.PrepareEmptyRoom();
+                turnManager?.ResetToAiming(true);
+                return;
+            }
+
+            ballCollection?.SetBallsVisible(
+                true
+            );
+
+            bool started =
+                bossEncounterController != null &&
+                bossEncounterController
+                    .StartBossRoomEncounter(
+                        currentRoom.RoomId
+                    );
+
+            if (!started)
+            {
+                ballCollection?.SetBallsVisible(
+                    false
+                );
+
+                Debug.LogError(
+                    "StageRoomNavigator: Boss 방 전투를 시작하지 못했습니다. " +
+                    GetRoomDescription(currentRoom),
+                    this
+                );
+            }
+
             return;
         }
 

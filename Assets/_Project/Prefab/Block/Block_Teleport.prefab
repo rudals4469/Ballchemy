@@ -104,7 +104,7 @@ MonoBehaviour:
     visualRenderer: {fileID: 5051892278997693569}
     boxCollider: {fileID: 8902717914776242626}
     visualPadding: 0.12
-    colliderInset: 0.02
+    colliderInset: 0.06
   gridState:
     boardGrid: {fileID: 0}
     gridPosition: {x: -1, y: -1}

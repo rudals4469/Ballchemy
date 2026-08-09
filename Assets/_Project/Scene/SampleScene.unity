@@ -8511,8 +8511,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TurnFastForwardController
   ballLauncher: {fileID: 904823807}
-  noBlockHitDelay: 2
-  fastForwardScale: 3
+  fastForwardDelay: 5
+  secondFastForwardDelay: 10
+  forceRecallDelay: 15
+  fastForwardScale: 1.5
+  secondFastForwardScale: 2
   showDebugLog: 1
 --- !u!1 &741446492
 GameObject:
@@ -10625,13 +10628,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallTurnTempoController
   ballCollection: {fileID: 904823811}
-  enableAutomaticSpeedUp: 1
+  enableAutomaticSpeedUp: 0
   speedUpStartRemainingRatio: 0.5
   firstSpeedMultiplier: 1.25
   secondSpeedUpDelay: 4
   secondSpeedMultiplier: 1.5
   speedTransitionDuration: 0.3
-  enableAutomaticRecall: 1
+  enableAutomaticRecall: 0
   recallStartRemainingRatio: 0.2
   automaticRecallDelay: 15
 --- !u!114 &904823811
@@ -12206,7 +12209,7 @@ MonoBehaviour:
     impactPause: 0.025
     settleDuration: 0.12
   boardClearDelay: 0.15
-  enableBossTestKey: 1
+  enableBossTestKey: 0
 --- !u!114 &1004609281
 MonoBehaviour:
   m_ObjectHideFlags: 0

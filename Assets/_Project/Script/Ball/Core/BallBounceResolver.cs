@@ -377,30 +377,14 @@ public sealed class BallBounceResolver
         bool isCornerContact =
             edgeDifference <= cornerTieTolerance;
 
-        bool useHorizontalNormal;
-
         if (isCornerContact)
         {
-            float horizontalApproach = Mathf.Abs(localIncoming.x);
-            float verticalApproach = Mathf.Abs(localIncoming.y);
-            float approachDifference =
-                Mathf.Abs(horizontalApproach - verticalApproach);
+            return -incomingVelocity.normalized;
+        }
 
-            if (approachDifference > minimumNormalMagnitude)
-            {
-                useHorizontalNormal = horizontalApproach > verticalApproach;
-            }
-            else
-            {
-                useHorizontalNormal =
-                    Mathf.Abs(localPhysicsNormal.x) >
-                    Mathf.Abs(localPhysicsNormal.y);
-            }
-        }
-        else
-        {
-            useHorizontalNormal = normalizedX > normalizedY;
-        }
+        bool useHorizontalNormal;
+
+        useHorizontalNormal = normalizedX > normalizedY;
 
         Vector2 localAxisNormal;
 
