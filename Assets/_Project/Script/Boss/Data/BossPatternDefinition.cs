@@ -9,7 +9,7 @@ using UnityEngine;
 )]
 public sealed class BossPatternDefinition : ScriptableObject
 {
-    private const int ExpectedWidth = 9;
+    private const int ExpectedWidth = 11;
     private const int ExpectedHeight = 15;
 
     [Header("Identity")]
@@ -53,21 +53,21 @@ public sealed class BossPatternDefinition : ScriptableObject
     )]
     [SerializeField, TextArea(15, 20)]
     private string patternText =
-@".#X...X#.
-X...#..X.
-..X....X.
-#..X.X..#
-.X#...#X.
-X......X.
-.#X...X#.
-X...B...X
-.#X...X#.
-.X......X
-.X#...#X.
-#..X.X..#
-.X....X..
-.X..#...X
-.#X...X#.";
+@"..#X...X#..
+.X...#..X..
+...X....X..
+.#..X.X..#.
+..X#...#X..
+.X......X..
+..#X...X#..
+.X...B...X.
+..#X...X#..
+..X......X.
+..X#...#X..
+.#..X.X..#.
+..X....X...
+..X..#...X.
+..#X...X#..";
 
     [NonSerialized]
     private string cachedPatternText;
