@@ -1421,7 +1421,7 @@ Presenter / UI → 화면 표시와 연출
 - [x] Unknown Event
 - [x] 다음 보상 Tier 증가 예약
 - [ ] 연금술방 공 변환 UI/규칙
-- [ ] 최종 6종 공 풀 마이그레이션과 Poison
+- [x] 최종 6종 공 풀 마이그레이션과 Poison 핵심 전투 로직
 - [ ] 발사 중 조향
 - [ ] Status의 공 조성/전직/T3 표시
 
@@ -1598,7 +1598,18 @@ Piercing
 
 삭제 순서는 `Reward/Event 후보 차단 → 기존 런 Definition 대체 정책 → Catalog/Scene/Prefab 참조 제거 → Runtime 전용 코드 제거 → Asset 삭제 → Missing Reference 검사`다.
 
+현재 1차 마이그레이션 구현 상태:
+
+- Critical/Explosion/Piercing Definition은 선택 가중치를 런타임에서 0으로 처리한다.
+- 해당 Ball Reward는 `RewardCatalog`와 실제 적용 조건 양쪽에서 제외한다.
+- T2 기본 공 변환과 무작위 2★ Event 후보에서도 제외한다.
+- 제거 대상 지급이 다른 경로로 요청되면 `BallCollection`이 같은 등급 Basic으로 치환한다.
+- 이미 보유 중인 제거 대상 공은 안전한 정지 상태에서 같은 등급 Basic으로 일괄 변환한다.
+- Asset과 전용 Runtime 코드는 참조 검증이 끝날 때까지 아직 삭제하지 않는다.
+
 ## 43. Poison Ball 확정 규칙과 영향 범위
+
+현재 구현 상태: Poison 1★/2★/3★ 정의와 보상·연금술 풀이 연결되었다. Poison 충돌은 직접 피해와 Damage Text 없이 등급별 1/2/3 Stack을 부여하며 최대 10 Stack이다. 같은 턴의 이후 Ball 직접 충돌은 Stack당 +1 피해를 받고 Stack을 소비하지 않는다. 일반 Block과 Boss Block에 동일하게 적용되며 턴 종료 또는 조준 상태 강제 초기화 시 제거된다.
 
 ```text
 Poison 직접 피해: 0

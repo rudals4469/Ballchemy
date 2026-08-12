@@ -4,5 +4,6 @@ public enum BallTraitType
     Critical = 1,
     Explosion = 2,
     Elemental = 3,
-    Piercing = 4
+    Piercing = 4,
+    Poison = 5
 }

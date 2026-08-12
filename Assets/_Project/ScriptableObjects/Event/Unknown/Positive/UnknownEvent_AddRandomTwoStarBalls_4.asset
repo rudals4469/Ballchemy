@@ -21,9 +21,7 @@ MonoBehaviour:
   twoStarBallDefinitions:
   - {fileID: 11400000, guid: 3ec0369c005d22944bdd862eef1952de, type: 2}
   - {fileID: 11400000, guid: 1cdaf2d58092d874eb84e2c207dd4a23, type: 2}
-  - {fileID: 11400000, guid: ea7789dd290aa9e4eb3296387ceb797b, type: 2}
-  - {fileID: 11400000, guid: 801a10e2718ad6c4a98d1532f5e3b31b, type: 2}
-  - {fileID: 11400000, guid: c08842c19c778d344b4a6e57636b012e, type: 2}
   - {fileID: 11400000, guid: b42b339e0ba7ac9458fce3594b02f38f, type: 2}
   - {fileID: 11400000, guid: ded1842081b5fd64b9fc282ae3b254cd, type: 2}
   - {fileID: 11400000, guid: b439394112f3fa54e8410e3df233c864, type: 2}
+  - {fileID: 11400000, guid: da82d35c868346bfb4db05b4b8f1a5d9, type: 2}

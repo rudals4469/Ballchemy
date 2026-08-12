@@ -137,7 +137,9 @@ public sealed class BallDefinition :
             damageTextStyle;
 
     public int SelectionWeight =>
-        selectionWeight;
+        BallPoolPolicy.IsRemovedFromPlayerPool(this)
+            ? 0
+            : selectionWeight;
 
     public bool HasTraitDefinition =>
         traitDefinition != null;
@@ -359,5 +361,25 @@ public sealed class BallDefinition :
             default:
                 return false;
         }
+    }
+}
+
+public static class BallPoolPolicy
+{
+    public static bool IsRemovedFromPlayerPool(
+        BallDefinition definition)
+    {
+        return definition != null &&
+               IsRemovedFromPlayerPool(
+                   definition.TraitType
+               );
+    }
+
+    public static bool IsRemovedFromPlayerPool(
+        BallTraitType traitType)
+    {
+        return traitType == BallTraitType.Critical ||
+               traitType == BallTraitType.Explosion ||
+               traitType == BallTraitType.Piercing;
     }
 }

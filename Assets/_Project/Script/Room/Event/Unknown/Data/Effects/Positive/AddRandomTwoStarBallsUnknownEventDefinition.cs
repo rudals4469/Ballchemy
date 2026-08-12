@@ -192,13 +192,15 @@ public sealed class
             return false;
         }
 
-        if (definition.TraitType ==
-            BallTraitType.Piercing)
+        if (BallPoolPolicy
+            .IsRemovedFromPlayerPool(
+                definition
+            ))
         {
             return false;
         }
 
-        return true;
+        return definition.SelectionWeight > 0;
     }
 
     private BallDefinition

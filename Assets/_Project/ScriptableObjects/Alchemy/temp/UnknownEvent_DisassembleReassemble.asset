@@ -24,19 +24,13 @@ MonoBehaviour:
   highGradeBallDefinitions:
   - {fileID: 11400000, guid: 3ec0369c005d22944bdd862eef1952de, type: 2}
   - {fileID: 11400000, guid: e0c18d7c4314c3a4a897f8d491d6d818, type: 2}
-  - {fileID: 11400000, guid: ec7c17274b95de5408feccc792c2a4e8, type: 2}
-  - {fileID: 11400000, guid: bf5de3ebba911764ab25c7c82bf8b685, type: 2}
   - {fileID: 11400000, guid: 1cdaf2d58092d874eb84e2c207dd4a23, type: 2}
   - {fileID: 11400000, guid: c8947fc0b1ab8fb4bb9a67a39d8acd32, type: 2}
-  - {fileID: 11400000, guid: ea7789dd290aa9e4eb3296387ceb797b, type: 2}
-  - {fileID: 11400000, guid: 63636733eacdb93438e2a244463993a5, type: 2}
-  - {fileID: 11400000, guid: 801a10e2718ad6c4a98d1532f5e3b31b, type: 2}
-  - {fileID: 11400000, guid: f2368215b677293438d7f538d0ce135b, type: 2}
-  - {fileID: 11400000, guid: c08842c19c778d344b4a6e57636b012e, type: 2}
-  - {fileID: 11400000, guid: 59c1c0debc1efe147b2c187707130180, type: 2}
   - {fileID: 11400000, guid: b42b339e0ba7ac9458fce3594b02f38f, type: 2}
   - {fileID: 11400000, guid: 9496ff8c69203b2459df8b4ce8405f66, type: 2}
   - {fileID: 11400000, guid: ded1842081b5fd64b9fc282ae3b254cd, type: 2}
   - {fileID: 11400000, guid: ffbbcdb5fc72dda49903f540be0100b5, type: 2}
   - {fileID: 11400000, guid: b439394112f3fa54e8410e3df233c864, type: 2}
   - {fileID: 11400000, guid: e3d01e89eb05349489d0b121f09eda87, type: 2}
+  - {fileID: 11400000, guid: da82d35c868346bfb4db05b4b8f1a5d9, type: 2}
+  - {fileID: 11400000, guid: 83879e1d7c2b4024bda6d32a97b76d47, type: 2}

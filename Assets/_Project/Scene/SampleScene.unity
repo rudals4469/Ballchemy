@@ -12564,7 +12564,6 @@ GameObject:
   - component: {fileID: 904823813}
   - component: {fileID: 904823814}
   - component: {fileID: 904823815}
-  - component: {fileID: 904823817}
   - component: {fileID: 904823818}
   - component: {fileID: 904823819}
   - component: {fileID: 904823821}
@@ -12778,43 +12777,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9496ff8c69203b2459df8b4ce8405f66, type: 2}
   - {fileID: 11400000, guid: ffbbcdb5fc72dda49903f540be0100b5, type: 2}
   - {fileID: 11400000, guid: e3d01e89eb05349489d0b121f09eda87, type: 2}
-  - {fileID: 11400000, guid: 63636733eacdb93438e2a244463993a5, type: 2}
-  - {fileID: 11400000, guid: f2368215b677293438d7f538d0ce135b, type: 2}
-  - {fileID: 11400000, guid: 59c1c0debc1efe147b2c187707130180, type: 2}
   randomDrawAmount: 1
   enableDrawOneOfEach: 1
   showDebugLog: 0
---- !u!114 &904823817
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 904823805}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 02a77325795c38a408069abf8a4cd4a7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ExplosionPatternVfxSpawner
-  effectRoot: {fileID: 2092661372}
-  lineMaterial: {fileID: 0}
-  lineColor: {r: 1, g: 0.42, b: 0.06, a: 0.2509804}
-  duration: 0.28
-  beamWidth: 0.14
-  tipWidthRatio: 0.52
-  innerGap: 0.015
-  beamLengthPaddingInCells: 0.15
-  extendDurationRatio: 0.32
-  fadeStartRatio: 0.55
-  useOuterGlow: 1
-  outerGlowWidthMultiplier: 1.6
-  outerGlowAlphaMultiplier: 0.12
-  zOffset: -0.15
-  sortingLayerName: Default
-  sortingOrder: 220
-  capVertices: 6
-  prewarmCount: 32
-  maximumPoolSize: 128
 --- !u!114 &904823818
 MonoBehaviour:
   m_ObjectHideFlags: 0

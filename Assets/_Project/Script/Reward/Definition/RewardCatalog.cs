@@ -60,6 +60,18 @@ public sealed class RewardCatalog :
                 continue;
             }
 
+            BallRewardDefinition ballReward =
+                definition as BallRewardDefinition;
+
+            if (ballReward != null &&
+                BallPoolPolicy
+                    .IsRemovedFromPlayerPool(
+                        ballReward.BallDefinition
+                    ))
+            {
+                continue;
+            }
+
             results.Add(
                 definition
             );

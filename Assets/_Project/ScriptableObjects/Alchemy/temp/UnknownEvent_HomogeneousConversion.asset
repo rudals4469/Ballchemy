@@ -20,11 +20,8 @@ MonoBehaviour:
   selectionWeight: 1
   conversionCount: 8
   oneStarTraitBallDefinitions:
-  - {fileID: 11400000, guid: d7e006b48422fe5449487a6d8d430da6, type: 2}
   - {fileID: 11400000, guid: 1a3c5d93c7b1fea4483d9b9c34d35fa2, type: 2}
-  - {fileID: 11400000, guid: 08f823ec512503340a068defd0c509dd, type: 2}
-  - {fileID: 11400000, guid: b65d39e1272932d43bc312c835a0b3d6, type: 2}
-  - {fileID: 11400000, guid: 790b25c1d5659b8419746646b696b1db, type: 2}
   - {fileID: 11400000, guid: 70c03fb27c2d8f6489b82ceec901a30b, type: 2}
   - {fileID: 11400000, guid: b1e7cbd436f2498438bfd17adc7ca273, type: 2}
   - {fileID: 11400000, guid: c69249269c66c4e4591d7d98c895b989, type: 2}
+  - {fileID: 11400000, guid: 74363270de5a48aab76a6cbd26cbd741, type: 2}

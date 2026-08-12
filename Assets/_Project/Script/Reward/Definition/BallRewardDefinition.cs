@@ -67,6 +67,14 @@ public sealed class BallRewardDefinition :
             return false;
         }
 
+        if (BallPoolPolicy
+            .IsRemovedFromPlayerPool(
+                ballDefinition
+            ))
+        {
+            return false;
+        }
+
         if (amount <= 0)
         {
             return false;
@@ -146,13 +154,16 @@ public sealed class BallRewardDefinition :
             return;
         }
 
-        if (ballDefinition.TraitType ==
-            BallTraitType.Piercing)
+        if (BallPoolPolicy
+            .IsRemovedFromPlayerPool(
+                ballDefinition
+            ))
         {
             Debug.LogWarning(
                 $"BallRewardDefinition: {name}은 " +
-                "관통 공 보상입니다. 관통 공은 현재 " +
-                "일반 1단계 특성 공 후보에서 제외됩니다.",
+                "최종 플레이어 공 풀에서 제거된 " +
+                $"{ballDefinition.TraitType} 공 보상이며 " +
+                "선택지에서 제외됩니다.",
                 this
             );
         }

@@ -216,6 +216,8 @@ public sealed class TurnManager :
 
         StopResolveCoroutine();
 
+        PoisonBlockStatus.ClearAllStacks();
+
         ChangeState(
             TurnState.Aiming
         );
@@ -250,6 +252,8 @@ public sealed class TurnManager :
 
             yield break;
         }
+
+        PoisonBlockStatus.ClearAllStacks();
 
         if (blockGridManager != null)
         {

@@ -364,6 +364,14 @@ public sealed class BallCombatController :
             return 0;
         }
 
+        if (isResolvingDirectBlockHit &&
+            resolvingDirectHitBlock == target &&
+            !hasCapturedDirectDamage)
+        {
+            calculatedDamage +=
+                PoisonBlockStatus.GetBonusDamage(target);
+        }
+
         calculatedDamage =
             Mathf.Max(
                 calculatedDamage,
@@ -734,24 +742,14 @@ public sealed class BallCombatController :
                     BasicBallEffect
                 );
 
-            case BallTraitType.Critical:
-                return typeof(
-                    CriticalBallEffect
-                );
-
-            case BallTraitType.Explosion:
-                return typeof(
-                    ExplosionBallEffect
-                );
-
             case BallTraitType.Elemental:
                 return typeof(
                     ElementalBallEffect
                 );
 
-            case BallTraitType.Piercing:
+            case BallTraitType.Poison:
                 return typeof(
-                    PiercingBallEffect
+                    PoisonBallEffect
                 );
 
             default:

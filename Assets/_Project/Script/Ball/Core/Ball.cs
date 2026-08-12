@@ -945,15 +945,6 @@ public sealed class Ball :
         appliedBounceDamageBonus = 0;
     }
 
-    private void ClearPiercingSensorRuntime()
-    {
-        PiercingBallSensor piercingSensor =
-            GetComponent<PiercingBallSensor>();
-
-        piercingSensor
-            ?.ClearRuntimeContacts();
-    }
-
     private void StopMovement()
     {
         BallTeleportState teleportState =
@@ -961,7 +952,6 @@ public sealed class Ball :
 
         teleportState?.ClearLock();
 
-        ClearPiercingSensorRuntime();
         ResetBounceDamageRuntime();
         ClearTemporaryUpgradeRuntime();
 
@@ -1469,14 +1459,12 @@ public sealed class Ball :
 
     private void OnDisable()
     {
-        ClearPiercingSensorRuntime();
         ResetBounceDamageRuntime();
         ClearTemporaryUpgradeRuntime();
     }
 
     private void OnDestroy()
     {
-        ClearPiercingSensorRuntime();
         ResetBounceDamageRuntime();
         ClearTemporaryUpgradeRuntime();
 

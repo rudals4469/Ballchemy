@@ -326,6 +326,19 @@ public sealed class BasicBallConversionRewardDefinition :
             return false;
         }
 
+        if (BallPoolPolicy
+            .IsRemovedFromPlayerPool(
+                definition
+            ))
+        {
+            return false;
+        }
+
+        if (definition.SelectionWeight <= 0)
+        {
+            return false;
+        }
+
         return true;
     }
 

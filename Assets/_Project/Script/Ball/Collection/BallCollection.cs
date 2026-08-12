@@ -192,6 +192,8 @@ public sealed class BallCollection :
 
         if (isInitialized)
         {
+            MigrateRemovedBallDefinitions();
+
             AlignAll(
                 standbyPosition
             );
@@ -214,6 +216,8 @@ public sealed class BallCollection :
         );
 
         isInitialized = true;
+
+        MigrateRemovedBallDefinitions();
 
         ApplyCurrentVisibilityToAll();
 
@@ -264,9 +268,11 @@ public sealed class BallCollection :
         }
 
         BallDefinition resolvedDefinition =
-            definition != null
-                ? definition
-                : startingBallDefinition;
+            ResolveSupportedDefinition(
+                definition != null
+                    ? definition
+                    : startingBallDefinition
+            );
 
         if (resolvedDefinition == null)
         {
@@ -759,6 +765,16 @@ public sealed class BallCollection :
     private Ball CreateBall(
         BallDefinition definition)
     {
+        definition =
+            ResolveSupportedDefinition(
+                definition
+            );
+
+        if (definition == null)
+        {
+            return null;
+        }
+
         Ball newBall =
             Instantiate(
                 ballPrefab,
@@ -869,6 +885,11 @@ public sealed class BallCollection :
         Ball targetBall,
         BallDefinition replacementDefinition)
     {
+        replacementDefinition =
+            ResolveSupportedDefinition(
+                replacementDefinition
+            );
+
         if (targetBall == null ||
             replacementDefinition == null)
         {
@@ -919,6 +940,116 @@ public sealed class BallCollection :
         return
             targetBall.Definition ==
             replacementDefinition;
+    }
+
+    public int MigrateRemovedBallDefinitions()
+    {
+        if (Ball.ActiveMovingBallCount > 0)
+        {
+            return 0;
+        }
+
+        RemoveDestroyedBallReferences();
+
+        int replacedCount = 0;
+
+        for (int i = 0;
+             i < balls.Count;
+             i++)
+        {
+            Ball ball = balls[i];
+
+            if (ball == null ||
+                !BallPoolPolicy
+                    .IsRemovedFromPlayerPool(
+                        ball.Definition
+                    ))
+            {
+                continue;
+            }
+
+            BallDefinition replacement =
+                ResolveBasicDefinitionForGrade(
+                    ball.StarGrade
+                );
+
+            if (ReplaceBallDefinitionInternal(
+                    ball,
+                    replacement
+                ))
+            {
+                replacedCount++;
+            }
+        }
+
+        if (replacedCount > 0)
+        {
+            BallDefinitionsReplaced?.Invoke(
+                replacedCount
+            );
+
+            Debug.Log(
+                "BallCollection: 제거 대상 공 " +
+                $"{replacedCount}개를 같은 등급 " +
+                "Basic Ball로 변환했습니다.",
+                this
+            );
+        }
+
+        return replacedCount;
+    }
+
+    private BallDefinition ResolveSupportedDefinition(
+        BallDefinition definition)
+    {
+        if (definition == null ||
+            !BallPoolPolicy
+                .IsRemovedFromPlayerPool(
+                    definition
+                ))
+        {
+            return definition;
+        }
+
+        return ResolveBasicDefinitionForGrade(
+            definition.StarGrade
+        );
+    }
+
+    private BallDefinition ResolveBasicDefinitionForGrade(
+        BallStarGrade targetGrade)
+    {
+        BallDefinition current =
+            startingBallDefinition;
+
+        if (current == null ||
+            current.TraitType != BallTraitType.Basic)
+        {
+            return startingBallDefinition;
+        }
+
+        if (targetGrade == BallStarGrade.None)
+        {
+            targetGrade = BallStarGrade.OneStar;
+        }
+
+        while (current != null &&
+               (int)current.StarGrade <
+               (int)targetGrade)
+        {
+            BallDefinition next =
+                current.NextStarDefinition;
+
+            if (next == null ||
+                next.TraitType != BallTraitType.Basic)
+            {
+                break;
+            }
+
+            current = next;
+        }
+
+        return current;
     }
 
     private bool ValidateCompositionModification(
