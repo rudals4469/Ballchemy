@@ -89,6 +89,28 @@ public sealed class AlchemyBallSelectionModel
         Changed?.Invoke();
     }
 
+    public void SelectRange(IEnumerable<Ball> balls, bool additive)
+    {
+        if (!additive)
+        {
+            selectedBalls.Clear();
+        }
+
+        if (balls != null)
+        {
+            foreach (Ball ball in balls)
+            {
+                if (ball != null && ball.Definition != null)
+                {
+                    selectedBalls.Add(ball);
+                }
+            }
+        }
+
+        SynchronizeSelectionFlags();
+        Changed?.Invoke();
+    }
+
     public List<Ball> CreateSelectedBallSnapshot()
     {
         List<Ball> result = new List<Ball>();

@@ -3,10 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-#if ENABLE_INPUT_SYSTEM
-using UnityEngine.InputSystem;
-#endif
-
 public sealed class BossEncounterController :
     MonoBehaviour
 {
@@ -63,10 +59,6 @@ public sealed class BossEncounterController :
     [Header("Transition")]
     [SerializeField, Min(0f)]
     private float boardClearDelay = 0.15f;
-
-    [Header("Debug")]
-    [SerializeField]
-    private bool enableBossTestKey = true;
 
     private readonly List<Block>
         encounterBlocks =
@@ -217,15 +209,6 @@ public sealed class BossEncounterController :
          * B키 테스트 진입도 일반 보스전 진입과
          * 동일한 StartBossEncounter()를 사용한다.
          */
-        if (enableBossTestKey &&
-            WasBossTestKeyPressed())
-        {
-            if (roomNavigator != null)
-            {
-                roomNavigator.TryDebugEnterBossRoom();
-            }
-        }
-
         if (!isEncounterActive ||
             isTransitioning ||
             isBossDefeatPending)
@@ -483,28 +466,6 @@ public sealed class BossEncounterController :
             blockGridManager.BlocksExceededBottom -=
                 HandleBlocksReachedBottom;
         }
-    }
-
-    private bool WasBossTestKeyPressed()
-    {
-#if ENABLE_INPUT_SYSTEM
-        if (Keyboard.current != null &&
-            Keyboard.current.bKey
-                .wasPressedThisFrame)
-        {
-            return true;
-        }
-#endif
-
-#if ENABLE_LEGACY_INPUT_MANAGER
-        if (Input.GetKeyDown(
-                KeyCode.B))
-        {
-            return true;
-        }
-#endif
-
-        return false;
     }
 
     private void HandleBossEncounterRequested()

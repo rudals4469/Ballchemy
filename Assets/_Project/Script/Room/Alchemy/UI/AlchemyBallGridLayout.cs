@@ -4,8 +4,8 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class AlchemyBallGridLayout : LayoutGroup
 {
-    [SerializeField, Min(1)] private int columns = 6;
-    [SerializeField] private Vector2 cellSize = new Vector2(68f, 82f);
+    [SerializeField, Min(1)] private int columns = 10;
+    [SerializeField] private Vector2 cellSize = new Vector2(54f, 68f);
     [SerializeField] private Vector2 spacing = new Vector2(8f, 8f);
 
     public override void CalculateLayoutInputHorizontal()

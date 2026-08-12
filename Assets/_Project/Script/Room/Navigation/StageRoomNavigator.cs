@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
 public sealed class StageRoomNavigator :
     MonoBehaviour
 {
@@ -31,6 +35,10 @@ public sealed class StageRoomNavigator :
 
     [SerializeField]
     private SecretRoomState secretRoomState;
+
+    [Header("Debug")]
+    [SerializeField]
+    private bool enableRoomTestKeys = true;
 
     private StageMap currentMap;
 
@@ -175,6 +183,15 @@ public sealed class StageRoomNavigator :
     private void Start()
     {
         TryInitializeFromCurrentMap();
+    }
+
+    private void Update()
+    {
+        if (enableRoomTestKeys &&
+            TryGetPressedDebugRoomType(out RoomType roomType))
+        {
+            TryDebugEnterRoom(roomType);
+        }
     }
 
     private void OnDisable()
@@ -873,6 +890,59 @@ public sealed class StageRoomNavigator :
         );
     }
 
+    public bool TryDebugEnterRoom(RoomType roomType)
+    {
+        if (currentMap == null ||
+            currentRoom == null ||
+            isNavigationLocked ||
+            Ball.ActiveMovingBallCount > 0)
+        {
+            return false;
+        }
+
+        if (currentRoom.RoomType == roomType)
+        {
+            if (roomType == RoomType.Boss)
+            {
+                return bossEncounterController != null &&
+                    bossEncounterController.StartBossEncounter();
+            }
+
+            ConfigureCurrentRoomOnEntry();
+            RoomChanged?.Invoke(previousRoom, currentRoom);
+            return true;
+        }
+
+        IReadOnlyList<RoomNode> rooms = currentMap.Rooms;
+        if (rooms == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < rooms.Count; i++)
+        {
+            RoomNode room = rooms[i];
+            if (room == null || room.RoomType != roomType)
+            {
+                continue;
+            }
+
+            Debug.Log(
+                "StageRoomNavigator: 디버그 즉시 입장, " +
+                $"RoomType={roomType}, RoomId={room.RoomId}",
+                this);
+
+            // 이벤트 열쇠 등 일반 입장 조건은 테스트 이동에서 우회합니다.
+            visitedRoomIds.Add(room.RoomId);
+            return CompleteRoomMove(room);
+        }
+
+        Debug.LogWarning(
+            $"StageRoomNavigator: {roomType} 방을 찾지 못했습니다.",
+            this);
+        return false;
+    }
+
     public bool TryDebugEnterBossRoom()
     {
         if (currentMap == null ||
@@ -926,6 +996,39 @@ public sealed class StageRoomNavigator :
             this
         );
 
+        return false;
+    }
+
+    private static bool TryGetPressedDebugRoomType(
+        out RoomType roomType)
+    {
+#if ENABLE_INPUT_SYSTEM
+        Keyboard keyboard = Keyboard.current;
+        if (keyboard != null)
+        {
+            if (keyboard.qKey.wasPressedThisFrame) { roomType = RoomType.NormalCombat; return true; }
+            if (keyboard.wKey.wasPressedThisFrame) { roomType = RoomType.NamedCombat; return true; }
+            if (keyboard.eKey.wasPressedThisFrame) { roomType = RoomType.Boss; return true; }
+            if (keyboard.rKey.wasPressedThisFrame) { roomType = RoomType.Shop; return true; }
+            if (keyboard.tKey.wasPressedThisFrame) { roomType = RoomType.Alchemy; return true; }
+            if (keyboard.yKey.wasPressedThisFrame) { roomType = RoomType.Event; return true; }
+            if (keyboard.uKey.wasPressedThisFrame) { roomType = RoomType.Secret; return true; }
+            if (keyboard.iKey.wasPressedThisFrame) { roomType = RoomType.Start; return true; }
+        }
+#endif
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        if (Input.GetKeyDown(KeyCode.Q)) { roomType = RoomType.NormalCombat; return true; }
+        if (Input.GetKeyDown(KeyCode.W)) { roomType = RoomType.NamedCombat; return true; }
+        if (Input.GetKeyDown(KeyCode.E)) { roomType = RoomType.Boss; return true; }
+        if (Input.GetKeyDown(KeyCode.R)) { roomType = RoomType.Shop; return true; }
+        if (Input.GetKeyDown(KeyCode.T)) { roomType = RoomType.Alchemy; return true; }
+        if (Input.GetKeyDown(KeyCode.Y)) { roomType = RoomType.Event; return true; }
+        if (Input.GetKeyDown(KeyCode.U)) { roomType = RoomType.Secret; return true; }
+        if (Input.GetKeyDown(KeyCode.I)) { roomType = RoomType.Start; return true; }
+#endif
+
+        roomType = default;
         return false;
     }
 
