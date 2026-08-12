@@ -77,7 +77,7 @@ public sealed class AlchemyBallSelectionModel
         return true;
     }
 
-    public void ClearSelection()
+    public void ClearSelection(bool notifyChanged = true)
     {
         if (selectedBalls.Count == 0)
         {
@@ -86,7 +86,10 @@ public sealed class AlchemyBallSelectionModel
 
         selectedBalls.Clear();
         SynchronizeSelectionFlags();
-        Changed?.Invoke();
+        if (notifyChanged)
+        {
+            Changed?.Invoke();
+        }
     }
 
     public void SelectRange(IEnumerable<Ball> balls, bool additive)

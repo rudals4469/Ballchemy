@@ -604,6 +604,26 @@ public sealed class BallCollection :
         return replacedCount;
     }
 
+    public bool ReplaceBallDefinition(
+        Ball targetBall,
+        BallDefinition replacementDefinition)
+    {
+        if (!ValidateCompositionModification("공 Definition 교체"))
+        {
+            return false;
+        }
+
+        if (!ReplaceBallDefinitionInternal(
+                targetBall,
+                replacementDefinition))
+        {
+            return false;
+        }
+
+        BallDefinitionsReplaced?.Invoke(1);
+        return true;
+    }
+
     /*
      * 조건을 만족하는 현재 보유 공의 수를 반환합니다.
      */
