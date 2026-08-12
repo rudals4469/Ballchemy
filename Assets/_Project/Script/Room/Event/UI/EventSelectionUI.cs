@@ -169,6 +169,11 @@ public sealed class EventSelectionUI :
         );
     }
 
+    public void SetPanelVisible(bool visible)
+    {
+        SetPanelActive(visible);
+    }
+
     public void SetCardsInteractable(
         bool shouldEnable)
     {
@@ -234,6 +239,13 @@ public sealed class EventSelectionUI :
         SetCardsInteractable(
             false
         );
+
+        for (int i = 0; i < cards.Count; i++)
+        {
+            EventChoiceCardUI card = cards[i];
+            if (card != null && card.HasChoice)
+                card.ShowSelectionResult(card == selectedCard);
+        }
 
         ChoiceSelected?.Invoke(
             selectedChoice

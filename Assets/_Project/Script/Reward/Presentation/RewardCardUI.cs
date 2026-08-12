@@ -92,6 +92,7 @@ public sealed class RewardCardUI :
 
     private bool isSelectionEnabled;
     private bool hasInvokedSelection;
+    private OneShotSelectionVisual selectionVisual;
 
     public RewardDefinition
         BoundRewardDefinition =>
@@ -175,6 +176,8 @@ public sealed class RewardCardUI :
         hasInvokedSelection =
             false;
 
+        selectionVisual?.ResetVisual();
+
         if (boundRewardDefinition == null)
         {
             Clear();
@@ -214,6 +217,11 @@ public sealed class RewardCardUI :
         }
     }
 
+    public void ShowSelectionResult(bool isSelected)
+    {
+        selectionVisual?.ShowResult(isSelected);
+    }
+
     public void Clear()
     {
         boundRewardDefinition =
@@ -224,6 +232,8 @@ public sealed class RewardCardUI :
 
         hasInvokedSelection =
             false;
+
+        selectionVisual?.ResetVisual();
 
         SetSelectionEnabled(
             false
@@ -468,6 +478,18 @@ public sealed class RewardCardUI :
         {
             selectButton =
                 GetComponent<Button>();
+        }
+
+        if (selectionVisual == null)
+        {
+            selectionVisual =
+                GetComponent<OneShotSelectionVisual>();
+        }
+
+        if (selectionVisual == null && Application.isPlaying)
+        {
+            selectionVisual =
+                gameObject.AddComponent<OneShotSelectionVisual>();
         }
     }
 

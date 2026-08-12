@@ -193,6 +193,12 @@ public sealed class RoomRewardController :
             rewardSelectionUI.RewardSelected +=
                 HandleRewardSelected;
         }
+
+        if (roomNavigator != null)
+        {
+            roomNavigator.RoomChanged -= HandleRoomChanged;
+            roomNavigator.RoomChanged += HandleRoomChanged;
+        }
     }
 
     private void UnsubscribeEvents()
@@ -207,6 +213,19 @@ public sealed class RoomRewardController :
         {
             rewardSelectionUI.RewardSelected -=
                 HandleRewardSelected;
+        }
+
+        if (roomNavigator != null)
+        {
+            roomNavigator.RoomChanged -= HandleRoomChanged;
+        }
+    }
+
+    private void HandleRoomChanged(RoomNode previousRoom, RoomNode currentRoom)
+    {
+        if (!isRewardPending)
+        {
+            rewardSelectionUI?.Hide();
         }
     }
 
@@ -524,8 +543,6 @@ public sealed class RoomRewardController :
             roomNavigator != null
                 ? roomNavigator.CurrentRoom
                 : null;
-
-        rewardSelectionUI?.Hide();
 
         pendingChoices.Clear();
 

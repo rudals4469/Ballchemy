@@ -55,6 +55,7 @@ public sealed class EventChoiceCardUI :
     private EventChoiceData boundChoice;
 
     private bool hasInvokedSelection;
+    private OneShotSelectionVisual selectionVisual;
 
     public bool HasChoice =>
         boundChoice != null;
@@ -123,6 +124,8 @@ public sealed class EventChoiceCardUI :
 
         hasInvokedSelection =
             false;
+
+        selectionVisual?.ResetVisual();
 
         if (boundChoice == null)
         {
@@ -212,6 +215,11 @@ public sealed class EventChoiceCardUI :
             boundChoice != null;
     }
 
+    public void ShowSelectionResult(bool isSelected)
+    {
+        selectionVisual?.ShowResult(isSelected);
+    }
+
     public void Clear()
     {
         boundChoice =
@@ -219,6 +227,8 @@ public sealed class EventChoiceCardUI :
 
         hasInvokedSelection =
             false;
+
+        selectionVisual?.ResetVisual();
 
         SetSelectionEnabled(
             false
@@ -301,6 +311,18 @@ public sealed class EventChoiceCardUI :
         {
             selectButton =
                 GetComponent<Button>();
+        }
+
+        if (selectionVisual == null)
+        {
+            selectionVisual =
+                GetComponent<OneShotSelectionVisual>();
+        }
+
+        if (selectionVisual == null && Application.isPlaying)
+        {
+            selectionVisual =
+                gameObject.AddComponent<OneShotSelectionVisual>();
         }
     }
 

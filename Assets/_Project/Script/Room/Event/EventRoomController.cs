@@ -714,7 +714,7 @@ public sealed class EventRoomController :
          */
         ApplyUnknownSlotInputLock();
 
-        selectionUI.Hide();
+        selectionUI.SetPanelVisible(false);
 
         bool started =
             unknownEventSlotPresenter.Play(
@@ -887,9 +887,13 @@ public sealed class EventRoomController :
 
         RestoreUnknownSlotInputLock();
 
-        if (selectionUI != null)
+        if (selectionUI != null && !wasCompleted)
         {
             selectionUI.Hide();
+        }
+        else if (selectionUI != null)
+        {
+            selectionUI.SetPanelVisible(true);
         }
 
         if (unknownEventSlotPresenter != null)

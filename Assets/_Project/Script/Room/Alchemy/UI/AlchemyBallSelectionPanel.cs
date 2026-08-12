@@ -323,7 +323,20 @@ public sealed class AlchemyBallSelectionPanel : MonoBehaviour
             Rect itemContentRect = Rect.MinMaxRect(
                 minimum.x, minimum.y, maximum.x, maximum.y);
 
-            if (contentRect.Overlaps(itemContentRect, true))
+            float intersectionWidth = Mathf.Max(
+                0f,
+                Mathf.Min(contentRect.xMax, itemContentRect.xMax) -
+                Mathf.Max(contentRect.xMin, itemContentRect.xMin));
+            float intersectionHeight = Mathf.Max(
+                0f,
+                Mathf.Min(contentRect.yMax, itemContentRect.yMax) -
+                Mathf.Max(contentRect.yMin, itemContentRect.yMin));
+            float itemArea = itemContentRect.width * itemContentRect.height;
+            float coveredRatio = itemArea > 0f
+                ? intersectionWidth * intersectionHeight / itemArea
+                : 0f;
+
+            if (coveredRatio >= 0.5f)
             {
                 result.Add(itemBalls[i]);
             }

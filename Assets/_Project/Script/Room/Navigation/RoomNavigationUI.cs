@@ -41,6 +41,7 @@ public sealed class RoomNavigationUI :
     )]
     [SerializeField]
     private bool hideUnavailableButtons = true;
+    private bool directionButtonsSuppressed;
 
     private void Awake()
     {
@@ -270,12 +271,25 @@ public sealed class RoomNavigationUI :
         );
     }
 
+    public void SetDirectionButtonsSuppressed(bool suppressed)
+    {
+        directionButtonsSuppressed = suppressed;
+        Refresh();
+    }
+
     private void RefreshButton(
         Button button,
         RoomDirection direction)
     {
         if (button == null)
         {
+            return;
+        }
+
+        if (directionButtonsSuppressed)
+        {
+            button.gameObject.SetActive(false);
+            button.interactable = false;
             return;
         }
 

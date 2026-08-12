@@ -17,8 +17,13 @@ public sealed class SecretRoomState :
     private bool hasEnteredSecretRoom;
 
     [SerializeField]
+    private bool hasClaimedReward;
+
+    [SerializeField]
     private List<SecretRoomEntrance> entrances =
         new List<SecretRoomEntrance>();
+
+    private int stateVersion;
 
     public int SecretRoomId =>
         secretRoomId;
@@ -31,6 +36,12 @@ public sealed class SecretRoomState :
 
     public bool HasEnteredSecretRoom =>
         hasEnteredSecretRoom;
+
+    public bool HasClaimedReward =>
+        hasClaimedReward;
+
+    public int StateVersion =>
+        stateVersion;
 
     public int EntranceCount =>
         entrances != null
@@ -68,6 +79,8 @@ public sealed class SecretRoomState :
         IReadOnlyList<SecretRoomEntrance>
             targetEntrances)
     {
+        stateVersion++;
+
         secretRoomId =
             Mathf.Max(
                 targetSecretRoomId,
@@ -78,6 +91,9 @@ public sealed class SecretRoomState :
             false;
 
         hasEnteredSecretRoom =
+            false;
+
+        hasClaimedReward =
             false;
 
         EnsureEntranceList();
@@ -135,6 +151,8 @@ public sealed class SecretRoomState :
 
     public void Clear()
     {
+        stateVersion++;
+
         secretRoomId =
             -1;
 
@@ -142,6 +160,9 @@ public sealed class SecretRoomState :
             false;
 
         hasEnteredSecretRoom =
+            false;
+
+        hasClaimedReward =
             false;
 
         EnsureEntranceList();
@@ -297,6 +318,20 @@ public sealed class SecretRoomState :
 
         SecretRoomEntered?.Invoke();
 
+        StateChanged?.Invoke();
+
+        return true;
+    }
+
+    public bool MarkRewardClaimed()
+    {
+        if (!HasSecretRoom ||
+            hasClaimedReward)
+        {
+            return false;
+        }
+
+        hasClaimedReward = true;
         StateChanged?.Invoke();
 
         return true;

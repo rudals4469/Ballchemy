@@ -20,6 +20,7 @@ public sealed class AlchemyPanelPresenter :
     [Header("Alchemy Flow")]
     [SerializeField] private GameObject candidateCardRoot;
     [SerializeField] private GameObject workbenchRoot;
+    [SerializeField] private Button closeWorkbenchButton;
     [SerializeField] private Button[] candidateButtons;
     [SerializeField] private TMP_Text[] candidateNameTexts;
     [SerializeField] private TMP_Text[] candidateDescriptionTexts;
@@ -48,6 +49,9 @@ public sealed class AlchemyPanelPresenter :
     [SerializeField]
     private BallCollection ballCollection;
 
+    [SerializeField]
+    private RoomNavigationUI roomNavigationUI;
+
     private bool isSubscribed;
     private bool isConverting;
     private int currentStability;
@@ -71,6 +75,7 @@ public sealed class AlchemyPanelPresenter :
             ? panelRoot.GetComponentInChildren<AlchemyBallMarqueeSelector>(true)
             : null;
         BindCandidateButtons();
+        BindCloseWorkbenchButton();
         ValidateReferences();
         HideImmediately();
     }
@@ -90,6 +95,7 @@ public sealed class AlchemyPanelPresenter :
 
     private void OnDisable()
     {
+        roomNavigationUI?.SetDirectionButtonsSuppressed(false);
         UnsubscribeSelection();
         UnsubscribeEvents();
     }
@@ -231,6 +237,40 @@ public sealed class AlchemyPanelPresenter :
         }
     }
 
+    private void BindCloseWorkbenchButton()
+    {
+        if (closeWorkbenchButton == null)
+        {
+            return;
+        }
+
+        closeWorkbenchButton.onClick.RemoveListener(CloseWorkbench);
+        closeWorkbenchButton.onClick.AddListener(CloseWorkbench);
+    }
+
+    private void CloseWorkbench()
+    {
+        if (isConverting)
+        {
+            return;
+        }
+
+        selectedTargetDefinition = null;
+        ballSelectionModel.ClearSelection();
+
+        if (workbenchRoot != null)
+        {
+            workbenchRoot.SetActive(false);
+        }
+
+        if (candidateCardRoot != null)
+        {
+            candidateCardRoot.SetActive(true);
+        }
+
+        roomNavigationUI?.SetDirectionButtonsSuppressed(false);
+    }
+
     private void PrepareAlchemyRoom()
     {
         selectedTargetDefinition = null;
@@ -249,6 +289,7 @@ public sealed class AlchemyPanelPresenter :
         {
             workbenchRoot.SetActive(false);
         }
+        roomNavigationUI?.SetDirectionButtonsSuppressed(false);
     }
 
     private void BuildCandidateList()
@@ -349,6 +390,7 @@ public sealed class AlchemyPanelPresenter :
         {
             workbenchRoot.SetActive(true);
         }
+        roomNavigationUI?.SetDirectionButtonsSuppressed(true);
 
         ballSelectionModel.Refresh(ballCollection);
     }
@@ -444,6 +486,7 @@ public sealed class AlchemyPanelPresenter :
         {
             workbenchRoot.SetActive(false);
         }
+        roomNavigationUI?.SetDirectionButtonsSuppressed(false);
 
         selectedTargetDefinition = null;
         isConverting = false;
@@ -619,6 +662,11 @@ public sealed class AlchemyPanelPresenter :
         {
             ballCollection =
                 FindFirstObjectByType<BallCollection>();
+        }
+
+        if (roomNavigationUI == null)
+        {
+            roomNavigationUI = FindFirstObjectByType<RoomNavigationUI>();
         }
     }
 

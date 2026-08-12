@@ -276,6 +276,13 @@ public sealed class RewardSelectionUI :
             false
         );
 
+        for (int i = 0; i < rewardCards.Count; i++)
+        {
+            RewardCardUI card = rewardCards[i];
+            if (card != null && card.HasReward)
+                card.ShowSelectionResult(card == selectedCard);
+        }
+
         RewardSelected?.Invoke(
             selectedReward
         );

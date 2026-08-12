@@ -25,6 +25,7 @@ public sealed class AlchemyBallMarqueeSelector : MonoBehaviour,
     private bool isDragging;
     private Vector2 currentScreenPosition;
     private Camera eventCamera;
+    private Rect currentContentSelectionRect;
     private readonly HashSet<Ball> draggedBalls = new HashSet<Ball>();
 
     private void Awake()
@@ -153,13 +154,13 @@ public sealed class AlchemyBallMarqueeSelector : MonoBehaviour,
                 eventCamera,
                 out Vector2 currentContentPosition))
         {
-            Rect contentSelectionRect = Rect.MinMaxRect(
+            currentContentSelectionRect = Rect.MinMaxRect(
                 Mathf.Min(pressContentPosition.x, currentContentPosition.x),
                 Mathf.Min(pressContentPosition.y, currentContentPosition.y),
                 Mathf.Max(pressContentPosition.x, currentContentPosition.x),
                 Mathf.Max(pressContentPosition.y, currentContentPosition.y));
             selectionPanel.CollectBallsInContentRect(
-                contentSelectionRect, draggedBalls);
+                currentContentSelectionRect, draggedBalls);
         }
 
         Vector2 minimum;
