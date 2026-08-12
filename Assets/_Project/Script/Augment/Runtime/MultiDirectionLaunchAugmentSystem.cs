@@ -144,6 +144,54 @@ public static class
         );
     }
 
+    public static Vector2 GetSteeredBaseDirection(
+        Vector2 requestedDirection,
+        MultiDirectionLaunchSettings settings,
+        float minimumUpwardComponent)
+    {
+        if (requestedDirection.sqrMagnitude <= 0.001f)
+        {
+            requestedDirection = Vector2.up;
+        }
+
+        requestedDirection.Normalize();
+
+        int branchCount = settings.IsActive
+            ? Mathf.Max(settings.BranchCount, 1)
+            : 1;
+
+        float outerSpread = branchCount > 1
+            ? Mathf.Clamp(settings.SpreadAngle, 0f, 45f)
+            : 0f;
+
+        float minimumY = Mathf.Clamp(
+            minimumUpwardComponent,
+            0.01f,
+            1f);
+
+        float maximumAngleFromUp =
+            Mathf.Acos(minimumY) * Mathf.Rad2Deg;
+
+        float maximumCenterAngle = Mathf.Max(
+            maximumAngleFromUp - outerSpread,
+            0f);
+
+        float requestedAngleFromUp = Mathf.Atan2(
+            requestedDirection.x,
+            requestedDirection.y) * Mathf.Rad2Deg;
+
+        float steeredAngle = Mathf.Clamp(
+            requestedAngleFromUp,
+            -maximumCenterAngle,
+            maximumCenterAngle);
+
+        float radians = steeredAngle * Mathf.Deg2Rad;
+
+        return new Vector2(
+            Mathf.Sin(radians),
+            Mathf.Cos(radians));
+    }
+
     private static float ResolveBranchAngle(
         int branchIndex,
         int branchCount,

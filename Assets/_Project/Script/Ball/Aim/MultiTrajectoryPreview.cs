@@ -71,12 +71,20 @@ public sealed class MultiTrajectoryPreview :
             return;
         }
 
-        currentBaseDirection =
-            normalizedDirection;
-
         currentSettings =
             MultiDirectionLaunchAugmentSystem
                 .GetCurrentSettings();
+
+        normalizedDirection =
+            MultiDirectionLaunchAugmentSystem
+                .GetSteeredBaseDirection(
+                    normalizedDirection,
+                    currentSettings,
+                    0.15f
+                );
+
+        currentBaseDirection =
+            normalizedDirection;
 
         isLongPreviewActive =
             false;
@@ -142,12 +150,20 @@ public sealed class MultiTrajectoryPreview :
             return false;
         }
 
-        currentBaseDirection =
-            normalizedDirection;
-
         currentSettings =
             MultiDirectionLaunchAugmentSystem
                 .GetCurrentSettings();
+
+        normalizedDirection =
+            MultiDirectionLaunchAugmentSystem
+                .GetSteeredBaseDirection(
+                    normalizedDirection,
+                    currentSettings,
+                    0.15f
+                );
+
+        currentBaseDirection =
+            normalizedDirection;
 
         StopAllLongPreviews();
         HideAllPreviews();

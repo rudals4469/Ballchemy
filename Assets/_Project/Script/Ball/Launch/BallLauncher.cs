@@ -52,6 +52,11 @@ public sealed class BallLauncher :
     [SerializeField, Min(0f)]
     private float launchInterval = 0.08f;
 
+    [Tooltip(
+        "발사 시작 방향을 중심으로 아직 발사되지 않은 공을 조향할 수 있는 최대 각도입니다.")]
+    [SerializeField, Range(0f, 80f)]
+    private float steeringAngle = 10f;
+
     [Header("Attack Completion")]
 
     [Tooltip(
@@ -86,6 +91,10 @@ public sealed class BallLauncher :
 
     private Vector2 currentTurnLaunchPosition;
     private Vector2 nextTurnLaunchPosition;
+    private Vector2 initialLaunchDirection = Vector2.up;
+    private Vector2 currentQueuedLaunchDirection = Vector2.up;
+    private MultiDirectionLaunchSettings currentLaunchDirectionSettings =
+        MultiDirectionLaunchSettings.Default;
 
     private float launchBaselineY;
 
@@ -130,6 +139,15 @@ public sealed class BallLauncher :
             transform.position.x,
             launchBaselineY
         );
+
+    public Vector2 CurrentQueuedLaunchDirection =>
+        currentQueuedLaunchDirection;
+
+    public Vector2 InitialLaunchDirection =>
+        initialLaunchDirection;
+
+    public float SteeringAngle =>
+        steeringAngle;
 
     public Ball LastLaunchedBall
     {
@@ -261,6 +279,13 @@ public sealed class BallLauncher :
             Mathf.Max(
                 launchInterval,
                 0f
+            );
+
+        steeringAngle =
+            Mathf.Clamp(
+                steeringAngle,
+                0f,
+                80f
             );
 
         allBallsReturnedDelay =
@@ -560,10 +585,22 @@ public sealed class BallLauncher :
                 MultiDirectionLaunchAugmentSystem
                     .GetCurrentSettings();
 
+        Vector2 steeredBaseDirection =
+            MultiDirectionLaunchAugmentSystem
+                .GetSteeredBaseDirection(
+                    direction,
+                    multiDirectionSettings,
+                    0.15f
+                );
+
+        initialLaunchDirection = steeredBaseDirection;
+        currentQueuedLaunchDirection = steeredBaseDirection;
+        currentLaunchDirectionSettings = multiDirectionSettings;
+
         launchCoroutine =
             StartCoroutine(
                 LaunchBallsRoutine(
-                    direction.normalized,
+                    steeredBaseDirection,
                     multiDirectionSettings
                 )
             );
@@ -615,6 +652,48 @@ public sealed class BallLauncher :
         return true;
     }
 
+    public bool TryUpdateQueuedLaunchDirection(
+        Vector2 requestedDirection)
+    {
+        if (!isLaunching ||
+            requestedDirection.sqrMagnitude <= 0.001f)
+        {
+            return false;
+        }
+
+        Vector2 fieldClampedDirection =
+            MultiDirectionLaunchAugmentSystem
+                .GetSteeredBaseDirection(
+                    requestedDirection,
+                    currentLaunchDirectionSettings,
+                    0.15f
+                );
+
+        float signedOffset = Vector2.SignedAngle(
+            initialLaunchDirection,
+            fieldClampedDirection);
+
+        float clampedOffset = Mathf.Clamp(
+            signedOffset,
+            -steeringAngle,
+            steeringAngle);
+
+        Vector2 steeredDirection = Quaternion.Euler(
+            0f,
+            0f,
+            clampedOffset) * initialLaunchDirection;
+
+        currentQueuedLaunchDirection =
+            MultiDirectionLaunchAugmentSystem
+                .GetSteeredBaseDirection(
+                    steeredDirection,
+                    currentLaunchDirectionSettings,
+                    0.15f
+                );
+
+        return true;
+    }
+
     private IEnumerator LaunchBallsRoutine(
         Vector2 baseDirection,
         MultiDirectionLaunchSettings
@@ -652,6 +731,9 @@ public sealed class BallLauncher :
         while (nextBallIndex <
                currentLaunchSnapshot.Count)
         {
+            Vector2 currentBundleDirection =
+                currentQueuedLaunchDirection;
+
             /*
              * 같은 묶음에서는 최대 branchCount개의 공을
              * 같은 프레임에 서로 다른 방향으로 발사합니다.
@@ -681,7 +763,7 @@ public sealed class BallLauncher :
                 Vector2 branchDirection =
                     MultiDirectionLaunchAugmentSystem
                         .GetBranchDirection(
-                            baseDirection,
+                            currentBundleDirection,
                             branchIndex,
                             branchCount,
                             spreadAngle

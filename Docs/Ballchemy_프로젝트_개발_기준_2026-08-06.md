@@ -1422,7 +1422,7 @@ Presenter / UI → 화면 표시와 연출
 - [x] 다음 보상 Tier 증가 예약
 - [ ] 연금술방 공 변환 UI/규칙
 - [x] 최종 6종 공 풀 마이그레이션과 Poison 핵심 전투 로직
-- [ ] 발사 중 조향
+- [x] 발사 중 조향 핵심 런타임
 - [ ] Status의 공 조성/전직/T3 표시
 
 ### 상점
@@ -1631,6 +1631,8 @@ Stack 소비: 없음
 - Boss에도 일반 Block과 동일하게 Poison Stack을 부여하고, 같은 턴의 후속 Ball 직접 충돌 피해에 Stack 보너스를 적용한다.
 
 ## 44. 발사 조향 시스템
+
+현재 핵심 런타임 구현 상태: 발사 시작 방향을 기준으로 기본 ±10도 범위에서 커서 방향을 추적하며, 이미 발사된 Ball의 속도에는 영향을 주지 않고 아직 발사되지 않은 다음 묶음의 초기 방향만 변경한다. 동시/분산 발사는 묶음이 발사되기 직전에 하나의 중심 방향을 읽고 기존 분산 간격을 유지한다. 좌우 끝 가지가 유효한 상향 발사 범위를 벗어나지 않도록 중심 방향을 묶음 단위로 Clamp하며, 기본 Steering Angle은 `BallLauncher` Inspector에서 조절 가능하다. 발사 중에는 최초 방향에 고정된 반투명 Steering Cone, 좌우 경계선, 현재 조향선을 표시하고 거리에 따라 Alpha가 감소한다.
 
 발사 전에는 기존 `BallAimController`와 `BallTrajectoryPreview`의 정밀 반사 Preview를 그대로 사용한다. 클릭 순간 최초 방향을 저장하고 Turn을 확정하며, Mouse Button을 놓아도 `BallLauncher`의 남은 Queue는 자동 발사한다.
 

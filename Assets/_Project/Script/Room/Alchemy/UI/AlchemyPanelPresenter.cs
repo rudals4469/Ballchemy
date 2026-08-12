@@ -18,11 +18,21 @@ public sealed class AlchemyPanelPresenter :
     [SerializeField]
     private StageRoomNavigator roomNavigator;
 
+    [SerializeField]
+    private BallCollection ballCollection;
+
     private bool isSubscribed;
+    private AlchemyBallSelectionPanel selectionPanel;
+    private readonly AlchemyBallSelectionModel ballSelectionModel =
+        new AlchemyBallSelectionModel();
+
+    public AlchemyBallSelectionModel BallSelectionModel =>
+        ballSelectionModel;
 
     private void Awake()
     {
         FindReferences();
+        EnsureSelectionPanel();
         ValidateReferences();
         HideImmediately();
     }
@@ -68,6 +78,13 @@ public sealed class AlchemyPanelPresenter :
         roomNavigator.RoomChanged +=
             HandleRoomChanged;
 
+        if (ballCollection != null)
+        {
+            ballCollection.BallCountChanged += HandleBallCountChanged;
+            ballCollection.BallDefinitionsReplaced +=
+                HandleBallDefinitionsReplaced;
+        }
+
         isSubscribed =
             true;
     }
@@ -85,6 +102,13 @@ public sealed class AlchemyPanelPresenter :
                 HandleRoomChanged;
         }
 
+        if (ballCollection != null)
+        {
+            ballCollection.BallCountChanged -= HandleBallCountChanged;
+            ballCollection.BallDefinitionsReplaced -=
+                HandleBallDefinitionsReplaced;
+        }
+
         isSubscribed =
             false;
     }
@@ -98,6 +122,27 @@ public sealed class AlchemyPanelPresenter :
                 currentRoom
             )
         );
+
+        if (IsAlchemyRoom(currentRoom))
+        {
+            ballSelectionModel.Refresh(ballCollection);
+        }
+    }
+
+    private void HandleBallCountChanged(int count)
+    {
+        if (panelRoot != null && panelRoot.activeSelf)
+        {
+            ballSelectionModel.Refresh(ballCollection);
+        }
+    }
+
+    private void HandleBallDefinitionsReplaced(int count)
+    {
+        if (panelRoot != null && panelRoot.activeSelf)
+        {
+            ballSelectionModel.Refresh(ballCollection);
+        }
     }
 
     private void RefreshForCurrentRoom()
@@ -148,6 +193,15 @@ public sealed class AlchemyPanelPresenter :
         panelRoot.SetActive(
             shouldActivate
         );
+
+        if (shouldActivate)
+        {
+            ballSelectionModel.Refresh(ballCollection);
+        }
+        else
+        {
+            ballSelectionModel.ClearSelection();
+        }
     }
 
     private void FindReferences()
@@ -158,6 +212,36 @@ public sealed class AlchemyPanelPresenter :
                 FindFirstObjectByType<
                     StageRoomNavigator
                 >();
+        }
+
+        if (ballCollection == null)
+        {
+            ballCollection =
+                FindFirstObjectByType<BallCollection>();
+        }
+    }
+
+    private void EnsureSelectionPanel()
+    {
+        if (panelRoot == null)
+        {
+            return;
+        }
+
+        selectionPanel =
+            panelRoot.GetComponentInChildren<
+                AlchemyBallSelectionPanel>(true);
+
+        if (selectionPanel != null)
+        {
+            selectionPanel.Initialize(ballSelectionModel);
+        }
+        else
+        {
+            Debug.LogError(
+                "AlchemyPanelPresenter: " +
+                "Hierarchy에 AlchemyBallSelectionPanel이 없습니다.",
+                this);
         }
     }
 

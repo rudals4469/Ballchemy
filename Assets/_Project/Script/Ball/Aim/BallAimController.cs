@@ -29,6 +29,9 @@ public sealed class BallAimController :
     private FirstTurnLaunchPositionController
         firstTurnLaunchPositionController;
 
+    [SerializeField]
+    private BallSteeringConeView steeringConeView;
+
     [Header("Aim Direction")]
 
     [SerializeField, Range(0.01f, 1f)]
@@ -126,6 +129,13 @@ public sealed class BallAimController :
             return;
         }
 
+        if (turnManager.CurrentState == TurnState.BallMoving &&
+            ballLauncher.IsLaunching)
+        {
+            HandleLaunchSteering();
+            return;
+        }
+
         /*
          * 방 이동 화살표가 하나라도 표시될 수 있는 상태면
          * 조준과 발사 입력을 모두 비활성화합니다.
@@ -220,6 +230,18 @@ public sealed class BallAimController :
                 GetComponent<
                     FirstTurnLaunchPositionController
                 >();
+        }
+
+        if (steeringConeView == null)
+        {
+            steeringConeView =
+                GetComponent<BallSteeringConeView>();
+        }
+
+        if (steeringConeView == null)
+        {
+            steeringConeView =
+                gameObject.AddComponent<BallSteeringConeView>();
         }
     }
 
@@ -341,6 +363,7 @@ public sealed class BallAimController :
         if (!wasAimingLastFrame)
         {
             multiTrajectoryPreview?.Hide();
+            steeringConeView?.Hide();
 
             return;
         }
@@ -351,6 +374,7 @@ public sealed class BallAimController :
         ResetTrajectoryPreview();
 
         multiTrajectoryPreview?.Hide();
+        steeringConeView?.Hide();
     }
 
     private void UpdateAimInput(
@@ -390,14 +414,17 @@ public sealed class BallAimController :
             return;
         }
 
-        rawDirection.y =
-            Mathf.Max(
-                rawDirection.y,
-                minimumUpwardDirection
-            );
+        MultiDirectionLaunchSettings settings =
+            MultiDirectionLaunchAugmentSystem
+                .GetCurrentSettings();
 
         Vector2 newTargetDirection =
-            rawDirection.normalized;
+            MultiDirectionLaunchAugmentSystem
+                .GetSteeredBaseDirection(
+                    rawDirection,
+                    settings,
+                    minimumUpwardDirection
+                );
 
         bool hasMeaningfulChange =
             HasMeaningfulAimChange(
@@ -422,6 +449,82 @@ public sealed class BallAimController :
             true;
 
         ResetTrajectoryPreview();
+    }
+
+    private void HandleLaunchSteering()
+    {
+        Vector3 mouseScreenPosition = Input.mousePosition;
+
+        if (!IsValidPointerPosition(mouseScreenPosition) ||
+            IsPointerOverUserInterface(mouseScreenPosition) ||
+            !TryGetPointerDirection(
+                mouseScreenPosition,
+                out Vector2 requestedDirection))
+        {
+            multiTrajectoryPreview?.Hide();
+            UpdateSteeringCone();
+            return;
+        }
+
+        ballLauncher.TryUpdateQueuedLaunchDirection(
+            requestedDirection);
+
+        currentAimDirection =
+            ballLauncher.CurrentQueuedLaunchDirection;
+
+        targetAimDirection = currentAimDirection;
+
+        multiTrajectoryPreview?.ShowShort(
+            currentAimDirection);
+
+        UpdateSteeringCone();
+    }
+
+    private void UpdateSteeringCone()
+    {
+        if (steeringConeView == null ||
+            ballLauncher == null ||
+            !ballLauncher.IsLaunching)
+        {
+            steeringConeView?.Hide();
+            return;
+        }
+
+        steeringConeView.Show(
+            ballLauncher.CurrentLaunchPosition,
+            ballLauncher.InitialLaunchDirection,
+            ballLauncher.CurrentQueuedLaunchDirection,
+            ballLauncher.SteeringAngle);
+    }
+
+    private bool TryGetPointerDirection(
+        Vector3 mouseScreenPosition,
+        out Vector2 direction)
+    {
+        direction = Vector2.up;
+
+        if (mainCamera == null)
+        {
+            return false;
+        }
+
+        float distanceFromCamera =
+            transform.position.z -
+            mainCamera.transform.position.z;
+
+        Vector3 screenPosition = new Vector3(
+            mouseScreenPosition.x,
+            mouseScreenPosition.y,
+            distanceFromCamera);
+
+        Vector3 mouseWorldPosition =
+            mainCamera.ScreenToWorldPoint(screenPosition);
+
+        direction =
+            (Vector2)mouseWorldPosition -
+            ballLauncher.CurrentLaunchPosition;
+
+        return direction.sqrMagnitude > 0.001f;
     }
 
     private bool HasMeaningfulAimChange(
