@@ -6,7 +6,7 @@
 > 기본 스크립트 경로: `Assets/_Project/Script`  
 > 문서 목적: 새 채팅이나 새 작업자가 이 파일 하나만 읽고 현재 구조, 완료 상태, 미구현 범위, 작업 규칙, 다음 순서를 이해할 수 있도록 하는 단일 기준 문서  
 > 최종 갱신일: 2026-08-12
-> 갱신 기준: 전투 필드 11열 × 15행 전환, 전투방 배치 패턴 5종, 첫 발사 위치 선택, 블록 스탯 편차, Guardian/Teleport/Gold 포함 통합 Special 풀과 조준·모서리 반사 보정 구현 시점
+> 갱신 기준: 7 Stage 성장 구조, 최종 6종 공 풀, Poison, Alchemy 대량 선택 UI, Common T3/Secret Room, 발사 조향 기획 및 11×15 전투 필드 반영 시점
 
 ---
 
@@ -48,9 +48,9 @@ Ballchemy는 2D 로그라이크 벽돌깨기 게임이다.
 + 상점과 방별 선택
 ```
 
-한 판은 약 5~6스테이지로 구성한다.
+한 런은 총 7 Stage를 목표로 한다.
 
-초기에는 공 2~3개로 시작하고, 최종 보스 시점에는 100개 이상의 공을 발사하는 화면 밀도와 성장감을 목표로 한다.
+시작 공은 Basic Ball 10개로 확정한다. 중후반에도 T1/T2 지급량을 줄이지 않으며 최종 보스 시점에는 100개 이상, 필요하면 150개 이상의 공을 발사하는 화면 밀도와 성장감을 허용한다. 최종 공 상한은 두지 않는다.
 
 외부 영구 성장은 없다.
 
@@ -90,7 +90,9 @@ Ballchemy는 2D 로그라이크 벽돌깨기 게임이다.
 
 공마다 고유 역할을 유지한다.
 
-예를 들어 치명타는 모든 공에 확률을 추가하는 전역 스탯보다, 치명타 공이라는 독립된 공 타입으로 표현한다.
+최종 기본 공 풀은 Basic, Fire, Ice, Water, Lightning, Poison의 6종이며 각 공은 1★/2★/3★ 등급을 가진다.
+
+현재 코드에는 Critical, 폭발 3종, Piercing이 남아 있다. Critical, 폭발 3종, Piercing은 모두 제거 확정 대상이다.
 
 따라서 다음 상점 버프는 제거했다.
 
@@ -571,26 +573,34 @@ RunRewardState
 ```text
 NormalCombat → Tier 1
 NamedCombat → Tier 2
-Boss → Tier 3
+Stage 2/3/5/6 Boss → Common Tier 3
+Secret Room → Max HP Cost를 지불하고 동일한 Common Tier 3
+Stage 1 Boss → 1차 전직
+Stage 4 Boss → 2차 전직
+Stage 7 Boss → 최종 전투, 별도 성장 보상 없음
 ```
 
 Tier 1:
 
-- 기본 공 +2~4
-- 낮은 확률 1성 특성 공
+- 보상 후보 3개 중 1개 선택
+- 실제 보유 공의 수와 조성을 늘리는 핵심 보상
+- 현재 구현은 기본 공 2개 또는 1성 특성 공 1개 중심이나 지급량을 전반적으로 늘릴 예정
 
 Tier 2:
 
-- 상위 공
-- 공 다수
+- 보상 후보 3개 중 1개 선택
+- 상위 공과 다수의 공
 - 무작위 공 승급
 - 저등급 공 변환
+- Stage가 높아져도 지급량을 감소시키지 않으며 유지 또는 증가
 
 Tier 3:
 
 - 단순 공 추가보다 규칙 변화 우선
 - 재획득 시 레벨 증가
 - 최대 레벨 후보 제외
+- 종류별 Max Level은 1/2/3으로 서로 다를 수 있으며 기존 `AugmentDefinition.MaxLevel`과 `RunAugmentState`를 그대로 사용
+- Stage 2/3/5/6 Boss와 Secret Room은 하나의 Common T3 Pool을 공유
 
 대표 증강:
 
@@ -1017,20 +1027,44 @@ RoomEntryHealthReductionResult
 
 ## 28. Reward Room → Alchemy Room 전환
 
-기존 Reward Room은 제거 방향이다.
+기존 Reward Room은 Alchemy Room으로 전환한다. Scene에는 `AlchemyPanel`, `AlchemyPanelVisual`, 후보 슬롯 3개와 방 입장 시 표시를 담당하는 `AlchemyPanelPresenter`가 존재한다. Presenter는 현재 Panel 표시/숨김만 담당하므로 연성 로직을 중복 구현하지 않고 확장한다.
 
-새 역할:
+### 28.1 패널 책임 분리
 
 ```text
-공 변환
-공 합성
-공 제거
-공 승급/강등
-공 구성 정리
-덱 압축
+기존 AlchemyPanel
+→ 무작위 속성 후보 3개
+→ Stability
+→ 연성 버튼과 결과 정보
+
+신규 중앙 Ball 표시 Panel
+→ 실제 보유 Ball의 공간형 표시
+→ Scroll
+→ Marquee Drag Selection
+→ Drag Edge Auto Scroll
 ```
 
-기존 `+` 아이콘은 합성/강화 의미로 유지 가능하다.
+두 Panel은 시각 영역과 입력 Raycast 영역이 겹치지 않게 배치한다. 신규 Panel의 최종 이름은 기존 `*Panel`, `*Presenter`, `*ItemView` 명명 규칙에 맞추되 아직 확정하지 않는다.
+
+### 28.2 Ball 표시와 대량 선택
+
+- 별도의 작은 Inventory Icon 목록보다 `BallDefinition.Sprite`, `Color`, `VisualScale`을 사용하는 기존 `BallVisualView`의 표현 규칙을 재사용한다.
+- 전투 중인 실제 `Ball` GameObject를 UI로 이동시키지 않는다. Ball 데이터로부터 선택 전용 View를 생성해 물리·발사 상태와 분리한다.
+- 한 화면에 최대 100개를 읽을 수 있는 공간형 배열을 제공한다.
+- 100개 초과분은 전체 축소가 아니라 세로 `ScrollRect` 콘텐츠로 이어 붙인다.
+- 기본 배열 순서는 방 진입 또는 연성 세션 시작 시 무작위로 고정하며 속성·등급 자동 정렬을 하지 않는다.
+- Mouse Wheel Scroll과 사각형 Marquee 선택을 지원한다.
+- Drag 중 Cursor가 Panel 상·하단 Edge 영역에 머물면 저속으로 Auto Scroll하고, 콘텐츠가 이동해도 시작점과 현재점으로 계산한 선택 사각형을 유지한다.
+- Mouse Release 시 최종 선택을 확정한다. Scrollbar/후보 버튼/연성 버튼과 Marquee 입력 우선순위를 분리한다.
+
+### 28.3 속성 연성
+
+- 후보 속성 3개 중 목표를 먼저 선택하고 중앙 Panel에서 변환 Ball을 선택한다.
+- 선택 Ball은 목표 속성의 같은 별 등급 Definition으로 교체한다. 예: Basic 2★ → Poison 2★.
+- 속성 변환과 기존 1★→2★→3★ 승급은 별개다.
+- 성공 확률 수치는 숨기고 `Alchemy Stability : N`처럼 Stability 자체를 표시한다. Stability는 100을 넘을 수 있다.
+- 성공하면 속성 변환, Stability 감소, 후보 3개 Reroll 후 다시 연성할 수 있다.
+- 실패하면 해당 Alchemy Room의 추가 연성을 종료한다. 실패 패널티와 Stability 공식은 미확정이다.
 
 ---
 
@@ -1129,7 +1163,9 @@ GrantSecretRoomKey
 → 모든 입구 자유 이동
 ```
 
-비밀방 내부 기믹과 보상은 후순위다.
+비밀방 내부 전용 기믹은 후순위지만 보상 방향은 확정했다. Stage 2/3/5/6 Boss와 동일한 Common T3 Pool을 사용하며, 무료 보스 보상과 달리 현재 최대 HP의 10%를 영구 감소시키고 T3를 획득한다.
+
+현재 `SecretRoomState`와 입장/열쇠 흐름에는 보상 및 비용 처리기가 없다. 비용은 `PlayerHealth.TryDecreaseMaxHealth`로 연결하며 현재 최대 HP × 10%를 정수로 반올림한다. 구현 시 `Mathf.RoundToInt` 기준과 최소 비용 1 적용 여부를 함께 검증한다.
 
 ### 29.7 현재 구현 상태
 
@@ -1146,7 +1182,7 @@ GrantSecretRoomKey
 [완료] 지도에서 비밀방 공개
 [완료] 개방 후 모든 저장된 입구에서 자유 이동
 [미구현] 비밀방 내부 기믹
-[미구현] 비밀방 내부 보상
+[미구현] Common T3 선택 UI와 Max HP 10% 비용
 ```
 
 주요 실제 코드 경로는 `Assets/_Project/Script/Room/Secret`이다.
@@ -1370,11 +1406,11 @@ Presenter / UI → 화면 표시와 연출
 - [x] 이벤트방
 - [x] 기존 Reward 방 노드
 - [ ] Reward → Alchemy 최종 전환
-- [ ] 보스 전투
+- [x] 보스 전투 1차 구현
 - [x] 비밀방 생성과 모든 입구 저장
 - [x] 열쇠 구매·소비와 최초 개방
 - [x] 개방 후 모든 입구 자유 이동
-- [ ] 비밀방 내부 기믹과 보상
+- [ ] 비밀방 Common T3 보상과 Max HP 비용
 
 ### 보상/공 성장
 
@@ -1385,6 +1421,9 @@ Presenter / UI → 화면 표시와 연출
 - [x] Unknown Event
 - [x] 다음 보상 Tier 증가 예약
 - [ ] 연금술방 공 변환 UI/규칙
+- [ ] 최종 6종 공 풀 마이그레이션과 Poison
+- [ ] 발사 중 조향
+- [ ] Status의 공 조성/전직/T3 표시
 
 ### 상점
 
@@ -1419,16 +1458,17 @@ Presenter / UI → 화면 표시와 연출
 ## 37. 바로 다음 작업
 
 ```text
-1. 보스방 최신 구조 확인
-2. 실제 보스 전투와 패턴 구현
-3. 보스 HP·공격·클리어 연결
-4. 스테이지 전환 구현
-5. 보스 피해 증가 상품 연결
-6. Reward Room을 Alchemy Room으로 전환
-7. 연금술방 공 변환/합성/정리 구현
-8. 비밀방 내부 기믹과 보상 설계·구현
-9. 나머지 상점 특수 상품 정리
-10. 전체 밸런싱
+1. 공 풀 마이그레이션 안전장치와 제거 대상 참조 정리
+2. Poison 데이터·Block 약화 상태·직접 피해 연결
+3. 발사 조향의 데이터/입력/미발사 Ball 방향 연결
+4. Steering Cone과 Current Aim Line
+5. Alchemy 중앙 Ball Panel과 최대 100개 표시
+6. Scroll, Marquee, Drag Edge Auto Scroll
+7. 속성 후보·동일 등급 변환·Stability 반복 연성
+8. Stage 1/4 전직 보상과 7 Stage 진행
+9. Secret Room Common T3와 Max HP 10% 비용
+10. Status 공 조성·전직·T3 표시
+11. 지급량과 Stability/Steering 수치 밸런싱
 ```
 
 비밀방 개방·입장 로직은 완료되어 있으므로 다시 구현하지 않는다.
@@ -1509,3 +1549,125 @@ Tier 보상
 ```
 
 이 순서를 유지하며 한 단계씩 구현한다.
+
+---
+
+## 41. 7 Stage 성장 구조
+
+```text
+시작: Basic Ball 10개
+Stage 1 Boss: 1차 전직
+Stage 2 Boss: Common T3
+Stage 3 Boss: Common T3
+Stage 4 Boss: 2차 전직
+Stage 5 Boss: Common T3
+Stage 6 Boss: Common T3
+Stage 7 Boss: 최종 보스, 별도 성장 보상 없음
+```
+
+- 1차/2차 전직 종류와 효과는 미확정이다.
+- 현행 `RoomRewardController`는 모든 Boss를 Tier3로 해석하므로 Stage 번호별 보상 라우팅이 필요하다.
+- 현재 6개 보스 구현은 전투 프로토타입 풀로 유지한다. 7 Stage 진행과 Stage 7 최종 보스 구성은 별도 작업이다.
+- Scene의 현행 `BallCollection.startingBallCount`는 15이고 코드 기본값은 20이다. 목표값 10은 문서에만 확정했으며 이번 작업에서 코드는 변경하지 않는다.
+
+## 42. 최종 공 풀과 제거 마이그레이션
+
+목표 공 풀은 Basic/Fire/Ice/Water/Lightning/Poison 6종 × 3등급이다. Water+Lightning 연쇄 감전과 Ice+Fire 담금 반응은 유지하며 모든 원소 쌍에 반응을 추가하지 않는다.
+
+확정 제거 대상:
+
+```text
+Critical
+Cross Explosion
+Diagonal Explosion
+8-Direction/All Directions Explosion
+Piercing
+```
+
+현재 의존성:
+
+- Definition/Asset: 폭발 Ball Definition 9개, `Ball_piercing`, 폭발 Trait 3개, `Trait_Piercing`.
+- Reward: T1/T2 폭발 Ball Reward Asset과 `MainRewardCatalog` 등록. Piercing 직접 Reward Asset은 현재 확인되지 않았다.
+- Runtime: `ExplosionBallEffect`, `ExplosionBallTraitDefinition`, `ExplosionPatternType`, `ExplosionPatternVfxSpawner`, `PiercingBallEffect`, `PiercingBallSensor`, `PiercingBallSensorTrigger`, `PiercingBallTraitDefinition`.
+- Factory/Spawn: `BallDefinition`과 `BallCombatController`의 Trait 분기, `Ball`의 Piercing Sensor 초기화, `BallCollection`의 Definition 교체/등급 연결.
+- 간접 재사용: `BlockNeighborhoodResolver`와 `ElementConductionResolver`가 폭발 모양 계산을 원소 반응에도 사용한다. 폭발 공 제거 시 이 공용 범위 계산까지 삭제하면 안 된다.
+- Event/Alchemy: Concentration, Disassemble/Reassemble, Homogeneous Conversion, AddRandomTwoStarBalls, RemoveRandomBalls의 Piercing 예외/분기.
+- UI: `BallVisualView`, Next Ball Queue, Reward Card는 Definition 기반이므로 제거된 Definition과 Catalog 참조를 먼저 정리한다.
+- Save: 전용 영구 Save 직렬화 계층은 현재 확인되지 않았다. 다만 런 중 `BallCollection`과 방 복원 데이터가 Definition 참조를 보유할 수 있으므로 런 중간 마이그레이션 여부를 결정해야 한다.
+- Critical은 별도 1★/2★/3★ Definition, Trait, Reward, Runtime Effect와 관련 UI 설명 참조를 포함해 제거한다.
+
+삭제 순서는 `Reward/Event 후보 차단 → 기존 런 Definition 대체 정책 → Catalog/Scene/Prefab 참조 제거 → Runtime 전용 코드 제거 → Asset 삭제 → Missing Reference 검사`다.
+
+## 43. Poison Ball 확정 규칙과 영향 범위
+
+```text
+Poison 직접 피해: 0
+1★ 적중: Stack +1
+2★ 적중: Stack +2
+3★ 적중: Stack +3
+최대 Stack: 10
+Stack당 후속 Ball 직접 충돌 피해: +1
+Stack 소비: 없음
+초기화: 턴 종료
+원소 반응/Skill/간접/연쇄 피해: 적용 안 함
+```
+
+- `ElementType`에 Poison을 추가하고 동일 속성 1★/2★/3★ `BallDefinition`과 Trait 연결이 필요하다.
+- Poison은 기존 Wet/Charge/Burn/Frost 반응 상태와 역할이 다르므로 `BlockElementStatus`에 억지로 반응을 섞기보다 Block별 Weakness/Poison Stack 상태를 독립시킨다.
+- `BallCombatController`의 직접 충돌 피해 계산 지점에서만 Stack 보너스를 더한다. `ElementReactionResolver`, `ElementConductionResolver`, 폭발/Skill 피해에는 전달하지 않는다.
+- Poison 공 충돌에는 0 Damage Text나 별도 Stack Popup을 표시하지 않는다. 기존 Ball 직접 충돌 때 사용하는 Block 밀림 애니메이션만 재생한다. 누적 Stack을 상시 표시할지는 Status/VFX 작업에서 별도 결정한다.
+- 턴 종료/방 초기화/후퇴/Block 제거 시 상태가 남지 않게 `BlockGridManager`의 전투 턴 생명주기와 연결한다.
+- Boss에도 일반 Block과 동일하게 Poison Stack을 부여하고, 같은 턴의 후속 Ball 직접 충돌 피해에 Stack 보너스를 적용한다.
+
+## 44. 발사 조향 시스템
+
+발사 전에는 기존 `BallAimController`와 `BallTrajectoryPreview`의 정밀 반사 Preview를 그대로 사용한다. 클릭 순간 최초 방향을 저장하고 Turn을 확정하며, Mouse Button을 놓아도 `BallLauncher`의 남은 Queue는 자동 발사한다.
+
+발사 중에는 최초 방향 ± Steering Angle 안에서 Cursor 방향을 Clamp하여 **아직 발사되지 않은 다음 Ball의 초기 방향만** 바꾼다. 이미 발사된 Ball의 Rigidbody 방향, 충돌, `BallBounceResolver`, Corner Reflection, Teleport에는 손대지 않는다.
+
+현재 영향 지점:
+
+- `BallAimController`: 현재 발사 전 입력과 클릭을 담당한다. 발사 중 Pointer 추적 모드를 별도로 두되 기존 `TryLaunch` 재호출은 막는다.
+- `BallLauncher`: 현재 `LaunchBallsRoutine`이 시작 시 받은 하나의 direction을 모든 Ball에 전달한다. `initialLaunchDirection`과 `currentQueuedLaunchDirection`을 분리하고 매 `LaunchSingleBall` 직전에 현재 방향을 읽어야 한다.
+- `BallTurnQueueController`: `NextLaunchIndex`, `RemainingCount`, `BallLaunchedFromQueue`를 그대로 사용하며 Queue 순서/동시 발사를 새로 만들지 않는다.
+- `MultiDirectionLaunchAugmentSystem`: 조향된 현재 중심 방향을 받은 뒤 기존 분산 방향을 계산하는 순서로 유지한다.
+- `BallTrajectoryPreview`: 발사 시작과 동시에 숨기며 발사 중 전체 반사 경로를 갱신하지 않는다.
+- 신규 View: 발사점에 고정된 저 Alpha 단색 Steering Cone과 현재 방향의 얇은 Current Aim Line. Cone은 최초 방향을 중심으로 고정하고 각도 Gradient 없이 거리 Alpha Fade만 적용한다.
+
+기본 Steering Angle과 성장 요소 여부는 미확정이다. 동시/분산 발사 T3는 원본 Ball 한 개가 발사되는 순간의 현재 조향 방향을 중심으로 기존 분산 각도를 계산하고, 같은 묶음의 분산 Ball들은 동일한 중심 방향을 공유하는 것을 기본안으로 한다.
+
+## 45. Status UI 데이터 기준
+
+현재 전용 Status 화면 구현은 확인되지 않았다. 신규 Status는 런 데이터를 복제 저장하지 않고 다음 원본을 조회한다.
+
+- 공 조성: `BallCollection`의 Ball별 `BallDefinition`, `TraitType`, `ElementType`, `StarGrade`를 Basic/Fire/Ice/Water/Lightning/Poison × 1★/2★/3★로 집계.
+- 속성 Tooltip: Ball/Element 설명 데이터. Poison은 직접 피해 0, Stack당 직접 충돌 +1, 최대 10, 턴 종료 제거를 명시.
+- 전직: 향후 Run 단위 1차/2차 전직 상태.
+- T3: `RunAugmentState` Entry의 현재 Level과 `AugmentDefinition.MaxLevel`을 사용해 `Lv.N / Max` 표시.
+
+Water/Lightning/Fire/Ice Tooltip은 실제 `ElementReactionResolver` 규칙과 맞춰 작성한다. Status 디자인은 미확정이며 데이터 접근 계층부터 구현한다.
+
+## 46. 구현 전 미확정 사항
+
+- Stage 1/4 전직 종류와 효과
+- Stage별 정확한 T1/T2 지급량
+- Alchemy 시작 Stability, 선택 수 부담, 성공 감소량, 실패 패널티
+- 신규 중앙 Ball Panel 최종 이름과 정확한 Rect 배치
+- 기본 Steering Angle과 성장 요소
+- 추가 Common T3 목록
+- Secret Room 최소 비용 1 적용 여부와 방당 구매 횟수
+- Poison Stack의 상시 UI 표시 여부
+- Status UI 최종 디자인
+
+## 47. 신규 시스템 회귀 테스트
+
+- 첫 턴 발사 X 선택과 이후 첫 복귀 Ball X 유지
+- 완전 수직 Aim, Preview/Runtime 일치, Corner Reflection 유지
+- Teleport Preview/Runtime과 Guardian 연결 유지
+- Queue Shuffle, Next Ball Preview, 동시 발사, 회수, Turn 종료 유지
+- Poison 보너스가 직접 Ball Hit에만 적용되고 반응/간접 피해에는 미적용
+- Poison 최대 10 Stack, 비소모, 턴/후퇴/방 초기화 시 제거
+- 10/100/150/200 Ball 발사와 Alchemy 표시 성능 확인
+- 100개 초과 Scroll, Marquee, Edge Auto Scroll 및 UI 입력 충돌 확인
+- T3별 Max Level 후보 제외와 `Lv.N / Max` 표시 확인
+- Secret Room 비용 실패 시 Max HP/T3 모두 롤백
