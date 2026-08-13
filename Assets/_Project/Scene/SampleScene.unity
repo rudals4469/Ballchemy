@@ -5849,6 +5849,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StageModifierState
   directDamageIncreaseRatio: 0
+  bossDamageIncreaseRatio: 0
   enemyMaxHealthReductionRatio: 0
   enemyAttackDamageReductionRatio: 0
   enemyAttackIntervalBonusTurns: 0
@@ -15402,9 +15403,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallDebugDrawController
   ballCollection: {fileID: 904823811}
   testDrawPool:
+  - {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
+  - {fileID: 11400000, guid: 3ec0369c005d22944bdd862eef1952de, type: 2}
+  - {fileID: 11400000, guid: e0c18d7c4314c3a4a897f8d491d6d818, type: 2}
+  - {fileID: 11400000, guid: 1a3c5d93c7b1fea4483d9b9c34d35fa2, type: 2}
+  - {fileID: 11400000, guid: 1cdaf2d58092d874eb84e2c207dd4a23, type: 2}
   - {fileID: 11400000, guid: c8947fc0b1ab8fb4bb9a67a39d8acd32, type: 2}
+  - {fileID: 11400000, guid: 70c03fb27c2d8f6489b82ceec901a30b, type: 2}
+  - {fileID: 11400000, guid: b42b339e0ba7ac9458fce3594b02f38f, type: 2}
   - {fileID: 11400000, guid: 9496ff8c69203b2459df8b4ce8405f66, type: 2}
+  - {fileID: 11400000, guid: b1e7cbd436f2498438bfd17adc7ca273, type: 2}
+  - {fileID: 11400000, guid: ded1842081b5fd64b9fc282ae3b254cd, type: 2}
   - {fileID: 11400000, guid: ffbbcdb5fc72dda49903f540be0100b5, type: 2}
+  - {fileID: 11400000, guid: 74363270de5a48aab76a6cbd26cbd741, type: 2}
+  - {fileID: 11400000, guid: da82d35c868346bfb4db05b4b8f1a5d9, type: 2}
+  - {fileID: 11400000, guid: 83879e1d7c2b4024bda6d32a97b76d47, type: 2}
+  - {fileID: 11400000, guid: c69249269c66c4e4591d7d98c895b989, type: 2}
+  - {fileID: 11400000, guid: b439394112f3fa54e8410e3df233c864, type: 2}
   - {fileID: 11400000, guid: e3d01e89eb05349489d0b121f09eda87, type: 2}
   randomDrawAmount: 1
   enableDrawOneOfEach: 1
