@@ -15,6 +15,13 @@ public sealed class StageModifierState :
     private float directDamageIncreaseRatio;
 
     [Tooltip(
+        "현재 스테이지에 적용되는 보스 피해 증가율입니다.\n" +
+        "0.25는 보스에게 주는 피해 25% 증가를 의미합니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float bossDamageIncreaseRatio;
+
+    [Tooltip(
         "현재 스테이지에 적용되는 일반·네임드 적 " +
         "최대 체력 감소율입니다.\n" +
         "0.2는 최대 체력 20% 감소를 의미합니다.\n" +
@@ -53,6 +60,9 @@ public sealed class StageModifierState :
     public float DirectDamageIncreaseRatio =>
         directDamageIncreaseRatio;
 
+    public float BossDamageIncreaseRatio =>
+        bossDamageIncreaseRatio;
+
     public float EnemyMaxHealthReductionRatio =>
         enemyMaxHealthReductionRatio;
 
@@ -67,6 +77,9 @@ public sealed class StageModifierState :
 
     public bool HasDirectDamageIncrease =>
         directDamageIncreaseRatio > 0f;
+
+    public bool HasBossDamageIncrease =>
+        bossDamageIncreaseRatio > 0f;
 
     public bool HasEnemyMaxHealthReduction =>
         enemyMaxHealthReductionRatio > 0f;
@@ -85,6 +98,9 @@ public sealed class StageModifierState :
 
     public event Action<float>
         DirectDamageIncreaseRatioChanged;
+
+    public event Action<float>
+        BossDamageIncreaseRatioChanged;
 
     public event Action<float>
         EnemyMaxHealthReductionRatioChanged;
@@ -106,6 +122,12 @@ public sealed class StageModifierState :
         directDamageIncreaseRatio =
             Mathf.Max(
                 directDamageIncreaseRatio,
+                0f
+            );
+
+        bossDamageIncreaseRatio =
+            Mathf.Max(
+                bossDamageIncreaseRatio,
                 0f
             );
 
@@ -217,6 +239,44 @@ public sealed class StageModifierState :
             );
         }
 
+        return true;
+    }
+
+    public bool TryAddBossDamageIncreaseRatio(
+        float ratio)
+    {
+        if (ratio <= 0f)
+        {
+            return false;
+        }
+
+        bossDamageIncreaseRatio =
+            Mathf.Max(bossDamageIncreaseRatio + ratio, 0f);
+
+        BossDamageIncreaseRatioChanged?.Invoke(bossDamageIncreaseRatio);
+        StateChanged?.Invoke();
+        return true;
+    }
+
+    public bool TryRemoveBossDamageIncreaseRatio(
+        float ratio)
+    {
+        if (ratio <= 0f || bossDamageIncreaseRatio <= 0f)
+        {
+            return false;
+        }
+
+        float previousRatio = bossDamageIncreaseRatio;
+        bossDamageIncreaseRatio =
+            Mathf.Max(bossDamageIncreaseRatio - ratio, 0f);
+
+        if (Mathf.Approximately(previousRatio, bossDamageIncreaseRatio))
+        {
+            return false;
+        }
+
+        BossDamageIncreaseRatioChanged?.Invoke(bossDamageIncreaseRatio);
+        StateChanged?.Invoke();
         return true;
     }
 
@@ -591,6 +651,22 @@ public sealed class StageModifierState :
         );
     }
 
+    public int ApplyBossDamageModifier(
+        int baseDamage)
+    {
+        baseDamage = Mathf.Max(baseDamage, 1);
+
+        if (bossDamageIncreaseRatio <= 0f)
+        {
+            return baseDamage;
+        }
+
+        return Mathf.Max(
+            Mathf.CeilToInt(baseDamage * (1f + bossDamageIncreaseRatio)),
+            1
+        );
+    }
+
     public int ApplyEnemyAttackDamageModifier(
         int baseDamage)
     {
@@ -677,6 +753,9 @@ public sealed class StageModifierState :
         directDamageIncreaseRatio =
             0f;
 
+        bossDamageIncreaseRatio =
+            0f;
+
         enemyMaxHealthReductionRatio =
             0f;
 
@@ -692,6 +771,11 @@ public sealed class StageModifierState :
         DirectDamageIncreaseRatioChanged
             ?.Invoke(
                 directDamageIncreaseRatio
+            );
+
+        BossDamageIncreaseRatioChanged
+            ?.Invoke(
+                bossDamageIncreaseRatio
             );
 
         EnemyMaxHealthReductionRatioChanged

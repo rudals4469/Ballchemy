@@ -1090,6 +1090,11 @@ public sealed class BossEncounterController :
 
                 if (symbol == 'B')
                 {
+                    if (spawnedBlock.GetComponent<BossDamageTarget>() == null)
+                    {
+                        spawnedBlock.gameObject.AddComponent<BossDamageTarget>();
+                    }
+
                     currentBossBlock =
                         spawnedBlock;
                 }
@@ -2635,6 +2640,11 @@ public sealed class BossEncounterController :
 
             core.name =
                 $"BossColony_Core_{i + 1}";
+
+            if (core.GetComponent<BossDamageTarget>() == null)
+            {
+                core.gameObject.AddComponent<BossDamageTarget>();
+            }
 
             encounterBlocks.Add(core);
             colonyGrowthState.RegisterMember(core);
@@ -4587,6 +4597,11 @@ public sealed class BossReactorBlastLineEffect : MonoBehaviour
             Destroy(runtimeMaterial);
         }
     }
+}
+
+[DisallowMultipleComponent]
+public sealed class BossDamageTarget : MonoBehaviour
+{
 }
 
 [DisallowMultipleComponent]

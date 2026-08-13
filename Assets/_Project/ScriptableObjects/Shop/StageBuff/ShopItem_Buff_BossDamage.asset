@@ -18,7 +18,7 @@ MonoBehaviour:
     \uAC00\uD558\uB294 \uD53C\uD574\uAC00 \uC99D\uAC00\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   category: 1
-  effectType: 7
+  effectType: 6
   canBeSelected: 1
   selectionWeight: 100
   allowDuplicateInSameShop: 0

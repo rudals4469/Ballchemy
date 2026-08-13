@@ -285,6 +285,13 @@ public sealed class ShopPurchaseController :
                     item
                 );
 
+            case ShopItemEffectType.IncreaseBossDamage:
+                return TryPurchaseIncreaseBossDamage(
+                    roomId,
+                    inventorySlotIndex,
+                    item
+                );
+
             case ShopItemEffectType.IncreaseGoldGain:
                 return TryPurchaseIncreaseGoldGain(
                     roomId,
@@ -730,6 +737,30 @@ public sealed class ShopPurchaseController :
                     ),
             BuildRatioStageBuffDescription(
                 "EnemyAttackDamageReduction",
+                baseRatio,
+                appliedRatio
+            )
+        );
+    }
+
+    private bool TryPurchaseIncreaseBossDamage(
+        int roomId,
+        int inventorySlotIndex,
+        ShopItemDefinition item)
+    {
+        float baseRatio = item.RatioValue;
+        float appliedRatio = ResolveStageBuffRatio(baseRatio);
+
+        return TryPurchaseRatioStageBuff(
+            roomId,
+            inventorySlotIndex,
+            item,
+            appliedRatio,
+            "보스 피해 증가율",
+            () => stageModifierState.TryAddBossDamageIncreaseRatio(appliedRatio),
+            () => stageModifierState.TryRemoveBossDamageIncreaseRatio(appliedRatio),
+            BuildRatioStageBuffDescription(
+                "BossDamageIncrease",
                 baseRatio,
                 appliedRatio
             )

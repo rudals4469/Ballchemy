@@ -389,6 +389,18 @@ public sealed class BallCombatController :
             );
         }
 
+        if (target.GetComponent<BossDamageTarget>() != null)
+        {
+            StageModifierState modifierState =
+                ResolveStageModifierState();
+
+            if (modifierState != null)
+            {
+                calculatedDamage =
+                    modifierState.ApplyBossDamageModifier(calculatedDamage);
+            }
+        }
+
         int healthBeforeDamage =
             Mathf.Max(
                 target.CurrentHealth,

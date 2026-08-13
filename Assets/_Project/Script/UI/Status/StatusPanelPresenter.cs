@@ -48,7 +48,6 @@ public sealed class StatusPanelPresenter : MonoBehaviour
     private readonly List<StatusEntryView> augmentEntries = new();
     private readonly List<StatusEntryView> beneficialEntries = new();
     private readonly Dictionary<ShopItemEffectType, ShopItemDefinition> purchasedShopEffects = new();
-    private readonly List<UnknownEventDefinition> appliedEventEffects = new();
     private readonly Dictionary<string, int[]> displayedBallGroupCounts = new();
     private UnknownEventDefinition pendingRewardEventSource;
     private Coroutine ballCountPulseRoutine;
@@ -77,6 +76,7 @@ public sealed class StatusPanelPresenter : MonoBehaviour
         InitializeTemplate(ballEntryTemplate);
         InitializeTemplate(augmentEntryTemplate);
         InitializeTemplate(beneficialEntryTemplate);
+        beneficialEntryTemplate?.SetFontSizes(27f, 21f);
     }
 
     private void OnEnable()
@@ -231,13 +231,19 @@ public sealed class StatusPanelPresenter : MonoBehaviour
     {
         List<EffectInfo> effects = new();
         if (ballRuntimeStats != null)
-            effects.Add(new("공 기본 피해", "모든 공이 공통으로 사용하는 기본 직접 타격 피해입니다.", ballRuntimeStats.BaseDirectDamage.ToString()));
+        {
+            int currentBaseDamage = ballRuntimeStats.CalculateDirectDamage(0);
+            if (stageModifierState != null)
+                currentBaseDamage = stageModifierState.ApplyDirectDamageModifier(currentBaseDamage);
+            effects.Add(new("공 기본 피해", "현재 모든 공이 공통으로 사용하는 직접 타격 피해입니다. 증강·이벤트·상점 보정이 반영된 최종 공통 수치입니다.", currentBaseDamage.ToString()));
+        }
         if (stageModifierState != null)
         {
             if (stageModifierState.HasDirectDamageIncrease) effects.Add(ShopEffect(ShopItemEffectType.IncreaseDirectDamage, "공격 촉매", $"모든 공의 직접 피해가 {stageModifierState.DirectDamageIncreaseRatio:P0} 증가합니다.", "- 스테이지 한정"));
             if (stageModifierState.HasEnemyMaxHealthReduction) effects.Add(ShopEffect(ShopItemEffectType.ReduceEnemyMaxHealth, "무력화 용액", $"적의 최대 체력이 {stageModifierState.EnemyMaxHealthReductionRatio:P0} 감소합니다.", "- 스테이지 한정"));
             if (stageModifierState.HasEnemyAttackDamageReduction) effects.Add(ShopEffect(ShopItemEffectType.ReduceEnemyAttackDamage, "약화 연무", $"적이 주는 피해가 {stageModifierState.EnemyAttackDamageReductionRatio:P0} 감소합니다.", "- 스테이지 한정"));
             if (stageModifierState.HasEnemyAttackIntervalBonus) effects.Add(ShopEffect(ShopItemEffectType.IncreaseEnemyAttackInterval, "시간 점성제", $"적의 공격 주기가 {stageModifierState.EnemyAttackIntervalBonusTurns}턴 증가합니다.", "- 스테이지 한정"));
+            if (stageModifierState.HasBossDamageIncrease) effects.Add(ShopEffect(ShopItemEffectType.IncreaseBossDamage, "거인 살해제", $"보스에게 가하는 피해가 {stageModifierState.BossDamageIncreaseRatio:P0} 증가합니다.", "- 스테이지 한정"));
             if (stageModifierState.HasGoldGainIncrease) effects.Add(ShopEffect(ShopItemEffectType.IncreaseGoldGain, "황금 촉매", $"블럭 파괴 골드가 {stageModifierState.GoldGainIncreaseRatio:P0} 증가합니다.", "- 스테이지 한정"));
         }
         if (runRewardState != null && runRewardState.HasPendingRewardUpgrade)
@@ -258,25 +264,6 @@ public sealed class StatusPanelPresenter : MonoBehaviour
             effects.Add(ShopEffect(ShopItemEffectType.ReduceShopPrice, "상인의 계약서", $"모든 상점 상품 가격이 {shopPriceDiscountState.DiscountRatio:P0} 감소합니다.", ""));
         if (stageBuffAmplificationState != null && stageBuffAmplificationState.IsActive)
             effects.Add(ShopEffect(ShopItemEffectType.AmplifyFutureStageBuffs, "연금 촉매", $"이후 구매하는 스테이지 버프 효과가 {stageBuffAmplificationState.AmplificationRatio:P0} 증가합니다.", ""));
-        if (ballRuntimeStats != null)
-        {
-            int augmentDamage = 0;
-            if (runAugmentState != null)
-            {
-                foreach (AugmentRuntimeEntry entry in runAugmentState.ActiveAugments)
-                    if (entry.Definition is DirectDamageAugmentDefinition direct)
-                        augmentDamage += direct.GetTotalDirectDamageBonus(entry.Level);
-            }
-            int eventDamage = ballRuntimeStats.RunDirectDamageBonus - augmentDamage;
-            if (eventDamage > 0)
-            {
-                bool addedSource = false;
-                for (int i = 0; i < appliedEventEffects.Count; i++)
-                    if (appliedEventEffects[i] is IncreaseDirectDamageUnknownEventDefinition)
-                    { effects.Add(EventEffect(appliedEventEffects[i], "")); addedSource = true; }
-                if (!addedSource) effects.Add(new("이벤트 직접 피해 증가", $"모든 공의 직접 피해가 +{eventDamage} 증가합니다."));
-            }
-        }
         EnsureEntries(beneficialContent, beneficialEntryTemplate, beneficialEntries, effects.Count);
         for (int i = 0; i < effects.Count; i++) beneficialEntries[i].SetContent(null, Color.clear,
             effects[i].Name, effects[i].DurationLabel, effects[i].Description);
@@ -342,8 +329,6 @@ public sealed class StatusPanelPresenter : MonoBehaviour
     private void HandleKeyChanged(bool _) => RefreshBeneficialEffects();
     private void HandleUnknownEventApplied(UnknownEventDefinition definition)
     {
-        if (definition is IncreaseDirectDamageUnknownEventDefinition)
-            appliedEventEffects.Add(definition);
         if (definition is UpgradeNextCombatRewardUnknownEventDefinition)
             pendingRewardEventSource = definition;
         RefreshBeneficialEffects();

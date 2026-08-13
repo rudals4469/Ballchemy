@@ -51,23 +51,21 @@ public sealed class StatusEntryView : MonoBehaviour
         hoverTooltip?.Configure(string.Empty, panel, text, underline);
     }
 
+    public void SetFontSizes(float titleSize, float valueSize)
+    {
+        if (nameText != null) nameText.fontSize = titleSize;
+        if (valueText != null) valueText.fontSize = valueSize;
+    }
+
     public void PulseBallCountChanges(int[] previousCounts, int[] nextCounts)
     {
-        bool anyChange = false;
-        int previousTotal = 0;
-        int nextTotal = 0;
         for (int i = 0; i < gradeValueTexts.Length; i++)
         {
             int previous = previousCounts != null && i < previousCounts.Length ? previousCounts[i] : 0;
             int next = nextCounts != null && i < nextCounts.Length ? nextCounts[i] : 0;
-            previousTotal += previous;
-            nextTotal += next;
             if (previous == next || gradeValueTexts[i] == null) continue;
-            anyChange = true;
             StartCoroutine(PulseRoutine(gradeValueTexts[i].rectTransform, next > previous ? 1.28f : 0.78f));
         }
-        if (anyChange && nameText != null)
-            StartCoroutine(PulseRoutine(nameText.rectTransform, nextTotal >= previousTotal ? 1.1f : 0.9f));
     }
 
     private static IEnumerator PulseRoutine(RectTransform target, float peakScale)
