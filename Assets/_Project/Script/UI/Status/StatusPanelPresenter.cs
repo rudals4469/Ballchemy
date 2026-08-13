@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 
@@ -41,10 +42,17 @@ public sealed class StatusPanelPresenter : MonoBehaviour
     [SerializeField] private RetreatCostDiscountState retreatCostDiscountState;
     [SerializeField] private ShopPriceDiscountState shopPriceDiscountState;
     [SerializeField] private StageBuffAmplificationState stageBuffAmplificationState;
+    [SerializeField] private ShopPurchaseController shopPurchaseController;
 
     private readonly List<StatusEntryView> ballEntries = new();
     private readonly List<StatusEntryView> augmentEntries = new();
     private readonly List<StatusEntryView> beneficialEntries = new();
+    private readonly Dictionary<ShopItemEffectType, ShopItemDefinition> purchasedShopEffects = new();
+    private readonly List<UnknownEventDefinition> appliedEventEffects = new();
+    private readonly Dictionary<string, int[]> displayedBallGroupCounts = new();
+    private UnknownEventDefinition pendingRewardEventSource;
+    private Coroutine ballCountPulseRoutine;
+    private int displayedBallCount = -1;
     private float runPlayTime;
     private int displayedSecond = -1;
 
@@ -77,7 +85,7 @@ public sealed class StatusPanelPresenter : MonoBehaviour
         if (ballCollection != null)
         {
             ballCollection.BallCountChanged += HandleCountChanged;
-            ballCollection.BallDefinitionsReplaced += HandleCountChanged;
+            ballCollection.BallDefinitionsReplaced += HandleDefinitionsReplaced;
         }
         if (runAugmentState != null) runAugmentState.AugmentLevelChanged += HandleAugmentChanged;
         if (stageModifierState != null) stageModifierState.StateChanged += RefreshBeneficialEffects;
@@ -91,6 +99,7 @@ public sealed class StatusPanelPresenter : MonoBehaviour
         if (retreatCostDiscountState != null) retreatCostDiscountState.DiscountRatioChanged += HandleFloatStateChanged;
         if (shopPriceDiscountState != null) shopPriceDiscountState.DiscountRatioChanged += HandleFloatStateChanged;
         if (stageBuffAmplificationState != null) stageBuffAmplificationState.AmplificationRatioChanged += HandleFloatStateChanged;
+        if (shopPurchaseController != null) shopPurchaseController.PurchaseSucceeded += HandleShopPurchaseSucceeded;
         RefreshAll();
     }
 
@@ -99,7 +108,7 @@ public sealed class StatusPanelPresenter : MonoBehaviour
         if (ballCollection != null)
         {
             ballCollection.BallCountChanged -= HandleCountChanged;
-            ballCollection.BallDefinitionsReplaced -= HandleCountChanged;
+            ballCollection.BallDefinitionsReplaced -= HandleDefinitionsReplaced;
         }
         if (runAugmentState != null) runAugmentState.AugmentLevelChanged -= HandleAugmentChanged;
         if (stageModifierState != null) stageModifierState.StateChanged -= RefreshBeneficialEffects;
@@ -113,6 +122,7 @@ public sealed class StatusPanelPresenter : MonoBehaviour
         if (retreatCostDiscountState != null) retreatCostDiscountState.DiscountRatioChanged -= HandleFloatStateChanged;
         if (shopPriceDiscountState != null) shopPriceDiscountState.DiscountRatioChanged -= HandleFloatStateChanged;
         if (stageBuffAmplificationState != null) stageBuffAmplificationState.AmplificationRatioChanged -= HandleFloatStateChanged;
+        if (shopPurchaseController != null) shopPurchaseController.PurchaseSucceeded -= HandleShopPurchaseSucceeded;
     }
 
     private void Update()
@@ -140,6 +150,7 @@ public sealed class StatusPanelPresenter : MonoBehaviour
         if (retreatCostDiscountState == null) retreatCostDiscountState = FindFirstObjectByType<RetreatCostDiscountState>();
         if (shopPriceDiscountState == null) shopPriceDiscountState = FindFirstObjectByType<ShopPriceDiscountState>();
         if (stageBuffAmplificationState == null) stageBuffAmplificationState = FindFirstObjectByType<StageBuffAmplificationState>();
+        if (shopPurchaseController == null) shopPurchaseController = FindFirstObjectByType<ShopPurchaseController>();
     }
 
     private void RefreshAll()
@@ -180,6 +191,7 @@ public sealed class StatusPanelPresenter : MonoBehaviour
         }
         List<BallGroup> list = new(groups.Values);
         if (totalBallCountText != null) totalBallCountText.text = $"총 {totalBallCount}개";
+        displayedBallCount = totalBallCount;
         list.Sort((a, b) => ResolveBallOrder(a.Name).CompareTo(ResolveBallOrder(b.Name)));
         EnsureEntries(ballContent, ballEntryTemplate, ballEntries, list.Count);
         for (int i = 0; i < list.Count; i++)
@@ -187,7 +199,15 @@ public sealed class StatusPanelPresenter : MonoBehaviour
             BallGroup group = list[i];
             ballEntries[i].SetBallContent(group.Sprite, group.Color, group.Name,
                 group.Counts, group.Description);
+            if (displayedBallGroupCounts.Count > 0)
+            {
+                displayedBallGroupCounts.TryGetValue(group.Name, out int[] previousCounts);
+                ballEntries[i].PulseBallCountChanges(previousCounts, group.Counts);
+            }
         }
+        displayedBallGroupCounts.Clear();
+        for (int i = 0; i < list.Count; i++)
+            displayedBallGroupCounts[list[i].Name] = (int[])list[i].Counts.Clone();
         if (ballEmptyText != null) ballEmptyText.gameObject.SetActive(list.Count == 0);
     }
 
@@ -210,28 +230,34 @@ public sealed class StatusPanelPresenter : MonoBehaviour
     private void RefreshBeneficialEffects()
     {
         List<EffectInfo> effects = new();
+        if (ballRuntimeStats != null)
+            effects.Add(new("공 기본 피해", "모든 공이 공통으로 사용하는 기본 직접 타격 피해입니다.", ballRuntimeStats.BaseDirectDamage.ToString()));
         if (stageModifierState != null)
         {
-            if (stageModifierState.HasDirectDamageIncrease) effects.Add(new("공격 촉매", $"이번 스테이지 동안 모든 공의 직접 피해가 {stageModifierState.DirectDamageIncreaseRatio:P0} 증가합니다.", "- 스테이지 한정"));
-            if (stageModifierState.HasEnemyMaxHealthReduction) effects.Add(new("무력화 용액", $"일반·네임드 적의 최대 체력이 {stageModifierState.EnemyMaxHealthReductionRatio:P0} 감소합니다.", "- 스테이지 한정"));
-            if (stageModifierState.HasEnemyAttackDamageReduction) effects.Add(new("약화 연무", $"적이 주는 피해가 {stageModifierState.EnemyAttackDamageReductionRatio:P0} 감소합니다.", "- 스테이지 한정"));
-            if (stageModifierState.HasEnemyAttackIntervalBonus) effects.Add(new("시간 점성제", $"적의 공격 주기가 {stageModifierState.EnemyAttackIntervalBonusTurns}턴 증가합니다.", "- 스테이지 한정"));
-            if (stageModifierState.HasGoldGainIncrease) effects.Add(new("황금 촉매", $"이번 스테이지 동안 블럭 파괴 골드가 {stageModifierState.GoldGainIncreaseRatio:P0} 증가합니다.", "- 스테이지 한정"));
+            if (stageModifierState.HasDirectDamageIncrease) effects.Add(ShopEffect(ShopItemEffectType.IncreaseDirectDamage, "공격 촉매", $"모든 공의 직접 피해가 {stageModifierState.DirectDamageIncreaseRatio:P0} 증가합니다.", "- 스테이지 한정"));
+            if (stageModifierState.HasEnemyMaxHealthReduction) effects.Add(ShopEffect(ShopItemEffectType.ReduceEnemyMaxHealth, "무력화 용액", $"적의 최대 체력이 {stageModifierState.EnemyMaxHealthReductionRatio:P0} 감소합니다.", "- 스테이지 한정"));
+            if (stageModifierState.HasEnemyAttackDamageReduction) effects.Add(ShopEffect(ShopItemEffectType.ReduceEnemyAttackDamage, "약화 연무", $"적이 주는 피해가 {stageModifierState.EnemyAttackDamageReductionRatio:P0} 감소합니다.", "- 스테이지 한정"));
+            if (stageModifierState.HasEnemyAttackIntervalBonus) effects.Add(ShopEffect(ShopItemEffectType.IncreaseEnemyAttackInterval, "시간 점성제", $"적의 공격 주기가 {stageModifierState.EnemyAttackIntervalBonusTurns}턴 증가합니다.", "- 스테이지 한정"));
+            if (stageModifierState.HasGoldGainIncrease) effects.Add(ShopEffect(ShopItemEffectType.IncreaseGoldGain, "황금 촉매", $"블럭 파괴 골드가 {stageModifierState.GoldGainIncreaseRatio:P0} 증가합니다.", "- 스테이지 한정"));
         }
-        if (runRewardState != null && runRewardState.HasPendingRewardUpgrade) effects.Add(new("다음 보상 등급 상승", "다음 전투방 보상의 등급이 한 단계 상승합니다.", "- 일시적"));
-        if (secretRoomKeyState != null && secretRoomKeyState.HasKey) effects.Add(new("비밀방 열쇠", "잠긴 비밀방에 최초 입장할 때 사용됩니다.", "- 일시적"));
+        if (runRewardState != null && runRewardState.HasPendingRewardUpgrade)
+            effects.Add(pendingRewardEventSource != null
+                ? EventEffect(pendingRewardEventSource, "- 일시적")
+                : ShopEffect(ShopItemEffectType.UpgradeNextRewardTier, "보상 보증서", "다음 전투방 보상 등급이 1단계 상승합니다.", "- 일시적"));
+        if (secretRoomKeyState != null && secretRoomKeyState.HasKey)
+            effects.Add(ShopEffect(ShopItemEffectType.GrantSecretRoomKey, "비밀문 공명석", "잠긴 비밀방에 입장할 때 사용됩니다.", "- 일시적"));
         if (stageMapRevealState != null && stageMapRevealState.IsEntireStageMapRevealed)
-            effects.Add(new("별자리 지도", "현재 스테이지의 모든 방 정보를 공개합니다.", "- 스테이지 한정"));
+            effects.Add(ShopEffect(ShopItemEffectType.RevealEntireStageMap, "별자리 지도", "현재 스테이지의 모든 방 정보를 공개합니다.", "- 스테이지 한정"));
         if (roomClearHealingState != null && roomClearHealingState.IsActive)
-            effects.Add(new("생존자의 문장", $"일반·네임드 전투방 클리어 시 체력을 {roomClearHealingState.HealingAmountPerCombatRoomClear} 회복합니다."));
+            effects.Add(ShopEffect(ShopItemEffectType.RecoverHealthOnCombatRoomClear, "생존자의 문장", $"전투방 클리어 시 체력을 {roomClearHealingState.HealingAmountPerCombatRoomClear} 회복합니다.", ""));
         if (runCombatGoldGainState != null && runCombatGoldGainState.IsActive)
-            effects.Add(new("탐욕의 반지", $"전투에서 획득하는 골드가 {runCombatGoldGainState.GoldGainIncreaseRatio:P0} 증가합니다."));
+            effects.Add(ShopEffect(ShopItemEffectType.IncreaseRunCombatGoldGain, "탐욕의 반지", $"전투에서 획득하는 골드가 {runCombatGoldGainState.GoldGainIncreaseRatio:P0} 증가합니다.", ""));
         if (retreatCostDiscountState != null && retreatCostDiscountState.HasDiscount)
-            effects.Add(new("후퇴 허가증", $"다음 후퇴 비용이 {retreatCostDiscountState.DiscountRatio:P0} 감소합니다.", "- 일시적"));
+            effects.Add(ShopEffect(ShopItemEffectType.ReduceNextRetreatCost, "후퇴 허가증", $"다음 후퇴 비용이 {retreatCostDiscountState.DiscountRatio:P0} 감소합니다.", "- 일시적"));
         if (shopPriceDiscountState != null && shopPriceDiscountState.HasDiscount)
-            effects.Add(new("상인의 계약서", $"모든 상점 상품 가격이 {shopPriceDiscountState.DiscountRatio:P0} 감소합니다."));
+            effects.Add(ShopEffect(ShopItemEffectType.ReduceShopPrice, "상인의 계약서", $"모든 상점 상품 가격이 {shopPriceDiscountState.DiscountRatio:P0} 감소합니다.", ""));
         if (stageBuffAmplificationState != null && stageBuffAmplificationState.IsActive)
-            effects.Add(new("연금 촉매", $"이후 구매하는 스테이지 버프 효과가 {stageBuffAmplificationState.AmplificationRatio:P0} 증가합니다."));
+            effects.Add(ShopEffect(ShopItemEffectType.AmplifyFutureStageBuffs, "연금 촉매", $"이후 구매하는 스테이지 버프 효과가 {stageBuffAmplificationState.AmplificationRatio:P0} 증가합니다.", ""));
         if (ballRuntimeStats != null)
         {
             int augmentDamage = 0;
@@ -243,7 +269,13 @@ public sealed class StatusPanelPresenter : MonoBehaviour
             }
             int eventDamage = ballRuntimeStats.RunDirectDamageBonus - augmentDamage;
             if (eventDamage > 0)
-                effects.Add(new("이벤트 직접 피해 증가", $"이벤트 효과로 모든 공의 직접 피해가 +{eventDamage} 증가합니다."));
+            {
+                bool addedSource = false;
+                for (int i = 0; i < appliedEventEffects.Count; i++)
+                    if (appliedEventEffects[i] is IncreaseDirectDamageUnknownEventDefinition)
+                    { effects.Add(EventEffect(appliedEventEffects[i], "")); addedSource = true; }
+                if (!addedSource) effects.Add(new("이벤트 직접 피해 증가", $"모든 공의 직접 피해가 +{eventDamage} 증가합니다."));
+            }
         }
         EnsureEntries(beneficialContent, beneficialEntryTemplate, beneficialEntries, effects.Count);
         for (int i = 0; i < effects.Count; i++) beneficialEntries[i].SetContent(null, Color.clear,
@@ -274,13 +306,81 @@ public sealed class StatusPanelPresenter : MonoBehaviour
         for (int i = 0; i < entries.Count; i++) entries[i].gameObject.SetActive(i < count);
     }
 
-    private void HandleCountChanged(int _) => RefreshBalls();
+    private EffectInfo ShopEffect(ShopItemEffectType type, string fallbackName,
+        string fallbackDescription, string durationLabel)
+    {
+        if (purchasedShopEffects.TryGetValue(type, out ShopItemDefinition definition) && definition != null)
+            return new EffectInfo(definition.DisplayName, definition.Description, durationLabel);
+        return new EffectInfo(fallbackName, fallbackDescription, durationLabel);
+    }
+
+    private static EffectInfo EventEffect(UnknownEventDefinition definition, string durationLabel)
+    {
+        return definition != null
+            ? new EffectInfo(definition.DisplayName, definition.Description, durationLabel)
+            : new EffectInfo("이벤트 효과", string.Empty, durationLabel);
+    }
+
+    private void HandleShopPurchaseSucceeded(int _, int __, ShopItemDefinition definition)
+    {
+        if (definition == null) return;
+        purchasedShopEffects[definition.EffectType] = definition;
+        if (definition.EffectType == ShopItemEffectType.UpgradeNextRewardTier)
+            pendingRewardEventSource = null;
+        RefreshBeneficialEffects();
+    }
+
+    private void HandleCountChanged(int count)
+    {
+        int previous = displayedBallCount;
+        RefreshBalls();
+        if (previous >= 0 && count != previous) PlayBallCountPulse(count > previous);
+    }
+
+    private void HandleDefinitionsReplaced(int _) => RefreshBalls();
     private void HandleAugmentChanged(AugmentDefinition _, int __, int ___) => RefreshAugments();
     private void HandleKeyChanged(bool _) => RefreshBeneficialEffects();
-    private void HandleUnknownEventApplied(UnknownEventDefinition _) => RefreshBeneficialEffects();
+    private void HandleUnknownEventApplied(UnknownEventDefinition definition)
+    {
+        if (definition is IncreaseDirectDamageUnknownEventDefinition)
+            appliedEventEffects.Add(definition);
+        if (definition is UpgradeNextCombatRewardUnknownEventDefinition)
+            pendingRewardEventSource = definition;
+        RefreshBeneficialEffects();
+    }
     private void HandleFloatStateChanged(float _) => RefreshBeneficialEffects();
     private void HandleIntStateChanged(int _) => RefreshBeneficialEffects();
     private void HandleRoomChanged(RoomNode _, RoomNode __) { RefreshStage(); RefreshBeneficialEffects(); }
+
+    private void PlayBallCountPulse(bool increased)
+    {
+        if (totalBallCountText == null) return;
+        if (ballCountPulseRoutine != null) StopCoroutine(ballCountPulseRoutine);
+        ballCountPulseRoutine = StartCoroutine(BallCountPulseRoutine(increased));
+    }
+
+    private IEnumerator BallCountPulseRoutine(bool increased)
+    {
+        RectTransform rect = totalBallCountText.rectTransform;
+        Vector3 start = Vector3.one;
+        Vector3 peak = Vector3.one * (increased ? 1.22f : 0.82f);
+        const float halfDuration = 0.11f;
+        for (int phase = 0; phase < 2; phase++)
+        {
+            float elapsed = 0f;
+            Vector3 from = phase == 0 ? start : peak;
+            Vector3 to = phase == 0 ? peak : start;
+            while (elapsed < halfDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / halfDuration));
+                rect.localScale = Vector3.LerpUnclamped(from, to, t);
+                yield return null;
+            }
+        }
+        rect.localScale = Vector3.one;
+        ballCountPulseRoutine = null;
+    }
 
     private static void ResolveBallGroup(BallDefinition definition, out string name, out string description)
     {

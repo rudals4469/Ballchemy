@@ -10,7 +10,7 @@ using UnityEngine.UI;
 public static class StatusPanelHierarchyInstaller
 {
     // Versioned scene migration for the always-visible LeftPanel status board.
-    private const string VersionMarker = "StatusPanel_Left_V11";
+    private const string VersionMarker = "StatusPanel_Left_V12";
     static StatusPanelHierarchyInstaller() => EditorApplication.delayCall += RunSceneMaintenance;
 
     private static void RunSceneMaintenance()
@@ -88,7 +88,7 @@ public static class StatusPanelHierarchyInstaller
         StatusEntryView augmentTemplate = Entry("AugmentRowTemplate", augmentContent, font, 140f, false);
         TMP_Text augmentEmpty = Text("AugmentEmptyText", augmentContent, string.Empty, font, 15f, Vector2.zero, new Vector2(210f, 30f), TextAlignmentOptions.Left);
         GameObject beneficialColumn = Section("BeneficialEffectColumn", panel.transform, new Vector2(0f, -125f), new Vector2(555f, 450f));
-        Text("ColumnTitle", beneficialColumn.transform, "이로운 효과", font, 22f, new Vector2(0f, 195f), new Vector2(220f, 34f), TextAlignmentOptions.Left);
+        Text("ColumnTitle", beneficialColumn.transform, "상세 스탯", font, 22f, new Vector2(0f, 195f), new Vector2(220f, 34f), TextAlignmentOptions.Left);
         Transform beneficialContent = ScrollContent("BeneficialEffectScrollView", "BeneficialEffectContent", beneficialColumn.transform, new Vector2(0f, -20f), new Vector2(515f, 365f));
         SetRect(beneficialColumn.transform.Find("ColumnTitle") as RectTransform, new Vector2(0f, 198f), new Vector2(510f, 42f));
         StatusEntryView beneficialTemplate = Entry("BeneficialEffectRowTemplate", beneficialContent, font, 500f, false);
@@ -98,8 +98,8 @@ public static class StatusPanelHierarchyInstaller
         if (beneficialLayout != null) beneficialLayout.preferredHeight = 40f;
         TMP_Text beneficialEmpty = Text("BeneficialEffectEmptyText", beneficialContent, string.Empty, font, 15f, Vector2.zero, new Vector2(210f, 30f), TextAlignmentOptions.Left);
 
-        GameObject professionSection = Section("ProfessionSection", panel.transform, new Vector2(0f, -470f), new Vector2(555f, 105f));
-        Text("ProfessionTitle", professionSection.transform, "전직", font, 26f, new Vector2(0f, 28f), new Vector2(510f, 38f), TextAlignmentOptions.Left);
+        GameObject professionSection = Section("LineageSection", panel.transform, new Vector2(0f, -470f), new Vector2(555f, 105f));
+        Text("LineageTitle", professionSection.transform, "계열", font, 26f, new Vector2(0f, 28f), new Vector2(510f, 38f), TextAlignmentOptions.Left);
         TMP_Text professionValue = Text("ProfessionValueText", professionSection.transform, string.Empty, font, 22f, new Vector2(0f, -18f), new Vector2(510f, 36f), TextAlignmentOptions.Left);
 
         GameObject tooltip = CreateImage("StatusTooltipPanel", panel.transform, Color.white);

@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public sealed class StatusEntryView : MonoBehaviour
 {
@@ -48,5 +49,44 @@ public sealed class StatusEntryView : MonoBehaviour
         if (hoverTooltip == null && nameText != null)
             hoverTooltip = nameText.GetComponent<HoverTooltip>();
         hoverTooltip?.Configure(string.Empty, panel, text, underline);
+    }
+
+    public void PulseBallCountChanges(int[] previousCounts, int[] nextCounts)
+    {
+        bool anyChange = false;
+        int previousTotal = 0;
+        int nextTotal = 0;
+        for (int i = 0; i < gradeValueTexts.Length; i++)
+        {
+            int previous = previousCounts != null && i < previousCounts.Length ? previousCounts[i] : 0;
+            int next = nextCounts != null && i < nextCounts.Length ? nextCounts[i] : 0;
+            previousTotal += previous;
+            nextTotal += next;
+            if (previous == next || gradeValueTexts[i] == null) continue;
+            anyChange = true;
+            StartCoroutine(PulseRoutine(gradeValueTexts[i].rectTransform, next > previous ? 1.28f : 0.78f));
+        }
+        if (anyChange && nameText != null)
+            StartCoroutine(PulseRoutine(nameText.rectTransform, nextTotal >= previousTotal ? 1.1f : 0.9f));
+    }
+
+    private static IEnumerator PulseRoutine(RectTransform target, float peakScale)
+    {
+        if (target == null) yield break;
+        const float halfDuration = 0.11f;
+        for (int phase = 0; phase < 2; phase++)
+        {
+            float elapsed = 0f;
+            float from = phase == 0 ? 1f : peakScale;
+            float to = phase == 0 ? peakScale : 1f;
+            while (elapsed < halfDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / halfDuration));
+                target.localScale = Vector3.one * Mathf.LerpUnclamped(from, to, t);
+                yield return null;
+            }
+        }
+        target.localScale = Vector3.one;
     }
 }
