@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 716773751127089919}
   - component: {fileID: 667588407618561759}
   - component: {fileID: 2659057172565688237}
+  - component: {fileID: 5972448152291777266}
   m_Layer: 0
   m_Name: Ball
   m_TagString: Untagged
@@ -190,6 +191,7 @@ MonoBehaviour:
   bounceSeparationDistance: 0.02
   returnZoneSurfacePadding: 0.02
   showBounceDamageDebugLog: 1
+  showTemporaryUpgradeDebugLog: 0
 --- !u!114 &716773751127089919
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -218,6 +220,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BallCombatController
   definition: {fileID: 0}
   runtimeStats: {fileID: 0}
+  stageModifierState: {fileID: 0}
   individualDirectDamageBonus: 0
   individualCriticalDamageMultiplierBonus: 0
   fallbackDirectDamage: 1
@@ -253,3 +256,15 @@ MonoBehaviour:
   surfaceSeparationDistance: 0.025
   minimumAirTime: 0.15
   maximumDuration: 2.4
+--- !u!114 &5972448152291777266
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7667098293119860426}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6be749f95472164dae59c7db71af62a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BasicBallEffect

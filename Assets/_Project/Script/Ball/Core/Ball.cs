@@ -877,6 +877,11 @@ public sealed class Ball :
 
     public void NotifyBlockHitHandled()
     {
+        BallTeleportState teleportState =
+            GetComponent<BallTeleportState>();
+
+        teleportState?.NotifyBlockHit();
+
         BlockHitOccurred?.Invoke(
             this
         );

@@ -159,19 +159,15 @@ public sealed class UnknownEventSlotPresenter :
 
     private void Awake()
     {
+        _ = hideOnAwake; // Legacy scene setting; panel roots now control visibility.
         FindReferences();
         NormalizeSettings();
         ValidateReferences();
         CacheReelLayout();
 
-        if (hideOnAwake)
-        {
-            HideImmediately();
-        }
-        else
-        {
-            ResetPresentation();
-        }
+        // Play()가 비활성 패널을 처음 켜는 도중 Awake가 실행됩니다.
+        // 이 시점에 다시 비활성화하지 않고 연출 상태만 초기화합니다.
+        ResetPresentation();
     }
 
     private void OnValidate()
@@ -1285,15 +1281,13 @@ public sealed class UnknownEventSlotPresenter :
                 gameObject;
         }
 
-        if (target == null ||
-            target.activeSelf ==
-            shouldActivate)
-        {
+        if (target == null)
             return;
-        }
 
-        target.SetActive(
-            shouldActivate
-        );
+        if (target.activeSelf != shouldActivate)
+            target.SetActive(shouldActivate);
+
+        if (shouldActivate)
+            target.transform.SetAsLastSibling();
     }
 }

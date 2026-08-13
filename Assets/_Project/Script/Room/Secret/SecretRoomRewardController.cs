@@ -398,6 +398,9 @@ public sealed class SecretRoomRewardController : MonoBehaviour
     {
         if (panelRoot != null && panelRoot.activeSelf != value)
             panelRoot.SetActive(value);
+
+        if (value && panelRoot != null)
+            panelRoot.transform.SetAsLastSibling();
     }
 
     private static void SetText(TMP_Text[] texts, int index, string value)

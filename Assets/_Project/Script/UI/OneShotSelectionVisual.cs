@@ -6,7 +6,7 @@ using UnityEngine.UI;
 public sealed class OneShotSelectionVisual : MonoBehaviour
 {
     [SerializeField, Range(0f, 1f)]
-    private float selectedDarkenAmount = 0.28f;
+    private float selectedDarkenAmount = 0.82f;
 
     private Button button;
     private Graphic targetGraphic;
@@ -26,7 +26,10 @@ public sealed class OneShotSelectionVisual : MonoBehaviour
         if (button != null)
             button.transition = originalTransition;
         if (targetGraphic != null)
+        {
             targetGraphic.color = originalColor;
+            targetGraphic.canvasRenderer.SetColor(originalColor);
+        }
     }
 
     public void ShowResult(bool isSelected)
@@ -41,9 +44,11 @@ public sealed class OneShotSelectionVisual : MonoBehaviour
 
         if (targetGraphic != null)
         {
-            targetGraphic.color = isSelected
+            Color displayedColor = isSelected
                 ? Color.Lerp(originalColor, Color.black, selectedDarkenAmount)
                 : originalColor;
+            targetGraphic.color = displayedColor;
+            targetGraphic.canvasRenderer.SetColor(displayedColor);
         }
     }
 

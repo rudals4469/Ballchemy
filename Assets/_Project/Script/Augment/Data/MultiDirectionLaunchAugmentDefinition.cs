@@ -123,7 +123,7 @@ public sealed class
 
         return
             $"보유 공을 {branchCount}갈래로 나누어 " +
-            $"최대 ±{spreadAngle:0.#}° 방향으로 " +
+            $"기준에서 좌우 {spreadAngle:0.#}도 방향으로 " +
             "동시에 발사합니다.";
     }
 

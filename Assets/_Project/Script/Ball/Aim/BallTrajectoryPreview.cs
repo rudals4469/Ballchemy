@@ -611,6 +611,7 @@ public sealed class BallTrajectoryPreview :
         int bounceCount = 0;
         int teleportCount = 0;
         int safetyIteration = 0;
+        bool canTeleport = true;
 
         Collider2D previousCollider =
             null;
@@ -681,6 +682,7 @@ public sealed class BallTrajectoryPreview :
                     : null;
 
             if (portal != null &&
+                canTeleport &&
                 portal.IsLinked &&
                 teleportCount < MaximumPreviewTeleports &&
                 portal.Partner.TryResolvePredictedExit(
@@ -693,9 +695,19 @@ public sealed class BallTrajectoryPreview :
                 AddPathPoint(outputPoints, portalExit);
 
                 teleportCount++;
+                canTeleport = false;
                 castDirection = portalExitDirection;
                 previousCollider = portal.Partner.GetComponent<Collider2D>();
                 castOrigin = portalExit + castDirection * trajectorySkinWidth;
+                remainingDistance -= trajectorySkinWidth;
+                continue;
+            }
+
+            if (portal != null && !canTeleport)
+            {
+                previousCollider = closestHit.collider;
+                castOrigin = collisionCenter +
+                    castDirection * trajectorySkinWidth;
                 remainingDistance -= trajectorySkinWidth;
                 continue;
             }
@@ -740,6 +752,12 @@ public sealed class BallTrajectoryPreview :
             }
 
             bounceCount++;
+
+            if (closestHit.collider != null &&
+                closestHit.collider.GetComponentInParent<Block>() != null)
+            {
+                canTeleport = true;
+            }
 
             castDirection =
                 reflectedDirection;

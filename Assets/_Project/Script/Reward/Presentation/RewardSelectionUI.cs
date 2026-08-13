@@ -58,18 +58,15 @@ public sealed class RewardSelectionUI :
 
     private void Awake()
     {
+        _ = hideOnAwake; // Legacy scene setting; panel roots now control visibility.
         FindReferences();
         ValidateReferences();
         SubscribeCards();
 
-        if (hideOnAwake)
-        {
-            Hide();
-        }
-        else
-        {
-            ClearCards();
-        }
+        // 패널 루트는 씬에서 비활성 상태로 시작합니다.
+        // 최초 SetActive(true) 도중 Hide()를 호출하면 보상 패널을
+        // 다시 꺼 버리므로 여기서는 표시 내용만 초기화합니다.
+        ClearCards();
     }
 
     private void OnEnable()
@@ -220,6 +217,25 @@ public sealed class RewardSelectionUI :
         }
     }
 
+    public void ShowCompletedChoices(
+        IReadOnlyList<RewardDefinition> choices,
+        RewardDefinition selectedReward)
+    {
+        ShowChoices(choices);
+        hasSelection = true;
+        SetCardsInteractable(false);
+
+        for (int i = 0; i < rewardCards.Count; i++)
+        {
+            RewardCardUI card = rewardCards[i];
+            if (card != null && card.HasReward)
+            {
+                card.ShowSelectionResult(
+                    card.BoundRewardDefinition == selectedReward);
+            }
+        }
+    }
+
     public void Hide()
     {
         SetCardsInteractable(
@@ -337,15 +353,11 @@ public sealed class RewardSelectionUI :
                 ? panelRoot
                 : gameObject;
 
-        if (target.activeSelf ==
-            shouldActivate)
-        {
-            return;
-        }
+        if (target.activeSelf != shouldActivate)
+            target.SetActive(shouldActivate);
 
-        target.SetActive(
-            shouldActivate
-        );
+        if (shouldActivate)
+            target.transform.SetAsLastSibling();
     }
 
     private void ValidateReferences()

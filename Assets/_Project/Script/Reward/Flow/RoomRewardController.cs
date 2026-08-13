@@ -62,6 +62,24 @@ public sealed class RoomRewardController :
         pendingChoices =
             new List<RewardDefinition>();
 
+    private sealed class CompletedRewardSelection
+    {
+        public readonly List<RewardDefinition> Choices;
+        public readonly RewardDefinition SelectedReward;
+
+        public CompletedRewardSelection(
+            IEnumerable<RewardDefinition> choices,
+            RewardDefinition selectedReward)
+        {
+            Choices = new List<RewardDefinition>(choices);
+            SelectedReward = selectedReward;
+        }
+    }
+
+    private readonly Dictionary<int, CompletedRewardSelection>
+        completedSelections =
+            new Dictionary<int, CompletedRewardSelection>();
+
     private bool isRewardPending;
 
     public bool IsRewardPending =>
@@ -223,10 +241,21 @@ public sealed class RoomRewardController :
 
     private void HandleRoomChanged(RoomNode previousRoom, RoomNode currentRoom)
     {
-        if (!isRewardPending)
+        if (isRewardPending)
+            return;
+
+        if (currentRoom != null &&
+            completedSelections.TryGetValue(
+                currentRoom.RoomId,
+                out CompletedRewardSelection completed))
         {
-            rewardSelectionUI?.Hide();
+            rewardSelectionUI?.ShowCompletedChoices(
+                completed.Choices,
+                completed.SelectedReward);
+            return;
         }
+
+        rewardSelectionUI?.Hide();
     }
 
     private void HandleRoomCleared()
@@ -456,7 +485,7 @@ public sealed class RoomRewardController :
             );
         }
 
-        CompleteRewardSelection();
+        CompleteRewardSelection(selectedReward);
     }
 
     private RewardApplyContext CreateApplyContext()
@@ -537,12 +566,21 @@ public sealed class RoomRewardController :
         }
     }
 
-    private void CompleteRewardSelection()
+    private void CompleteRewardSelection(
+        RewardDefinition selectedReward)
     {
         RoomNode completedRoom =
             roomNavigator != null
                 ? roomNavigator.CurrentRoom
                 : null;
+
+        if (completedRoom != null && selectedReward != null)
+        {
+            completedSelections[completedRoom.RoomId] =
+                new CompletedRewardSelection(
+                    pendingChoices,
+                    selectedReward);
+        }
 
         pendingChoices.Clear();
 

@@ -644,15 +644,11 @@ public sealed class ShopPanelPresenter :
             return;
         }
 
-        if (panelRoot.activeSelf ==
-            shouldActivate)
-        {
-            return;
-        }
+        if (panelRoot.activeSelf != shouldActivate)
+            panelRoot.SetActive(shouldActivate);
 
-        panelRoot.SetActive(
-            shouldActivate
-        );
+        if (shouldActivate)
+            panelRoot.transform.SetAsLastSibling();
     }
 
     private void StopDelayedRefresh()

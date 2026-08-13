@@ -628,15 +628,15 @@ public sealed class AlchemyPanelPresenter :
             return;
         }
 
-        if (panelRoot.activeSelf ==
-            shouldActivate)
-        {
-            return;
-        }
+        bool changed = panelRoot.activeSelf != shouldActivate;
+        if (changed)
+            panelRoot.SetActive(shouldActivate);
 
-        panelRoot.SetActive(
-            shouldActivate
-        );
+        if (shouldActivate)
+            panelRoot.transform.SetAsLastSibling();
+
+        if (!changed)
+            return;
 
         if (shouldActivate)
         {

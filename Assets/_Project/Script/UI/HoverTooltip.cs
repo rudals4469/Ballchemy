@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public sealed class HoverTooltip : MonoBehaviour,
@@ -12,7 +13,7 @@ public sealed class HoverTooltip : MonoBehaviour,
     [SerializeField] private RectTransform tooltipPanel;
     [SerializeField] private TMP_Text tooltipText;
     [SerializeField] private RectTransform underline;
-    [SerializeField, Min(0f)] private float underlineGap = 3f;
+    [SerializeField, Min(0f)] private float underlineGap = 1f;
     [SerializeField] private Vector2 padding = new Vector2(24f, 18f);
     [SerializeField, Min(80f)] private float maximumWidth = 560f;
     [SerializeField, Min(8f)] private float fontSize = 20f;
@@ -47,17 +48,52 @@ public sealed class HoverTooltip : MonoBehaviour,
             return;
         }
 
-        Vector2 preferred = triggerText.GetPreferredValues(triggerText.text);
-        underline.sizeDelta = new Vector2(Mathf.Max(preferred.x, 8f), 2f);
+        triggerText.ForceMeshUpdate();
+        Bounds bounds = triggerText.textBounds;
+        float width = Mathf.Max(bounds.size.x, 8f);
+        underline.sizeDelta = new Vector2(width, 2f);
         underline.anchoredPosition = new Vector2(
-            0f,
-            -(preferred.y * 0.5f + underlineGap));
+            bounds.center.x,
+            bounds.min.y - underlineGap);
         underline.gameObject.SetActive(true);
     }
 
     private void OnDisable()
     {
         Hide();
+    }
+
+    private void OnEnable()
+    {
+        if (triggerText == null)
+            triggerText = GetComponent<TMP_Text>();
+        RefreshUnderline();
+    }
+
+    public void Configure(string nextContent, RectTransform panel,
+        TMP_Text text, RectTransform underlineGraphic)
+    {
+        content = nextContent ?? string.Empty;
+        tooltipPanel = panel;
+        tooltipText = text;
+        underline = underlineGraphic;
+        triggerText = GetComponent<TMP_Text>();
+        if (tooltipPanel != null)
+        {
+            originalPanelParent = tooltipPanel.parent;
+            originalPanelSiblingIndex = tooltipPanel.GetSiblingIndex();
+            Graphic[] graphics = tooltipPanel.GetComponentsInChildren<Graphic>(true);
+            for (int i = 0; i < graphics.Length; i++) graphics[i].raycastTarget = false;
+        }
+        if (underline != null && underline.TryGetComponent(out Graphic underlineGraphicComponent))
+            underlineGraphicComponent.raycastTarget = false;
+        RefreshUnderline();
+    }
+
+    public void ConfigureContent(string nextContent)
+    {
+        content = nextContent ?? string.Empty;
+        RefreshUnderline();
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -74,6 +110,11 @@ public sealed class HoverTooltip : MonoBehaviour,
     {
         if (tooltipPanel == null || tooltipText == null)
         {
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            Hide();
             return;
         }
 
@@ -107,13 +148,20 @@ public sealed class HoverTooltip : MonoBehaviour,
         tooltipPanel.sizeDelta = new Vector2(
             Mathf.Min(preferred.x + padding.x, maximumWidth),
             preferred.y + padding.y);
+        RectTransform textRect = tooltipText.rectTransform;
+        textRect.anchorMin = textRect.anchorMax = textRect.pivot = new Vector2(0.5f, 0.5f);
+        textRect.anchoredPosition = Vector2.zero;
+        textRect.sizeDelta = new Vector2(
+            Mathf.Max(1f, tooltipPanel.sizeDelta.x - padding.x),
+            Mathf.Max(1f, tooltipPanel.sizeDelta.y - padding.y));
 
         if (rootCanvas != null && triggerRect != null)
         {
+            tooltipPanel.pivot = new Vector2(0f, 1f);
             tooltipPanel.position = triggerRect.TransformPoint(
                 new Vector3(
-                    triggerRect.rect.xMax + 8f,
-                    triggerRect.rect.yMax,
+                    triggerRect.rect.xMin,
+                    triggerRect.rect.yMin - 6f,
                     0f));
         }
 

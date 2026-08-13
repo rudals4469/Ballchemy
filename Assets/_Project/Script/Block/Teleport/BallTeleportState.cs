@@ -7,6 +7,7 @@ public sealed class BallTeleportState : MonoBehaviour
     private TeleportPortalController lockedPortal;
     private Collider2D ballCollider;
     private int successfulTeleportCount;
+    private bool canTeleport = true;
 
     public int SuccessfulTeleportCount =>
         successfulTeleportCount;
@@ -18,7 +19,9 @@ public sealed class BallTeleportState : MonoBehaviour
 
     public bool CanEnter(TeleportPortalController portal)
     {
-        return portal != null && lockedPortal != portal;
+        return canTeleport &&
+            portal != null &&
+            lockedPortal != portal;
     }
 
     public void LockUntilExited(TeleportPortalController portal)
@@ -29,12 +32,19 @@ public sealed class BallTeleportState : MonoBehaviour
     public void RecordSuccessfulTeleport()
     {
         successfulTeleportCount++;
+        canTeleport = false;
+    }
+
+    public void NotifyBlockHit()
+    {
+        canTeleport = true;
     }
 
     public void ClearLock()
     {
         lockedPortal = null;
         successfulTeleportCount = 0;
+        canTeleport = true;
     }
 
     private void FixedUpdate()

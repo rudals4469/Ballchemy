@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,6 +6,8 @@ using UnityEngine;
 public sealed class EventRoomController :
     MonoBehaviour
 {
+    public event Action<UnknownEventDefinition> UnknownEventApplied;
+
     [Header("References")]
 
     [SerializeField]
@@ -777,6 +780,11 @@ public sealed class EventRoomController :
                 false,
                 "비밀 이벤트 결과가 생성되지 않았습니다."
             );
+        }
+
+        if (result.WasApplied)
+        {
+            UnknownEventApplied?.Invoke(selectedEvent);
         }
 
         if (showDebugLog)

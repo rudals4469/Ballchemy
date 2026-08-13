@@ -33,18 +33,14 @@ public sealed class EventSelectionUI :
 
     private void Awake()
     {
+        _ = hideOnAwake; // Legacy scene setting; panel roots now control visibility.
         RemoveDuplicateAndNullCards();
         ValidateReferences();
         SubscribeCards();
 
-        if (hideOnAwake)
-        {
-            Hide();
-        }
-        else
-        {
-            ClearCards();
-        }
+        // 비활성 패널을 처음 여는 SetActive(true)와 Awake가 겹쳐도
+        // 패널이 즉시 다시 닫히지 않도록 내용만 초기화합니다.
+        ClearCards();
     }
 
     private void OnEnable()
@@ -301,16 +297,14 @@ public sealed class EventSelectionUI :
                 ? panelRoot
                 : gameObject;
 
-        if (target == null ||
-            target.activeSelf ==
-            shouldActivate)
-        {
+        if (target == null)
             return;
-        }
 
-        target.SetActive(
-            shouldActivate
-        );
+        if (target.activeSelf != shouldActivate)
+            target.SetActive(shouldActivate);
+
+        if (shouldActivate)
+            target.transform.SetAsLastSibling();
     }
 
     private void RemoveDuplicateAndNullCards()
