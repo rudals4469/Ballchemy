@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ca421408fd6497dbc27ac6f599e7623, type: 3}
+  m_Name: AugmentRewardSettings
+  m_EditorClassIdentifier: Assembly-CSharp::AugmentRewardSettings
+  sources:
+  - source: 0
+    tierWeights: {value1Weight: 30, value2Weight: 50, value3Weight: 20}
+    minimumStage: 1
+  - source: 1
+    tierWeights: {value1Weight: 20, value2Weight: 50, value3Weight: 30}
+    minimumStage: 1
+  - source: 2
+    tierWeights: {value1Weight: 45, value2Weight: 40, value3Weight: 15}
+    minimumStage: 1

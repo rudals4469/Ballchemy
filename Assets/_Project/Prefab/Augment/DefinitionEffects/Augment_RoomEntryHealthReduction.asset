@@ -17,6 +17,7 @@ MonoBehaviour:
   description: "\uBC29 \uC785\uC7A5 \uC2DC \uC801 \uBE14\uB85D\uC758 \uCCB4\uB825\uC744
     \uAC10\uC18C\uC2DC\uD0B5\uB2C8\uB2E4.\n"
   icon: {fileID: 0}
+  valueTier: 1
   maxLevel: 3
   normalRoomReductionByLevel:
   - 0.1

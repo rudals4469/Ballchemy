@@ -21,6 +21,9 @@ public sealed class RoomRewardGenerator :
     [SerializeField]
     private RewardCatalog rewardCatalog;
 
+    [SerializeField]
+    private AugmentRewardSettings augmentRewardSettings;
+
     [Header("Generation")]
 
     [Tooltip(
@@ -34,6 +37,10 @@ public sealed class RoomRewardGenerator :
     private readonly List<RewardDefinition>
         tierCandidates =
             new List<RewardDefinition>();
+
+    private readonly List<AugmentRewardDefinition>
+        augmentCandidates =
+            new List<AugmentRewardDefinition>();
 
     private readonly List<RewardDefinition>
         workingCandidates =
@@ -86,6 +93,127 @@ public sealed class RoomRewardGenerator :
 
     public int ChoiceCount =>
         choiceCount;
+
+    public List<RewardDefinition> GenerateAugmentChoices(
+        AugmentRewardSource source,
+        int requestedChoiceCount,
+        RewardApplyContext applyContext)
+    {
+        generatedChoices.Clear();
+        requestedChoiceCount = Mathf.Max(requestedChoiceCount, 1);
+
+        if (!ValidateReferences() || augmentRewardSettings == null ||
+            !augmentRewardSettings.TryGet(source, out AugmentRewardSourceSettings sourceSettings))
+        {
+            Debug.LogWarning(
+                $"RoomRewardGenerator: {source} 증강 지급 설정이 없습니다.",
+                this);
+            return new List<RewardDefinition>();
+        }
+
+        rewardCatalog.GetAugmentRewards(augmentCandidates);
+
+        while (generatedChoices.Count < requestedChoiceCount)
+        {
+            AugmentValueTier tier = SelectAugmentTier(
+                sourceSettings.TierWeights);
+            AugmentRewardDefinition selected = SelectAugmentReward(
+                tier, applyContext);
+
+            if (selected == null)
+                break;
+
+            generatedChoices.Add(selected);
+        }
+
+        return new List<RewardDefinition>(generatedChoices);
+    }
+
+    private AugmentValueTier SelectAugmentTier(AugmentTierWeights weights)
+    {
+        int total = 0;
+        for (int value = 1; value <= 3; value++)
+        {
+            AugmentValueTier tier = (AugmentValueTier)value;
+            if (HasAvailableAugment(tier))
+                total += weights.GetWeight(tier);
+        }
+
+        if (total <= 0)
+            return AugmentValueTier.Value1;
+
+        int roll = Random.Range(0, total);
+        for (int value = 1; value <= 3; value++)
+        {
+            AugmentValueTier tier = (AugmentValueTier)value;
+            if (!HasAvailableAugment(tier))
+                continue;
+            roll -= weights.GetWeight(tier);
+            if (roll < 0)
+                return tier;
+        }
+
+        return AugmentValueTier.Value1;
+    }
+
+    private bool HasAvailableAugment(AugmentValueTier tier)
+    {
+        for (int i = 0; i < augmentCandidates.Count; i++)
+        {
+            AugmentRewardDefinition candidate = augmentCandidates[i];
+            if (candidate != null &&
+                !generatedChoices.Contains(candidate) &&
+                candidate.AugmentDefinition != null &&
+                candidate.AugmentDefinition.ValueTier == tier)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private AugmentRewardDefinition SelectAugmentReward(
+        AugmentValueTier tier,
+        RewardApplyContext context)
+    {
+        int total = 0;
+        for (int i = 0; i < augmentCandidates.Count; i++)
+        {
+            AugmentRewardDefinition candidate = augmentCandidates[i];
+            if (candidate == null ||
+                generatedChoices.Contains(candidate) ||
+                candidate.AugmentDefinition.ValueTier != tier ||
+                !candidate.CanApply(context))
+            {
+                continue;
+            }
+
+            total += candidate.SelectionWeight;
+        }
+
+        if (total <= 0)
+            return null;
+
+        int roll = Random.Range(0, total);
+        for (int i = 0; i < augmentCandidates.Count; i++)
+        {
+            AugmentRewardDefinition candidate = augmentCandidates[i];
+            if (candidate == null ||
+                generatedChoices.Contains(candidate) ||
+                candidate.AugmentDefinition.ValueTier != tier ||
+                !candidate.CanApply(context))
+            {
+                continue;
+            }
+
+            roll -= candidate.SelectionWeight;
+            if (roll < 0)
+                return candidate;
+        }
+
+        return null;
+    }
 
     private void Awake()
     {

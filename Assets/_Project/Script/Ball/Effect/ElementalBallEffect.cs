@@ -297,8 +297,9 @@ public sealed class ElementalBallEffect :
         int maximumTargetCount =
             Mathf.Min(
                 reactionResult.ReactionCount,
-                elementalDefinition
-                    .MaximumConductionTargets
+                elementalDefinition.MaximumConductionTargets +
+                AugmentCombatModifiers.GetConductionTargetBonus() +
+                AugmentCombatModifiers.GetOverconductionTargetBonus()
             );
 
         return ElementConductionResolver

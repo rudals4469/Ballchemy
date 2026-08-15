@@ -20,6 +20,10 @@ public abstract class AugmentDefinition :
 
     [Header("Level")]
 
+    [SerializeField]
+    private AugmentValueTier valueTier =
+        AugmentValueTier.Value1;
+
     [Tooltip(
         "이번 런에서 이 증강이 도달할 수 있는 " +
         "최대 레벨입니다."
@@ -41,6 +45,9 @@ public abstract class AugmentDefinition :
 
     public int MaxLevel =>
         maxLevel;
+
+    public AugmentValueTier ValueTier =>
+        valueTier;
 
     public bool IsValidLevel(
         int level)

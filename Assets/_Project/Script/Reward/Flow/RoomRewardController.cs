@@ -315,19 +315,29 @@ public sealed class RoomRewardController :
             return;
         }
 
+        bool isAugmentReward =
+            currentRoom.RoomType == RoomType.Boss;
+
         RewardTier finalRewardTier =
-            ResolveFinalRewardTier(
-                baseRewardTier
-            );
+            isAugmentReward
+                ? baseRewardTier
+                : ResolveFinalRewardTier(
+                    baseRewardTier
+                );
 
         RewardApplyContext applyContext =
             CreateApplyContext();
 
         List<RewardDefinition> choices =
-            rewardGenerator.GenerateChoices(
-                finalRewardTier,
-                applyContext
-            );
+            isAugmentReward
+                ? rewardGenerator.GenerateAugmentChoices(
+                    AugmentRewardSource.Boss,
+                    rewardGenerator.ChoiceCount,
+                    applyContext)
+                : rewardGenerator.GenerateChoices(
+                    finalRewardTier,
+                    applyContext
+                );
 
         if (choices == null ||
             choices.Count == 0)
@@ -346,6 +356,7 @@ public sealed class RoomRewardController :
         }
 
         bool consumedRewardUpgrade =
+            !isAugmentReward &&
             ConsumePendingRewardUpgradeIfNeeded();
 
         pendingChoices.Clear();

@@ -17,6 +17,8 @@ MonoBehaviour:
   description: "\uACF5\uC774 \uBC18\uC0AC\uB420\uC218\uB85D \uC9C1\uC811 \uD53C\uD574\uAC00
     \uC99D\uAC00\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
+  valueTier: 1
   maxLevel: 3
-  requiredBouncesByLevel: 030000000200000001000000
+  requiredBouncesByLevel: 050000000300000002000000
   damagePerStepByLevel: 010000000100000001000000
+  maximumDamageBonusByLevel: 030000000400000005000000

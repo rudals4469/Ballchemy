@@ -7,5 +7,6 @@ public enum RoomType
     Shop,
     Alchemy,
     Event,
-    Secret
+    Secret,
+    Augment
 }

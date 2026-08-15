@@ -1,5 +1,7 @@
 # Ballchemy 프로젝트 개발 기준 문서
 
+> 2026-08-16 성장 시스템 변경: 아래의 과거 1차/2차 계열·전직·Common T3 성장 기획은 폐기되었다. 최신 기준은 `Ballchemy_증강_시스템_기준_2026-08-16.md`이며, 공 성장과 Value 1/2/3 증강 성장으로 통합한다.
+
 > 기준 프로젝트: Unity 6.3 LTS `6000.3.18f1`  
 > 저장소: `rudals4469/Ballchemy`  
 > 작업 브랜치: `Ball`  
@@ -549,69 +551,18 @@ Start
 
 ## 14. 보상 시스템
 
-핵심 타입:
+보상은 공 성장과 증강 성장으로 분리한다.
 
-```text
-RewardDefinition
-BallRewardDefinition
-BallUpgradeRewardDefinition
-AugmentRewardDefinition
-RewardCatalog
-RewardApplyContext
-RewardType
-RewardTier
-RewardCardContent
-RewardDescriptionBuilder
-RewardCardUI
-RewardSelectionUI
-RoomRewardController
-RunRewardState
-```
+- NormalCombat: 기존 Tier 1 공 보상 후보 3개 중 1개
+- NamedCombat: 기존 Tier 2 공 보상 후보 3개 중 1개
+- Boss: Boss 지급처 가중치로 Value 1/2/3 증강 후보 생성
+- Secret: 기존 Max HP 비용을 유지하고 Secret 지급처 가중치로 증강 후보 생성
+- Event: 기존 체력·공·능력치·다음 보상 관련 이벤트 풀 유지. 정규 증강 지급처가 아님
+- Alchemy/Shop: 이번 단계에서 증강 지급처가 아님
 
-보상 등급:
+증강은 \`AugmentDefinition\`의 \`AugmentValueTier\`와 \`RunAugmentState\`의 레벨 구조를 사용한다. 지급처별 초기 가중치와 Augment Room 최소 Stage는 \`AugmentRewardSettings\`에서 관리한다. Value가 높을수록 영향 범위가 커지지만 하위 Value의 단순 수치 상위호환은 아니다.
 
-```text
-NormalCombat → Tier 1
-NamedCombat → Tier 2
-Stage 2/3/5/6 Boss → Common Tier 3
-Secret Room → Max HP Cost를 지불하고 동일한 Common Tier 3
-Stage 1 Boss → 1차 계열
-Stage 4 Boss → 2차 계열(기획 보류)
-Stage 7 Boss → 최종 전투, 별도 성장 보상 없음
-```
-
-Tier 1:
-
-- 보상 후보 3개 중 1개 선택
-- 실제 보유 공의 수와 조성을 늘리는 핵심 보상
-- 현재 구현은 기본 공 2개 또는 1성 특성 공 1개 중심이나 지급량을 전반적으로 늘릴 예정
-
-Tier 2:
-
-- 보상 후보 3개 중 1개 선택
-- 상위 공과 다수의 공
-- 무작위 공 승급
-- 저등급 공 변환
-- Stage가 높아져도 지급량을 감소시키지 않으며 유지 또는 증가
-
-Tier 3:
-
-- 단순 공 추가보다 규칙 변화 우선
-- 재획득 시 레벨 증가
-- 최대 레벨 후보 제외
-- 종류별 Max Level은 1/2/3으로 서로 다를 수 있으며 기존 `AugmentDefinition.MaxLevel`과 `RunAugmentState`를 그대로 사용
-- Stage 2/3/5/6 Boss와 Secret Room은 하나의 Common T3 Pool을 공유
-
-대표 증강:
-
-- 응축 화력
-- 선제 연금
-- 운동 에너지
-- 불안정한 진화
-- 분산 발사
-
----
-
+기존 \`RewardTier\`는 Normal/Named 공 보상용으로 유지하며 증강 Value와 동일한 개념으로 사용하지 않는다.
 ## 15. 공 등급 연결
 
 `BallDefinition`은 등급 양방향 연결을 지원한다.
@@ -1465,9 +1416,9 @@ Presenter / UI → 화면 표시와 연출
 5. Alchemy 중앙 Ball Panel과 최대 100개 표시
 6. Scroll, Marquee, Drag Edge Auto Scroll
 7. 속성 후보·동일 등급 변환·Stability 반복 연성
-8. Stage 1의 1차 계열 보상과 7 Stage 진행
-9. Secret Room Common T3와 Max HP 10% 비용
-10. Status 공 조성·계열·T3 표시
+8. 지급처별 Value 가중치를 사용하는 증강 보상과 7 Stage 진행
+9. Secret Room 증강과 Max HP 10% 비용
+10. Status 공 조성·보유 증강 표시
 11. 지급량과 Stability/Steering 수치 밸런싱
 ```
 
@@ -1552,118 +1503,17 @@ Tier 보상
 
 ---
 
-## 41. 7 Stage 성장 구조
+## 41. 증강 중심 성장 구조
 
-```text
-시작: Basic Ball 10개
-Stage 1 Boss: 1차 계열
-Stage 2 Boss: Common T3
-Stage 3 Boss: Common T3
-Stage 4 Boss: 2차 계열(현재 기획 및 구현 보류)
-Stage 5 Boss: Common T3
-Stage 6 Boss: Common T3
-Stage 7 Boss: 최종 보스, 별도 성장 보상 없음
-```
+과거의 계열·전직·빌드 고정 구조는 폐기했다. 최신 상세 기준은 `Ballchemy_증강_시스템_기준_2026-08-16.md`를 따른다.
 
-- 1차 계열은 아래 7종으로 방향을 확정했다. 정확한 수치와 2차 계열은 아직 확정하지 않는다.
-- 현행 `RoomRewardController`는 모든 Boss를 Tier3로 해석하므로 Stage 번호별 보상 라우팅이 필요하다.
-- 현재 6개 보스 구현은 전투 프로토타입 풀로 유지한다. 7 Stage 진행과 Stage 7 최종 보스 구성은 별도 작업이다.
-- Scene의 현행 `BallCollection.startingBallCount`는 15이고 코드 기본값은 20이다. 목표값 10은 문서에만 확정했으며 이번 작업에서 코드는 변경하지 않는다.
-
-### 41.1 계열 시스템 공통 원칙
-
-- Stage 1 Boss 보상에서 1차 계열 풀 7종 중 서로 다른 후보 3개를 무작위로 제시하고, 플레이어는 하나를 선택한다.
-- Fire/Water/Ice/Lightning은 별도의 중간 `속성 계열` 선택 없이 각각 독립된 1차 계열 후보로 취급한다.
-- 계열은 현재 보유 중인 공을 직접 합성·소모·승급·강등하거나 영구적으로 속성을 변경하지 않는다.
-- 영구 공 풀 편집은 공 보상과 Alchemy Room이 담당한다.
-- 계열은 공 보상의 수량·등급·속성 등장 가중치, 전투 중 조건부 보정, 턴 한정 임시 속성처럼 현재 공을 활용하는 규칙만 변경한다.
-- 각 1차 계열은 장점과 그 성장 방향에 맞지 않는 공의 효율을 낮추는 디버프를 함께 가진다.
-- 아래 수치는 방향을 설명하기 위한 밸런싱 초안이다. 구현 시 모두 데이터에서 조절 가능하게 만들고 플레이 검증 후 확정한다.
-- Stage 4의 2차 계열은 1차 계열 구현과 플레이 검증이 끝날 때까지 설계하지 않는다.
-
-### 41.2 1차 계열 풀 7종
-
-```text
-Quantity
-Refinement
-Fire
-Water
-Ice
-Lightning
-Mutation
-```
-
-#### Quantity / 물량
-
-- 많은 공과 긴 발사 시간을 활용하는 계열이다.
-- 공을 지급하는 보상의 최종 지급량을 증가시킨다. 계열 선택 시 즉시 공을 생성하지 않는다.
-- 한 턴의 발사 진행도가 높아질수록 이후 새로 발사되는 공을 단계적으로 강화하는 방향을 사용한다. 이미 발사된 공에는 새 단계 보정을 소급하지 않는다.
-- 디버프 방향: 3★ 공의 직접 피해 감소.
-- 물량 보상 증가율, 발사 진행 구간, 구간별 피해 보정, 3★ 피해 감소율은 미확정이다.
-
-#### Refinement / 정제
-
-- 1★ 공의 효율을 포기하고 2★·3★ 공의 개별 성능에 집중하는 계열이다.
-- 공 보상에서 2★·3★ 후보가 등장하는 가중치를 높인다. 현재 보유 공을 자동 승급하거나 합성하지 않는다.
-- 디버프 방향: 1★ 공의 직접 피해 감소.
-- 정제를 선택한 런에서는 Alchemy Room에 전용 `공 분해` 선택지를 해금한다.
-- 공 분해는 기존 Alchemy Ball 선택 UI에서 범위를 선택해 보유 공을 영구 삭제하는 공 풀 편집 기능이다.
-- 공 분해는 실패 판정과 Stability 소모·회복 없이 확정 처리하는 방향이며, 최소 보유 공 개수 아래로는 삭제할 수 없다.
-- 최소 보유 공 개수, 등급별 피해 보정, 높은 등급 보상 가중치는 미확정이다.
-
-#### Fire / 불
-
-- Fire를 주속성으로 강화하고 Ice를 반응 보조 속성으로 활용한다.
-- Fire 공의 보상 등장 가중치와 Fire 고유 효과의 가치를 높인다.
-- Ice+Fire 반응에서는 동일한 반응 공식을 유지하되 Fire를 선택한 빌드가 Fire 쪽 효과에서 더 높은 가치를 얻도록 설계한다.
-- 디버프 방향: Basic 공의 직접 피해 감소.
-
-#### Water / 물
-
-- Water를 주속성으로 강화하고 Lightning을 반응 보조 속성으로 활용한다.
-- Water 공의 보상 등장 가중치와 Water 고유 효과의 가치를 높인다.
-- Water+Lightning 반응에서는 동일한 반응 공식을 유지하되 Water를 선택한 빌드가 Water 쪽 효과에서 더 높은 가치를 얻도록 설계한다.
-- 디버프 방향: Basic 공의 직접 피해 감소.
-
-#### Ice / 얼음
-
-- Ice를 주속성으로 강화하고 Fire를 반응 보조 속성으로 활용한다.
-- Ice 공의 보상 등장 가중치와 Ice 고유 효과의 가치를 높인다.
-- Ice+Fire 반응에서는 동일한 반응 공식을 유지하되 Ice를 선택한 빌드가 Ice 쪽 효과에서 더 높은 가치를 얻도록 설계한다.
-- 디버프 방향: Basic 공의 직접 피해 감소.
-
-#### Lightning / 전기
-
-- Lightning을 주속성으로 강화하고 Water를 반응 보조 속성으로 활용한다.
-- Lightning 공의 보상 등장 가중치와 Lightning 고유 효과의 가치를 높인다.
-- Water+Lightning 반응에서는 동일한 반응 공식을 유지하되 Lightning을 선택한 빌드가 Lightning 쪽 효과에서 더 높은 가치를 얻도록 설계한다.
-- 디버프 방향: Basic 공의 직접 피해 감소.
-
-#### Mutation / 변이
-
-- 특정 속성을 통제하지 않고 Fire/Water/Ice/Lightning 네 속성을 모두 무작위로 활용하는 계열이다.
-- 매 턴 시작 시 Poison을 제외한 대상 공마다 Fire/Water/Ice/Lightning 중 하나를 독립적으로 무작위 배정한다.
-- 변이는 전투 중 해당 턴에만 적용한다. 공의 개수와 별 등급은 유지하고 턴 종료 시 원래 Definition/속성으로 복귀하며, 다음 턴에는 다시 무작위 배정한다.
-- Poison 공은 직접 피해 0과 Weakness Stack 역할을 보존해야 하므로 변이 대상에서 제외한다.
-- 변이된 공은 속성 효과에 보너스를 받되 직접 피해가 감소하는 방향을 사용한다.
-- 향후 서로 다른 속성의 연속 충돌, 한 턴에 네 속성 사용, 별도 속성 피해 같은 확장 여지는 남기지만 이는 1차 구현 범위에 포함하지 않는다.
-- 변이 대상 범위, 속성 효과 보정, 직접 피해 감소율은 미확정이다.
-
-### 41.3 1차 구현 범위
-
-```text
-Run 단위 선택 계열 상태
-→ Stage 1 Boss 보상에서 7종 중 3종 중복 없이 무작위 제시
-→ 선택 결과 저장 및 재입장 시 유지
-→ Status의 계열 칸에 선택 결과 표시
-→ 계열별 전투 보정과 디버프
-→ 계열별 공 보상 가중치/수량 보정
-→ Refinement 전용 Alchemy 공 분해
-→ Mutation 턴 한정 무작위 속성 및 원상 복구
-```
-
-Stage 4의 2차 계열, 2차 계열 후보 3개, 계열 간 연결 분기, 최종 명칭과 아이콘은 이번 범위에서 제외한다.
-
+- 공 성장과 증강 성장은 서로 분리된 두 성장축이다.
+- Normal/Named는 기존 공 보상을 유지한다.
+- Alchemy는 공 구성 편집만 담당하며 증강을 지급하지 않는다.
+- Boss/Secret/Augment Room은 공통 증강 풀과 지급처별 Value 가중치를 사용한다. Event는 기존 이벤트 보상 풀을 유지한다.
+- Value 1은 수치 보강, Value 2는 시너지 연결, Value 3은 규칙 변화를 담당하며 단순 상위호환 관계가 아니다.
+- Boss는 Stage별 전직 대신 Boss 가중치로 Value 1/2/3 후보를 추첨한다.
+- Augment Room은 Stage 1부터 생성 가능한 정규 증강 공급처로 두며 UI와 맵 생성 확률은 후속 작업이다.
 ## 42. 최종 공 풀과 제거 마이그레이션
 
 목표 공 풀은 Basic/Fire/Ice/Water/Lightning/Poison 6종 × 3등급이다. Water+Lightning 연쇄 감전과 Ice+Fire 담금 반응은 유지하며 모든 원소 쌍에 반응을 추가하지 않는다.
@@ -1749,15 +1599,14 @@ Stack 소비: 없음
 
 - 공 조성: `BallCollection`의 Ball별 `BallDefinition`, `TraitType`, `ElementType`, `StarGrade`를 Basic/Fire/Ice/Water/Lightning/Poison × 1★/2★/3★로 집계.
 - 속성 Tooltip: Ball/Element 설명 데이터. Poison은 직접 피해 0, Stack당 직접 충돌 +1, 최대 10, 턴 종료 제거를 명시.
-- 계열: 향후 Run 단위 1차 계열 상태. 2차 계열은 기획 보류 상태다.
-- T3: `RunAugmentState` Entry의 현재 Level과 `AugmentDefinition.MaxLevel`을 사용해 `Lv.N / Max` 표시.
+- 증강: `RunAugmentState` Entry의 Definition, Value Tier, 현재 Level과 `AugmentDefinition.MaxLevel`을 사용해 표시한다.
 
 Water/Lightning/Fire/Ice Tooltip은 실제 `ElementReactionResolver` 규칙과 맞춰 작성한다. Status 디자인은 미확정이며 데이터 접근 계층부터 구현한다.
 
 ## 46. 구현 전 미확정 사항
 
-- 1차 계열별 정확한 보정 수치
-- Stage 4의 2차 계열 종류와 효과(1차 구현 및 플레이 검증 전까지 기획 보류)
+- Value별 구체 증강 콘텐츠와 정확한 보정 수치
+- Augment Room의 Stage별 생성 확률과 UI
 - Stage별 정확한 T1/T2 지급량
 - Alchemy 시작 Stability, 선택 수 부담, 성공 감소량, 실패 패널티
 - 신규 중앙 Ball Panel 최종 이름과 정확한 Rect 배치

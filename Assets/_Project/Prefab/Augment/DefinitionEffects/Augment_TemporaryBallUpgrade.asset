@@ -17,6 +17,7 @@ MonoBehaviour:
   description: "\uC77C\uC815 \uD655\uB960\uB85C \uB354 \uB192\uC740 \uB4F1\uAE09\uC758
     \uACF5\uC73C\uB85C \uBC1C\uC0AC\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
+  valueTier: 3
   maxLevel: 3
   activationChanceByLevel:
   - 0.15

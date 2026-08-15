@@ -78,6 +78,32 @@ public sealed class RewardCatalog :
         }
     }
 
+    public void GetAugmentRewards(
+        List<AugmentRewardDefinition> results)
+    {
+        if (results == null)
+            return;
+
+        results.Clear();
+        if (rewardDefinitions == null)
+            return;
+
+        for (int i = 0; i < rewardDefinitions.Count; i++)
+        {
+            AugmentRewardDefinition reward =
+                rewardDefinitions[i] as AugmentRewardDefinition;
+
+            if (reward == null ||
+                !reward.CanBeSelected ||
+                reward.AugmentDefinition == null)
+            {
+                continue;
+            }
+
+            results.Add(reward);
+        }
+    }
+
     private void OnValidate()
     {
         if (rewardDefinitions == null)

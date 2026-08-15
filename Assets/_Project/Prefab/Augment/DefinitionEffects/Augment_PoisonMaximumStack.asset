@@ -1,0 +1,15 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61000000000000000000000000000001, type: 3}
+  m_Name: Augment_PoisonMaximumStack
+  m_EditorClassIdentifier: Assembly-CSharp::PoisonMaximumStackAugmentDefinition
+  augmentId: augment_poison_maximum_stack
+  displayName: "맹독 농축"
+  description: "독 최대 스택이 증가합니다."
+  icon: {fileID: 0}
+  valueTier: 1
+  maxLevel: 3
+  totalBonusByLevel: 020000000400000006000000

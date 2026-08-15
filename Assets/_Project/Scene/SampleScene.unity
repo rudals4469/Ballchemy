@@ -17789,6 +17789,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RoomRewardGenerator
   rewardCatalog: {fileID: 11400000, guid: 80100a41ddef0364fb4004c6f9c76a7a, type: 2}
+  augmentRewardSettings: {fileID: 11400000, guid: 5db5325190e74a8ecd38bd706aa08734, type: 2}
   choiceCount: 3
 --- !u!1 &995441196
 GameObject:

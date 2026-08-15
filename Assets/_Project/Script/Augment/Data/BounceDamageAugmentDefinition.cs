@@ -19,9 +19,9 @@ public sealed class BounceDamageAugmentDefinition :
     private List<int> requiredBouncesByLevel =
         new List<int>
         {
+            5,
             3,
-            2,
-            1
+            2
         };
 
     [Tooltip(
@@ -36,6 +36,10 @@ public sealed class BounceDamageAugmentDefinition :
             1,
             1
         };
+
+    [SerializeField]
+    private List<int> maximumDamageBonusByLevel =
+        new List<int> { 3, 4, 5 };
 
     public int GetRequiredBounceCount(
         int level)
@@ -113,11 +117,14 @@ public sealed class BounceDamageAugmentDefinition :
             bounceCount /
             requiredBounceCount;
 
-        return Mathf.Max(
-            completedSteps *
-            damagePerStep,
-            0
-        );
+        int maximumBonus = GetMaximumDamageBonus(level);
+        return Mathf.Clamp(completedSteps * damagePerStep, 0, maximumBonus);
+    }
+
+    public int GetMaximumDamageBonus(int level)
+    {
+        if (level <= 0 || maximumDamageBonusByLevel == null || maximumDamageBonusByLevel.Count == 0) return 0;
+        return Mathf.Max(maximumDamageBonusByLevel[Mathf.Clamp(level - 1, 0, maximumDamageBonusByLevel.Count - 1)], 0);
     }
 
     public override bool ApplyLevel(
@@ -157,7 +164,8 @@ public sealed class BounceDamageAugmentDefinition :
 
         return
             $"공이 {requiredBounceCount}회 반사될 때마다 " +
-            $"직접 피해가 {damagePerStep} 증가합니다.";
+            $"직접 피해가 {damagePerStep} 증가합니다. " +
+            $"한 번의 비행에서 최대 {GetMaximumDamageBonus(level)}까지 증가합니다.";
     }
 
     protected override void OnValidate()
@@ -187,6 +195,9 @@ public sealed class BounceDamageAugmentDefinition :
             MaxLevel,
             1
         );
+
+        if (maximumDamageBonusByLevel == null) maximumDamageBonusByLevel = new List<int>();
+        EnsureListSize(maximumDamageBonusByLevel, MaxLevel, 3);
 
         for (int i = 0;
              i < requiredBouncesByLevel.Count;

@@ -1,0 +1,15 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 774113563a9c8374796cc18a3727f9c3, type: 3}
+  m_Name: Reward_Augment_PoisonContagion
+  m_EditorClassIdentifier: Assembly-CSharp::AugmentRewardDefinition
+  rewardId: augment_poison_contagion
+  displayName: "독성 전염"
+  description: "최대 독 스택 블록을 다시 타격하면 주변에 독을 전파합니다."
+  icon: {fileID: 0}
+  rewardTier: 3
+  selectionWeight: 1
+  augmentDefinition: {fileID: 11400000, guid: 62000000000000000000000000000004, type: 2}

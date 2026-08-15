@@ -1,0 +1,15 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 774113563a9c8374796cc18a3727f9c3, type: 3}
+  m_Name: Reward_Augment_ConductionTarget
+  m_EditorClassIdentifier: Assembly-CSharp::AugmentRewardDefinition
+  rewardId: augment_conduction_target
+  displayName: "전도성 수막"
+  description: "번개 전이 최대 대상이 증가합니다."
+  icon: {fileID: 0}
+  rewardTier: 3
+  selectionWeight: 1
+  augmentDefinition: {fileID: 11400000, guid: 62000000000000000000000000000002, type: 2}

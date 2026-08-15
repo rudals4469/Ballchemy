@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61000000000000000000000000000005, type: 3}
+  m_Name: Augment_PoisonCollapse
+  m_EditorClassIdentifier: Assembly-CSharp::PoisonCollapseAugmentDefinition
+  augmentId: augment_poison_collapse
+  displayName: "독성 붕괴"
+  description: "최대 독 스택을 소비하여 주변에 폭발 피해를 줍니다."
+  icon: {fileID: 0}
+  valueTier: 3
+  maxLevel: 3
+  damageMultiplierByLevel: 010000000100000002000000
+  explosionRadius: 1

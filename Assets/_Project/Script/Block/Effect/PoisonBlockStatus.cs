@@ -11,6 +11,12 @@ public sealed class PoisonBlockStatus : MonoBehaviour
 
     public int StackCount => stackCount;
 
+    public void ClearStacks()
+    {
+        stackCount = 0;
+        ActiveStatuses.Remove(this);
+    }
+
     [RuntimeInitializeOnLoadMethod(
         RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetRuntimeState()

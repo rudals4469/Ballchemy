@@ -205,8 +205,8 @@ public sealed class SecretRoomRewardController : MonoBehaviour
 
         RewardApplyContext context = new RewardApplyContext(
             ballCollection, runAugmentState);
-        choices.AddRange(rewardGenerator.GenerateChoices(
-            RewardTier.Tier3, ChoiceCount, context));
+        choices.AddRange(rewardGenerator.GenerateAugmentChoices(
+            AugmentRewardSource.Secret, ChoiceCount, context));
     }
 
     private void RefreshSlots()
