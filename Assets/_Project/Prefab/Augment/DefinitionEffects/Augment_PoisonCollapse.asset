@@ -11,6 +11,6 @@ MonoBehaviour:
   description: "최대 독 스택을 소비하여 주변에 폭발 피해를 줍니다."
   icon: {fileID: 0}
   valueTier: 3
-  maxLevel: 3
+  maxLevel: 1
   damageMultiplierByLevel: 010000000100000002000000
   explosionRadius: 1

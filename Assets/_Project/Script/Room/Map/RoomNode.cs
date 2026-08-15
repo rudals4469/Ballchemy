@@ -53,6 +53,8 @@ public sealed class RoomNode
         roomType ==
             RoomType.Event ||
         roomType ==
+            RoomType.Augment ||
+        roomType ==
             RoomType.Secret;
 
     public bool IsSecretRoom =>

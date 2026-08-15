@@ -126,6 +126,9 @@ public sealed class StageMapUI :
     private string eventRoomSymbol = "?";
 
     [SerializeField]
+    private string augmentRoomSymbol = "G";
+
+    [SerializeField]
     private string secretRoomSymbol = "X";
 
     [Header("Optional Room Icons")]
@@ -148,6 +151,9 @@ public sealed class StageMapUI :
 
     [SerializeField]
     private Sprite eventRoomIcon;
+
+    [SerializeField]
+    private Sprite augmentRoomIcon;
 
     [SerializeField]
     private Sprite secretRoomIcon;
@@ -297,6 +303,12 @@ public sealed class StageMapUI :
             NormalizeSymbol(
                 eventRoomSymbol,
                 "?"
+            );
+
+        augmentRoomSymbol =
+            NormalizeSymbol(
+                augmentRoomSymbol,
+                "G"
             );
 
         secretRoomSymbol =
@@ -845,6 +857,7 @@ public sealed class StageMapUI :
             case RoomType.Shop:
             case RoomType.Alchemy:
             case RoomType.Event:
+            case RoomType.Augment:
                 return true;
 
             case RoomType.NormalCombat:
@@ -954,6 +967,9 @@ public sealed class StageMapUI :
             case RoomType.Event:
                 return eventRoomSymbol;
 
+            case RoomType.Augment:
+                return augmentRoomSymbol;
+
             case RoomType.Secret:
                 return secretRoomSymbol;
 
@@ -984,6 +1000,9 @@ public sealed class StageMapUI :
 
             case RoomType.Event:
                 return eventRoomIcon;
+
+            case RoomType.Augment:
+                return augmentRoomIcon;
 
             case RoomType.Secret:
                 return secretRoomIcon;

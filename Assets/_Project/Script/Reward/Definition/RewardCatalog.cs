@@ -20,6 +20,9 @@ public sealed class RewardCatalog :
         rewardDefinitions =
             new List<RewardDefinition>();
 
+    [SerializeField]
+    private AugmentRuleCatalog augmentRuleCatalog;
+
     public IReadOnlyList<RewardDefinition>
         RewardDefinitions =>
             rewardDefinitions;
@@ -102,6 +105,8 @@ public sealed class RewardCatalog :
 
             results.Add(reward);
         }
+
+        augmentRuleCatalog?.GetRuntimeRewards(results);
     }
 
     private void OnValidate()

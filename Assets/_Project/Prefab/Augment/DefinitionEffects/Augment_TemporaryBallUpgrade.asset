@@ -18,7 +18,7 @@ MonoBehaviour:
     \uACF5\uC73C\uB85C \uBC1C\uC0AC\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   valueTier: 3
-  maxLevel: 3
+  maxLevel: 1
   activationChanceByLevel:
   - 0.15
   - 0.3

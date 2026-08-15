@@ -431,6 +431,9 @@ public sealed class StageMapDebugView :
             case RoomType.Event:
                 return Color.magenta;
 
+            case RoomType.Augment:
+                return new Color(0.55f, 0.3f, 1f);
+
             default:
                 return Color.white;
         }

@@ -1513,7 +1513,7 @@ Tier 보상
 - Boss/Secret/Augment Room은 공통 증강 풀과 지급처별 Value 가중치를 사용한다. Event는 기존 이벤트 보상 풀을 유지한다.
 - Value 1은 수치 보강, Value 2는 시너지 연결, Value 3은 규칙 변화를 담당하며 단순 상위호환 관계가 아니다.
 - Boss는 Stage별 전직 대신 Boss 가중치로 Value 1/2/3 후보를 추첨한다.
-- Augment Room은 Stage 1부터 생성 가능한 정규 증강 공급처로 두며 UI와 맵 생성 확률은 후속 작업이다.
+- Augment Room은 Stage 1부터 매 Stage 한 개 생성되는 정규 증강 공급처다. 기존 보상 UI로 후보 3개 중 하나를 선택하며 선택 전까지 이동이 잠긴다.
 ## 42. 최종 공 풀과 제거 마이그레이션
 
 목표 공 풀은 Basic/Fire/Ice/Water/Lightning/Poison 6종 × 3등급이다. Water+Lightning 연쇄 감전과 Ice+Fire 담금 반응은 유지하며 모든 원소 쌍에 반응을 추가하지 않는다.

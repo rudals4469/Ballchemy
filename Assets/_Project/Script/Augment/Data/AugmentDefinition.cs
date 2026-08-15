@@ -49,6 +49,20 @@ public abstract class AugmentDefinition :
     public AugmentValueTier ValueTier =>
         valueTier;
 
+    protected void ConfigureBase(
+        string id,
+        string title,
+        string body,
+        AugmentValueTier tier,
+        int maximumLevel)
+    {
+        augmentId = id;
+        displayName = title;
+        description = body;
+        valueTier = tier;
+        maxLevel = Mathf.Max(maximumLevel, 1);
+    }
+
     public bool IsValidLevel(
         int level)
     {

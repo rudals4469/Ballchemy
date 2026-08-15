@@ -68,15 +68,17 @@ public static class
     public static MultiDirectionLaunchSettings
         GetCurrentSettings()
     {
+        int duplicateBranches = AugmentCombatModifiers.GetRuleInteger(
+            RuleAugmentEffectKind.TemporaryDuplicateLaunch);
         if (!TryFindActiveAugment(
                 out MultiDirectionLaunchAugmentDefinition
                     definition,
                 out int level
             ))
         {
-            return
-                MultiDirectionLaunchSettings
-                    .Default;
+            return duplicateBranches > 0
+                ? new MultiDirectionLaunchSettings(true, 1 + duplicateBranches, 8f)
+                : MultiDirectionLaunchSettings.Default;
         }
 
         int branchCount =
@@ -91,7 +93,7 @@ public static class
 
         return new MultiDirectionLaunchSettings(
             branchCount > 1,
-            branchCount,
+            branchCount + duplicateBranches,
             spreadAngle
         );
     }

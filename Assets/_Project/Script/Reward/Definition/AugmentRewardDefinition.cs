@@ -20,6 +20,18 @@ public sealed class AugmentRewardDefinition :
     public AugmentDefinition AugmentDefinition =>
         augmentDefinition;
 
+    public void ConfigureRuntime(
+        string id,
+        string title,
+        string body,
+        AugmentDefinition definition,
+        int weight)
+    {
+        ConfigureBase(id, title, body, RewardTier.Tier3, weight);
+        augmentDefinition = definition;
+        name = $"RuntimeReward_{id}";
+    }
+
     public override bool CanApply(
         RewardApplyContext context)
     {

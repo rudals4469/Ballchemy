@@ -36,6 +36,7 @@ public sealed class SecretRoomRewardController : MonoBehaviour
         new List<RewardDefinition>();
     private UnityAction[] slotActions;
     private OneShotSelectionVisual[] slotVisuals;
+    private CommonChoiceCardLayout[] slotLayouts;
     private int preparedSecretRoomId = -1;
     private int selectedIndex = -1;
     private int observedStateVersion = -1;
@@ -334,6 +335,7 @@ public sealed class SecretRoomRewardController : MonoBehaviour
 
         slotActions = new UnityAction[slotButtons.Length];
         slotVisuals = new OneShotSelectionVisual[slotButtons.Length];
+        slotLayouts = new CommonChoiceCardLayout[slotButtons.Length];
         for (int i = 0; i < slotButtons.Length; i++)
         {
             if (slotButtons[i] == null)
@@ -347,6 +349,19 @@ public sealed class SecretRoomRewardController : MonoBehaviour
                 slotVisuals[i] = slotButtons[i].gameObject
                     .AddComponent<OneShotSelectionVisual>();
             slotVisuals[i].ResetVisual();
+
+            slotLayouts[i] = slotButtons[i].GetComponent<CommonChoiceCardLayout>();
+            if (slotLayouts[i] == null)
+                slotLayouts[i] = slotButtons[i].gameObject.AddComponent<CommonChoiceCardLayout>();
+            Image icon = slotIcons != null && i < slotIcons.Length ? slotIcons[i] : null;
+            TMP_Text name = slotNameTexts != null && i < slotNameTexts.Length ? slotNameTexts[i] : null;
+            TMP_Text description = slotDescriptionTexts != null && i < slotDescriptionTexts.Length ? slotDescriptionTexts[i] : null;
+            TMP_Text cost = slotCostTexts != null && i < slotCostTexts.Length ? slotCostTexts[i] : null;
+            slotLayouts[i].Configure(
+                slotButtons[i], icon,
+                icon != null ? icon.transform.parent.gameObject : null,
+                name, cost, description);
+            slotLayouts[i].SetBackgroundColor(CommonChoiceCardLayout.Silver);
         }
     }
 
@@ -406,6 +421,6 @@ public sealed class SecretRoomRewardController : MonoBehaviour
     private static void SetText(TMP_Text[] texts, int index, string value)
     {
         if (texts != null && index < texts.Length && texts[index] != null)
-            texts[index].text = value ?? string.Empty;
+            CommonChoiceCardLayout.SetText(texts[index], value);
     }
 }

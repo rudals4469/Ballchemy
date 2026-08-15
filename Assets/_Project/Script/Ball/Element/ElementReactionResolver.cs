@@ -83,7 +83,7 @@ public static class ElementReactionResolver
                         resolvedWetStack +
                         requestedStackAmount,
                         0,
-                        status.MaximumStack
+                        status.GetMaximumStack(ElementType.Water)
                     );
 
                 appliedElementStack =
@@ -103,7 +103,7 @@ public static class ElementReactionResolver
                         resolvedChargeStack +
                         requestedStackAmount,
                         0,
-                        status.MaximumStack
+                        status.GetMaximumStack(ElementType.Electric)
                     );
 
                 appliedElementStack =
@@ -123,7 +123,7 @@ public static class ElementReactionResolver
                         resolvedBurnStack +
                         requestedStackAmount,
                         0,
-                        status.MaximumStack
+                        status.GetMaximumStack(ElementType.Fire)
                     );
 
                 appliedElementStack =
@@ -152,7 +152,7 @@ public static class ElementReactionResolver
                         resolvedFrostStack +
                         requestedStackAmount,
                         0,
-                        status.MaximumStack
+                        status.GetMaximumStack(ElementType.Ice)
                     );
 
                 appliedElementStack =

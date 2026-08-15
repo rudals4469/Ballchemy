@@ -23,9 +23,9 @@ public sealed class StageMapGenerator :
 
     [Tooltip(
         "첫 번째 스테이지의 최소 방 개수입니다. " +
-        "필수 방 구성을 위해 최소 7 이상을 권장합니다."
+        "필수 방 구성을 위해 최소 9 이상이 필요합니다."
     )]
-    [SerializeField, Min(7)]
+    [SerializeField, Min(9)]
     private int baseRoomCount = 9;
 
     [Tooltip(
@@ -34,7 +34,7 @@ public sealed class StageMapGenerator :
     [SerializeField, Min(0)]
     private int additionalRoomsPerStage = 2;
 
-    [SerializeField, Min(7)]
+    [SerializeField, Min(9)]
     private int maximumRoomCount = 20;
 
     [Header("Named Rooms")]
@@ -68,7 +68,7 @@ public sealed class StageMapGenerator :
     private float branchPreference = 0.75f;
 
     [Tooltip(
-        "보스·상점·연금술·이벤트방에 필요한 막다른 방이 " +
+        "보스·상점·연금술·이벤트·증강방에 필요한 막다른 방이 " +
         "부족할 때 맵 생성을 다시 시도하는 최대 횟수입니다."
     )]
     [SerializeField, Min(1)]
@@ -105,7 +105,7 @@ public sealed class StageMapGenerator :
     [SerializeField]
     private StageMap currentMap;
 
-    private const int RequiredSpecialLeafCount = 4;
+    private const int RequiredSpecialLeafCount = 5;
 
     private static readonly RoomDirection[]
         Directions =
@@ -862,7 +862,7 @@ public sealed class StageMapGenerator :
         return Mathf.Clamp(
             baseRoomCount +
             stageAdditionalRooms,
-            7,
+                9,
             maximumRoomCount
         );
     }
@@ -1188,13 +1188,21 @@ public sealed class StageMapGenerator :
                 random
             );
 
+        bool augmentAssigned =
+            AssignOneRoomType(
+                specialLeafRooms,
+                RoomType.Augment,
+                random
+            );
+
         if (!shopAssigned ||
             !alchemyAssigned ||
-            !eventAssigned)
+            !eventAssigned ||
+            !augmentAssigned)
         {
             Debug.LogError(
                 "StageMapGenerator: " +
-                "상점·연금술·이벤트방을 모두 막다른 방에 " +
+                "상점·연금술·이벤트·증강방을 모두 막다른 방에 " +
                 "배치하지 못했습니다.",
                 this
             );
@@ -1523,6 +1531,7 @@ public sealed class StageMapGenerator :
             $"Shop={map.CountRoomsOfType(RoomType.Shop)}, " +
             $"Alchemy={map.CountRoomsOfType(RoomType.Alchemy)}, " +
             $"Event={map.CountRoomsOfType(RoomType.Event)}, " +
+            $"Augment={map.CountRoomsOfType(RoomType.Augment)}, " +
             $"Secret={map.CountRoomsOfType(RoomType.Secret)}",
             this
         );
@@ -1539,7 +1548,7 @@ public sealed class StageMapGenerator :
         baseRoomCount =
             Mathf.Max(
                 baseRoomCount,
-                7
+                9
             );
 
         additionalRoomsPerStage =

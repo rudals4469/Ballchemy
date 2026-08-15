@@ -891,11 +891,24 @@ public sealed class Ball :
     {
         bounceCount++;
 
+        if (bounceCount == 1)
+        {
+            int retention = AugmentCombatModifiers.GetRuleInteger(
+                RuleAugmentEffectKind.FirstBounceSpeedRetention);
+            if (retention > 0)
+                SetRuntimeSpeedMultiplier(runtimeSpeedMultiplier * (1f + retention / 100f));
+        }
+
         int nextDamageBonus =
             BounceDamageAugmentSystem
                 .CalculateDamageBonus(
                     bounceCount
                 );
+
+        int splitThreshold = AugmentCombatModifiers.GetRuleInteger(
+            RuleAugmentEffectKind.BallisticSplit);
+        if (splitThreshold > 0 && bounceCount == splitThreshold)
+            combatController?.AddIndividualDirectDamageBonus(3);
 
         int bonusDifference =
             nextDamageBonus -

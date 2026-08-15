@@ -167,7 +167,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 306cc8c2b49d7114eaa3623786fc2126, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
   m_IgnoreLayout: 0
   m_MinWidth: -1
@@ -1635,14 +1635,14 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 61693964}
   - {fileID: 1765613869}
   - {fileID: 525460575}
   - {fileID: 1014591639}
   - {fileID: 77999666}
   - {fileID: 267399537}
-  - {fileID: 1449539814}
   - {fileID: 1593605053}
+  - {fileID: 61693964}
+  - {fileID: 1449539814}
   m_Father: {fileID: 469636337}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0.5}
@@ -4764,6 +4764,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RewardCardUI
   selectButton: {fileID: 324729223}
   iconImage: {fileID: 321329639}
+  backgroundImage: {fileID: 324729224}
   iconRoot: {fileID: 155033417}
   levelStarsRoot: {fileID: 325943662}
   levelStarImages:
@@ -5735,7 +5736,7 @@ MonoBehaviour:
   secretRoomCoordinateSelector: {fileID: 372114445}
   secretRoomState: {fileID: 372114446}
   testStageNumber: 1
-  baseRoomCount: 7
+  baseRoomCount: 9
   additionalRoomsPerStage: 2
   maximumRoomCount: 30
   baseNamedRoomCount: 1
@@ -6137,6 +6138,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RewardCardUI
   selectButton: {fileID: 378993474}
   iconImage: {fileID: 2134299963}
+  backgroundImage: {fileID: 378993475}
   iconRoot: {fileID: 1339770546}
   levelStarsRoot: {fileID: 467485889}
   levelStarImages:
@@ -8875,54 +8877,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2200000001
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2200000002}
-  - component: {fileID: 2200000003}
-  m_Layer: 0
-  m_Name: "증강 테스트 패널 (F8)"
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2200000002
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2200000001}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1372127547}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2200000003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2200000001}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 64000000000000000000000000000001, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AugmentDebugPanel
-  rewardGenerator: {fileID: 0}
-  ballCollection: {fileID: 0}
-  runAugmentState: {fileID: 0}
-  showOnStart: 1
 --- !u!1 &525460573
 GameObject:
   m_ObjectHideFlags: 0
@@ -17802,6 +17756,7 @@ GameObject:
   m_Component:
   - component: {fileID: 990971180}
   - component: {fileID: 990971181}
+  - component: {fileID: 2200000010}
   m_Layer: 0
   m_Name: RoomRewardSystem
   m_TagString: Untagged
@@ -24817,7 +24772,8 @@ GameObject:
   - component: {fileID: 1372127547}
   m_Layer: 0
   m_Name: "Q \uC77C\uBC18 / W \uB124\uC784\uB4DC / E \uBCF4\uC2A4 / R \uC0C1\uC810
-    / T \uC5F0\uAE08\uC220 / Y \uC774\uBCA4\uD2B8 / U \uBE44\uBC00 / I \uC2DC\uC791"
+    / T \uC5F0\uAE08\uC220 / Y \uC774\uBCA4\uD2B8 / U \uBE44\uBC00 / I \uC2DC\uC791
+    / O \uC99D\uAC15"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -31049,6 +31005,7 @@ MonoBehaviour:
   shopRoomSymbol: $
   alchemyRoomSymbol: A
   eventRoomSymbol: '?'
+  augmentRoomSymbol: G
   secretRoomSymbol: X
   startRoomIcon: {fileID: 0}
   namedRoomIcon: {fileID: 0}
@@ -31056,6 +31013,7 @@ MonoBehaviour:
   shopRoomIcon: {fileID: 0}
   alchemyRoomIcon: {fileID: 0}
   eventRoomIcon: {fileID: 0}
+  augmentRoomIcon: {fileID: 0}
   secretRoomIcon: {fileID: 0}
   showDebugLog: 0
 --- !u!1 &1707354277
@@ -35772,6 +35730,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RewardCardUI
   selectButton: {fileID: 2001399150}
   iconImage: {fileID: 746823713}
+  backgroundImage: {fileID: 2001399151}
   iconRoot: {fileID: 1557286235}
   levelStarsRoot: {fileID: 946141864}
   levelStarImages:
@@ -39678,6 +39637,72 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &2200000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2200000002}
+  - component: {fileID: 2200000003}
+  m_Layer: 0
+  m_Name: "\uC99D\uAC15 \uD14C\uC2A4\uD2B8 \uD328\uB110 (F8)"
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2200000002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1372127547}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2200000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2200000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64000000000000000000000000000001, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AugmentDebugPanel
+  rewardGenerator: {fileID: 0}
+  ballCollection: {fileID: 0}
+  runAugmentState: {fileID: 0}
+  showOnStart: 0
+--- !u!114 &2200000010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 990971179}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65000000000000000000000000000001, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AugmentRoomController
+  roomNavigator: {fileID: 372114439}
+  mapGenerator: {fileID: 372114438}
+  rewardGenerator: {fileID: 990971181}
+  rewardSelectionUI: {fileID: 1593605052}
+  ballCollection: {fileID: 904823811}
+  runAugmentState: {fileID: 904823821}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

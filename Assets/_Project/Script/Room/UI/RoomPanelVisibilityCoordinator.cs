@@ -73,7 +73,8 @@ public sealed class RoomPanelVisibilityCoordinator : MonoBehaviour
 
         bool isRewardRoom = roomType == RoomType.NormalCombat ||
             roomType == RoomType.NamedCombat ||
-            roomType == RoomType.Boss;
+            roomType == RoomType.Boss ||
+            roomType == RoomType.Augment;
         EnforcePanel(rewardSelectionPanel, isRewardRoom);
     }
 

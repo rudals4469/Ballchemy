@@ -18,7 +18,7 @@ MonoBehaviour:
     \uBC1C\uC0AC\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   valueTier: 3
-  maxLevel: 2
+  maxLevel: 1
   branchCountByLevel: 0200000003000000
   spreadAngleByLevel:
   - 1.5

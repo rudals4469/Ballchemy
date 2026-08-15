@@ -9,6 +9,12 @@ using UnityEngine.UI;
 public sealed class RewardCardUI :
     MonoBehaviour
 {
+    private const string FallbackAugmentIconResourcePath =
+        "UI/Icon_Augment_Test";
+    private const string AugmentLevelStarResourcePath =
+        "UI/Icon_Augment_LevelStar";
+    private static Sprite fallbackAugmentIcon;
+    private static Sprite augmentLevelStar;
     [Header("Interaction")]
 
     [SerializeField]
@@ -18,6 +24,10 @@ public sealed class RewardCardUI :
 
     [SerializeField]
     private Image iconImage;
+
+    [Tooltip("증강 빌드 색상을 적용할 카드 배경입니다. 비어 있으면 Button Target Graphic을 사용합니다.")]
+    [SerializeField]
+    private Image backgroundImage;
 
     [SerializeField]
     private GameObject iconRoot;
@@ -44,8 +54,8 @@ public sealed class RewardCardUI :
     private Color acquiredStarColor =
         new Color(
             1f,
-            0.82f,
-            0.12f,
+            0.78f,
+            0.06f,
             1f
         );
 
@@ -93,6 +103,9 @@ public sealed class RewardCardUI :
     private bool isSelectionEnabled;
     private bool hasInvokedSelection;
     private OneShotSelectionVisual selectionVisual;
+    private CommonChoiceCardLayout commonLayout;
+    private Color originalBackgroundColor = Color.white;
+    private bool hasCapturedBackgroundColor;
 
     public RewardDefinition
         BoundRewardDefinition =>
@@ -195,6 +208,9 @@ public sealed class RewardCardUI :
             content
         );
 
+        ApplyRewardCardColor();
+        RefreshIconLevelPanel();
+
         RefreshAugmentLevelStars();
 
         SetSelectionEnabled(
@@ -234,6 +250,9 @@ public sealed class RewardCardUI :
             false;
 
         selectionVisual?.ResetVisual();
+
+        RestoreBackgroundColor();
+        commonLayout?.SetIconAuxiliaryPanelVisible(false, false);
 
         SetSelectionEnabled(
             false
@@ -290,6 +309,7 @@ public sealed class RewardCardUI :
     private void ApplyContent(
         RewardCardContent content)
     {
+        ConfigureTextWrapping();
         SetText(
             titleText,
             content.Title
@@ -305,13 +325,20 @@ public sealed class RewardCardUI :
             content.EffectText
         );
 
-        bool hasIcon =
-            content.Icon != null;
+        Sprite displayedIcon = content.Icon;
+        if (displayedIcon == null &&
+            boundRewardDefinition is AugmentRewardDefinition)
+        {
+            if (fallbackAugmentIcon == null)
+                fallbackAugmentIcon = Resources.Load<Sprite>(FallbackAugmentIconResourcePath);
+            displayedIcon = fallbackAugmentIcon;
+        }
+
+        bool hasIcon = displayedIcon != null;
 
         if (iconImage != null)
         {
-            iconImage.sprite =
-                content.Icon;
+            iconImage.sprite = displayedIcon;
 
             iconImage.enabled =
                 hasIcon;
@@ -357,6 +384,8 @@ public sealed class RewardCardUI :
 
     private void RefreshAugmentLevelStars()
     {
+        ConfigureLevelStarsAlignment();
+
         AugmentRewardDefinition augmentReward =
             boundRewardDefinition as
                 AugmentRewardDefinition;
@@ -393,6 +422,15 @@ public sealed class RewardCardUI :
                 1
             );
 
+        if (maximumLevel <= 1)
+        {
+            SetObjectActive(levelStarsRoot, false);
+            commonLayout?.SetIconAuxiliaryPanelVisible(true, false);
+            return;
+        }
+
+        commonLayout?.SetIconAuxiliaryPanelVisible(true, true);
+
         int currentLevel =
             boundRunAugmentState != null
                 ? boundRunAugmentState.GetLevel(
@@ -411,6 +449,9 @@ public sealed class RewardCardUI :
             levelStarsRoot,
             true
         );
+
+        if (augmentLevelStar == null)
+            augmentLevelStar = Resources.Load<Sprite>(AugmentLevelStarResourcePath);
 
         for (int i = 0;
              i < levelStarImages.Count;
@@ -435,6 +476,11 @@ public sealed class RewardCardUI :
             {
                 continue;
             }
+
+            if (augmentLevelStar != null)
+                starImage.sprite = augmentLevelStar;
+
+            starImage.rectTransform.sizeDelta = new Vector2(22f, 22f);
 
             bool isAcquired =
                 i < displayedLevel;
@@ -480,6 +526,15 @@ public sealed class RewardCardUI :
                 GetComponent<Button>();
         }
 
+        if (backgroundImage == null && selectButton != null)
+            backgroundImage = selectButton.targetGraphic as Image;
+
+        if (backgroundImage != null && !hasCapturedBackgroundColor)
+        {
+            originalBackgroundColor = backgroundImage.color;
+            hasCapturedBackgroundColor = true;
+        }
+
         if (selectionVisual == null)
         {
             selectionVisual =
@@ -491,6 +546,81 @@ public sealed class RewardCardUI :
             selectionVisual =
                 gameObject.AddComponent<OneShotSelectionVisual>();
         }
+
+        if (commonLayout == null)
+            commonLayout = GetComponent<CommonChoiceCardLayout>();
+        if (commonLayout == null && Application.isPlaying)
+            commonLayout = gameObject.AddComponent<CommonChoiceCardLayout>();
+        commonLayout?.Configure(
+            selectButton, iconImage, iconRoot,
+            titleText, grantText, effectText);
+    }
+
+    private void ConfigureTextWrapping()
+    {
+        CommonChoiceCardLayout.ConfigureText(
+            titleText, TextAlignmentOptions.TopLeft);
+        CommonChoiceCardLayout.ConfigureText(
+            grantText, TextAlignmentOptions.TopRight);
+        CommonChoiceCardLayout.ConfigureText(
+            effectText, TextAlignmentOptions.TopLeft);
+    }
+
+    private void ConfigureLevelStarsAlignment()
+    {
+        if (levelStarsRoot == null) return;
+
+        HorizontalLayoutGroup layout = levelStarsRoot.GetComponent<HorizontalLayoutGroup>();
+        if (layout != null)
+        {
+            layout.childAlignment = TextAnchor.MiddleLeft;
+            layout.spacing = 3f;
+            layout.childForceExpandWidth = false;
+            layout.childControlWidth = false;
+            layout.childForceExpandHeight = false;
+            layout.childControlHeight = false;
+        }
+    }
+
+    private void ApplyRewardCardColor()
+    {
+        RestoreBackgroundColor();
+        if (backgroundImage == null || boundRewardDefinition == null)
+            return;
+
+        if (boundRewardDefinition is AugmentRewardDefinition augmentReward &&
+            augmentReward.AugmentDefinition != null)
+        {
+            backgroundImage.color = ResolveValueColor(
+                augmentReward.AugmentDefinition.ValueTier);
+            return;
+        }
+
+        backgroundImage.color = ResolveRewardTierColor(
+            boundRewardDefinition.RewardTier,
+            originalBackgroundColor);
+    }
+
+    private void RestoreBackgroundColor()
+    {
+        if (backgroundImage != null && hasCapturedBackgroundColor)
+            backgroundImage.color = originalBackgroundColor;
+    }
+
+    private void RefreshIconLevelPanel()
+    {
+        bool isAugment = boundRewardDefinition is AugmentRewardDefinition;
+        commonLayout?.SetIconAuxiliaryPanelVisible(isAugment, false);
+    }
+
+    private static Color ResolveValueColor(AugmentValueTier valueTier)
+    {
+        return CommonChoiceCardLayout.ForValueTier(valueTier);
+    }
+
+    private static Color ResolveRewardTierColor(RewardTier rewardTier, Color fallback)
+    {
+        return CommonChoiceCardLayout.ForRewardTier(rewardTier, fallback);
     }
 
     private void RemoveNullStarImages()
@@ -632,8 +762,7 @@ public sealed class RewardCardUI :
             return;
         }
 
-        targetText.text =
-            value ?? string.Empty;
+        CommonChoiceCardLayout.SetText(targetText, value);
     }
 
     private static void SetObjectActive(

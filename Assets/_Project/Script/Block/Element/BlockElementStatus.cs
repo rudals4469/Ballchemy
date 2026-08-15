@@ -40,6 +40,9 @@ public sealed class BlockElementStatus : MonoBehaviour
     public int MaximumStack =>
         maximumStack;
 
+    public int GetMaximumStack(ElementType element) =>
+        maximumStack + AugmentCombatModifiers.GetElementMaximumStackBonus(element);
+
     public int WetStack =>
         wetStack;
 
@@ -557,28 +560,28 @@ public sealed class BlockElementStatus : MonoBehaviour
             Mathf.Clamp(
                 resolvedWetStack,
                 0,
-                maximumStack
+                GetMaximumStack(ElementType.Water)
             );
 
         resolvedChargeStack =
             Mathf.Clamp(
                 resolvedChargeStack,
                 0,
-                maximumStack
+                GetMaximumStack(ElementType.Electric)
             );
 
         resolvedBurnStack =
             Mathf.Clamp(
                 resolvedBurnStack,
                 0,
-                maximumStack
+                GetMaximumStack(ElementType.Fire)
             );
 
         resolvedFrostStack =
             Mathf.Clamp(
                 resolvedFrostStack,
                 0,
-                maximumStack
+                GetMaximumStack(ElementType.Ice)
             );
 
         /*
@@ -594,7 +597,7 @@ public sealed class BlockElementStatus : MonoBehaviour
         bool shouldBecomeFrozen =
             !isFrozen &&
             resolvedFrostStack >=
-            maximumStack;
+            GetMaximumStack(ElementType.Ice);
 
         if (shouldBecomeFrozen)
         {

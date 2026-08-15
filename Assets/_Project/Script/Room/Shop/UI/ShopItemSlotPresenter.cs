@@ -59,6 +59,7 @@ public sealed class ShopItemSlotPresenter :
     private int currentInventorySlotIndex = -1;
     private int currentDisplayedPrice;
     private bool isSoldOut;
+    private CommonChoiceCardLayout commonLayout;
 
     public ShopItemDefinition CurrentItem =>
         currentItem;
@@ -213,15 +214,16 @@ public sealed class ShopItemSlotPresenter :
 
         if (itemNameText != null)
         {
-            itemNameText.text =
-                currentItem.DisplayName;
+            CommonChoiceCardLayout.SetText(itemNameText, currentItem.DisplayName);
         }
 
         if (itemDescriptionText != null)
         {
-            itemDescriptionText.text =
-                currentItem.Description;
+            CommonChoiceCardLayout.SetText(itemDescriptionText, currentItem.Description);
         }
+
+        if (slotButton != null && slotButton.targetGraphic != null)
+            slotButton.targetGraphic.color = CommonChoiceCardLayout.Silver;
 
         ApplyPriceVisual();
         ApplyInteractionState();
@@ -334,6 +336,16 @@ public sealed class ShopItemSlotPresenter :
             slotButton =
                 GetComponent<Button>();
         }
+
+        if (commonLayout == null)
+            commonLayout = GetComponent<CommonChoiceCardLayout>();
+        if (commonLayout == null && Application.isPlaying)
+            commonLayout = gameObject.AddComponent<CommonChoiceCardLayout>();
+        commonLayout?.Configure(
+            slotButton, itemIcon,
+            itemIcon != null ? itemIcon.transform.parent.gameObject : null,
+            itemNameText, priceText, itemDescriptionText);
+        commonLayout?.SetBackgroundColor(CommonChoiceCardLayout.Silver);
     }
 
     private void ValidateReferences()

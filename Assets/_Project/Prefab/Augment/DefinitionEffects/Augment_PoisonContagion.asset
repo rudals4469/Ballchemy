@@ -11,6 +11,6 @@ MonoBehaviour:
   description: "최대 독 스택 블록을 다시 타격하면 주변에 독을 전파합니다."
   icon: {fileID: 0}
   valueTier: 2
-  maxLevel: 3
+  maxLevel: 2
   spreadStacksByLevel: 010000000200000003000000
   maximumTargetsByLevel: 010000000200000003000000

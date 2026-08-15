@@ -11,5 +11,5 @@ MonoBehaviour:
   description: "젖은 블록의 감전 전도망이 추가로 이어집니다."
   icon: {fileID: 0}
   valueTier: 2
-  maxLevel: 3
+  maxLevel: 2
   extraChainTargetsByLevel: 010000000200000003000000

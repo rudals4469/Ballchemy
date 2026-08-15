@@ -150,7 +150,9 @@ public sealed class ElementalBallEffect :
         int requestedStackAmount =
             elementalDefinition.GetStackAmount(
                 starGrade
-            );
+            ) + AugmentCombatModifiers.GetAppliedStackBonus(
+                context.Ball,
+                elementalDefinition.ElementType);
 
         ElementReactionResult reactionResult =
             ElementReactionResolver
@@ -164,6 +166,8 @@ public sealed class ElementalBallEffect :
                     elementalDefinition
                         .ThermalShockDamageMultiplier
                 );
+
+        ApplyRuleAugmentSideEffects(context, elementStatus, reactionResult);
 
         if (showDebugLog)
         {
@@ -238,6 +242,64 @@ public sealed class ElementalBallEffect :
 
         return BallHitResult
             .HandledWithBounce();
+    }
+
+    private void ApplyRuleAugmentSideEffects(
+        BallHitContext context,
+        BlockElementStatus sourceStatus,
+        ElementReactionResult result)
+    {
+        int spread = 0;
+        if (elementalDefinition.ElementType == ElementType.Fire)
+            spread = AugmentCombatModifiers.GetRuleInteger(RuleAugmentEffectKind.FireSpread);
+        else if (elementalDefinition.ElementType == ElementType.Water)
+            spread = AugmentCombatModifiers.GetRuleInteger(RuleAugmentEffectKind.WetSpread);
+        else if (elementalDefinition.ElementType == ElementType.Ice && result.HasReaction)
+            spread = AugmentCombatModifiers.GetRuleInteger(RuleAugmentEffectKind.FrostSpreadOnShatter);
+
+        if (spread > 0 && sourceStatus != null)
+        {
+            BlockGridManager grid = FindFirstObjectByType<BlockGridManager>();
+            if (grid != null)
+            {
+                List<Block> neighbors = BlockNeighborhoodResolver.FindSurroundingBlocks(
+                    context.Block, grid.ActiveBlocks, 1);
+                for (int i = 0; i < neighbors.Count; i++)
+                {
+                    Block neighbor = neighbors[i];
+                    if (neighbor == null || !neighbor.IsAlive) continue;
+                    BlockElementStatus status = GetOrAddElementStatus(neighbor);
+                    if (elementalDefinition.ElementType == ElementType.Fire) status.AddBurn(spread, context.DirectDamage);
+                    else if (elementalDefinition.ElementType == ElementType.Water) status.AddWet(spread);
+                    else status.AddFrost(spread);
+                }
+            }
+        }
+
+        BallTurnQueueController queue = FindFirstObjectByType<BallTurnQueueController>();
+        int delugeThreshold = AugmentCombatModifiers.GetRuleInteger(RuleAugmentEffectKind.GlobalWetOnThreshold);
+        if (elementalDefinition.ElementType == ElementType.Water && delugeThreshold > 0 &&
+            queue != null && queue.NextLaunchIndex == delugeThreshold)
+        {
+            BlockGridManager grid = FindFirstObjectByType<BlockGridManager>();
+            if (grid != null)
+                for (int i = 0; i < grid.ActiveBlocks.Count; i++)
+                {
+                    Block block = grid.ActiveBlocks[i];
+                    if (block != null && block.IsAlive) GetOrAddElementStatus(block).AddWet(1);
+                }
+        }
+
+        if (result.HasReaction)
+        {
+            int poison = AugmentCombatModifiers.GetRuleInteger(RuleAugmentEffectKind.PoisonReactionSpread);
+            if (poison > 0)
+            {
+                PoisonBlockStatus status = context.Block.GetComponent<PoisonBlockStatus>();
+                if (status == null) status = context.Block.gameObject.AddComponent<PoisonBlockStatus>();
+                status.AddStacks(poison, 10 + AugmentCombatModifiers.GetPoisonMaximumStackBonus());
+            }
+        }
     }
 
     private List<Block> PrepareConductionTargets(

@@ -66,6 +66,20 @@ public abstract class RewardDefinition :
     public abstract bool Apply(
         RewardApplyContext context);
 
+    protected void ConfigureBase(
+        string id,
+        string title,
+        string body,
+        RewardTier tier,
+        int weight)
+    {
+        rewardId = id;
+        displayName = title;
+        description = body;
+        rewardTier = tier;
+        selectionWeight = Mathf.Max(weight, 0);
+    }
+
     protected virtual void OnValidate()
     {
         selectionWeight =

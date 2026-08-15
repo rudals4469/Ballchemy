@@ -65,11 +65,14 @@ public sealed class PoisonBlockStatus : MonoBehaviour
         {
             if (status != null)
             {
-                status.stackCount = 0;
+                int retained = AugmentCombatModifiers.GetRuleInteger(
+                    RuleAugmentEffectKind.PoisonTurnRetention);
+                status.stackCount = Mathf.Min(status.stackCount, retained);
+                if (status.stackCount > 0) ActiveStatuses.Add(status);
             }
         }
 
-        ActiveStatuses.Clear();
+        ActiveStatuses.RemoveWhere(status => status == null || status.stackCount <= 0);
     }
 
     private void OnDisable()

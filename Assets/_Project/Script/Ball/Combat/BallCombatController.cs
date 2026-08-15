@@ -364,6 +364,9 @@ public sealed class BallCombatController :
             return 0;
         }
 
+        calculatedDamage = AugmentCombatModifiers.ModifyDamage(
+            ball, target, calculatedDamage);
+
         if (isResolvingDirectBlockHit &&
             resolvingDirectHitBlock == target &&
             !hasCapturedDirectDamage)

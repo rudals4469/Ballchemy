@@ -52,7 +52,8 @@ public sealed class PoisonBallEffect : BallTraitEffect
         }
 
         status.AddStacks(
-            poisonDefinition.GetStackAmount(starGrade),
+            poisonDefinition.GetStackAmount(starGrade) +
+            AugmentCombatModifiers.GetPoisonAppliedStackBonus(context.Ball),
             maximumStacks);
 
         return BallHitResult.HandledWithBounce();

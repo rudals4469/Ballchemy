@@ -63,6 +63,7 @@ public sealed class AlchemyPanelPresenter :
     private BallDefinition selectedTargetDefinition;
     private Coroutine conversionRoutine;
     private AlchemyBallMarqueeSelector marqueeSelector;
+    private CommonChoiceCardLayout[] candidateLayouts;
 
     public AlchemyBallSelectionModel BallSelectionModel =>
         ballSelectionModel;
@@ -222,6 +223,7 @@ public sealed class AlchemyPanelPresenter :
             return;
         }
 
+        candidateLayouts = new CommonChoiceCardLayout[candidateButtons.Length];
         for (int i = 0; i < candidateButtons.Length; i++)
         {
             Button button = candidateButtons[i];
@@ -234,6 +236,17 @@ public sealed class AlchemyPanelPresenter :
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(
                 () => SelectCandidate(candidateIndex));
+
+            candidateLayouts[i] = button.GetComponent<CommonChoiceCardLayout>();
+            if (candidateLayouts[i] == null)
+                candidateLayouts[i] = button.gameObject.AddComponent<CommonChoiceCardLayout>();
+            TMP_Text name = candidateNameTexts != null && i < candidateNameTexts.Length
+                ? candidateNameTexts[i] : null;
+            TMP_Text description = candidateDescriptionTexts != null && i < candidateDescriptionTexts.Length
+                ? candidateDescriptionTexts[i] : null;
+            candidateLayouts[i].Configure(
+                button, null, null, name, null, description);
+            candidateLayouts[i].SetBackgroundColor(CommonChoiceCardLayout.Silver);
         }
     }
 
@@ -336,18 +349,20 @@ public sealed class AlchemyPanelPresenter :
                 i < candidateNameTexts.Length &&
                 candidateNameTexts[i] != null)
             {
-                candidateNameTexts[i].text = hasCandidate
-                    ? currentCandidates[i].DisplayName
-                    : string.Empty;
+                CommonChoiceCardLayout.SetText(
+                    candidateNameTexts[i],
+                    hasCandidate ? currentCandidates[i].DisplayName : string.Empty);
             }
 
             if (candidateDescriptionTexts != null &&
                 i < candidateDescriptionTexts.Length &&
                 candidateDescriptionTexts[i] != null)
             {
-                candidateDescriptionTexts[i].text = hasCandidate
-                    ? ResolveCandidateDescription(currentCandidates[i])
-                    : string.Empty;
+                CommonChoiceCardLayout.SetText(
+                    candidateDescriptionTexts[i],
+                    hasCandidate
+                        ? ResolveCandidateDescription(currentCandidates[i])
+                        : string.Empty);
             }
         }
     }

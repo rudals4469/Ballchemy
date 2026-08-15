@@ -56,6 +56,7 @@ public sealed class EventChoiceCardUI :
 
     private bool hasInvokedSelection;
     private OneShotSelectionVisual selectionVisual;
+    private CommonChoiceCardLayout commonLayout;
 
     public bool HasChoice =>
         boundChoice != null;
@@ -126,6 +127,7 @@ public sealed class EventChoiceCardUI :
             false;
 
         selectionVisual?.ResetVisual();
+        commonLayout?.SetBackgroundColor(CommonChoiceCardLayout.Silver);
 
         if (boundChoice == null)
         {
@@ -324,6 +326,15 @@ public sealed class EventChoiceCardUI :
             selectionVisual =
                 gameObject.AddComponent<OneShotSelectionVisual>();
         }
+
+        if (commonLayout == null)
+            commonLayout = GetComponent<CommonChoiceCardLayout>();
+        if (commonLayout == null && Application.isPlaying)
+            commonLayout = gameObject.AddComponent<CommonChoiceCardLayout>();
+        commonLayout?.Configure(
+            selectButton, iconImage, iconRoot,
+            titleText, grantText, effectText);
+        commonLayout?.SetBackgroundColor(CommonChoiceCardLayout.Silver);
     }
 
     private void ValidateReferences()
@@ -407,8 +418,7 @@ public sealed class EventChoiceCardUI :
             return;
         }
 
-        target.text =
-            value ?? string.Empty;
+        CommonChoiceCardLayout.SetText(target, value);
     }
 
     private static void SetObjectActive(

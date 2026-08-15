@@ -1014,6 +1014,7 @@ public sealed class StageRoomNavigator :
             if (keyboard.yKey.wasPressedThisFrame) { roomType = RoomType.Event; return true; }
             if (keyboard.uKey.wasPressedThisFrame) { roomType = RoomType.Secret; return true; }
             if (keyboard.iKey.wasPressedThisFrame) { roomType = RoomType.Start; return true; }
+            if (keyboard.oKey.wasPressedThisFrame) { roomType = RoomType.Augment; return true; }
         }
 #endif
 
@@ -1026,6 +1027,7 @@ public sealed class StageRoomNavigator :
         if (Input.GetKeyDown(KeyCode.Y)) { roomType = RoomType.Event; return true; }
         if (Input.GetKeyDown(KeyCode.U)) { roomType = RoomType.Secret; return true; }
         if (Input.GetKeyDown(KeyCode.I)) { roomType = RoomType.Start; return true; }
+        if (Input.GetKeyDown(KeyCode.O)) { roomType = RoomType.Augment; return true; }
 #endif
 
         roomType = default;
