@@ -244,6 +244,15 @@ public sealed class RoomRewardController :
         if (isRewardPending)
             return;
 
+        // AugmentRoomController가 같은 공용 보상 UI를 소유합니다.
+        // 여기서 Hide()를 호출하면 방 입장 직후 표시한 증강 카드가
+        // 이벤트 구독 순서에 따라 다시 사라질 수 있습니다.
+        if (currentRoom != null &&
+            currentRoom.RoomType == RoomType.Augment)
+        {
+            return;
+        }
+
         if (currentRoom != null &&
             completedSelections.TryGetValue(
                 currentRoom.RoomId,

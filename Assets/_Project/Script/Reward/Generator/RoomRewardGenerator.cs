@@ -116,7 +116,8 @@ public sealed class RoomRewardGenerator :
         while (generatedChoices.Count < requestedChoiceCount)
         {
             AugmentValueTier tier = SelectAugmentTier(
-                sourceSettings.TierWeights);
+                sourceSettings.TierWeights,
+                applyContext);
             AugmentRewardDefinition selected = SelectAugmentReward(
                 tier, applyContext);
 
@@ -129,13 +130,15 @@ public sealed class RoomRewardGenerator :
         return new List<RewardDefinition>(generatedChoices);
     }
 
-    private AugmentValueTier SelectAugmentTier(AugmentTierWeights weights)
+    private AugmentValueTier SelectAugmentTier(
+        AugmentTierWeights weights,
+        RewardApplyContext context)
     {
         int total = 0;
         for (int value = 1; value <= 3; value++)
         {
             AugmentValueTier tier = (AugmentValueTier)value;
-            if (HasAvailableAugment(tier))
+            if (HasAvailableAugment(tier, context))
                 total += weights.GetWeight(tier);
         }
 
@@ -146,7 +149,7 @@ public sealed class RoomRewardGenerator :
         for (int value = 1; value <= 3; value++)
         {
             AugmentValueTier tier = (AugmentValueTier)value;
-            if (!HasAvailableAugment(tier))
+            if (!HasAvailableAugment(tier, context))
                 continue;
             roll -= weights.GetWeight(tier);
             if (roll < 0)
@@ -156,7 +159,9 @@ public sealed class RoomRewardGenerator :
         return AugmentValueTier.Value1;
     }
 
-    private bool HasAvailableAugment(AugmentValueTier tier)
+    private bool HasAvailableAugment(
+        AugmentValueTier tier,
+        RewardApplyContext context)
     {
         for (int i = 0; i < augmentCandidates.Count; i++)
         {
@@ -164,7 +169,8 @@ public sealed class RoomRewardGenerator :
             if (candidate != null &&
                 !generatedChoices.Contains(candidate) &&
                 candidate.AugmentDefinition != null &&
-                candidate.AugmentDefinition.ValueTier == tier)
+                candidate.AugmentDefinition.ValueTier == tier &&
+                candidate.CanApply(context))
             {
                 return true;
             }

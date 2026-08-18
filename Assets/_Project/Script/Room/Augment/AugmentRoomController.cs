@@ -8,6 +8,7 @@ public sealed class AugmentRoomController : MonoBehaviour
 
     [SerializeField] private StageRoomNavigator roomNavigator;
     [SerializeField] private StageMapGenerator mapGenerator;
+    [SerializeField] private TurnManager turnManager;
     [SerializeField] private RoomRewardGenerator rewardGenerator;
     [SerializeField] private RewardSelectionUI rewardSelectionUI;
     [SerializeField] private BallCollection ballCollection;
@@ -91,6 +92,7 @@ public sealed class AugmentRoomController : MonoBehaviour
             pendingRoomId = -1;
             pendingChoices.Clear();
             roomNavigator.SetNavigationLocked(false);
+            turnManager?.SetInputLocked(false);
             rewardSelectionUI.ShowCompletedChoices(result.Choices, result.Selected);
             return;
         }
@@ -102,7 +104,14 @@ public sealed class AugmentRoomController : MonoBehaviour
     {
         if (room == null || rewardGenerator == null || rewardSelectionUI == null ||
             runAugmentState == null)
+        {
+            Debug.LogError(
+                "AugmentRoomController: 증강 선택에 필요한 참조가 없습니다.",
+                this);
+            roomNavigator?.SetNavigationLocked(false);
+            turnManager?.SetInputLocked(false);
             return;
+        }
 
         RewardApplyContext context = new RewardApplyContext(
             ballCollection, runAugmentState);
@@ -113,6 +122,8 @@ public sealed class AugmentRoomController : MonoBehaviour
         {
             Debug.LogWarning("AugmentRoomController: 증강 후보를 생성하지 못했습니다.", this);
             roomNavigator.SetNavigationLocked(false);
+            turnManager?.SetInputLocked(false);
+            rewardSelectionUI.Hide();
             return;
         }
 
@@ -120,6 +131,7 @@ public sealed class AugmentRoomController : MonoBehaviour
         pendingChoices.Clear();
         pendingChoices.AddRange(generated);
         roomNavigator.SetNavigationLocked(true);
+        turnManager?.SetInputLocked(true);
         rewardSelectionUI.ShowChoices(pendingChoices);
     }
 
@@ -134,7 +146,10 @@ public sealed class AugmentRoomController : MonoBehaviour
             ballCollection, runAugmentState);
         if (!selectedReward.CanApply(context) || !selectedReward.Apply(context))
         {
-            rewardSelectionUI.SetCardsInteractable(true);
+            // ShowChoices가 RewardSelectionUI의 hasSelection까지 초기화합니다.
+            // SetCardsInteractable만 호출하면 카드는 보여도 재선택 이벤트가
+            // 차단된 상태로 남습니다.
+            rewardSelectionUI.ShowChoices(pendingChoices);
             return;
         }
 
@@ -143,6 +158,7 @@ public sealed class AugmentRoomController : MonoBehaviour
         pendingRoomId = -1;
         pendingChoices.Clear();
         roomNavigator.SetNavigationLocked(false);
+        turnManager?.SetInputLocked(false);
     }
 
     private void ReleasePendingState()
@@ -150,6 +166,7 @@ public sealed class AugmentRoomController : MonoBehaviour
         pendingRoomId = -1;
         pendingChoices.Clear();
         roomNavigator?.SetNavigationLocked(false);
+        turnManager?.SetInputLocked(false);
         rewardSelectionUI?.Hide();
     }
 
@@ -157,6 +174,7 @@ public sealed class AugmentRoomController : MonoBehaviour
     {
         if (roomNavigator == null) roomNavigator = FindFirstObjectByType<StageRoomNavigator>();
         if (mapGenerator == null) mapGenerator = FindFirstObjectByType<StageMapGenerator>();
+        if (turnManager == null) turnManager = FindFirstObjectByType<TurnManager>();
         if (rewardGenerator == null) rewardGenerator = FindFirstObjectByType<RoomRewardGenerator>();
         if (rewardSelectionUI == null) rewardSelectionUI = FindFirstObjectByType<RewardSelectionUI>(FindObjectsInactive.Include);
         if (ballCollection == null) ballCollection = FindFirstObjectByType<BallCollection>();
