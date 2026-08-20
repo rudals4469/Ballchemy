@@ -19,8 +19,8 @@ MonoBehaviour:
   nextStarDefinition: {fileID: 0}
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: c4bf3b0cf2c5ba9469d761a2ed7d5bf8, type: 2}
-  sprite: {fileID: 0}
-  color: {r: 1, g: 0, b: 0, a: 1}
+  sprite: {fileID: -2397021512494858069, guid: 8c1cac59d51508145b4ce00bf0e9ebc3, type: 3}
+  color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
   damageTextStyle: {fileID: 11400000, guid: 482cbffc85d341341a32cd322b7a3d3b, type: 2}
   selectionWeight: 1
