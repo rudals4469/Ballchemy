@@ -8,6 +8,9 @@ public sealed class HoverTooltip : MonoBehaviour,
     IPointerEnterHandler,
     IPointerExitHandler
 {
+    private static RectTransform sharedPanel;
+    private static TMP_Text sharedText;
+
     [TextArea(2, 8)]
     [SerializeField] private string content;
     [SerializeField] private RectTransform tooltipPanel;
@@ -17,6 +20,7 @@ public sealed class HoverTooltip : MonoBehaviour,
     [SerializeField] private Vector2 padding = new Vector2(24f, 18f);
     [SerializeField, Min(80f)] private float maximumWidth = 560f;
     [SerializeField, Min(8f)] private float fontSize = 20f;
+    [SerializeField] private bool showOnlyWhenTextIsTruncated;
 
     private TMP_Text triggerText;
     private Transform originalPanelParent;
@@ -78,6 +82,11 @@ public sealed class HoverTooltip : MonoBehaviour,
         tooltipText = text;
         underline = underlineGraphic;
         triggerText = GetComponent<TMP_Text>();
+        if (panel != null && text != null)
+        {
+            sharedPanel = panel;
+            sharedText = text;
+        }
         if (tooltipPanel != null)
         {
             originalPanelParent = tooltipPanel.parent;
@@ -88,6 +97,14 @@ public sealed class HoverTooltip : MonoBehaviour,
         if (underline != null && underline.TryGetComponent(out Graphic underlineGraphicComponent))
             underlineGraphicComponent.raycastTarget = false;
         RefreshUnderline();
+    }
+
+    public void ConfigureTruncatedContent(string nextContent)
+    {
+        content = nextContent ?? string.Empty;
+        triggerText = GetComponent<TMP_Text>();
+        showOnlyWhenTextIsTruncated = true;
+        if (triggerText != null) triggerText.raycastTarget = true;
     }
 
     public void ConfigureContent(string nextContent)
@@ -108,6 +125,13 @@ public sealed class HoverTooltip : MonoBehaviour,
 
     public void Show()
     {
+        if (tooltipPanel == null && sharedPanel != null)
+        {
+            tooltipPanel = sharedPanel;
+            originalPanelParent = tooltipPanel.parent;
+            originalPanelSiblingIndex = tooltipPanel.GetSiblingIndex();
+        }
+        if (tooltipText == null) tooltipText = sharedText;
         if (tooltipPanel == null || tooltipText == null)
         {
             return;
@@ -116,6 +140,15 @@ public sealed class HoverTooltip : MonoBehaviour,
         {
             Hide();
             return;
+        }
+
+        if (showOnlyWhenTextIsTruncated)
+        {
+            if (triggerText == null) triggerText = GetComponent<TMP_Text>();
+            if (triggerText == null) return;
+            Canvas.ForceUpdateCanvases();
+            triggerText.ForceMeshUpdate(true, true);
+            if (!triggerText.isTextOverflowing) return;
         }
 
         Canvas canvas = GetComponentInParent<Canvas>();

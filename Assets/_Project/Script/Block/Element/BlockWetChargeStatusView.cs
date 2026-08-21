@@ -1114,16 +1114,12 @@ public sealed class BlockWetChargeStatusView :
     private StatusIntensity ResolveIntensity(
         int stack)
     {
-        if (stack <= 2)
-        {
-            return StatusIntensity.Weak;
-        }
-
-        if (stack <= 4)
-        {
-            return StatusIntensity.Medium;
-        }
-
+        int required = elementStatus != null
+            ? Mathf.Max(elementStatus.GetMaximumStack(currentElement), 1)
+            : 5;
+        float normalized = Mathf.Clamp01((float)stack / required);
+        if (normalized < 0.4f) return StatusIntensity.Weak;
+        if (normalized < 1f) return StatusIntensity.Medium;
         return StatusIntensity.Strong;
     }
 

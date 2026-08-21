@@ -7,7 +7,7 @@ public sealed class BlockElementStatus : MonoBehaviour
 {
     [Header("Stack Settings")]
     [SerializeField, Min(1)]
-    private int maximumStack = 6;
+    private int maximumStack = 5;
 
     [Header("Border Channel")]
     [SerializeField, Min(0)]
@@ -37,17 +37,25 @@ public sealed class BlockElementStatus : MonoBehaviour
 
     private Block block;
 
-    public int MaximumStack =>
-        maximumStack;
+    public int MaximumStack => GetMaximumStack(ElementType.Water);
 
-    public int GetMaximumStack(ElementType element) =>
-        maximumStack + AugmentCombatModifiers.GetElementMaximumStackBonus(element);
+    public int GetMaximumStack(ElementType element)
+    {
+        ElementRuntimeParameters parameters = ElementRuntimeParameters.Current;
+        if (element == ElementType.Water)
+            return parameters != null ? parameters.CurrentWetMaxStack : 5;
+        if (element == ElementType.Ice)
+            return parameters != null ? parameters.CurrentFreezeThreshold : 5;
+        if (element == ElementType.Electric)
+            return 0;
+        return maximumStack;
+    }
 
     public int WetStack =>
         wetStack;
 
-    public int ChargeStack =>
-        chargeStack;
+    // Lightning은 더 이상 블록에 전하 스택을 남기지 않습니다.
+    public int ChargeStack => 0;
 
     public int BurnStack =>
         burnStack;
@@ -62,7 +70,7 @@ public sealed class BlockElementStatus : MonoBehaviour
      */
     public int FrostStack =>
         isFrozen
-            ? maximumStack
+            ? GetMaximumStack(ElementType.Ice)
             : frostStack;
 
     public int StoredFrostStack =>
@@ -77,8 +85,7 @@ public sealed class BlockElementStatus : MonoBehaviour
     public bool HasWet =>
         wetStack > 0;
 
-    public bool HasCharge =>
-        chargeStack > 0;
+    public bool HasCharge => false;
 
     public bool HasBurn =>
         burnStack > 0;
@@ -89,7 +96,7 @@ public sealed class BlockElementStatus : MonoBehaviour
 
     public bool HasBorderStack =>
         wetStack > 0 ||
-        chargeStack > 0;
+        false;
 
     public bool HasSurfaceStack =>
         burnStack > 0 ||
@@ -109,16 +116,14 @@ public sealed class BlockElementStatus : MonoBehaviour
                 return null;
             }
 
-            return wetStack >= chargeStack
-                ? ElementType.Water
-                : ElementType.Electric;
+            return ElementType.Water;
         }
     }
 
     public int BorderStack =>
         Mathf.Max(
             wetStack,
-            chargeStack
+            0
         );
 
     public ElementType? SurfaceElement
@@ -230,12 +235,7 @@ public sealed class BlockElementStatus : MonoBehaviour
                 maximumStack
             );
 
-        chargeStack =
-            Mathf.Clamp(
-                chargeStack,
-                0,
-                maximumStack
-            );
+        chargeStack = 0;
 
         burnStack =
             Mathf.Clamp(
@@ -317,19 +317,21 @@ public sealed class BlockElementStatus : MonoBehaviour
     public int AddWet(
         int amount)
     {
-        return AddStack(
-            ref wetStack,
-            amount
-        );
+        if (amount <= 0) return 0;
+        int previous = wetStack;
+        wetStack = Mathf.Clamp(
+            wetStack + amount,
+            0,
+            GetMaximumStack(ElementType.Water));
+        int applied = wetStack - previous;
+        if (applied > 0) NotifyStatusChanged();
+        return applied;
     }
 
     public int AddCharge(
         int amount)
     {
-        return AddStack(
-            ref chargeStack,
-            amount
-        );
+        return 0;
     }
 
     public int AddBurn(
@@ -377,7 +379,7 @@ public sealed class BlockElementStatus : MonoBehaviour
             Mathf.Clamp(
                 frostStack + amount,
                 0,
-                maximumStack
+                GetMaximumStack(ElementType.Ice)
             );
 
         int appliedAmount =
@@ -416,10 +418,7 @@ public sealed class BlockElementStatus : MonoBehaviour
     public int ConsumeCharge(
         int amount)
     {
-        return ConsumeStack(
-            ref chargeStack,
-            amount
-        );
+        return 0;
     }
 
     public int ConsumeBurn(
@@ -563,12 +562,7 @@ public sealed class BlockElementStatus : MonoBehaviour
                 GetMaximumStack(ElementType.Water)
             );
 
-        resolvedChargeStack =
-            Mathf.Clamp(
-                resolvedChargeStack,
-                0,
-                GetMaximumStack(ElementType.Electric)
-            );
+        resolvedChargeStack = 0;
 
         resolvedBurnStack =
             Mathf.Clamp(
@@ -607,8 +601,7 @@ public sealed class BlockElementStatus : MonoBehaviour
         bool hasChanged =
             wetStack !=
                 resolvedWetStack ||
-            chargeStack !=
-                resolvedChargeStack ||
+            chargeStack != 0 ||
             burnStack !=
                 resolvedBurnStack ||
             frostStack !=
@@ -623,8 +616,7 @@ public sealed class BlockElementStatus : MonoBehaviour
         wetStack =
             resolvedWetStack;
 
-        chargeStack =
-            resolvedChargeStack;
+        chargeStack = 0;
 
         burnStack =
             resolvedBurnStack;
@@ -668,7 +660,7 @@ public sealed class BlockElementStatus : MonoBehaviour
     {
         if (isFrozen ||
             frostStack <
-            maximumStack)
+            GetMaximumStack(ElementType.Ice))
         {
             return false;
         }
@@ -701,6 +693,16 @@ public sealed class BlockElementStatus : MonoBehaviour
         );
 
         NotifyStatusChanged();
+    }
+
+    public void ClearAfterEnemyAttack()
+    {
+        bool changed = wetStack > 0 || chargeStack > 0 ||
+            (!isFrozen && frostStack > 0);
+        wetStack = 0;
+        chargeStack = 0;
+        if (!isFrozen) frostStack = 0;
+        if (changed) NotifyStatusChanged();
     }
 
     private void NotifyStatusChanged()

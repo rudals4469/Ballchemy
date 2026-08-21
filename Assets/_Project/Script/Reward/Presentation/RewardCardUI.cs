@@ -208,6 +208,9 @@ public sealed class RewardCardUI :
             content
         );
 
+        commonLayout?.SetAugmentLayoutEnabled(
+            boundRewardDefinition is AugmentRewardDefinition);
+
         ApplyRewardCardColor();
         RefreshIconLevelPanel();
 
@@ -252,6 +255,7 @@ public sealed class RewardCardUI :
         selectionVisual?.ResetVisual();
 
         RestoreBackgroundColor();
+        commonLayout?.SetAugmentLayoutEnabled(false);
         commonLayout?.SetIconAuxiliaryPanelVisible(false, false);
 
         SetSelectionEnabled(
@@ -479,8 +483,6 @@ public sealed class RewardCardUI :
 
             if (augmentLevelStar != null)
                 starImage.sprite = augmentLevelStar;
-
-            starImage.rectTransform.sizeDelta = new Vector2(22f, 22f);
 
             bool isAcquired =
                 i < displayedLevel;

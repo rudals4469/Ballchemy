@@ -95,6 +95,9 @@ public sealed class BlockElementSystem :
     [SerializeField]
     private BlockGridManager blockGridManager;
 
+    [SerializeField]
+    private ElementRuntimeParameters runtimeParameters;
+
     [Header("Debug")]
     [SerializeField]
     private bool showDebugLog;
@@ -132,6 +135,16 @@ public sealed class BlockElementSystem :
     private void Awake()
     {
         FindReferences();
+
+        if (runtimeParameters == null)
+        {
+            runtimeParameters = GetComponent<ElementRuntimeParameters>();
+            if (runtimeParameters == null)
+                runtimeParameters = gameObject.AddComponent<ElementRuntimeParameters>();
+        }
+
+        if (GetComponent<ElementPlaceholderVfxController>() == null)
+            gameObject.AddComponent<ElementPlaceholderVfxController>();
     }
 
     private void OnValidate()
@@ -221,6 +234,9 @@ public sealed class BlockElementSystem :
                     BlockGridManager
                 >();
         }
+
+        if (runtimeParameters == null)
+            runtimeParameters = GetComponent<ElementRuntimeParameters>();
     }
 
     public void ResolveTurnEffects(
@@ -703,10 +719,6 @@ public sealed class BlockElementSystem :
          * 전염 대상 수를 이미 결정한 뒤
          * 원본 블록의 화상을 감소시킵니다.
          */
-        sourceStatus.ConsumeBurn(
-            burnStackDecayPerTurn
-        );
-
         int remainingBurnStack =
             sourceStatus.BurnStack;
 
@@ -739,39 +751,21 @@ public sealed class BlockElementSystem :
         int sourceDirectDamage,
         int burnStack)
     {
-        if (sourceDirectDamage <= 0 ||
-            burnStack <= 0)
+        if (burnStack <= 0)
         {
             return 0;
         }
 
-        return Mathf.Max(
-            Mathf.FloorToInt(
-                sourceDirectDamage *
-                burnDamageMultiplierPerStack *
-                burnStack +
-                0.5f
-            ),
-            1
-        );
+        int damagePerStack = runtimeParameters != null
+            ? runtimeParameters.CurrentFireDamagePerStack
+            : 1;
+        return Mathf.Max(damagePerStack * burnStack, 1);
     }
 
     private int ResolveSpreadTargetCount(
         int burnStackBeforeDecay)
     {
-        if (burnStackBeforeDecay >=
-            strongSpreadMinimumStack)
-        {
-            return strongSpreadTargetCount;
-        }
-
-        if (burnStackBeforeDecay >=
-            mediumSpreadMinimumStack)
-        {
-            return mediumSpreadTargetCount;
-        }
-
-        return 0;
+        return burnStackBeforeDecay > 0 ? 8 : 0;
     }
 
     private void SpreadBurn(
@@ -792,7 +786,7 @@ public sealed class BlockElementSystem :
                 .FindPatternBlocks(
                     sourceBlock,
                     activeBlocks,
-                    ExplosionPatternType.Cross,
+                    ExplosionPatternType.AllDirections,
                     1
                 );
 
@@ -859,15 +853,12 @@ public sealed class BlockElementSystem :
              * 일반 화상 전염은 냉기나 동결과
              * 간접 열충격을 일으키지 않습니다.
              */
-            if (targetStatus.HasFrost ||
-                targetStatus.IsFrozen)
-            {
-                continue;
-            }
-
+            int spreadAmount = runtimeParameters != null
+                ? runtimeParameters.CurrentFireSpreadStackAmount
+                : spreadBurnStackAmount;
             int appliedStack =
                 targetStatus.AddBurn(
-                    spreadBurnStackAmount,
+                    spreadAmount,
                     sourceDirectDamage
                 );
 
@@ -886,6 +877,11 @@ public sealed class BlockElementSystem :
                 sourceBlock,
                 targetBlock
             );
+
+            ElementVisualEvents.RaiseTravel(
+                ElementType.Fire,
+                sourceBlock,
+                targetBlock);
 
             if (showDebugLog)
             {
@@ -920,9 +916,20 @@ public sealed class BlockElementSystem :
             return true;
         }
 
-        return
-            !status.HasFrost &&
-            !status.IsFrozen;
+        return true;
+    }
+
+    public void ResetTransientStacksAfterEnemyAttack(
+        IReadOnlyList<Block> activeBlocks)
+    {
+        if (activeBlocks == null) return;
+        for (int i = 0; i < activeBlocks.Count; i++)
+        {
+            Block block = activeBlocks[i];
+            if (block == null) continue;
+            block.GetComponent<BlockElementStatus>()
+                ?.ClearAfterEnemyAttack();
+        }
     }
 
     private int CompareSpreadCandidates(

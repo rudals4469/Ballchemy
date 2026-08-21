@@ -19,6 +19,18 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
     private TMP_Text description;
     private GameObject iconAuxiliaryPanel;
     private GameObject iconAuxiliaryDivider;
+    private LayoutSnapshot titleLayout;
+    private LayoutSnapshot auxiliaryLayout;
+    private LayoutSnapshot descriptionLayout;
+    private bool hasCapturedAuthoredLayout;
+
+    private struct LayoutSnapshot
+    {
+        public LayoutElement Element;
+        public float MinHeight;
+        public float PreferredHeight;
+        public float FlexibleHeight;
+    }
 
     public void Configure(
         Button cardButton,
@@ -39,9 +51,24 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
         ConfigureText(title, TextAlignmentOptions.TopLeft);
         ConfigureText(auxiliary, TextAlignmentOptions.TopRight);
         ConfigureText(description, TextAlignmentOptions.TopLeft);
-        ReserveLayoutHeight(title, 38f);
-        ReserveLayoutHeight(auxiliary, 28f);
-        ReserveLayoutHeight(description, 66f);
+        CaptureAuthoredLayout();
+    }
+
+    public void SetAugmentLayoutEnabled(bool enabled)
+    {
+        CaptureAuthoredLayout();
+
+        if (!enabled)
+        {
+            RestoreLayout(titleLayout);
+            RestoreLayout(auxiliaryLayout);
+            RestoreLayout(descriptionLayout);
+            return;
+        }
+
+        ReserveLayoutHeight(titleLayout.Element, 38f);
+        ReserveLayoutHeight(auxiliaryLayout.Element, 28f);
+        ReserveLayoutHeight(descriptionLayout.Element, 66f);
     }
 
     public void SetTexts(string titleValue, string auxiliaryValue, string descriptionValue)
@@ -149,21 +176,61 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
         text.alignment = alignment;
     }
 
-    private static void ReserveLayoutHeight(TMP_Text text, float preferredHeight)
+    private void CaptureAuthoredLayout()
     {
-        if (text == null) return;
+        if (hasCapturedAuthoredLayout) return;
+        titleLayout = CaptureLayout(title);
+        auxiliaryLayout = CaptureLayout(auxiliary);
+        descriptionLayout = CaptureLayout(description);
+        hasCapturedAuthoredLayout = true;
+    }
+
+    private static LayoutSnapshot CaptureLayout(TMP_Text text)
+    {
+        LayoutElement layout = FindLayoutElement(text);
+        return new LayoutSnapshot
+        {
+            Element = layout,
+            MinHeight = layout != null ? layout.minHeight : -1f,
+            PreferredHeight = layout != null ? layout.preferredHeight : -1f,
+            FlexibleHeight = layout != null ? layout.flexibleHeight : -1f
+        };
+    }
+
+    private static LayoutElement FindLayoutElement(TMP_Text text)
+    {
+        if (text == null) return null;
         LayoutElement layout = text.GetComponent<LayoutElement>();
         if (layout == null && text.transform.parent != null)
             layout = text.transform.parent.GetComponent<LayoutElement>();
+        return layout;
+    }
+
+    private static void ReserveLayoutHeight(
+        LayoutElement layout,
+        float preferredHeight)
+    {
         if (layout == null) return;
         layout.minHeight = preferredHeight;
         layout.preferredHeight = preferredHeight;
         layout.flexibleHeight = 0f;
     }
 
+    private static void RestoreLayout(LayoutSnapshot snapshot)
+    {
+        if (snapshot.Element == null) return;
+        snapshot.Element.minHeight = snapshot.MinHeight;
+        snapshot.Element.preferredHeight = snapshot.PreferredHeight;
+        snapshot.Element.flexibleHeight = snapshot.FlexibleHeight;
+    }
+
     public static void SetText(TMP_Text text, string value)
     {
-        if (text != null) text.text = FormatText(value);
+        if (text == null) return;
+        text.text = FormatText(value);
+        HoverTooltip tooltip = text.GetComponent<HoverTooltip>();
+        if (tooltip == null) tooltip = text.gameObject.AddComponent<HoverTooltip>();
+        tooltip.ConfigureTruncatedContent(value);
     }
 
     public static string FormatText(string value)

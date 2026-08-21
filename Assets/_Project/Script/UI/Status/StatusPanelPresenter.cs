@@ -374,7 +374,7 @@ public sealed class StatusPanelPresenter : MonoBehaviour
         if (definition.TraitDefinition is ElementalBallTraitDefinition elemental)
         {
             name = elemental.ElementType switch { ElementType.Water => "물", ElementType.Electric => "전기", ElementType.Fire => "불", ElementType.Ice => "얼음", _ => "원소" };
-            description = elemental.ElementType switch { ElementType.Water => "젖음 상태를 부여하며 전기와 감전 반응을 일으킵니다.", ElementType.Electric => "충전 상태를 부여하며 물과 감전 반응을 일으킵니다.", ElementType.Fire => "화상을 부여하며 얼음과 열충격 반응을 일으킵니다.", ElementType.Ice => "서리를 부여하며 불과 열충격 반응을 일으킵니다.", _ => "원소 상태를 부여합니다." };
+            description = elemental.ElementType switch { ElementType.Water => "젖음을 누적하고 최대 젖음 직접 타격 시 주변으로 확산합니다.", ElementType.Electric => "작은 추가 피해를 주며 연결된 젖은 블록으로 연쇄 번개를 전달합니다.", ElementType.Fire => "지속 화상을 부여하고 동결 대상에게 열충격을 일으킵니다.", ElementType.Ice => "냉기를 누적해 동결시키며 열충격을 준비합니다.", _ => "원소 상태를 부여합니다." };
             return;
         }
         name = "기본"; description = "별도의 속성 효과가 없는 기본 공입니다.";

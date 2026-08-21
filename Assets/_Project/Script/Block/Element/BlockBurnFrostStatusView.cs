@@ -1030,7 +1030,8 @@ public sealed class BlockBurnFrostStatusView :
 
         StatusIntensity intensity =
             ResolveIntensity(
-                currentStack
+                currentStack,
+                currentElement
             );
 
         Sprite resolvedSprite =
@@ -1097,18 +1098,15 @@ public sealed class BlockBurnFrostStatusView :
     }
 
     private StatusIntensity ResolveIntensity(
-        int stack)
+        int stack,
+        ElementType element)
     {
-        if (stack <= 2)
-        {
-            return StatusIntensity.Weak;
-        }
-
-        if (stack <= 4)
-        {
-            return StatusIntensity.Medium;
-        }
-
+        int required = elementStatus != null
+            ? Mathf.Max(elementStatus.GetMaximumStack(element), 1)
+            : 5;
+        float normalized = Mathf.Clamp01((float)stack / required);
+        if (normalized < 0.4f) return StatusIntensity.Weak;
+        if (normalized < 1f) return StatusIntensity.Medium;
         return StatusIntensity.Strong;
     }
 

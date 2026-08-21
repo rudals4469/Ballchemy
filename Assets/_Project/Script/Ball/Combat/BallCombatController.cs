@@ -597,32 +597,10 @@ public sealed class BallCombatController :
         hasCapturedDirectDamage =
             true;
 
-        if (!resolvingBlockWasFrozen)
-        {
-            return false;
-        }
-
-        if (appliedHealthDamage <= 0)
-        {
-            if (showDebugLog)
-            {
-                Debug.Log(
-                    "BallCombatController: " +
-                    $"{target.name}의 직접 피해가 막혀 " +
-                    "동결 파쇄를 실행하지 않습니다.",
-                    target
-                );
-            }
-
-            return false;
-        }
-
-        if (!target.IsAlive)
-        {
-            return false;
-        }
-
-        return calculatedDamage > 0;
+        // Frozen은 일반 타격으로 파쇄되지 않습니다.
+        // Frozen + Fire 직접 충돌만 ElementalBallEffect에서
+        // Thermal Shock으로 처리합니다.
+        return false;
     }
 
     private void ResolveFrozenShatter(

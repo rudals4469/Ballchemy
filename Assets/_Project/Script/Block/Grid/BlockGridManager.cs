@@ -675,6 +675,9 @@ public sealed class BlockGridManager :
                     .ResolveBossTurnRoutine();
             }
 
+            blockElementSystem.ResetTransientStacksAfterEnemyAttack(
+                blockRegistry.ActiveBlocks);
+
             Debug.Log(
                 "BlockGridManager: " +
                 $"스테이지 {CurrentStageNumber}, " +
@@ -695,6 +698,11 @@ public sealed class BlockGridManager :
 
         yield return enemyPhaseResolver
             .ResolveRoutine();
+
+        // 적 공격 애니메이션과 피해 처리가 모두 끝난 뒤에만
+        // Wet과 미완성 Ice를 초기화합니다. Frozen과 Fire는 유지됩니다.
+        blockElementSystem.ResetTransientStacksAfterEnemyAttack(
+            blockRegistry.ActiveBlocks);
 
         blockRegistry.RemoveInvalidBlocks();
 

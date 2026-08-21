@@ -231,33 +231,6 @@ public sealed class EnemyAttackSequence :
                 continue;
             }
 
-            /*
-             * 실제 공격력을 가진 블록이 공격하려는 순간
-             * 동결을 소비하고 해당 공격을 취소합니다.
-             */
-            if (blockElementSystem != null &&
-                blockElementSystem
-                    .TryConsumeFrozenAttack(
-                        attackingBlock
-                    ))
-            {
-                Debug.Log(
-                    "EnemyAttackSequence: " +
-                    $"{attackingBlock.name}이 동결되어 " +
-                    "이번 공격을 건너뜁니다.",
-                    attackingBlock
-                );
-
-                if (intervalBetweenAttacks > 0f)
-                {
-                    yield return new WaitForSeconds(
-                        intervalBetweenAttacks
-                    );
-                }
-
-                continue;
-            }
-
             bool damageApplied =
                 false;
 

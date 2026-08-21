@@ -12,7 +12,35 @@ public sealed class BallVisualView :
     [SerializeField]
     private SpriteRenderer visualRenderer;
 
+    [SerializeField]
+    private Ball ball;
+
+    [Header("Rotation")]
+    [SerializeField]
+    private bool rotationEnabled = true;
+
+    [SerializeField, Min(0f)]
+    private float rotationSpeedMultiplier = 28f;
+
+    [SerializeField, Min(0f)]
+    private float minimumRotationSpeed = 90f;
+
+    [SerializeField, Min(0f)]
+    private float maximumRotationSpeed = 720f;
+
+    [SerializeField, Min(0f)]
+    private float movementThreshold = 0.05f;
+
+    [Header("Element Trail")]
+    [SerializeField] private bool trailEnabled = true;
+    [SerializeField, Min(0.01f)] private float trailTime = 0.16f;
+    [SerializeField, Min(0.001f)] private float trailStartWidth = 0.16f;
+    [SerializeField, Min(0f)] private float trailEndWidth = 0.02f;
+
     private bool isSubscribed;
+    private float rotationDirection = 1f;
+    private TrailRenderer trailRenderer;
+    private static Material sharedTrailMaterial;
     private float attentionScaleMultiplier = 1f;
     private static readonly Color AttentionColor =
         new Color(1f, 0.72f, 0.12f, 1f);
@@ -30,7 +58,35 @@ public sealed class BallVisualView :
     private void Awake()
     {
         FindReferences();
+        EnsureTrailRenderer();
+        InitializeRotationVariation();
         RefreshVisual();
+    }
+
+    private void LateUpdate()
+    {
+        UpdateTrailState();
+
+        if (!rotationEnabled || ball == null || visualRenderer == null ||
+            visualRenderer.transform == transform || !ball.IsMoving)
+        {
+            return;
+        }
+
+        float speed = ball.Velocity.magnitude;
+        if (speed <= movementThreshold)
+            return;
+
+        float angularSpeed = Mathf.Clamp(
+            speed * rotationSpeedMultiplier,
+            minimumRotationSpeed,
+            maximumRotationSpeed);
+
+        visualRenderer.transform.Rotate(
+            0f,
+            0f,
+            rotationDirection * angularSpeed * Time.deltaTime,
+            Space.Self);
     }
 
     private void OnEnable()
@@ -52,6 +108,13 @@ public sealed class BallVisualView :
 
     private void OnValidate()
     {
+        rotationSpeedMultiplier = Mathf.Max(rotationSpeedMultiplier, 0f);
+        minimumRotationSpeed = Mathf.Max(minimumRotationSpeed, 0f);
+        maximumRotationSpeed = Mathf.Max(maximumRotationSpeed, minimumRotationSpeed);
+        movementThreshold = Mathf.Max(movementThreshold, 0f);
+        trailTime = Mathf.Max(trailTime, 0.01f);
+        trailStartWidth = Mathf.Max(trailStartWidth, 0.001f);
+        trailEndWidth = Mathf.Max(trailEndWidth, 0f);
         FindReferences();
 
         if (Application.isPlaying)
@@ -79,6 +142,9 @@ public sealed class BallVisualView :
                     true
                 );
         }
+
+        if (ball == null)
+            ball = GetComponent<Ball>();
     }
 
     private void SubscribeEvents()
@@ -138,6 +204,7 @@ public sealed class BallVisualView :
         }
 
         ApplyVisualColor();
+        ApplyTrailColor();
 
         /*
          * 루트 오브젝트의 스케일을 변경하면
@@ -155,7 +222,6 @@ public sealed class BallVisualView :
         {
             return;
         }
-
         BallDefinition definition =
             combatController.Definition;
 
@@ -167,6 +233,55 @@ public sealed class BallVisualView :
         visualRenderer.transform.localScale =
             definition.VisualScale *
             attentionScaleMultiplier;
+    }
+
+    private void InitializeRotationVariation()
+    {
+        uint hash = unchecked((uint)GetInstanceID()) * 2654435761u;
+        rotationDirection = (hash & 1u) == 0u ? -1f : 1f;
+
+        if (visualRenderer != null && visualRenderer.transform != transform)
+        {
+            float initialAngle = (hash % 3600u) * 0.1f;
+            visualRenderer.transform.localRotation =
+                Quaternion.Euler(0f, 0f, initialAngle);
+        }
+    }
+
+    private void EnsureTrailRenderer()
+    {
+        if (!Application.isPlaying || visualRenderer == null ||
+            visualRenderer.transform == transform)
+            return;
+
+        trailRenderer = visualRenderer.GetComponent<TrailRenderer>();
+        if (trailRenderer == null)
+            trailRenderer = visualRenderer.gameObject.AddComponent<TrailRenderer>();
+
+        if (sharedTrailMaterial == null)
+        {
+            Shader shader = Shader.Find("Sprites/Default");
+            if (shader != null) sharedTrailMaterial = new Material(shader);
+        }
+
+        trailRenderer.material = sharedTrailMaterial;
+        trailRenderer.time = trailTime;
+        trailRenderer.startWidth = trailStartWidth;
+        trailRenderer.endWidth = trailEndWidth;
+        trailRenderer.minVertexDistance = 0.08f;
+        trailRenderer.sortingLayerID = visualRenderer.sortingLayerID;
+        trailRenderer.sortingOrder = visualRenderer.sortingOrder - 1;
+        trailRenderer.emitting = false;
+    }
+
+    private void UpdateTrailState()
+    {
+        if (trailRenderer == null || ball == null) return;
+        bool shouldEmit = trailEnabled && ball.IsPresentationVisible &&
+            ball.IsMoving &&
+            ball.Velocity.sqrMagnitude > movementThreshold * movementThreshold;
+        trailRenderer.emitting = shouldEmit;
+        if (!ball.IsPresentationVisible) trailRenderer.Clear();
     }
 
     private void ApplyVisualColor()
@@ -198,5 +313,18 @@ public sealed class BallVisualView :
                 AttentionColor,
                 highlightAmount
             );
+    }
+
+    private void ApplyTrailColor()
+    {
+        if (trailRenderer == null || combatController == null ||
+            combatController.Definition == null)
+            return;
+
+        Color color = combatController.Definition.Color;
+        color.a = 0.72f;
+        trailRenderer.startColor = color;
+        color.a = 0f;
+        trailRenderer.endColor = color;
     }
 }
