@@ -17956,11 +17956,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f7b3a8f4b1d4fca9528a923dcf21004, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ElementPlaceholderVfxController
-  poolSize: 32
-  travelDuration: 0.24
-  impactDuration: 0.2
-  lineWidth: 0.07
-  impactRadius: 0.28
+  poolSize: 48
+  travelDuration: 0.51
+  impactDuration: 0.45
+  lineWidth: 0.18
 --- !u!1 &990971179
 GameObject:
   m_ObjectHideFlags: 0

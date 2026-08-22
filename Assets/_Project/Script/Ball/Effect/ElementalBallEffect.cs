@@ -31,14 +31,20 @@ public sealed class ElementalBallEffect : BallTraitEffect
             return BallHitResult.NotHandled();
 
         Block target = context.Block;
+        BlockElementStatus status = target.GetComponent<BlockElementStatus>();
+        bool pendingThermalShock = elementalDefinition != null &&
+            elementalDefinition.ElementType == ElementType.Fire &&
+            status != null && status.IsFrozen;
         int appliedDirectDamage = CombatController.ApplyDamage(
             target, context.DirectDamage, context.HitPoint);
 
-        if (appliedDirectDamage <= 0 || target == null || !target.IsAlive ||
-            elementalDefinition == null)
+        if (appliedDirectDamage <= 0 || target == null ||
+            elementalDefinition == null ||
+            (!target.IsAlive && !pendingThermalShock))
             return BallHitResult.HandledWithBounce();
 
-        BlockElementStatus status = GetOrAddElementStatus(target);
+        if (status == null && target.IsAlive)
+            status = GetOrAddElementStatus(target);
         ElementRuntimeParameters parameters = FindParameters();
         BlockGridManager grid = FindGrid();
         if (status == null || parameters == null)
@@ -69,7 +75,8 @@ public sealed class ElementalBallEffect : BallTraitEffect
                 ElementVisualEvents.RaiseImpact(ElementType.Ice, target);
                 break;
             case ElementType.Fire:
-                ResolveFire(target, status, grid, context, stackAmount, parameters);
+                ResolveFire(target, status, grid, context, stackAmount, parameters,
+                    pendingThermalShock);
                 break;
         }
 
@@ -143,9 +150,9 @@ public sealed class ElementalBallEffect : BallTraitEffect
     private void ResolveFire(
         Block source, BlockElementStatus sourceStatus,
         BlockGridManager grid, BallHitContext context, int amount,
-        ElementRuntimeParameters parameters)
+        ElementRuntimeParameters parameters, bool forceThermalShock)
     {
-        if (sourceStatus.IsFrozen)
+        if (sourceStatus.IsFrozen || forceThermalShock)
         {
             sourceStatus.ConsumeFrozen();
             ApplyIndirectDamage(source,
@@ -161,7 +168,6 @@ public sealed class ElementalBallEffect : BallTraitEffect
                     ApplyIndirectDamage(neighbors[i],
                         parameters.CurrentThermalShockNeighborDamage,
                         elementalDefinition.ThermalShockDamageTextStyle);
-                    ElementVisualEvents.RaiseImpact(ElementType.Fire, neighbors[i]);
                 }
             }
 

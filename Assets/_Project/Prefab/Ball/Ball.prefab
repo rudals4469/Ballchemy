@@ -245,9 +245,9 @@ MonoBehaviour:
   maximumRotationSpeed: 720
   movementThreshold: 0.05
   trailEnabled: 1
-  trailTime: 0.16
-  trailStartWidth: 0.16
-  trailEndWidth: 0.02
+  trailTime: 0.035
+  trailStartWidth: 0.09
+  trailEndWidth: 0
 --- !u!114 &667588407618561759
 MonoBehaviour:
   m_ObjectHideFlags: 0

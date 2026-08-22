@@ -33,9 +33,9 @@ public sealed class BallVisualView :
 
     [Header("Element Trail")]
     [SerializeField] private bool trailEnabled = true;
-    [SerializeField, Min(0.01f)] private float trailTime = 0.16f;
-    [SerializeField, Min(0.001f)] private float trailStartWidth = 0.16f;
-    [SerializeField, Min(0f)] private float trailEndWidth = 0.02f;
+    [SerializeField, Min(0.01f)] private float trailTime = 0.035f;
+    [SerializeField, Min(0.001f)] private float trailStartWidth = 0.09f;
+    [SerializeField, Min(0f)] private float trailEndWidth = 0f;
 
     private bool isSubscribed;
     private float rotationDirection = 1f;
@@ -268,7 +268,7 @@ public sealed class BallVisualView :
         trailRenderer.time = trailTime;
         trailRenderer.startWidth = trailStartWidth;
         trailRenderer.endWidth = trailEndWidth;
-        trailRenderer.minVertexDistance = 0.08f;
+        trailRenderer.minVertexDistance = 0.025f;
         trailRenderer.sortingLayerID = visualRenderer.sortingLayerID;
         trailRenderer.sortingOrder = visualRenderer.sortingOrder - 1;
         trailRenderer.emitting = false;

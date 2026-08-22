@@ -19,7 +19,7 @@ MonoBehaviour:
   fontAsset: {fileID: 0}
   fontMaterialPreset: {fileID: 0}
   textColor: {r: 0, g: 1, b: 0, a: 1}
-  fontSize: 4.6
+  fontSize: 2.6
   fontStyle: 1
   prefix: 
   suffix: 
