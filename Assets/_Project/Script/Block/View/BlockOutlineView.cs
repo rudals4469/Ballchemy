@@ -24,7 +24,7 @@ public sealed class BlockOutlineView :
             0.2f,
             1f,
             0.35f,
-            0.9f
+            0.58f
         );
 
     [SerializeField]
@@ -33,7 +33,7 @@ public sealed class BlockOutlineView :
             1f,
             0.2f,
             0.15f,
-            0.9f
+            0.62f
         );
 
     [SerializeField]
@@ -42,11 +42,11 @@ public sealed class BlockOutlineView :
             1f,
             0.6f,
             0.1f,
-            0.9f
+            0.62f
         );
 
     [SerializeField, Range(1.01f, 1.3f)]
-    private float categoryOutlineScale = 1.1f;
+    private float categoryOutlineScale = 1.045f;
 
     [SerializeField]
     private int categorySortingOrderOffset = -1;
@@ -61,7 +61,7 @@ public sealed class BlockOutlineView :
             0.1f,
             0.75f,
             1f,
-            0.9f
+            0.72f
         );
 
     [SerializeField]
@@ -70,7 +70,7 @@ public sealed class BlockOutlineView :
             0.12f,
             0.42f,
             1f,
-            0.95f
+            0.76f
         );
 
     [Tooltip(
@@ -78,7 +78,7 @@ public sealed class BlockOutlineView :
         "두 아웃라인이 동시에 보이도록 합니다."
     )]
     [SerializeField, Range(1.01f, 1.3f)]
-    private float shieldOutlineScale = 1.16f;
+    private float shieldOutlineScale = 1.08f;
 
     [SerializeField]
     private int shieldSortingOrderOffset = -2;

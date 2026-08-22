@@ -15,6 +15,10 @@ public sealed class BlockDefinition :
     [SerializeField]
     private string displayName;
 
+    [TextArea(2, 5)]
+    [SerializeField]
+    private string description;
+
     [SerializeField]
     private BlockType blockType =
         BlockType.Normal;
@@ -72,6 +76,9 @@ public sealed class BlockDefinition :
 
     public string DisplayName =>
         displayName;
+
+    public string Description =>
+        description;
 
     public BlockType BlockType =>
         blockType;

@@ -101,6 +101,7 @@ public sealed class BallLauncher :
     private int plannedBallCount;
     private int launchedBallCount;
     private int returnedBallCount;
+    private int originalLaunchedBallCount;
 
     private bool isInitialized;
     private bool isLaunching;
@@ -538,6 +539,7 @@ public sealed class BallLauncher :
 
         launchedBallCount = 0;
         returnedBallCount = 0;
+        originalLaunchedBallCount = 0;
 
         hasFirstReturnedBall = false;
         isAttackCompleted = false;
@@ -870,11 +872,22 @@ public sealed class BallLauncher :
         );
 
         launchedBallCount++;
+        originalLaunchedBallCount++;
 
         turnQueueController
             ?.NotifyBallLaunched(
                 ball
             );
+
+        if (originalLaunchedBallCount % 5 == 0 &&
+            AugmentCombatModifiers.GetRuleInteger(
+                RuleAugmentEffectKind.ChainClone) > 0)
+        {
+            SpawnAugmentClone(ball, ball.transform.position,
+                Quaternion.Euler(0f, 0f, 8f) * direction,
+                AugmentCombatModifiers.GetRuleInteger(
+                    RuleAugmentEffectKind.ChainClone));
+        }
 
         NotifyRemainingBallsToLaunchChanged();
 
@@ -927,7 +940,9 @@ public sealed class BallLauncher :
             normalizedReturnPosition
         );
 
-        if (!hasFirstReturnedBall)
+        bool isTemporaryAugmentBall =
+            returnedBall.GetComponent<TemporaryAugmentBall>() != null;
+        if (!hasFirstReturnedBall && !isTemporaryAugmentBall)
         {
             nextTurnLaunchPosition =
                 normalizedReturnPosition;
@@ -1196,6 +1211,33 @@ public sealed class BallLauncher :
         );
 
         return true;
+    }
+
+    public Ball SpawnAugmentClone(
+        Ball source, Vector2 position, Vector2 direction, int damagePercent)
+    {
+        if (source == null || source.Definition == null || ballCollection == null ||
+            source.GetComponent<TemporaryAugmentBall>() != null) return null;
+
+        Ball clone = ballCollection.CreateTemporaryAugmentBall(source.Definition);
+        if (clone == null) return null;
+        clone.gameObject.AddComponent<TemporaryAugmentBall>();
+        clone.ResetTo(position + direction.normalized * 0.15f);
+        int targetDamage = Mathf.Max(1,
+            Mathf.RoundToInt(source.CurrentDamage * damagePercent / 100f));
+        clone.CombatController.SetIndividualDirectDamageBonus(
+            targetDamage - clone.CombatController.BaseDamage);
+        clone.Returned += HandleTemporaryAugmentBallReturned;
+        clone.Launch(direction);
+        launchedBallCount++;
+        return clone;
+    }
+
+    private void HandleTemporaryAugmentBallReturned(Ball ball)
+    {
+        if (ball == null) return;
+        ball.Returned -= HandleTemporaryAugmentBallReturned;
+        ballCollection?.DestroyTemporaryAugmentBall(ball);
     }
 
     private void ResolveLaunchPositionLimits()

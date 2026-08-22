@@ -101,7 +101,7 @@ MonoBehaviour:
   layout:
     visualRenderer: {fileID: 5051892278997693569}
     boxCollider: {fileID: 8902717914776242626}
-    visualPadding: 0.12
+    visualPadding: 0.04
     colliderInset: 0.06
   gridState:
     boardGrid: {fileID: 0}
@@ -132,7 +132,8 @@ MonoBehaviour:
   maximumFontSize: 36
   minimumFontSize: 12
   textColor: {r: 0, g: 0, b: 0, a: 1}
-  baseTextRectSize: {x: 10, y: 5}
+  baseTextRectSize: {x: 4.2, y: 2.4}
+  healthTextInset: {x: 0.08, y: 0.06}
   fitTextAreaToGridSize: 1
   textLocalScale: {x: 0.1, y: 0.1, z: 1}
   sortingOrderOffset: 2

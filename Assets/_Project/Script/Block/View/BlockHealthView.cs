@@ -60,8 +60,19 @@ public sealed class BlockHealthView :
     [SerializeField]
     private Vector2 baseTextRectSize =
         new Vector2(
-            10f,
-            5f
+            4.2f,
+            2.4f
+        );
+
+    [Tooltip(
+        "블록 우측과 아래쪽 경계에서 체력 텍스트를 " +
+        "안쪽으로 띄우는 거리입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private Vector2 healthTextInset =
+        new Vector2(
+            0.08f,
+            0.06f
         );
 
     [Tooltip(
@@ -144,6 +155,12 @@ public sealed class BlockHealthView :
                 0.1f
             );
 
+        healthTextInset.x =
+            Mathf.Max(healthTextInset.x, 0f);
+
+        healthTextInset.y =
+            Mathf.Max(healthTextInset.y, 0f);
+
         FindReferences();
         ApplyTextSettings();
         Refresh();
@@ -216,11 +233,7 @@ public sealed class BlockHealthView :
             healthText.transform;
 
         textTransform.localPosition =
-            new Vector3(
-                0f,
-                0f,
-                textLocalZ
-            );
+            CalculateTextLocalPosition();
 
         textTransform.localRotation =
             Quaternion.identity;
@@ -238,7 +251,7 @@ public sealed class BlockHealthView :
             textColor;
 
         healthText.alignment =
-            TextAlignmentOptions.Center;
+            TextAlignmentOptions.BottomRight;
 
         healthText.enableAutoSizing =
             true;
@@ -296,6 +309,33 @@ public sealed class BlockHealthView :
 
             baseTextRectSize.y *
             gridSize.y
+        );
+    }
+
+    private Vector3 CalculateTextLocalPosition()
+    {
+        Vector2 rendererSize =
+            blockSpriteRenderer != null
+                ? blockSpriteRenderer.size
+                : Vector2.one;
+
+        Vector2 rectWorldSize =
+            Vector2.Scale(
+                CalculateTextRectSize(),
+                new Vector2(
+                    Mathf.Abs(textLocalScale.x),
+                    Mathf.Abs(textLocalScale.y)
+                )
+            );
+
+        return new Vector3(
+            rendererSize.x * 0.5f -
+            rectWorldSize.x * 0.5f -
+            healthTextInset.x,
+            -rendererSize.y * 0.5f +
+            rectWorldSize.y * 0.5f +
+            healthTextInset.y,
+            textLocalZ
         );
     }
 

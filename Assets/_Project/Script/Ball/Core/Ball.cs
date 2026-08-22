@@ -905,11 +905,6 @@ public sealed class Ball :
                     bounceCount
                 );
 
-        int splitThreshold = AugmentCombatModifiers.GetRuleInteger(
-            RuleAugmentEffectKind.BallisticSplit);
-        if (splitThreshold > 0 && bounceCount == splitThreshold)
-            combatController?.AddIndividualDirectDamageBonus(3);
-
         int bonusDifference =
             nextDamageBonus -
             appliedBounceDamageBonus;

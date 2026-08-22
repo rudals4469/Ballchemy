@@ -6,6 +6,13 @@ public static class BlockRoleVisualSelector
     private static readonly Dictionary<string, Sprite> SpriteCache =
         new Dictionary<string, Sprite>();
 
+    [RuntimeInitializeOnLoadMethod(
+        RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetCache()
+    {
+        SpriteCache.Clear();
+    }
+
     private static readonly string[] TankPaths =
     {
         "BlockVisuals/Tank_01",
@@ -28,6 +35,20 @@ public static class BlockRoleVisualSelector
 
     private const string IndestructiblePath =
         "BlockVisuals/Indestructible";
+
+    private static readonly Dictionary<string, string> SpecialPaths =
+        new Dictionary<string, string>
+        {
+            { "special_heal", "BlockVisuals/Special_Heal" },
+            { "special_seal", "BlockVisuals/Special_Seal" },
+            { "special_curse", "BlockVisuals/Special_Curse" },
+            { "special_explosion", "BlockVisuals/Special_Explosion" },
+            { "special_repair", "BlockVisuals/Special_Repair" },
+            { "special_shield", "BlockVisuals/Special_Shield" },
+            { "special_guardian", "BlockVisuals/Special_Guardian" },
+            { "special_gold", "BlockVisuals/Special_Gold" },
+            { "special_teleport", "BlockVisuals/Special_Teleport" }
+        };
 
     public static void Apply(
         Block block,
@@ -94,9 +115,24 @@ public static class BlockRoleVisualSelector
     private static string ResolvePath(BlockSpawnRequest request)
     {
         BlockDefinition definition = request.Definition;
+
+        if (definition != null &&
+            SpecialPaths.TryGetValue(
+                definition.BlockId,
+                out string mappedSpecialPath))
+        {
+            return mappedSpecialPath;
+        }
+
         if (definition == null)
         {
-            return null;
+            return request.AssignedCombatRole ==
+                BlockSpawnRequest.CombatRole.Attacker
+                ? PickRandom(AttackerPaths)
+                : request.AssignedCombatRole ==
+                    BlockSpawnRequest.CombatRole.Tank
+                    ? PickRandom(TankPaths)
+                    : null;
         }
 
         if (definition.DestructionRule ==
@@ -111,8 +147,7 @@ public static class BlockRoleVisualSelector
             return PickRandom(NamedPaths);
         }
 
-        if (request.RequestedBlockType == BlockType.Special ||
-            request.RequestedBlockType == BlockType.Boss ||
+        if (request.RequestedBlockType == BlockType.Boss ||
             request.RequestedBlockType == BlockType.Pattern)
         {
             return null;
@@ -136,5 +171,91 @@ public static class BlockRoleVisualSelector
         return paths != null && paths.Length > 0
             ? paths[Random.Range(0, paths.Length)]
             : null;
+    }
+}
+
+[DisallowMultipleComponent]
+[RequireComponent(typeof(Block))]
+public sealed class BlockHoverTooltip : MonoBehaviour
+{
+    private Block block;
+    private bool isShowing;
+
+    private void Awake()
+    {
+        block = GetComponent<Block>();
+    }
+
+    private void OnMouseEnter()
+    {
+        RefreshTooltip();
+    }
+
+    private void OnMouseOver()
+    {
+        if (!isShowing)
+        {
+            RefreshTooltip();
+            return;
+        }
+
+        HoverTooltip.ShowSharedAtScreenPosition(
+            BuildContent(),
+            Input.mousePosition);
+    }
+
+    private void OnMouseExit()
+    {
+        HideTooltip();
+    }
+
+    private void OnDisable()
+    {
+        HideTooltip();
+    }
+
+    private void RefreshTooltip()
+    {
+        string content = BuildContent();
+
+        if (string.IsNullOrWhiteSpace(content) ||
+            !HoverTooltip.HasSharedView)
+        {
+            HideTooltip();
+            return;
+        }
+
+        HoverTooltip.ShowSharedAtScreenPosition(
+            content,
+            Input.mousePosition);
+
+        isShowing = true;
+    }
+
+    private string BuildContent()
+    {
+        BlockDefinition definition =
+            block != null ? block.Definition : null;
+
+        if (definition == null ||
+            definition.BlockType != BlockType.Special ||
+            string.IsNullOrWhiteSpace(definition.Description))
+        {
+            return string.Empty;
+        }
+
+        return $"<b>{definition.DisplayName}</b>\n" +
+               definition.Description;
+    }
+
+    private void HideTooltip()
+    {
+        if (!isShowing)
+        {
+            return;
+        }
+
+        HoverTooltip.HideShared();
+        isShowing = false;
     }
 }

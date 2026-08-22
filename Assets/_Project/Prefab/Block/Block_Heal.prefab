@@ -101,7 +101,7 @@ MonoBehaviour:
   layout:
     visualRenderer: {fileID: 5051892278997693569}
     boxCollider: {fileID: 8902717914776242626}
-    visualPadding: 0.12
+    visualPadding: 0.04
     colliderInset: 0.06
   gridState:
     boardGrid: {fileID: 0}
@@ -132,7 +132,8 @@ MonoBehaviour:
   maximumFontSize: 36
   minimumFontSize: 12
   textColor: {r: 0, g: 0, b: 0, a: 1}
-  baseTextRectSize: {x: 10, y: 5}
+  baseTextRectSize: {x: 4.2, y: 2.4}
+  healthTextInset: {x: 0.08, y: 0.06}
   fitTextAreaToGridSize: 1
   textLocalScale: {x: 0.1, y: 0.1, z: 1}
   sortingOrderOffset: 2
@@ -205,14 +206,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BlockOutlineView
   showCategoryOutline: 1
-  rewardColor: {r: 0.2, g: 1, b: 0.35, a: 0.9}
-  dangerColor: {r: 1, g: 0.2, b: 0.15, a: 0.9}
-  urgentColor: {r: 1, g: 0.6, b: 0.1, a: 0.9}
-  categoryOutlineScale: 1.1
+  rewardColor: {r: 0.2, g: 1, b: 0.35, a: 0.58}
+  dangerColor: {r: 1, g: 0.2, b: 0.15, a: 0.62}
+  urgentColor: {r: 1, g: 0.6, b: 0.1, a: 0.62}
+  categoryOutlineScale: 1.045
   categorySortingOrderOffset: -1
   showShieldOutline: 1
-  shieldColor: {r: 0.1, g: 0.75, b: 1, a: 0.9}
-  shieldOutlineScale: 1.16
+  shieldColor: {r: 0.1, g: 0.75, b: 1, a: 0.72}
+  shieldOutlineScale: 1.08
   shieldSortingOrderOffset: -2
   showDebugLog: 0
 --- !u!1 &1430352254046490565

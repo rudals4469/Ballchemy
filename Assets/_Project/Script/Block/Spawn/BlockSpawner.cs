@@ -187,6 +187,11 @@ public sealed class BlockSpawner
             request
         );
 
+        if (newBlock.GetComponent<BlockHoverTooltip>() == null)
+        {
+            newBlock.gameObject.AddComponent<BlockHoverTooltip>();
+        }
+
         if (showSpawnDebugLog)
         {
             Debug.Log(

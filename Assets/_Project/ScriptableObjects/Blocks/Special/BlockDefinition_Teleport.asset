@@ -13,13 +13,14 @@ MonoBehaviour:
   m_Name: BlockDefinition_Teleport
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
   blockId: special_teleport
-  displayName: Teleport
+  displayName: 순간이동 블럭
+  description: 공이 닿으면 속도를 유지한 채 연결된 다른 포탈로 이동합니다.
   blockType: 1
   destructionRule: 1
   clearRole: 3
   specialCategory: 6
   gridSize: {x: 1, y: 1}
-  sprite: {fileID: 0}
-  color: {r: 0.25, g: 0.35, b: 1, a: 1}
+  sprite: {fileID: 21300000, guid: 47ea8e988ed147ae851b156b9b7b496a, type: 3}
+  color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 0.5, y: 0.5, z: 1}
   selectionWeight: 3

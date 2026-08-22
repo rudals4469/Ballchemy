@@ -26,6 +26,7 @@ public sealed class BlockElementStatus : MonoBehaviour
     [Header("Frozen")]
     [SerializeField]
     private bool isFrozen;
+    private int remainingFrozenAttackSkips;
 
     [Header("Burn Runtime Data")]
     [Tooltip(
@@ -43,7 +44,11 @@ public sealed class BlockElementStatus : MonoBehaviour
     {
         ElementRuntimeParameters parameters = ElementRuntimeParameters.Current;
         if (element == ElementType.Water)
-            return parameters != null ? parameters.CurrentWetMaxStack : 5;
+        {
+            int maximum = parameters != null ? parameters.CurrentWetMaxStack : 5;
+            return Mathf.Max(2, maximum -
+                AugmentCombatModifiers.GetWetMaximumReduction());
+        }
         if (element == ElementType.Ice)
             return parameters != null ? parameters.CurrentFreezeThreshold : 5;
         if (element == ElementType.Electric)
@@ -477,6 +482,7 @@ public sealed class BlockElementStatus : MonoBehaviour
 
         isFrozen = false;
         frostStack = 0;
+        remainingFrozenAttackSkips = 0;
 
         FrozenConsumed?.Invoke(
             this
@@ -627,6 +633,9 @@ public sealed class BlockElementStatus : MonoBehaviour
         if (shouldBecomeFrozen)
         {
             isFrozen = true;
+            remainingFrozenAttackSkips = 1 + Mathf.Max(0,
+                AugmentCombatModifiers.GetRuleInteger(
+                    RuleAugmentEffectKind.IceAttackDelay));
         }
 
         if (burnStack <= 0)
@@ -667,7 +676,18 @@ public sealed class BlockElementStatus : MonoBehaviour
 
         frostStack = 0;
         isFrozen = true;
+        remainingFrozenAttackSkips = 1 + Mathf.Max(0,
+            AugmentCombatModifiers.GetRuleInteger(
+                RuleAugmentEffectKind.IceAttackDelay));
 
+        return true;
+    }
+
+    public bool TryConsumeFrozenAttackSkip()
+    {
+        if (!isFrozen || remainingFrozenAttackSkips <= 0) return false;
+        remainingFrozenAttackSkips--;
+        if (remainingFrozenAttackSkips <= 0) ConsumeFrozen();
         return true;
     }
 
@@ -685,6 +705,7 @@ public sealed class BlockElementStatus : MonoBehaviour
         frostStack = 0;
 
         isFrozen = false;
+        remainingFrozenAttackSkips = 0;
 
         burnSourceDirectDamage = 0;
 

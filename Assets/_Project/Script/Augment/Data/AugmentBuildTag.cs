@@ -8,5 +8,5 @@ public enum AugmentBuildTag
     Ice,
     Poison,
     Trajectory,
-    Hybrid
+    Basic
 }

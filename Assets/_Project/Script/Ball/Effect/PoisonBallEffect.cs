@@ -38,17 +38,24 @@ public sealed class PoisonBallEffect : BallTraitEffect
             context.Definition != null
                 ? context.Definition.StarGrade
                 : BallStarGrade.OneStar;
+        starGrade = AugmentCombatModifiers.GetEffectiveStarGrade(context.Ball);
 
         int maximumStacks = poisonDefinition.MaximumStacks +
             AugmentCombatModifiers.GetPoisonMaximumStackBonus();
         bool wasAtMaximum = status.StackCount >= maximumStacks;
 
+        int appliedDamage = CombatController.ApplyDamage(
+            context.Block,
+            context.DirectDamage,
+            context.HitPoint);
+
+        if (appliedDamage <= 0 || context.Block == null)
+            return BallHitResult.HandledWithBounce();
+
         if (wasAtMaximum)
         {
-            SpreadPoison(context.Block, maximumStacks);
-
-            if (TryCollapsePoison(context, status))
-                return BallHitResult.HandledWithBounce();
+            ResolvePoisonCollapse(context, status, maximumStacks);
+            return BallHitResult.HandledWithBounce();
         }
 
         status.AddStacks(
@@ -59,11 +66,10 @@ public sealed class PoisonBallEffect : BallTraitEffect
         return BallHitResult.HandledWithBounce();
     }
 
-    private void SpreadPoison(Block sourceBlock, int maximumStacks)
+    private void SpreadPoison(
+        Block sourceBlock, int maximumStacks, int spreadStacks, int maximumTargets)
     {
-        if (!AugmentCombatModifiers.TryGetPoisonContagion(
-                out PoisonContagionAugmentDefinition definition,
-                out int level)) return;
+        if (spreadStacks <= 0 || maximumTargets <= 0) return;
 
         BlockGridManager grid = FindFirstObjectByType<BlockGridManager>();
         if (grid == null) return;
@@ -71,39 +77,56 @@ public sealed class PoisonBallEffect : BallTraitEffect
         List<Block> targets = BlockNeighborhoodResolver.FindSurroundingBlocks(
             sourceBlock, grid.ActiveBlocks, 1);
         int applied = 0;
-        for (int i = 0; i < targets.Count && applied < definition.GetMaximumTargets(level); i++)
+        for (int i = 0; i < targets.Count && applied < maximumTargets; i++)
         {
             Block target = targets[i];
             if (target == null || !target.IsAlive || !target.IsBreakable) continue;
             PoisonBlockStatus targetStatus = target.GetComponent<PoisonBlockStatus>();
             if (targetStatus == null) targetStatus = target.gameObject.AddComponent<PoisonBlockStatus>();
-            targetStatus.AddStacks(definition.GetSpreadStacks(level), maximumStacks);
+            targetStatus.AddStacks(spreadStacks, maximumStacks);
             applied++;
         }
     }
 
-    private bool TryCollapsePoison(BallHitContext context, PoisonBlockStatus status)
+    private void ResolvePoisonCollapse(
+        BallHitContext context, PoisonBlockStatus status, int maximumStacks)
     {
-        if (!AugmentCombatModifiers.TryGetPoisonCollapse(
-                out PoisonCollapseAugmentDefinition definition,
-                out int level)) return false;
-
-        int damage = status.StackCount * definition.GetDamageMultiplier(level);
+        int consumedStacks = status.StackCount;
         status.ClearStacks();
 
         BlockGridManager grid = FindFirstObjectByType<BlockGridManager>();
+        int plagueDamage = AugmentCombatModifiers.GetRuleInteger(
+            RuleAugmentEffectKind.PlagueCollapse);
+        int radius = plagueDamage > 0 ? 2 : 1;
+        int damage = plagueDamage > 0 ? plagueDamage :
+            consumedStacks * 5 + AugmentCombatModifiers.GetPoisonCollapseBonus();
         List<Block> targets = grid != null
-            ? BlockNeighborhoodResolver.FindSurroundingBlocks(context.Block, grid.ActiveBlocks, definition.ExplosionRadius)
+            ? BlockNeighborhoodResolver.FindSurroundingBlocks(
+                context.Block, grid.ActiveBlocks, radius)
             : new List<Block>();
-        targets.Insert(0, context.Block);
 
         for (int i = 0; i < targets.Count; i++)
         {
             Block target = targets[i];
             if (target != null && target.IsAlive && target.IsBreakable)
-                CombatController.ApplyDamage(target, damage, target.transform.position);
+            {
+                CombatController.ApplyDamage(
+                    target, damage, target.transform.position, null, false);
+                if (plagueDamage > 0)
+                {
+                    PoisonBlockStatus targetStatus =
+                        target.GetComponent<PoisonBlockStatus>();
+                    if (targetStatus == null)
+                        targetStatus = target.gameObject.AddComponent<PoisonBlockStatus>();
+                    targetStatus.AddStacks(1, maximumStacks);
+                }
+            }
         }
 
-        return true;
+        int contagionStacks = AugmentCombatModifiers.GetRuleInteger(
+            RuleAugmentEffectKind.PoisonReactionSpread);
+        SpreadPoison(context.Block, maximumStacks,
+            contagionStacks, contagionStacks * 2);
+        AugmentCombatModifiers.NotifyPoisonCollapse();
     }
 }

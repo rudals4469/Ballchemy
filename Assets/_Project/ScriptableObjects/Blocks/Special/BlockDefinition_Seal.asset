@@ -13,13 +13,14 @@ MonoBehaviour:
   m_Name: BlockDefinition_Seal
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
   blockId: special_seal
-  displayName: seal
+  displayName: 봉인 블럭
+  description: 파괴하지 못한 채 만료되면 다음 공격에서 보유한 공의 20~30%가 봉인됩니다.
   blockType: 1
   destructionRule: 0
   clearRole: 0
   specialCategory: 3
   gridSize: {x: 1, y: 1}
-  sprite: {fileID: 0}
-  color: {r: 0.6659298, g: 0, b: 1, a: 1}
+  sprite: {fileID: 21300000, guid: d7119e08bdaa45acb3d641623f9de593, type: 3}
+  color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
   selectionWeight: 3

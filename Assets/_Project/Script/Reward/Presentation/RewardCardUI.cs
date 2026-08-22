@@ -208,6 +208,8 @@ public sealed class RewardCardUI :
             content
         );
 
+        RefreshDescriptionTooltip();
+
         commonLayout?.SetAugmentLayoutEnabled(
             boundRewardDefinition is AugmentRewardDefinition);
 
@@ -556,6 +558,32 @@ public sealed class RewardCardUI :
         commonLayout?.Configure(
             selectButton, iconImage, iconRoot,
             titleText, grantText, effectText);
+    }
+
+    private void RefreshDescriptionTooltip()
+    {
+        if (effectText == null) return;
+
+        HoverTooltip tooltip = effectText.GetComponent<HoverTooltip>();
+        if (tooltip == null)
+            tooltip = effectText.gameObject.AddComponent<HoverTooltip>();
+
+        string tooltipContent = effectText.text;
+        if (boundRewardDefinition is AugmentRewardDefinition augmentReward &&
+            augmentReward.AugmentDefinition != null)
+        {
+            AugmentDefinition definition = augmentReward.AugmentDefinition;
+            int currentLevel = boundRunAugmentState != null
+                ? boundRunAugmentState.GetLevel(definition) : 0;
+            int nextLevel = Mathf.Clamp(currentLevel + 1, 1, definition.MaxLevel);
+            string levelDescription = definition.GetLevelDescription(nextLevel);
+            if (!string.IsNullOrWhiteSpace(levelDescription))
+            {
+                tooltipContent = $"{definition.DisplayName} Lv.{nextLevel}\n{levelDescription}";
+            }
+        }
+
+        tooltip.ConfigureTruncatedContent(tooltipContent);
     }
 
     private void ConfigureTextWrapping()

@@ -13,13 +13,14 @@ MonoBehaviour:
   m_Name: BlockDefinition_Guardian
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
   blockId: special_guardian
-  displayName: Guardian
+  displayName: 수호 블럭
+  description: 연결된 블럭 1~2개를 자신이 제거될 때까지 파괴되지 않도록 보호합니다.
   blockType: 1
   destructionRule: 0
   clearRole: 1
   specialCategory: 5
   gridSize: {x: 1, y: 1}
-  sprite: {fileID: 0}
-  color: {r: 0.12, g: 0.42, b: 1, a: 1}
+  sprite: {fileID: 21300000, guid: 9e69ecd1cbcc419791e9f93849a39341, type: 3}
+  color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
   selectionWeight: 3

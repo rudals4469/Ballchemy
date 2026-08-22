@@ -11,6 +11,119 @@ public sealed class HoverTooltip : MonoBehaviour,
     private static RectTransform sharedPanel;
     private static TMP_Text sharedText;
 
+    public static bool HasSharedView =>
+        sharedPanel != null && sharedText != null;
+
+    public static void ShowSharedAtScreenPosition(
+        string nextContent,
+        Vector2 screenPosition)
+    {
+        if (!HasSharedView ||
+            string.IsNullOrWhiteSpace(nextContent))
+        {
+            return;
+        }
+
+        Canvas canvas =
+            sharedPanel.GetComponentInParent<Canvas>();
+
+        Canvas rootCanvas =
+            canvas != null ? canvas.rootCanvas : null;
+
+        RectTransform canvasRect =
+            rootCanvas != null
+                ? rootCanvas.transform as RectTransform
+                : null;
+
+        if (canvasRect != null &&
+            sharedPanel.parent != canvasRect)
+        {
+            sharedPanel.SetParent(canvasRect, false);
+        }
+
+        sharedPanel.gameObject.SetActive(true);
+        sharedPanel.SetAsLastSibling();
+
+        sharedText.text = nextContent;
+        sharedText.fontSize = 20f;
+        sharedText.color =
+            new Color(0.08f, 0.08f, 0.08f, 1f);
+        sharedText.alignment =
+            TextAlignmentOptions.TopLeft;
+        sharedText.textWrappingMode =
+            TextWrappingModes.Normal;
+        sharedText.overflowMode =
+            TextOverflowModes.Overflow;
+        sharedText.enabled = true;
+
+        const float maximumWidth = 560f;
+        Vector2 padding = new Vector2(24f, 18f);
+
+        sharedText.ForceMeshUpdate(true, true);
+
+        float textWidth = Mathf.Min(
+            sharedText.GetPreferredValues(nextContent).x,
+            maximumWidth - padding.x);
+
+        Vector2 preferred = sharedText.GetPreferredValues(
+            nextContent,
+            textWidth,
+            Mathf.Infinity);
+
+        sharedPanel.sizeDelta = new Vector2(
+            Mathf.Min(preferred.x + padding.x, maximumWidth),
+            preferred.y + padding.y);
+
+        RectTransform textRect = sharedText.rectTransform;
+        textRect.anchorMin = textRect.anchorMax =
+            textRect.pivot = new Vector2(0.5f, 0.5f);
+        textRect.anchoredPosition = Vector2.zero;
+        textRect.sizeDelta = new Vector2(
+            Mathf.Max(1f, sharedPanel.sizeDelta.x - padding.x),
+            Mathf.Max(1f, sharedPanel.sizeDelta.y - padding.y));
+
+        sharedPanel.pivot = new Vector2(0f, 1f);
+
+        if (canvasRect != null &&
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRect,
+                screenPosition,
+                rootCanvas != null &&
+                rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+                    ? rootCanvas.worldCamera
+                    : null,
+                out Vector2 localPoint))
+        {
+            sharedPanel.anchoredPosition =
+                localPoint + new Vector2(18f, -18f);
+
+            Vector2 panelSize = sharedPanel.sizeDelta;
+            Rect canvasBounds = canvasRect.rect;
+            Vector2 position = sharedPanel.anchoredPosition;
+
+            position.x = Mathf.Clamp(
+                position.x,
+                canvasBounds.xMin,
+                canvasBounds.xMax - panelSize.x);
+            position.y = Mathf.Clamp(
+                position.y,
+                canvasBounds.yMin + panelSize.y,
+                canvasBounds.yMax);
+
+            sharedPanel.anchoredPosition = position;
+        }
+
+        Canvas.ForceUpdateCanvases();
+    }
+
+    public static void HideShared()
+    {
+        if (sharedPanel != null)
+        {
+            sharedPanel.gameObject.SetActive(false);
+        }
+    }
+
     [TextArea(2, 8)]
     [SerializeField] private string content;
     [SerializeField] private RectTransform tooltipPanel;

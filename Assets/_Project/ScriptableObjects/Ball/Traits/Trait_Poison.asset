@@ -15,4 +15,4 @@ MonoBehaviour:
   oneStarStackAmount: 1
   twoStarStackAmount: 2
   threeStarStackAmount: 3
-  maximumStacks: 10
+  maximumStacks: 5

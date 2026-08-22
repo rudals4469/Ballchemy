@@ -759,7 +759,9 @@ public sealed class BlockElementSystem :
         int damagePerStack = runtimeParameters != null
             ? runtimeParameters.CurrentFireDamagePerStack
             : 1;
-        return Mathf.Max(damagePerStack * burnStack, 1);
+        int damage = Mathf.Max(damagePerStack * burnStack, 1);
+        return AugmentCombatModifiers.ApplyPercentage(
+            damage, AugmentCombatModifiers.GetHighHeatBurnDamagePercent());
     }
 
     private int ResolveSpreadTargetCount(

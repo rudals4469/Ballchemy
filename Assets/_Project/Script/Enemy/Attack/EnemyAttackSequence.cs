@@ -219,6 +219,14 @@ public sealed class EnemyAttackSequence :
                 continue;
             }
 
+            BlockElementStatus frozenStatus =
+                attackingBlock.GetComponent<BlockElementStatus>();
+            if (frozenStatus != null &&
+                frozenStatus.TryConsumeFrozenAttackSkip())
+            {
+                continue;
+            }
+
             int damage =
                 CalculateModifiedAttackPower(
                     overrideAttackPower > 0

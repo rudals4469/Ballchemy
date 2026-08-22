@@ -91,19 +91,24 @@ public sealed class RewardCatalog :
         if (rewardDefinitions == null)
             return;
 
-        for (int i = 0; i < rewardDefinitions.Count; i++)
+        // 새 규칙형 카탈로그가 연결된 프로젝트에서는 예전 개별형 증강을
+        // 후보에 섞지 않는다. 기존 에셋은 마이그레이션 참고용으로 보존한다.
+        if (augmentRuleCatalog == null)
         {
-            AugmentRewardDefinition reward =
-                rewardDefinitions[i] as AugmentRewardDefinition;
-
-            if (reward == null ||
-                !reward.CanBeSelected ||
-                reward.AugmentDefinition == null)
+            for (int i = 0; i < rewardDefinitions.Count; i++)
             {
-                continue;
-            }
+                AugmentRewardDefinition reward =
+                    rewardDefinitions[i] as AugmentRewardDefinition;
 
-            results.Add(reward);
+                if (reward == null ||
+                    !reward.CanBeSelected ||
+                    reward.AugmentDefinition == null)
+                {
+                    continue;
+                }
+
+                results.Add(reward);
+            }
         }
 
         augmentRuleCatalog?.GetRuntimeRewards(results);

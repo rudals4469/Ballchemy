@@ -430,6 +430,8 @@ public sealed class BallTurnQueueController :
     public bool BeginLaunch(
         int plannedLaunchCount)
     {
+        AugmentCombatModifiers.BeginTurn();
+
         EnsureQueuePrepared();
 
         if (!isQueuePrepared ||
@@ -505,6 +507,9 @@ public sealed class BallTurnQueueController :
 
         nextLaunchIndex =
             launchedQueueIndex + 1;
+
+        AugmentCombatModifiers.NotifyBallLaunched(
+            launchedBall);
 
         BallLaunchedFromQueue?.Invoke(
             launchedBall,

@@ -863,6 +863,18 @@ public sealed class BallCollection :
         return newBall;
     }
 
+    public Ball CreateTemporaryAugmentBall(BallDefinition definition)
+    {
+        return CreateBall(definition);
+    }
+
+    public void DestroyTemporaryAugmentBall(Ball ball)
+    {
+        if (ball == null) return;
+        balls.Remove(ball);
+        Destroy(ball.gameObject);
+    }
+
     private bool RemoveBallInternal(
         Ball targetBall)
     {

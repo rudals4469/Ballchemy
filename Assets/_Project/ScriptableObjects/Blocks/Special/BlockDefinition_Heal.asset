@@ -13,13 +13,14 @@ MonoBehaviour:
   m_Name: BlockDefinition_Heal
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
   blockId: special_heal
-  displayName: heal
+  displayName: 회복 블럭
+  description: 파괴하면 플레이어의 체력을 3~5 회복합니다.
   blockType: 1
   destructionRule: 0
   clearRole: 0
   specialCategory: 1
   gridSize: {x: 1, y: 1}
-  sprite: {fileID: 0}
-  color: {r: 0, g: 1, b: 0.19978666, a: 1}
+  sprite: {fileID: 21300000, guid: 67e2b5a26b0b499295107fdea0dc3c56, type: 3}
+  color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
   selectionWeight: 1

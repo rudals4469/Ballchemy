@@ -50,7 +50,7 @@ public sealed class PoisonBlockStatus : MonoBehaviour
             block.GetComponent<PoisonBlockStatus>();
 
         return status != null
-            ? Mathf.Max(status.stackCount, 0)
+            ? Mathf.Max(status.stackCount, 0) * 5
             : 0;
     }
 

@@ -13,13 +13,14 @@ MonoBehaviour:
   m_Name: BlockDefinition_Shield
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
   blockId: special_shield
-  displayName: shield
+  displayName: 보호막 블럭
+  description: 파괴하면 무작위 블럭 2~3개에 피해를 1회 막는 보호막을 부여합니다.
   blockType: 1
   destructionRule: 0
   clearRole: 0
   specialCategory: 1
   gridSize: {x: 1, y: 1}
-  sprite: {fileID: 0}
-  color: {r: 0.14901961, g: 0.8, b: 1, a: 1}
+  sprite: {fileID: 21300000, guid: 4adc6fd70cec4d759e63261e2a8ae35b, type: 3}
+  color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
   selectionWeight: 3

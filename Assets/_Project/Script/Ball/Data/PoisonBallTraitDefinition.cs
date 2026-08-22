@@ -16,7 +16,7 @@ public sealed class PoisonBallTraitDefinition :
     private int threeStarStackAmount = 3;
 
     [SerializeField, Min(1)]
-    private int maximumStacks = 10;
+    private int maximumStacks = 5;
 
     public override BallTraitType TraitType =>
         BallTraitType.Poison;

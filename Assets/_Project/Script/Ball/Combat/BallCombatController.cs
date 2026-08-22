@@ -356,7 +356,8 @@ public sealed class BallCombatController :
         int calculatedDamage,
         Vector2 hitPoint,
         BallDamageTextStyleDefinition
-            styleOverride = null)
+            styleOverride = null,
+        bool applyAugmentModifiers = true)
     {
         if (target == null ||
             !target.IsAlive)
@@ -364,8 +365,13 @@ public sealed class BallCombatController :
             return 0;
         }
 
-        calculatedDamage = AugmentCombatModifiers.ModifyDamage(
-            ball, target, calculatedDamage);
+        if (applyAugmentModifiers)
+        {
+            bool isPrimaryDirectHit = isResolvingDirectBlockHit &&
+                resolvingDirectHitBlock == target && !hasCapturedDirectDamage;
+            calculatedDamage = AugmentCombatModifiers.ModifyDamage(
+                ball, target, calculatedDamage, isPrimaryDirectHit);
+        }
 
         if (isResolvingDirectBlockHit &&
             resolvingDirectHitBlock == target &&
@@ -491,6 +497,8 @@ public sealed class BallCombatController :
             return BallHitResult.NotHandled();
         }
 
+        bool wasAliveBeforeHit = hitBlock.IsAlive;
+
         BeginDirectHitTracking(
             hitBlock
         );
@@ -532,9 +540,31 @@ public sealed class BallCombatController :
                     CriticalDamageMultiplierBonus
                 );
 
-            return activeTraitEffect.ResolveHit(
+            BallHitResult result = activeTraitEffect.ResolveHit(
                 context
             );
+
+            if (result.WasHandled)
+            {
+                AugmentCombatModifiers.ResolveBasicHitEffects(
+                    ball,
+                    hitBlock,
+                    this,
+                    wasAliveBeforeHit && !hitBlock.IsAlive
+                );
+                AugmentCombatModifiers.TryResolveShockTrajectory(
+                    ball,
+                    hitBlock,
+                    this
+                );
+                AugmentCombatModifiers.TryResolveBallisticSplit(
+                    ball,
+                    hitPoint,
+                    incomingVelocity
+                );
+            }
+
+            return result;
         }
         finally
         {

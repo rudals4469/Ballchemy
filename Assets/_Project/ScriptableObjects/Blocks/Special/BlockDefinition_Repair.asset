@@ -13,13 +13,14 @@ MonoBehaviour:
   m_Name: BlockDefinition_Repair
   m_EditorClassIdentifier: Assembly-CSharp::BlockDefinition
   blockId: special_repair
-  displayName: repair
+  displayName: 수리 블럭
+  description: 파괴하면 반경 2칸 안에 있는 블럭의 체력을 3 회복합니다.
   blockType: 1
   destructionRule: 0
   clearRole: 0
   specialCategory: 1
   gridSize: {x: 1, y: 1}
-  sprite: {fileID: 0}
-  color: {r: 0.34901962, g: 1, b: 0.4509804, a: 1}
+  sprite: {fileID: 21300000, guid: 8203527871fd458e97ac095279273a4a, type: 3}
+  color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
   selectionWeight: 3
