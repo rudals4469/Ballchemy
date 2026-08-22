@@ -19,7 +19,7 @@ MonoBehaviour:
   nextStarDefinition: {fileID: 11400000, guid: c8947fc0b1ab8fb4bb9a67a39d8acd32, type: 2}
   directDamageBonus: 0
   traitDefinition: {fileID: 11400000, guid: 577ed8d3f71ba824fbd8a49356309efc, type: 2}
-  sprite: {fileID: 8360719220304933097, guid: 8c1cac59d51508145b4ce00bf0e9ebc3, type: 3}
+  sprite: {fileID: 21300000, guid: a6666666666666666666666666666666, type: 3}
   color: {r: 1, g: 1, b: 1, a: 1}
   visualScale: {x: 1, y: 1, z: 1}
   damageTextStyle: {fileID: 11400000, guid: be5d5e6ce82223646b25c0728fa3ef96, type: 2}

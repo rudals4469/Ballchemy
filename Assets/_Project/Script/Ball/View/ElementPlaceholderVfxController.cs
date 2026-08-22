@@ -213,7 +213,7 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
     private void WarmSymbolPool()
     {
         if (symbolPool.Count > 0) return;
-        const int count = 40;
+        const int count = 64;
         for (int i = 0; i < count; i++)
         {
             GameObject item = new GameObject($"ElementSymbol_{i}");
@@ -236,6 +236,8 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         renderer.transform.position = position;
         renderer.transform.rotation = Quaternion.Euler(
             0f, 0f, Random.Range(-8f, 8f));
+        renderer.flipX = false;
+        renderer.flipY = false;
         renderer.enabled = true;
         symbolStates[index] = new SymbolState
         {
@@ -247,7 +249,13 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         };
     }
 
-    private void PlayChainSprite(Vector3 start, Vector3 end, Color color)
+    private void PlayChainSprite(
+        Vector3 start,
+        Vector3 end,
+        Color color,
+        float lateralOffset,
+        float widthScale,
+        bool flipY)
     {
         if (lightningChainSprite == null) return;
         Vector3 delta = end - start;
@@ -256,19 +264,53 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         int index = nextSymbolIndex++ % symbolPool.Count;
         SpriteRenderer renderer = symbolPool[index];
         renderer.sprite = lightningChainSprite;
-        renderer.transform.position = (start + end) * 0.5f;
+        Vector3 perpendicular = Vector3.Cross(delta.normalized, Vector3.forward);
+        renderer.transform.position =
+            (start + end) * 0.5f + perpendicular * lateralOffset;
         renderer.transform.rotation = Quaternion.Euler(
             0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-        renderer.transform.localScale = new Vector3(length, 0.72f, 1f);
+        renderer.transform.localScale = new Vector3(length, widthScale, 1f);
+        renderer.flipX = false;
+        renderer.flipY = flipY;
         renderer.enabled = true;
         symbolStates[index] = new SymbolState
         {
             Kind = SpriteEffectKind.Chain,
             Began = Time.time,
             Duration = travelDuration,
-            Scale = 0.72f,
+            Scale = widthScale,
             Color = color
         };
+    }
+
+    private void PlayChainBundle(Vector3 start, Vector3 end, Color color)
+    {
+        Vector3 delta = end - start;
+        if (delta.sqrMagnitude <= 0.001f) return;
+
+        Vector3 perpendicular =
+            Vector3.Cross(delta.normalized, Vector3.forward);
+
+        // 이미지 번개를 서로 반전하고 비껴 겹쳐 굵은 주 전류를 만든다.
+        PlayChainSprite(start, end, color, 0f, 0.86f, false);
+        PlayChainSprite(start, end, WithAlpha(color, 0.78f),
+            0.09f, 0.62f, true);
+        PlayChainSprite(start, end, WithAlpha(color, 0.62f),
+            -0.085f, 0.54f, false);
+
+        // 기존 동적 번개도 양옆으로 꼬아 정지 이미지처럼 보이지 않게 한다.
+        Play(start + perpendicular * 0.07f, end - perpendicular * 0.05f,
+            WithAlpha(color, 0.9f), travelDuration * 0.92f, 0.72f,
+            Style.Lightning);
+        Play(start - perpendicular * 0.08f, end + perpendicular * 0.065f,
+            WithAlpha(color, 0.68f), travelDuration * 0.78f, 0.5f,
+            Style.Lightning);
+    }
+
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a *= alpha;
+        return color;
     }
 
     private void PlayRingSprite(Vector3 position, Color color)
@@ -280,6 +322,8 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         renderer.transform.position = position;
         renderer.transform.rotation = Quaternion.identity;
         renderer.transform.localScale = Vector3.zero;
+        renderer.flipX = false;
+        renderer.flipY = false;
         renderer.enabled = true;
         symbolStates[index] = new SymbolState
         {
@@ -301,7 +345,6 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         Color color = ResolveColor(element);
         if (element == ElementType.Electric)
             color = new Color(1f, 0.96f, 0.72f, 1f);
-        Style style = ResolveStyle(element);
         if (element == ElementType.Electric)
         {
             Vector3 direction = end - start;
@@ -311,18 +354,22 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
                 start -= direction * 0.14f;
                 end += direction * 0.14f;
             }
-            PlayChainSprite(start, end, color);
+            PlayChainBundle(start, end, color);
             return;
         }
-        Play(start, end, color, travelDuration, 0.78f, style);
-
         Vector3 delta = end - start;
-        Vector3 offset = delta.sqrMagnitude > 0.001f
-            ? Vector3.Cross(delta.normalized, Vector3.forward) * 0.055f
-            : Vector3.zero;
-        Color echoColor = new Color(color.r, color.g, color.b, 0.55f);
-        Play(start + offset, end + offset, echoColor,
-            travelDuration * 0.78f, 0.32f, style);
+        Vector3 perpendicular = delta.sqrMagnitude > 0.001f
+            ? Vector3.Cross(delta.normalized, Vector3.forward)
+            : Vector3.up;
+        for (int i = 0; i < 3; i++)
+        {
+            float t = 0.25f + i * 0.25f;
+            float side = i == 1 ? -0.08f : 0.07f;
+            PlaySymbol(
+                Vector3.Lerp(start, end, t) + perpendicular * side,
+                ElementType.Water,
+                WithAlpha(color, 0.82f - i * 0.12f));
+        }
     }
 
     private void HandleThermalShock(Block center)
