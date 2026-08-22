@@ -95,6 +95,25 @@ public sealed class BlockLayout
         );
     }
 
+    public void ApplyRuntimeSprite(
+        GameObject owner,
+        Sprite sprite)
+    {
+        if (owner == null || sprite == null)
+        {
+            return;
+        }
+
+        FindReferences(owner);
+        if (visualRenderer == null)
+        {
+            return;
+        }
+
+        visualRenderer.sprite = sprite;
+        visualRenderer.color = Color.white;
+    }
+
     private void FindReferences(
         GameObject owner)
     {

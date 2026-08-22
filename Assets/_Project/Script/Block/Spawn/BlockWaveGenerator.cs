@@ -412,6 +412,11 @@ public sealed class BlockWaveGenerator :
                 requests
             );
 
+        ConfigurePocketRuntime(
+            requests,
+            generatedBlocks
+        );
+
         Debug.Log(
             "BlockWaveGenerator: " +
             $"저장된 최초 배치로 블록 " +
@@ -738,6 +743,21 @@ public sealed class BlockWaveGenerator :
         );
 
         return generatedBlocks;
+    }
+
+    private void ConfigurePocketRuntime(
+        IReadOnlyList<BlockSpawnRequest> requests,
+        IReadOnlyList<Block> generatedBlocks)
+    {
+        PocketFormationRuntime runtime =
+            GetComponent<PocketFormationRuntime>();
+        if (runtime == null)
+            runtime = gameObject.AddComponent<PocketFormationRuntime>();
+        runtime.Configure(
+            requests,
+            generatedBlocks,
+            combatRoleAssigner.PocketWeakeningTotal,
+            combatRoleAssigner.PocketFinalCollapseDamage);
     }
 
     private void SaveLastGeneratedRequests(

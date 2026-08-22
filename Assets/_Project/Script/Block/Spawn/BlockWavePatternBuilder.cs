@@ -112,6 +112,12 @@ public sealed class BlockWavePatternBuilder
     private CenterGatePatternBuilder centerGate =
         new CenterGatePatternBuilder();
 
+    [Header("Ricochet Pocket")]
+
+    [SerializeField]
+    private RicochetPocketPatternBuilder ricochetPocket =
+        new RicochetPocketPatternBuilder();
+
     [Tooltip(
         "일반 지그재그 패턴에서 이전 줄 기준으로 " +
         "좌우 몇 칸 이동시킬지 결정합니다."
@@ -216,6 +222,11 @@ public sealed class BlockWavePatternBuilder
             availableColumns
         );
 
+        ricochetPocket.Normalize(
+            availableColumns,
+            availableRows
+        );
+
         horizontalStaggerDistance =
             Mathf.Clamp(
                 horizontalStaggerDistance,
@@ -273,6 +284,12 @@ public sealed class BlockWavePatternBuilder
         {
             centerGate =
                 new CenterGatePatternBuilder();
+        }
+
+        if (ricochetPocket == null)
+        {
+            ricochetPocket =
+                new RicochetPocketPatternBuilder();
         }
     }
 
@@ -442,8 +459,23 @@ public sealed class BlockWavePatternBuilder
 
         BlockWavePatternType selectedPattern =
             SelectPattern(
-                columnCount
+                columnCount,
+                layoutRowCount
             );
+
+        if (selectedPattern == BlockWavePatternType.RicochetPocket)
+        {
+            BuildRicochetPocketRequests(
+                columnCount,
+                layoutRowCount,
+                waveIndex,
+                fillBlockType,
+                baseHealth,
+                baseAttack,
+                occupancyMap,
+                requests);
+            return requests;
+        }
 
         bool useWallPocket =
             selectedPattern ==
@@ -720,8 +752,16 @@ public sealed class BlockWavePatternBuilder
     }
 
     private BlockWavePatternType SelectPattern(
-        int columnCount)
+        int columnCount,
+        int rowCount)
     {
+        if ((patternType == BlockWavePatternType.Automatic ||
+             patternType == BlockWavePatternType.RicochetPocket) &&
+            ricochetPocket.CanBuild(columnCount, rowCount))
+        {
+            return BlockWavePatternType.RicochetPocket;
+        }
+
         if (patternType ==
                 BlockWavePatternType.CenterGate &&
             centerGate.CanBuild(
@@ -765,6 +805,69 @@ public sealed class BlockWavePatternBuilder
                Random.value <= wallPocketChance
             ? BlockWavePatternType.WallPocket
             : BlockWavePatternType.Legacy;
+    }
+
+    private void BuildRicochetPocketRequests(
+        int columnCount,
+        int rowCount,
+        int waveIndex,
+        BlockType fillBlockType,
+        int baseHealth,
+        int baseAttack,
+        BlockWaveOccupancyMap occupancyMap,
+        List<BlockSpawnRequest> requests)
+    {
+        List<RicochetPocketPatternBuilder.Cell> cells =
+            ricochetPocket.Build(columnCount, rowCount);
+        BlockDefinition indestructibleDefinition =
+            blockCatalog != null
+                ? blockCatalog.GetById("boss_pattern_wall")
+                : null;
+        int pocketGroupId = waveIndex;
+
+        for (int i = 0; i < cells.Count; i++)
+        {
+            RicochetPocketPatternBuilder.Cell cell = cells[i];
+            BlockDefinition definition = cell.Indestructible
+                ? indestructibleDefinition
+                : GetRandomFittingDefinition(
+                    fillBlockType,
+                    cell.Position.x,
+                    cell.Position.y,
+                    occupancyMap,
+                    true);
+            BlockType requestedType = definition != null
+                ? definition.BlockType
+                : fillBlockType;
+
+            if (definition == null && requestedType != BlockType.Normal)
+                continue;
+            if (!occupancyMap.TryOccupy(
+                    cell.Position.x,
+                    cell.Position.y,
+                    Vector2Int.one))
+                continue;
+
+            BlockSpawnRequest request = new BlockSpawnRequest(
+                cell.Position.x,
+                cell.Position.y,
+                waveIndex,
+                definition,
+                requestedType,
+                Vector2Int.one,
+                baseHealth,
+                cell.Role == BlockSpawnRequest.CombatRole.Attacker
+                    ? baseAttack
+                    : 0,
+                null,
+                -1,
+                default,
+                cell.Indestructible
+                    ? BlockSpawnRequest.CombatRole.Unspecified
+                    : cell.Role,
+                cell.Indestructible ? -1 : pocketGroupId);
+            requests.Add(request);
+        }
     }
 
     private List<int> CreateWallPocketColumnPriority(

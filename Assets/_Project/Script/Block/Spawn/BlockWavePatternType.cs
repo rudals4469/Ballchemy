@@ -5,5 +5,6 @@ public enum BlockWavePatternType
     TwinPocket = 2,
     Legacy = 3,
     ZigzagCorridor = 4,
-    CenterGate = 5
+    CenterGate = 5,
+    RicochetPocket = 6
 }

@@ -180,6 +180,13 @@ public sealed class BlockSpawner
             true
         );
 
+        // SetGridPosition이 Definition 외형을 다시 적용하므로
+        // 역할별 런타임 외형은 모든 레이아웃 갱신 뒤에 덮습니다.
+        BlockRoleVisualSelector.Apply(
+            newBlock,
+            request
+        );
+
         if (showSpawnDebugLog)
         {
             Debug.Log(

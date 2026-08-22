@@ -49,6 +49,12 @@ public sealed class BlockWaveCombatRoleAssigner
 
     [Header("Elite Stats")]
 
+    [SerializeField, Min(1f)]
+    private float tankHealthMultiplier = 2f;
+
+    [SerializeField, Range(0.1f, 1f)]
+    private float attackerHealthMultiplier = 0.55f;
+
     [Tooltip(
         "Elite 블록 체력 배율입니다.\n" +
         "일반 블록의 최종 체력을 기준으로 계산합니다."
@@ -63,10 +69,21 @@ public sealed class BlockWaveCombatRoleAssigner
     [SerializeField, Min(0f)]
     private float eliteAttackMultiplier = 1f;
 
+    [Header("Pocket Collapse")]
+
+    [SerializeField, Range(0f, 1f)]
+    private float pocketWeakeningTotal = 0.6f;
+
+    [SerializeField, Range(0f, 1f)]
+    private float pocketFinalCollapseDamage = 0.2f;
+
     [Header("Debug")]
 
     [SerializeField]
     private bool showDebugLog = true;
+
+    public float PocketWeakeningTotal => pocketWeakeningTotal;
+    public float PocketFinalCollapseDamage => pocketFinalCollapseDamage;
 
     public void Normalize()
     {
@@ -99,6 +116,13 @@ public sealed class BlockWaveCombatRoleAssigner
                 eliteHealthMultiplier,
                 0.1f
             );
+
+        tankHealthMultiplier = Mathf.Max(tankHealthMultiplier, 1f);
+        attackerHealthMultiplier = Mathf.Clamp(
+            attackerHealthMultiplier, 0.1f, 1f);
+        pocketWeakeningTotal = Mathf.Clamp01(pocketWeakeningTotal);
+        pocketFinalCollapseDamage = Mathf.Clamp01(
+            pocketFinalCollapseDamage);
 
         eliteAttackMultiplier =
             Mathf.Max(
@@ -158,6 +182,11 @@ public sealed class BlockWaveCombatRoleAssigner
             CreateRequestCopies(
                 sourceRequests
             );
+
+        if (HasPocketRoles(result))
+        {
+            return ApplyPocketRoles(result, blockCatalog);
+        }
 
         if (!enableEliteBlocks ||
             result.Count == 0 ||
@@ -284,6 +313,87 @@ public sealed class BlockWaveCombatRoleAssigner
         return CreateNormalAttackDisabledRequests(
             result
         );
+    }
+
+    private bool HasPocketRoles(
+        IReadOnlyList<BlockSpawnRequest> requests)
+    {
+        if (requests == null) return false;
+        for (int i = 0; i < requests.Count; i++)
+        {
+            if (requests[i] != null &&
+                requests[i].AssignedCombatRole !=
+                BlockSpawnRequest.CombatRole.Unspecified)
+                return true;
+        }
+        return false;
+    }
+
+    private List<BlockSpawnRequest> ApplyPocketRoles(
+        IReadOnlyList<BlockSpawnRequest> requests,
+        BlockCatalog blockCatalog)
+    {
+        List<BlockSpawnRequest> result = new List<BlockSpawnRequest>();
+        List<BlockDefinition> eliteDefinitions = blockCatalog != null
+            ? GetValidEliteDefinitions(blockCatalog)
+            : new List<BlockDefinition>();
+
+        for (int i = 0; i < requests.Count; i++)
+        {
+            BlockSpawnRequest source = requests[i];
+            if (source == null) continue;
+
+            if (source.AssignedCombatRole ==
+                BlockSpawnRequest.CombatRole.Tank)
+            {
+                result.Add(new BlockSpawnRequest(
+                    source.StartColumn,
+                    source.StartRow,
+                    source.WaveIndex,
+                    source.Definition,
+                    source.RequestedBlockType,
+                    source.GridSize,
+                    Mathf.Max(1, Mathf.RoundToInt(
+                        source.Health * tankHealthMultiplier)),
+                    0,
+                    source.GuardianTargetPositions,
+                    source.TeleportPairId,
+                    source.TeleportPartnerPosition,
+                    source.AssignedCombatRole,
+                    source.PocketGroupId));
+                continue;
+            }
+
+            if (source.AssignedCombatRole ==
+                BlockSpawnRequest.CombatRole.Attacker)
+            {
+                BlockDefinition elite = SelectEliteDefinition(
+                    eliteDefinitions, source.GridSize);
+                int health = Mathf.Max(1, Mathf.RoundToInt(
+                    source.Health * attackerHealthMultiplier));
+                int attack = Mathf.Max(1,
+                    CalculateEliteAttack(Mathf.Max(source.Attack, 1)));
+                result.Add(new BlockSpawnRequest(
+                    source.StartColumn,
+                    source.StartRow,
+                    source.WaveIndex,
+                    elite != null ? elite : source.Definition,
+                    elite != null ? BlockType.Elite : source.RequestedBlockType,
+                    source.GridSize,
+                    health,
+                    attack,
+                    source.GuardianTargetPositions,
+                    source.TeleportPairId,
+                    source.TeleportPartnerPosition,
+                    source.AssignedCombatRole,
+                    source.PocketGroupId));
+                continue;
+            }
+
+            result.Add(source.CreateCopy());
+        }
+
+        return result;
     }
 
     private List<BlockSpawnRequest> CreateRequestCopies(

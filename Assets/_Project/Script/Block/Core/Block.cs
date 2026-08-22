@@ -757,6 +757,12 @@ public sealed class Block :
         }
     }
 
+    public void ApplyRuntimeSprite(Sprite sprite)
+    {
+        EnsureHelperObjects();
+        layout.ApplyRuntimeSprite(gameObject, sprite);
+    }
+
     public void TakeScriptedDamage(
         int damage)
     {

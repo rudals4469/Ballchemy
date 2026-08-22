@@ -3,6 +3,12 @@ using UnityEngine;
 
 public sealed class BlockSpawnRequest
 {
+    public enum CombatRole
+    {
+        Unspecified = 0,
+        Tank = 1,
+        Attacker = 2
+    }
     public int StartColumn
     {
         get;
@@ -43,6 +49,12 @@ public sealed class BlockSpawnRequest
         get;
     }
 
+    public CombatRole AssignedCombatRole { get; }
+
+    public int PocketGroupId { get; }
+
+    public bool HasPocketGroup => PocketGroupId >= 0;
+
     private readonly List<Vector2Int> guardianTargetPositions;
 
     public IReadOnlyList<Vector2Int> GuardianTargetPositions =>
@@ -66,7 +78,9 @@ public sealed class BlockSpawnRequest
         int attack,
         IReadOnlyList<Vector2Int> guardianTargets = null,
         int teleportPairId = -1,
-        Vector2Int teleportPartnerPosition = default)
+        Vector2Int teleportPartnerPosition = default,
+        CombatRole assignedCombatRole = CombatRole.Unspecified,
+        int pocketGroupId = -1)
     {
         StartColumn =
             startColumn;
@@ -122,6 +136,8 @@ public sealed class BlockSpawnRequest
 
         TeleportPairId = teleportPairId;
         TeleportPartnerPosition = teleportPartnerPosition;
+        AssignedCombatRole = assignedCombatRole;
+        PocketGroupId = pocketGroupId;
     }
 
     public BlockSpawnRequest(
@@ -159,7 +175,13 @@ public sealed class BlockSpawnRequest
                 : -1,
             source != null
                 ? source.TeleportPartnerPosition
-                : default
+                : default,
+            source != null
+                ? source.AssignedCombatRole
+                : CombatRole.Unspecified,
+            source != null
+                ? source.PocketGroupId
+                : -1
         )
     {
     }
@@ -184,6 +206,28 @@ public sealed class BlockSpawnRequest
             attack,
             GuardianTargetPositions,
             TeleportPairId,
-            TeleportPartnerPosition);
+            TeleportPartnerPosition,
+            AssignedCombatRole,
+            PocketGroupId);
+    }
+
+    public BlockSpawnRequest CreateCopyWithRole(
+        CombatRole combatRole,
+        int pocketGroupId)
+    {
+        return new BlockSpawnRequest(
+            StartColumn,
+            StartRow,
+            WaveIndex,
+            Definition,
+            RequestedBlockType,
+            GridSize,
+            Health,
+            Attack,
+            GuardianTargetPositions,
+            TeleportPairId,
+            TeleportPartnerPosition,
+            combatRole,
+            pocketGroupId);
     }
 }
