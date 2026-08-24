@@ -166,19 +166,17 @@ public sealed class EventChoiceCardUI :
                 true;
         }
 
+        // 카드의 구조 루트는 씬에서 잡은 배치를 유지한다.
+        // 아이콘 유무에 따라 루트를 끄면 LayoutGroup이 제목과 설명을
+        // 다시 배치하여 하이어라키 미리보기와 런타임 위치가 달라진다.
         SetObjectActive(
             iconRoot,
-            hasIcon
+            true
         );
-
-        bool hasEffectText =
-            !string.IsNullOrWhiteSpace(
-                boundChoice.EffectText
-            );
 
         SetObjectActive(
             effectRoot,
-            hasEffectText
+            true
         );
 
         SetObjectActive(

@@ -43,9 +43,9 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
     {
         public SpriteEffectKind Kind;
         public float Began, Duration, Scale;
-        public Color Color;
+        public Color Color, EndColor;
     }
-    private enum SpriteEffectKind { Symbol, Chain, Ring }
+    private enum SpriteEffectKind { Symbol, Chain, Burst }
 
     [SerializeField, Min(8)] private int poolSize = 48;
     [SerializeField, Min(0.01f)] private float travelDuration = 0.51f;
@@ -59,7 +59,7 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
     private readonly Dictionary<ElementType, Sprite> symbolSprites =
         new Dictionary<ElementType, Sprite>();
     private Sprite lightningChainSprite;
-    private Sprite thermalRingSprite;
+    private Sprite thermalBurstSprite;
     private int nextIndex;
     private int nextSymbolIndex;
     private Material sharedMaterial;
@@ -89,19 +89,22 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         Shader shader = Shader.Find("Sprites/Default");
         if (shader != null) sharedMaterial = new Material(shader);
         for (int i = 0; i < poolSize; i++)
-        {
-            GameObject item = new GameObject($"ElementVfx_{i}");
-            item.transform.SetParent(transform, false);
-            LineRenderer line = item.AddComponent<LineRenderer>();
-            line.useWorldSpace = true;
-            line.numCapVertices = 8;
-            line.numCornerVertices = 8;
-            line.sortingOrder = 25;
-            line.material = sharedMaterial;
-            line.enabled = false;
-            pool.Add(line);
-            states.Add(null);
-        }
+            AddLineRenderer();
+    }
+
+    private void AddLineRenderer()
+    {
+        GameObject item = new GameObject($"ElementVfx_{pool.Count}");
+        item.transform.SetParent(transform, false);
+        LineRenderer line = item.AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.numCapVertices = 8;
+        line.numCornerVertices = 8;
+        line.sortingOrder = 25;
+        line.material = sharedMaterial;
+        line.enabled = false;
+        pool.Add(line);
+        states.Add(null);
     }
 
     private void Update()
@@ -151,7 +154,10 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
                 symbolPool[i].transform.localScale =
                     Vector3.one * state.Scale * expansion;
             }
-            Color color = state.Color;
+            Color color = state.Kind == SpriteEffectKind.Burst
+                ? Color.Lerp(state.Color, state.EndColor,
+                    Mathf.SmoothStep(0f, 1f, progress))
+                : state.Color;
             color.a *= fade;
             symbolPool[i].color = color;
         }
@@ -159,26 +165,9 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
 
     private void HandleImpact(ElementType element, Block target)
     {
-        if (target == null) return;
-        Vector3 center = target.transform.position;
-        Vector2 randomOffset = Random.insideUnitCircle * 0.26f;
-        center += new Vector3(randomOffset.x, randomOffset.y, 0f);
-        Color color = ResolveColor(element);
-        switch (element)
-        {
-            case ElementType.Electric:
-                PlaySymbol(center, element, color);
-                break;
-            case ElementType.Water:
-                PlaySymbol(center, element, color);
-                break;
-            case ElementType.Ice:
-                PlaySymbol(center, element, color);
-                break;
-            case ElementType.Fire:
-                PlaySymbol(center, element, color);
-                break;
-        }
+        // Direct-hit symbols are rendered by BallDamagePopupView beside the
+        // damage number. Keeping a second world-space symbol here made every
+        // hit look like two unrelated effects.
     }
 
     private void LoadSymbolSprites()
@@ -189,8 +178,8 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         LoadSymbol(ElementType.Fire, "VFX/ElementSymbols/Icon_Element_Fire");
         lightningChainSprite = LoadSprite(
             "VFX/ElementSymbols/Vfx_Chain_Lightning");
-        thermalRingSprite = LoadSprite(
-            "VFX/ElementSymbols/Vfx_Thermal_Ring");
+        thermalBurstSprite = LoadSprite(
+            "VFX/ElementSymbols/Vfx_Thermal_Burst");
     }
 
     private void LoadSymbol(ElementType element, string resourcePath)
@@ -215,22 +204,62 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         if (symbolPool.Count > 0) return;
         const int count = 64;
         for (int i = 0; i < count; i++)
+            AddSymbolRenderer();
+    }
+
+    private void AddSymbolRenderer()
+    {
+        GameObject item = new GameObject($"ElementSymbol_{symbolPool.Count}");
+        item.transform.SetParent(transform, false);
+        SpriteRenderer renderer = item.AddComponent<SpriteRenderer>();
+        renderer.sortingOrder = 27;
+        renderer.enabled = false;
+        symbolPool.Add(renderer);
+        symbolStates.Add(null);
+    }
+
+    private int AcquireSymbolIndex()
+    {
+        WarmSymbolPool();
+        for (int offset = 0; offset < symbolPool.Count; offset++)
         {
-            GameObject item = new GameObject($"ElementSymbol_{i}");
-            item.transform.SetParent(transform, false);
-            SpriteRenderer renderer = item.AddComponent<SpriteRenderer>();
-            renderer.sortingOrder = 27;
-            renderer.enabled = false;
-            symbolPool.Add(renderer);
-            symbolStates.Add(null);
+            int index = (nextSymbolIndex + offset) % symbolPool.Count;
+            if (symbolStates[index] != null && symbolPool[index].enabled)
+                continue;
+
+            nextSymbolIndex = (index + 1) % symbolPool.Count;
+            return index;
         }
+
+        int expandedIndex = symbolPool.Count;
+        AddSymbolRenderer();
+        nextSymbolIndex = 0;
+        return expandedIndex;
+    }
+
+    private int AcquireLineIndex()
+    {
+        WarmPool();
+        for (int offset = 0; offset < pool.Count; offset++)
+        {
+            int index = (nextIndex + offset) % pool.Count;
+            if (states[index] != null && pool[index].enabled)
+                continue;
+
+            nextIndex = (index + 1) % pool.Count;
+            return index;
+        }
+
+        int expandedIndex = pool.Count;
+        AddLineRenderer();
+        nextIndex = 0;
+        return expandedIndex;
     }
 
     private void PlaySymbol(Vector3 position, ElementType element, Color color)
     {
         if (!symbolSprites.TryGetValue(element, out Sprite sprite)) return;
-        WarmSymbolPool();
-        int index = nextSymbolIndex++ % symbolPool.Count;
+        int index = AcquireSymbolIndex();
         SpriteRenderer renderer = symbolPool[index];
         renderer.sprite = sprite;
         renderer.transform.position = position;
@@ -245,7 +274,8 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
             Began = Time.time,
             Duration = impactDuration,
             Scale = Random.Range(0.5f, 0.62f),
-            Color = color
+            Color = color,
+            EndColor = color
         };
     }
 
@@ -255,20 +285,22 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         Color color,
         float lateralOffset,
         float widthScale,
-        bool flipY)
+        bool flipY,
+        float angleOffset)
     {
         if (lightningChainSprite == null) return;
         Vector3 delta = end - start;
         float length = delta.magnitude;
         if (length <= 0.001f) return;
-        int index = nextSymbolIndex++ % symbolPool.Count;
+        int index = AcquireSymbolIndex();
         SpriteRenderer renderer = symbolPool[index];
         renderer.sprite = lightningChainSprite;
         Vector3 perpendicular = Vector3.Cross(delta.normalized, Vector3.forward);
         renderer.transform.position =
             (start + end) * 0.5f + perpendicular * lateralOffset;
         renderer.transform.rotation = Quaternion.Euler(
-            0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+            0f, 0f,
+            Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg + angleOffset);
         renderer.transform.localScale = new Vector3(length, widthScale, 1f);
         renderer.flipX = false;
         renderer.flipY = flipY;
@@ -279,7 +311,8 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
             Began = Time.time,
             Duration = travelDuration,
             Scale = widthScale,
-            Color = color
+            Color = color,
+            EndColor = color
         };
     }
 
@@ -292,18 +325,18 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
             Vector3.Cross(delta.normalized, Vector3.forward);
 
         // 이미지 번개를 서로 반전하고 비껴 겹쳐 굵은 주 전류를 만든다.
-        PlayChainSprite(start, end, color, 0f, 0.86f, false);
+        PlayChainSprite(start, end, color, 0f, 1.03f, false, -2.5f);
         PlayChainSprite(start, end, WithAlpha(color, 0.78f),
-            0.09f, 0.62f, true);
+            0.11f, 0.74f, true, 4.5f);
         PlayChainSprite(start, end, WithAlpha(color, 0.62f),
-            -0.085f, 0.54f, false);
+            -0.1f, 0.65f, false, -5.5f);
 
         // 기존 동적 번개도 양옆으로 꼬아 정지 이미지처럼 보이지 않게 한다.
         Play(start + perpendicular * 0.07f, end - perpendicular * 0.05f,
-            WithAlpha(color, 0.9f), travelDuration * 0.92f, 0.72f,
+            WithAlpha(color, 0.9f), travelDuration * 0.92f, 0.86f,
             Style.Lightning);
         Play(start - perpendicular * 0.08f, end + perpendicular * 0.065f,
-            WithAlpha(color, 0.68f), travelDuration * 0.78f, 0.5f,
+            WithAlpha(color, 0.68f), travelDuration * 0.78f, 0.6f,
             Style.Lightning);
     }
 
@@ -313,25 +346,30 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         return color;
     }
 
-    private void PlayRingSprite(Vector3 position, Color color)
+    private void PlayBurstSprite(
+        Vector3 position,
+        Color startColor,
+        Color endColor)
     {
-        if (thermalRingSprite == null) return;
-        int index = nextSymbolIndex++ % symbolPool.Count;
+        if (thermalBurstSprite == null) return;
+        int index = AcquireSymbolIndex();
         SpriteRenderer renderer = symbolPool[index];
-        renderer.sprite = thermalRingSprite;
+        renderer.sprite = thermalBurstSprite;
         renderer.transform.position = position;
-        renderer.transform.rotation = Quaternion.identity;
+        renderer.transform.rotation = Quaternion.Euler(
+            0f, 0f, Random.Range(-10f, 10f));
         renderer.transform.localScale = Vector3.zero;
         renderer.flipX = false;
         renderer.flipY = false;
         renderer.enabled = true;
         symbolStates[index] = new SymbolState
         {
-            Kind = SpriteEffectKind.Ring,
+            Kind = SpriteEffectKind.Burst,
             Began = Time.time,
             Duration = 0.62f,
-            Scale = 3.8f,
-            Color = color
+            Scale = 4.6f,
+            Color = startColor,
+            EndColor = endColor
         };
     }
 
@@ -376,16 +414,16 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
     {
         if (center == null) return;
         Vector3 position = center.transform.position;
+        Color red = new Color(1f, 0.16f, 0.06f, 1f);
         Color orange = new Color(1f, 0.72f, 0.18f, 1f);
-        PlayRingSprite(position, orange);
+        PlayBurstSprite(position, red, orange);
 
     }
 
     private void Play(Vector3 start, Vector3 end, Color color,
         float duration, float widthMultiplier, Style style)
     {
-        WarmPool();
-        int index = nextIndex++ % pool.Count;
+        int index = AcquireLineIndex();
         states[index] = new State
         {
             Start = start, End = end, Color = color,

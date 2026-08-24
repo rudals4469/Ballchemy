@@ -180,6 +180,16 @@ public sealed class BlockSpawner
             true
         );
 
+        if (request.RequestedBlockType == BlockType.Named)
+        {
+            NamedCoreBehavior namedCore =
+                newBlock.GetComponent<NamedCoreBehavior>();
+            if (namedCore == null)
+                namedCore = newBlock.gameObject.AddComponent<NamedCoreBehavior>();
+            namedCore.Configure(
+                NamedCoreBehavior.ResolveType(request.GridSize));
+        }
+
         // SetGridPosition이 Definition 외형을 다시 적용하므로
         // 역할별 런타임 외형은 모든 레이아웃 갱신 뒤에 덮습니다.
         BlockRoleVisualSelector.Apply(

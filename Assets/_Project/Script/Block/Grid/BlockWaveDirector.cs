@@ -20,7 +20,25 @@ public sealed class BlockWaveDirector
     [SerializeField, Min(1)]
     private int regularWaveCountPerStage = 9;
 
-    [Header("Named Wave")]
+    [Header("Named Block In Normal Room")]
+
+    [Tooltip("일반 전투방에 네임드 블록을 섞어 생성합니다.")]
+    [SerializeField]
+    private bool enableNamedBlocksInNormalRooms = true;
+
+    [Tooltip("1스테이지 일반방의 네임드 출현 확률입니다.")]
+    [SerializeField, Range(0f, 1f)]
+    private float baseNamedSpawnChance = 0.25f;
+
+    [Tooltip("스테이지가 오를 때 추가되는 네임드 출현 확률입니다.")]
+    [SerializeField, Range(0f, 1f)]
+    private float namedSpawnChancePerStage = 0.1f;
+
+    [Tooltip("일반방 네임드 출현 확률의 상한입니다.")]
+    [SerializeField, Range(0f, 1f)]
+    private float maximumNamedSpawnChance = 0.65f;
+
+    [Header("Legacy Named Wave")]
     [Tooltip(
         "몇 웨이브마다 네임드 블록을 " +
         "등장시킬지 결정합니다.\n" +
@@ -43,6 +61,7 @@ public sealed class BlockWaveDirector
     private int currentWaveIndex;
 
     private bool isRunCompleted;
+    private bool forceNamedInNextNormalRoom;
 
     public int CurrentStageIndex =>
         currentStageIndex;
@@ -77,6 +96,11 @@ public sealed class BlockWaveDirector
     public bool IsRunCompleted =>
         isRunCompleted;
 
+    public void ForceNamedInNextNormalRoom()
+    {
+        forceNamedInNextNormalRoom = true;
+    }
+
     public void Normalize()
     {
         totalStageCount =
@@ -108,6 +132,13 @@ public sealed class BlockWaveDirector
                 namedAttackMultiplier,
                 0f
             );
+
+        baseNamedSpawnChance = Mathf.Clamp01(baseNamedSpawnChance);
+        namedSpawnChancePerStage = Mathf.Clamp01(namedSpawnChancePerStage);
+        maximumNamedSpawnChance = Mathf.Clamp(
+            maximumNamedSpawnChance,
+            baseNamedSpawnChance,
+            1f);
     }
 
     public void Initialize()
@@ -201,12 +232,10 @@ public sealed class BlockWaveDirector
         switch (roomType)
         {
             case RoomType.NormalCombat:
-                return waveGenerator
-                    .GenerateWave(
-                        rowCount,
-                        roomDifficultyIndex,
-                        BlockType.Normal
-                    );
+                return GenerateNormalRoomWave(
+                    waveGenerator,
+                    rowCount,
+                    roomDifficultyIndex);
 
             case RoomType.NamedCombat:
                 return GenerateNamedRoomWave(
@@ -224,6 +253,58 @@ public sealed class BlockWaveDirector
 
                 return new List<Block>();
         }
+    }
+
+    private List<Block> GenerateNormalRoomWave(
+        BlockWaveGenerator waveGenerator,
+        int baseRowCount,
+        int roomDifficultyIndex)
+    {
+        bool forceNamed = forceNamedInNextNormalRoom;
+        forceNamedInNextNormalRoom = false;
+
+        if (!enableNamedBlocksInNormalRooms && !forceNamed)
+        {
+            return waveGenerator.GenerateWave(
+                baseRowCount,
+                roomDifficultyIndex,
+                BlockType.Normal);
+        }
+
+        float spawnChance = Mathf.Min(
+            maximumNamedSpawnChance,
+            baseNamedSpawnChance +
+            Mathf.Max(currentStageIndex, 0) * namedSpawnChancePerStage);
+
+        if (!forceNamed && UnityEngine.Random.value > spawnChance)
+        {
+            return waveGenerator.GenerateWave(
+                baseRowCount,
+                roomDifficultyIndex,
+                BlockType.Normal);
+        }
+
+        BlockDefinition namedDefinition =
+            waveGenerator.GetRandomDefinition(BlockType.Named);
+
+        if (namedDefinition == null)
+        {
+            return waveGenerator.GenerateWave(
+                baseRowCount,
+                roomDifficultyIndex,
+                BlockType.Normal);
+        }
+
+        int requiredRowCount = waveGenerator.GetRequiredRowCount(
+            baseRowCount,
+            namedDefinition);
+
+        return waveGenerator.GenerateFeaturedWave(
+            requiredRowCount,
+            roomDifficultyIndex,
+            namedDefinition,
+            namedHealthMultiplier,
+            namedAttackMultiplier);
     }
 
     private List<Block> GenerateNamedRoomWave(

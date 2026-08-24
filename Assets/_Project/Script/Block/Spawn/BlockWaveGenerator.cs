@@ -562,6 +562,11 @@ public sealed class BlockWaveGenerator :
             excludedSpecialBlockIds
         );
 
+        RemovePerimeterRequests(
+            requests,
+            ColumnCount
+        );
+
         /*
          * 배치 자체가 모두 끝난 뒤
          * 블록의 전투 역할만 결정합니다.
@@ -588,6 +593,13 @@ public sealed class BlockWaveGenerator :
                     BlockCatalog,
                     featuredDefinition != null
                 );
+
+        // 텔레포트를 포함한 모든 후처리 결과도 상단과 좌우의
+        // 외곽 순환 통로를 침범하지 못하게 최종 보장합니다.
+        RemovePerimeterRequests(
+            requests,
+            ColumnCount
+        );
 
         requests = GuardianProtectionResolver.AssignTargets(
             requests,
@@ -743,6 +755,131 @@ public sealed class BlockWaveGenerator :
         );
 
         return generatedBlocks;
+    }
+
+    private static void RemovePerimeterRequests(
+        List<BlockSpawnRequest> requests,
+        int columnCount)
+    {
+        if (requests == null || columnCount <= 0)
+            return;
+
+        HashSet<int> removedTeleportPairs = new HashSet<int>();
+        requests.RemoveAll(request =>
+        {
+            if (request == null) return false;
+
+            int left = request.StartColumn;
+            int right = left + Mathf.Max(request.GridSize.x, 1) - 1;
+            int top = request.StartRow;
+            bool remove = top <= 0 || left <= 0 ||
+                          right >= columnCount - 1;
+            if (remove && request.HasTeleportPair)
+                removedTeleportPairs.Add(request.TeleportPairId);
+            return remove;
+        });
+
+        if (removedTeleportPairs.Count > 0)
+        {
+            requests.RemoveAll(request =>
+                request != null && request.HasTeleportPair &&
+                removedTeleportPairs.Contains(request.TeleportPairId));
+        }
+    }
+
+    private static List<BlockSpawnRequest> RemoveFilledTwoByTwoClusters(
+        List<BlockSpawnRequest> source,
+        int columnCount,
+        int rowCount)
+    {
+        List<BlockSpawnRequest> result = source != null
+            ? new List<BlockSpawnRequest>(source)
+            : new List<BlockSpawnRequest>();
+        int safety = Mathf.Max(result.Count, 1);
+        while (safety-- > 0 &&
+               TryFindTwoByTwoRemoval(
+                   result, columnCount, rowCount, out int removeIndex))
+        {
+            result.RemoveAt(removeIndex);
+        }
+        return result;
+    }
+
+    private static bool TryFindTwoByTwoRemoval(
+        IReadOnlyList<BlockSpawnRequest> requests,
+        int columnCount,
+        int rowCount,
+        out int removeIndex)
+    {
+        removeIndex = -1;
+        int[,] owners = new int[columnCount, rowCount];
+        for (int column = 0; column < columnCount; column++)
+        for (int row = 0; row < rowCount; row++)
+            owners[column, row] = -1;
+
+        for (int requestIndex = 0; requestIndex < requests.Count; requestIndex++)
+        {
+            BlockSpawnRequest request = requests[requestIndex];
+            if (request == null) continue;
+            for (int x = 0; x < request.GridSize.x; x++)
+            for (int y = 0; y < request.GridSize.y; y++)
+            {
+                int column = request.StartColumn + x;
+                int row = request.StartRow + y;
+                if (column >= 0 && column < columnCount &&
+                    row >= 0 && row < rowCount)
+                    owners[column, row] = requestIndex;
+            }
+        }
+
+        for (int row = 0; row < rowCount - 1; row++)
+        for (int column = 0; column < columnCount - 1; column++)
+        {
+            int first = owners[column, row];
+            int second = owners[column + 1, row];
+            int third = owners[column, row + 1];
+            int fourth = owners[column + 1, row + 1];
+            if (first < 0 || second < 0 || third < 0 || fourth < 0)
+                continue;
+            if (first == second && first == third && first == fourth)
+                continue;
+
+            int[] candidates = { first, second, third, fourth };
+            int bestPriority = int.MaxValue;
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                int candidateIndex = candidates[i];
+                int priority = GetClusterRemovalPriority(
+                    requests[candidateIndex]);
+                if (priority < bestPriority)
+                {
+                    bestPriority = priority;
+                    removeIndex = candidateIndex;
+                }
+            }
+            if (removeIndex >= 0 && bestPriority < int.MaxValue)
+                return true;
+        }
+
+        removeIndex = -1;
+        return false;
+    }
+
+    private static int GetClusterRemovalPriority(BlockSpawnRequest request)
+    {
+        if (request == null) return int.MaxValue;
+        if (request.RequestedBlockType == BlockType.Named ||
+            request.RequestedBlockType == BlockType.Special ||
+            (request.Definition != null &&
+             request.Definition.DestructionRule ==
+             BlockDestructionRule.Indestructible))
+            return int.MaxValue;
+        if (request.GridSize != Vector2Int.one) return 4;
+        if (request.AssignedCombatRole == BlockSpawnRequest.CombatRole.Tank)
+            return 0;
+        if (request.AssignedCombatRole == BlockSpawnRequest.CombatRole.Unspecified)
+            return 1;
+        return 2;
     }
 
     private void ConfigurePocketRuntime(

@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91d61e4880d54b8eab2cd084695c3e8c, type: 3}
+  m_Name: PocketMap_S1_05
+  m_EditorClassIdentifier:
+  patternId: PocketMap_S1_05
+  displayName: S1_05
+  grammarType: 0
+  minimumWaveIndex: 0
+  maximumWaveIndex: 0
+  minimumRowCount: 5
+  selectionWeight: 1
+  minimumCorridorWidth: 2
+  maximumCorridorWidth: 2
+  pathNoiseChance: 0
+  allowTranspose: 0
+  minimumAttackerCount: 1
+  maximumAttackerCount: 4
+  wallBreathingGapChance: 0
+  preventFilledTwoByTwo: 1
+  maximumIndestructibleAnchors: 0
+  indestructibleAnchorChance: 0
+  useFixedLayout: 1
+  fixedLayoutSize: {x: 7, y: 5}
+  allowHorizontalMirror: 1
+  teleportMode: 0
+  fixedCells:
+  - position: {x: 0, y: 0}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 1, y: 0}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 2, y: 0}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 3, y: 0}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 0, y: 1}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 3, y: 1}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 0, y: 2}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 2, y: 2}
+    cellType: 1
+    pairGroupId: 0
+  - position: {x: 3, y: 2}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 0, y: 3}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 3, y: 3}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 0, y: 4}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 1, y: 4}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 3, y: 4}
+    cellType: 0
+    pairGroupId: 0
+

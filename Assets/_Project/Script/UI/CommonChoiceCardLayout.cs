@@ -48,9 +48,9 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
         auxiliary = auxiliaryText;
         description = descriptionText;
 
-        ConfigureText(title, TextAlignmentOptions.TopLeft);
-        ConfigureText(auxiliary, TextAlignmentOptions.TopRight);
-        ConfigureText(description, TextAlignmentOptions.TopLeft);
+        ConfigureTextPreservingAlignment(title);
+        ConfigureTextPreservingAlignment(auxiliary);
+        ConfigureTextPreservingAlignment(description);
         CaptureAuthoredLayout();
     }
 
@@ -58,17 +58,12 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
     {
         CaptureAuthoredLayout();
 
-        if (!enabled)
-        {
-            RestoreLayout(titleLayout);
-            RestoreLayout(auxiliaryLayout);
-            RestoreLayout(descriptionLayout);
-            return;
-        }
-
-        ReserveLayoutHeight(titleLayout.Element, 38f);
-        ReserveLayoutHeight(auxiliaryLayout.Element, 28f);
-        ReserveLayoutHeight(descriptionLayout.Element, 66f);
+        // 카드 위치와 크기는 씬의 하이어라키에서 편집한 값을 그대로 사용한다.
+        // 이전 구현은 증강 카드가 바인딩될 때만 고정 높이를 적용하여
+        // 에디터 미리보기와 실제 런타임 배치가 달라졌다.
+        RestoreLayout(titleLayout);
+        RestoreLayout(auxiliaryLayout);
+        RestoreLayout(descriptionLayout);
     }
 
     public void SetTexts(string titleValue, string auxiliaryValue, string descriptionValue)
@@ -96,15 +91,13 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
 
     public void SetIconAuxiliaryPanelVisible(bool visible, bool showDivider)
     {
-        if (!visible)
-        {
-            if (iconAuxiliaryPanel != null) iconAuxiliaryPanel.SetActive(false);
-            return;
-        }
-
-        EnsureIconAuxiliaryPanel();
-        iconAuxiliaryPanel.SetActive(true);
-        iconAuxiliaryDivider.SetActive(showDivider);
+        // 아이콘/별 패널 또한 씬에 배치된 오브젝트만 제어한다.
+        // 런타임 생성은 하이어라키에서 확인한 위치와 다른 UI를 만들기 때문에
+        // 더 이상 여기서 새 패널을 만들지 않는다.
+        if (iconAuxiliaryPanel == null) return;
+        iconAuxiliaryPanel.SetActive(visible);
+        if (iconAuxiliaryDivider != null)
+            iconAuxiliaryDivider.SetActive(visible && showDivider);
     }
 
     private void EnsureIconAuxiliaryPanel()
@@ -174,6 +167,14 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
         text.overflowMode = TextOverflowModes.Ellipsis;
         text.enableAutoSizing = false;
         text.alignment = alignment;
+    }
+
+    private static void ConfigureTextPreservingAlignment(TMP_Text text)
+    {
+        if (text == null) return;
+        text.textWrappingMode = TextWrappingModes.Normal;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+        text.enableAutoSizing = false;
     }
 
     private void CaptureAuthoredLayout()

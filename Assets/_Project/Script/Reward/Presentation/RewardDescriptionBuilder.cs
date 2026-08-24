@@ -216,6 +216,12 @@ public static class RewardDescriptionBuilder
                 augmentDefinition
             );
 
+        if (string.IsNullOrWhiteSpace(effectText))
+        {
+            effectText = augmentDefinition
+                .GetLevelDescription(nextLevel);
+        }
+
         /*
          * AugmentDefinition에 아이콘이 있으면 우선 사용하고,
          * 없으면 RewardDefinition의 아이콘을 사용합니다.

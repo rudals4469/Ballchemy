@@ -1,10 +1,33 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public static class BlockRoleVisualSelector
 {
+    private const string RoleSymbolOverlayName = "RoleSymbolOverlay";
+    private const string NamedCornerBandName = "NamedCornerBand";
+    private const string NamedCornerStarName = "NamedCornerStar";
+
     private static readonly Dictionary<string, Sprite> SpriteCache =
         new Dictionary<string, Sprite>();
+
+    private static readonly Color AttackerBackground = new Color32(255, 48, 36, 255);
+    private static readonly Color TankBackground = new Color32(20, 118, 255, 255);
+    private static readonly Color NamedBackground = new Color32(255, 190, 0, 255);
+    private static readonly Color NamedSymbol = new Color32(255, 241, 174, 255);
+    private static readonly Color IndestructibleBackground = new Color32(132, 145, 160, 255);
+
+    private readonly struct SpecialVisualStyle
+    {
+        public readonly Color Background;
+        public readonly Color Symbol;
+
+        public SpecialVisualStyle(Color background, Color symbol)
+        {
+            Background = background;
+            Symbol = symbol;
+        }
+    }
 
     [RuntimeInitializeOnLoadMethod(
         RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -33,6 +56,13 @@ public static class BlockRoleVisualSelector
         "BlockVisuals/Named_03"
     };
 
+    private static readonly string[] NamedSymbolPaths =
+    {
+        "BlockVisuals/NamedSymbol_01",
+        "BlockVisuals/NamedSymbol_02",
+        "BlockVisuals/NamedSymbol_03"
+    };
+
     private const string IndestructiblePath =
         "BlockVisuals/Indestructible";
 
@@ -50,12 +80,64 @@ public static class BlockRoleVisualSelector
             { "special_teleport", "BlockVisuals/Special_Teleport" }
         };
 
+    private static readonly Dictionary<string, SpecialVisualStyle> SpecialStyles =
+        new Dictionary<string, SpecialVisualStyle>
+        {
+            { "special_heal", new SpecialVisualStyle(new Color32(0,220,96,255), new Color32(218,255,231,255)) },
+            { "special_seal", new SpecialVisualStyle(new Color32(183,54,255,255), new Color32(255,224,102,255)) },
+            { "special_curse", new SpecialVisualStyle(new Color32(132,45,210,255), new Color32(232,209,255,255)) },
+            { "special_explosion", new SpecialVisualStyle(new Color32(255,91,20,255), new Color32(255,211,163,255)) },
+            { "special_repair", new SpecialVisualStyle(new Color32(0,210,205,255), new Color32(207,255,255,255)) },
+            { "special_shield", new SpecialVisualStyle(new Color32(15,125,255,255), new Color32(220,239,255,255)) },
+            { "special_guardian", new SpecialVisualStyle(new Color32(0,185,225,255), new Color32(205,248,255,255)) },
+            { "special_gold", new SpecialVisualStyle(new Color32(255,178,0,255), new Color32(255,241,174,255)) },
+            { "special_teleport", new SpecialVisualStyle(new Color32(62,82,255,255), new Color32(224,235,255,255)) }
+        };
+
     public static void Apply(
         Block block,
         BlockSpawnRequest request)
     {
         if (block == null || request == null)
         {
+            return;
+        }
+
+        SetOverlayVisible(block, false);
+        SetNamedCornerBadgeVisible(block, false);
+
+        if (request.Definition != null &&
+            request.Definition.DestructionRule == BlockDestructionRule.Indestructible &&
+            request.RequestedBlockType != BlockType.Boss)
+        {
+            ApplyColoredBackground(block, IndestructibleBackground);
+            return;
+        }
+
+        if (request.Definition != null &&
+            SpecialPaths.TryGetValue(request.Definition.BlockId, out string specialPath) &&
+            SpecialStyles.TryGetValue(request.Definition.BlockId, out SpecialVisualStyle specialStyle))
+        {
+            ApplyColoredBackground(block, specialStyle.Background);
+            ApplySymbolOverlay(block, specialPath, 0.62f);
+            return;
+        }
+
+        if (request.RequestedBlockType == BlockType.Named)
+        {
+            ApplyColoredBackground(block, NamedBackground);
+            ApplyNamedSymbol(block, request.GridSize);
+            SetNamedCornerBadgeVisible(block, true);
+            return;
+        }
+
+        if (IsPlainCombatRole(request))
+        {
+            ApplyColoredBackground(
+                block,
+                request.AssignedCombatRole == BlockSpawnRequest.CombatRole.Attacker
+                    ? AttackerBackground
+                    : TankBackground);
             return;
         }
 
@@ -76,6 +158,252 @@ public static class BlockRoleVisualSelector
         }
 
         block.ApplyRuntimeSprite(sprite);
+    }
+
+    private static bool IsPlainCombatRole(BlockSpawnRequest request)
+    {
+        if (request.Definition != null &&
+            SpecialPaths.ContainsKey(request.Definition.BlockId))
+            return false;
+
+        if (request.Definition != null &&
+            request.Definition.DestructionRule == BlockDestructionRule.Indestructible)
+            return false;
+
+        if (request.RequestedBlockType == BlockType.Boss ||
+            request.RequestedBlockType == BlockType.Pattern)
+            return false;
+
+        return request.AssignedCombatRole == BlockSpawnRequest.CombatRole.Attacker ||
+               request.AssignedCombatRole == BlockSpawnRequest.CombatRole.Tank;
+    }
+
+    private static void ApplyColoredBackground(Block block, Color color)
+    {
+        Sprite background = LoadColoredBackgroundSprite(color);
+        if (background != null)
+            block.ApplyRuntimeSprite(background);
+    }
+
+    private static Sprite LoadColoredBackgroundSprite(Color color)
+    {
+        Color32 color32 = color;
+        string cacheKey = $"#background-{color32.r:X2}{color32.g:X2}{color32.b:X2}";
+        if (SpriteCache.TryGetValue(cacheKey, out Sprite cached) && cached != null)
+            return cached;
+
+        Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        texture.name = "RuntimeBlockBackground_" + cacheKey;
+        texture.filterMode = FilterMode.Bilinear;
+        texture.wrapMode = TextureWrapMode.Clamp;
+        texture.SetPixels(new[] { color, color, color, color });
+        texture.Apply(false, true);
+        Sprite background = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, 2f, 2f),
+            new Vector2(0.5f, 0.5f),
+            2f,
+            0,
+            SpriteMeshType.FullRect);
+        background.name = texture.name + "_Background";
+        SpriteCache[cacheKey] = background;
+        return background;
+    }
+
+    private static void ApplyNamedSymbol(Block block, Vector2Int gridSize)
+    {
+        NamedCoreType coreType = NamedCoreBehavior.ResolveType(gridSize);
+        ApplySymbolOverlay(
+            block,
+            NamedSymbolPaths[Mathf.Clamp((int)coreType, 0, NamedSymbolPaths.Length - 1)],
+            0.68f);
+    }
+
+    private static void ApplySymbolOverlay(
+        Block block,
+        string sourcePath,
+        float sizeRatio)
+    {
+        Sprite symbolCard = sourcePath.StartsWith("BlockVisuals/NamedSymbol_")
+            ? LoadSprite(sourcePath)
+            : LoadTransparentSymbolSprite(sourcePath);
+        if (symbolCard == null) return;
+
+        SpriteRenderer baseRenderer = FindBaseRenderer(block);
+        if (baseRenderer == null) return;
+
+        Transform overlayTransform = baseRenderer.transform.Find(RoleSymbolOverlayName);
+        GameObject overlayObject = overlayTransform != null
+            ? overlayTransform.gameObject
+            : new GameObject(RoleSymbolOverlayName);
+        overlayObject.transform.SetParent(baseRenderer.transform, false);
+        overlayObject.SetActive(true);
+        overlayObject.layer = block.gameObject.layer;
+
+        SpriteRenderer overlay = overlayObject.GetComponent<SpriteRenderer>();
+        if (overlay == null) overlay = overlayObject.AddComponent<SpriteRenderer>();
+        SortingGroup sortingGroup = overlayObject.GetComponent<SortingGroup>();
+        if (sortingGroup == null) sortingGroup = overlayObject.AddComponent<SortingGroup>();
+        overlay.sprite = symbolCard;
+        overlay.color = Color.white;
+        // Explicitly inherit the prefab renderer's valid sprite material.
+        // Assigning null can keep a stale missing-shader material on an
+        // already-created runtime renderer and produces Unity's magenta quad.
+        overlay.sharedMaterial = baseRenderer.sharedMaterial;
+        overlay.drawMode = SpriteDrawMode.Simple;
+        overlay.sortingLayerID = baseRenderer.sortingLayerID;
+        overlay.sortingOrder = 0;
+        sortingGroup.sortingLayerID = baseRenderer.sortingLayerID;
+        sortingGroup.sortingOrder = Mathf.Min(baseRenderer.sortingOrder + 100, 32000);
+
+        overlay.transform.localPosition = new Vector3(0f, 0f, -0.1f);
+        overlay.transform.localRotation = Quaternion.identity;
+        Vector2 blockSize = baseRenderer.size;
+        float blockAreaScale = Mathf.Sqrt(Mathf.Max(blockSize.x * blockSize.y, 1f));
+        float desiredSymbolCardSize = Mathf.Clamp(
+            sizeRatio * blockAreaScale,
+            sizeRatio,
+            sizeRatio * 1.75f);
+        float spriteSize = Mathf.Max(symbolCard.bounds.size.x, symbolCard.bounds.size.y);
+        float scale = spriteSize > 0.001f ? desiredSymbolCardSize / spriteSize : 1f;
+        overlay.transform.localScale = Vector3.one * scale;
+        overlay.enabled = true;
+    }
+
+    private static Sprite LoadTransparentSymbolSprite(string sourcePath)
+    {
+        string cacheKey = sourcePath + "#original-symbol";
+        if (SpriteCache.TryGetValue(cacheKey, out Sprite cached) && cached != null)
+            return cached;
+
+        Texture2D source = Resources.Load<Texture2D>(sourcePath);
+        if (source == null || !source.isReadable)
+        {
+            Debug.LogWarning($"BlockRoleVisualSelector: 심볼 원본을 읽을 수 없습니다. 경로={sourcePath}");
+            return null;
+        }
+
+        Color32[] sourcePixels = source.GetPixels32();
+        Color32 key = sourcePixels.Length > 0 ? sourcePixels[0] : new Color32(0, 0, 0, 255);
+        Color32[] outputPixels = new Color32[sourcePixels.Length];
+        for (int i = 0; i < sourcePixels.Length; i++)
+        {
+            Color32 pixel = sourcePixels[i];
+            int difference = Mathf.Max(
+                Mathf.Abs(pixel.r - key.r),
+                Mathf.Abs(pixel.g - key.g),
+                Mathf.Abs(pixel.b - key.b));
+            byte alpha = (byte)Mathf.RoundToInt(
+                pixel.a * Mathf.Clamp01((difference - 2f) / 20f));
+            outputPixels[i] = new Color32(pixel.r, pixel.g, pixel.b, alpha);
+        }
+
+        Texture2D transparentTexture = new Texture2D(
+            source.width, source.height, TextureFormat.RGBA32, false);
+        transparentTexture.name = source.name + "_TransparentSymbol";
+        transparentTexture.filterMode = FilterMode.Bilinear;
+        transparentTexture.wrapMode = TextureWrapMode.Clamp;
+        transparentTexture.SetPixels32(outputPixels);
+        transparentTexture.Apply(false, true);
+
+        Sprite symbol = Sprite.Create(
+            transparentTexture,
+            new Rect(0f, 0f, transparentTexture.width, transparentTexture.height),
+            new Vector2(0.5f, 0.5f),
+            100f,
+            0,
+            SpriteMeshType.FullRect);
+        symbol.name = source.name + "_TransparentSymbol";
+        SpriteCache[cacheKey] = symbol;
+        return symbol;
+    }
+
+    private static void SetOverlayVisible(Block block, bool visible)
+    {
+        SpriteRenderer baseRenderer = FindBaseRenderer(block);
+        Transform overlay = baseRenderer != null
+            ? baseRenderer.transform.Find(RoleSymbolOverlayName)
+            : null;
+        if (overlay != null)
+            overlay.gameObject.SetActive(visible);
+    }
+
+    private static void SetNamedCornerBadgeVisible(Block block, bool visible)
+    {
+        SpriteRenderer baseRenderer = FindBaseRenderer(block);
+        if (baseRenderer == null) return;
+
+        Transform bandTransform = baseRenderer.transform.Find(NamedCornerBandName);
+        Transform starTransform = baseRenderer.transform.Find(NamedCornerStarName);
+        if (bandTransform == null || starTransform == null) return;
+
+        bandTransform.gameObject.SetActive(visible);
+        starTransform.gameObject.SetActive(visible);
+        if (!visible) return;
+
+        SpriteRenderer band = bandTransform.GetComponent<SpriteRenderer>();
+        SpriteRenderer star = starTransform.GetComponent<SpriteRenderer>();
+        if (band != null)
+        {
+            band.sprite = Resources.Load<Sprite>("BlockVisuals/NamedCornerTriangle");
+            band.color = Color.white;
+            band.sharedMaterial = baseRenderer.sharedMaterial;
+            band.sortingLayerID = baseRenderer.sortingLayerID;
+            band.sortingOrder = baseRenderer.sortingOrder + 20;
+
+            float shortSide = Mathf.Min(baseRenderer.size.x, baseRenderer.size.y);
+            float triangleSize = Mathf.Clamp(shortSide * 0.44f, 0.36f, 0.52f);
+            float spriteSize = band.sprite != null
+                ? Mathf.Max(band.sprite.bounds.size.x, band.sprite.bounds.size.y)
+                : 1f;
+            float triangleScale = triangleSize / Mathf.Max(spriteSize, 0.001f);
+            bandTransform.localScale = Vector3.one * triangleScale;
+            bandTransform.localPosition = new Vector3(
+                -baseRenderer.size.x * 0.5f + triangleSize * 0.5f,
+                baseRenderer.size.y * 0.5f - triangleSize * 0.5f,
+                -0.12f);
+
+            if (star != null)
+            {
+                float inset = triangleSize / 6f;
+                starTransform.localPosition = new Vector3(
+                    bandTransform.localPosition.x - inset,
+                    bandTransform.localPosition.y + inset,
+                    -0.13f);
+            }
+        }
+
+        if (star != null)
+        {
+            star.sprite = Resources.Load<Sprite>("UI/Star");
+            star.color = new Color32(255, 201, 48, 255);
+            star.sharedMaterial = baseRenderer.sharedMaterial;
+            star.sortingLayerID = baseRenderer.sortingLayerID;
+            star.sortingOrder = baseRenderer.sortingOrder + 21;
+        }
+    }
+
+    private static SpriteRenderer FindBaseRenderer(Block block)
+    {
+        if (block == null) return null;
+
+        SpriteRenderer rootRenderer = block.GetComponent<SpriteRenderer>();
+        if (rootRenderer != null) return rootRenderer;
+
+        SpriteRenderer[] renderers = block.GetComponentsInChildren<SpriteRenderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            SpriteRenderer candidate = renderers[i];
+            if (candidate == null || candidate.gameObject.name == RoleSymbolOverlayName)
+                continue;
+            if (candidate.gameObject.name == "ElementStatusVisual" ||
+                candidate.gameObject.name == "ElementSurfaceVisual" ||
+                candidate.gameObject.name.StartsWith("Runtime_"))
+                continue;
+            return candidate;
+        }
+
+        return null;
     }
 
     private static Sprite LoadSprite(string path)
@@ -144,7 +472,9 @@ public static class BlockRoleVisualSelector
 
         if (request.RequestedBlockType == BlockType.Named)
         {
-            return PickRandom(NamedPaths);
+            NamedCoreType coreType = NamedCoreBehavior.ResolveType(
+                request.GridSize);
+            return NamedPaths[Mathf.Clamp((int)coreType, 0, NamedPaths.Length - 1)];
         }
 
         if (request.RequestedBlockType == BlockType.Boss ||
@@ -237,12 +567,23 @@ public sealed class BlockHoverTooltip : MonoBehaviour
         BlockDefinition definition =
             block != null ? block.Definition : null;
 
-        if (definition == null ||
-            definition.BlockType != BlockType.Special ||
-            string.IsNullOrWhiteSpace(definition.Description))
+        if (definition == null)
         {
             return string.Empty;
         }
+
+        if (definition.BlockType == BlockType.Named)
+        {
+            NamedCoreBehavior core =
+                block.GetComponent<NamedCoreBehavior>();
+            return core != null
+                ? $"<b>{core.DisplayName}</b>\n{core.Description}"
+                : string.Empty;
+        }
+
+        if (definition.BlockType != BlockType.Special ||
+            string.IsNullOrWhiteSpace(definition.Description))
+            return string.Empty;
 
         return $"<b>{definition.DisplayName}</b>\n" +
                definition.Description;
@@ -257,5 +598,151 @@ public sealed class BlockHoverTooltip : MonoBehaviour
 
         HoverTooltip.HideShared();
         isShowing = false;
+    }
+}
+
+public enum NamedCoreType
+{
+    Accumulation = 0,
+    Refraction = 1,
+    Reaction = 2
+}
+
+[DisallowMultipleComponent]
+[RequireComponent(typeof(Block))]
+public sealed class NamedCoreBehavior : MonoBehaviour
+{
+    private static readonly HashSet<NamedCoreBehavior> Active =
+        new HashSet<NamedCoreBehavior>();
+
+    [SerializeField]
+    private NamedCoreType coreType;
+
+    private readonly HashSet<Ball> distinctBallsThisTurn =
+        new HashSet<Ball>();
+
+    public NamedCoreType CoreType => coreType;
+
+    public string DisplayName
+    {
+        get
+        {
+            switch (coreType)
+            {
+                case NamedCoreType.Accumulation: return "축적 핵";
+                case NamedCoreType.Refraction: return "굴절 핵";
+                default: return "반응 핵";
+            }
+        }
+    }
+
+    public string Description
+    {
+        get
+        {
+            switch (coreType)
+            {
+                case NamedCoreType.Accumulation:
+                    return "한 턴에 서로 다른 공에게 맞을 때마다 받는 피해가 10% 증가합니다. (최대 50%)";
+                case NamedCoreType.Refraction:
+                    return "타격한 공의 반사 1회당 받는 피해가 15% 증가합니다. (최대 75%)";
+                default:
+                    return "속성 또는 독 공에게 받는 피해가 25% 증가하며, 이미 상태 스택이 있으면 총 50% 증가합니다.";
+            }
+        }
+    }
+
+    public void Configure(NamedCoreType type)
+    {
+        coreType = type;
+        distinctBallsThisTurn.Clear();
+        Active.Add(this);
+    }
+
+    public static NamedCoreType ResolveType(Vector2Int gridSize)
+    {
+        Vector2Int size = new Vector2Int(
+            Mathf.Max(gridSize.x, 1),
+            Mathf.Max(gridSize.y, 1));
+
+        if (size == new Vector2Int(1, 1) ||
+            size == new Vector2Int(2, 1))
+            return NamedCoreType.Accumulation;
+
+        if (size == new Vector2Int(1, 2) ||
+            size == new Vector2Int(3, 1))
+            return NamedCoreType.Refraction;
+
+        return NamedCoreType.Reaction;
+    }
+
+    public static int ModifyDirectDamage(
+        Ball sourceBall,
+        Block target,
+        int damage)
+    {
+        if (sourceBall == null || target == null || damage <= 0)
+            return damage;
+
+        NamedCoreBehavior core = target.GetComponent<NamedCoreBehavior>();
+        if (core == null)
+            return damage;
+
+        float bonusPercent = core.GetBonusPercent(sourceBall, target);
+        return Mathf.Max(1, Mathf.RoundToInt(
+            damage * (1f + bonusPercent)));
+    }
+
+    public static void BeginPlayerTurn()
+    {
+        Active.RemoveWhere(core => core == null);
+        foreach (NamedCoreBehavior core in Active)
+            core.distinctBallsThisTurn.Clear();
+    }
+
+    private float GetBonusPercent(Ball sourceBall, Block target)
+    {
+        switch (coreType)
+        {
+            case NamedCoreType.Accumulation:
+                distinctBallsThisTurn.Add(sourceBall);
+                return Mathf.Min(distinctBallsThisTurn.Count, 5) * 0.1f;
+
+            case NamedCoreType.Refraction:
+                return Mathf.Min(sourceBall.BounceCount, 5) * 0.15f;
+
+            default:
+                BallCombatController combat =
+                    sourceBall.GetComponent<BallCombatController>();
+                if (combat == null || combat.TraitType == BallTraitType.Basic)
+                    return 0f;
+
+                BlockElementStatus element =
+                    target.GetComponent<BlockElementStatus>();
+                PoisonBlockStatus poison =
+                    target.GetComponent<PoisonBlockStatus>();
+                bool hasStatus =
+                    (element != null && element.HasAnyStack) ||
+                    (poison != null && poison.StackCount > 0);
+                return hasStatus ? 0.5f : 0.25f;
+        }
+    }
+
+    private void OnEnable()
+    {
+        Active.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        Active.Remove(this);
+        distinctBallsThisTurn.Clear();
+    }
+
+    [RuntimeInitializeOnLoadMethod(
+        RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetRuntime()
+    {
+        Active.Clear();
     }
 }

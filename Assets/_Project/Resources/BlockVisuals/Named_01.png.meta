@@ -7,7 +7,7 @@ TextureImporter:
   mipmaps:
     enableMipMap: 0
     sRGBTexture: 1
-  isReadable: 0
+  isReadable: 1
   textureSettings:
     serializedVersion: 2
     filterMode: 1

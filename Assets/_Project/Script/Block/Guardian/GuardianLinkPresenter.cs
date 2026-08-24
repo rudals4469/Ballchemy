@@ -9,13 +9,16 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
 
     [Header("Guardian Links")]
     [SerializeField] private Material lineMaterial;
-    [SerializeField] private Color lineColor = new Color(0.12f, 0.42f, 1f, 0.95f);
-    [SerializeField, Min(0.005f)] private float lineWidth = 0.06f;
+    [SerializeField] private Color lineColor = new Color(0.35f, 0.95f, 1f, 1f);
+    [SerializeField] private Color backingColor = new Color(0.02f, 0.16f, 0.38f, 0.92f);
+    [SerializeField, Min(0.005f)] private float lineWidth = 0.085f;
+    [SerializeField, Min(0.005f)] private float backingWidth = 0.15f;
     [SerializeField, Range(0f, 0.45f)] private float sourceInsetRatio = 0.14f;
     [SerializeField] private string sortingLayerName = "Default";
     [SerializeField] private int sortingOrder = 20;
 
     private readonly List<LineRenderer> lines = new List<LineRenderer>();
+    private readonly List<LineRenderer> backingLines = new List<LineRenderer>();
     private GuardianBlockController controller;
     private Block guardian;
 
@@ -44,7 +47,10 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
     private void LateUpdate()
     {
         IReadOnlyList<Block> targets = controller.Targets;
-        int count = Mathf.Min(lines.Count, targets.Count);
+        int count = Mathf.Min(
+            Mathf.Min(lines.Count, backingLines.Count), targets.Count);
+        float pulse = 1f +
+                      (Mathf.Sin(Time.unscaledTime * 6f) + 1f) * 0.08f;
 
         for (int i = 0; i < count; i++)
         {
@@ -62,6 +68,12 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
 
             lines[i].SetPosition(0, guardianPoint);
             lines[i].SetPosition(1, targetPoint);
+            backingLines[i].SetPosition(0, guardianPoint);
+            backingLines[i].SetPosition(1, targetPoint);
+            lines[i].startWidth = lineWidth * pulse;
+            lines[i].endWidth = lineWidth * pulse;
+            backingLines[i].startWidth = backingWidth * pulse;
+            backingLines[i].endWidth = backingWidth * pulse;
         }
     }
 
@@ -181,28 +193,38 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
 
         for (int i = 0; i < controller.Targets.Count; i++)
         {
-            GameObject lineObject = new GameObject($"GuardianLink_{i + 1}");
-            lineObject.transform.SetParent(transform, false);
-            LineRenderer line = lineObject.AddComponent<LineRenderer>();
-            line.useWorldSpace = true;
-            line.positionCount = 2;
-            line.startWidth = lineWidth;
-            line.endWidth = lineWidth;
-            line.startColor = lineColor;
-            line.endColor = lineColor;
-            line.sortingLayerName = sortingLayerName;
-            line.sortingOrder = sortingOrder;
-
-            Material resolvedMaterial =
-                ResolveLineMaterial();
-
-            if (resolvedMaterial != null)
-            {
-                line.sharedMaterial = resolvedMaterial;
-            }
-
-            lines.Add(line);
+            backingLines.Add(CreateLine(
+                $"GuardianLinkBacking_{i + 1}",
+                backingColor, backingWidth, sortingOrder));
+            lines.Add(CreateLine(
+                $"GuardianLinkCore_{i + 1}",
+                lineColor, lineWidth, sortingOrder + 1));
         }
+    }
+
+    private LineRenderer CreateLine(
+        string objectName,
+        Color color,
+        float width,
+        int order)
+    {
+        GameObject lineObject = new GameObject(objectName);
+        lineObject.transform.SetParent(transform, false);
+        LineRenderer line = lineObject.AddComponent<LineRenderer>();
+        line.useWorldSpace = true;
+        line.positionCount = 2;
+        line.startWidth = width;
+        line.endWidth = width;
+        line.startColor = color;
+        line.endColor = color;
+        line.sortingLayerName = sortingLayerName;
+        line.sortingOrder = order;
+        line.numCapVertices = 6;
+
+        Material resolvedMaterial = ResolveLineMaterial();
+        if (resolvedMaterial != null)
+            line.sharedMaterial = resolvedMaterial;
+        return line;
     }
 
     private void ClearLines()
@@ -216,6 +238,16 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
         }
 
         lines.Clear();
+
+        for (int i = backingLines.Count - 1; i >= 0; i--)
+        {
+            if (backingLines[i] != null)
+            {
+                Destroy(backingLines[i].gameObject);
+            }
+        }
+
+        backingLines.Clear();
     }
 
     private Material ResolveLineMaterial()
@@ -256,6 +288,7 @@ public sealed class GuardianLinkPresenter : MonoBehaviour
     private void OnValidate()
     {
         lineWidth = Mathf.Max(lineWidth, 0.005f);
+        backingWidth = Mathf.Max(backingWidth, lineWidth + 0.01f);
         sourceInsetRatio = Mathf.Clamp(sourceInsetRatio, 0f, 0.45f);
     }
 }

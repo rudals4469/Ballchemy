@@ -900,7 +900,14 @@ public sealed class StageRoomNavigator :
             return false;
         }
 
-        if (currentRoom.RoomType == roomType)
+        bool forceNamedNormalRoom =
+            roomType == RoomType.NamedCombat;
+        RoomType targetRoomType = forceNamedNormalRoom
+            ? RoomType.NormalCombat
+            : roomType;
+
+        if (!forceNamedNormalRoom &&
+            currentRoom.RoomType == targetRoomType)
         {
             if (roomType == RoomType.Boss)
             {
@@ -922,14 +929,20 @@ public sealed class StageRoomNavigator :
         for (int i = 0; i < rooms.Count; i++)
         {
             RoomNode room = rooms[i];
-            if (room == null || room.RoomType != roomType)
+            if (room == null || room.RoomType != targetRoomType ||
+                (forceNamedNormalRoom && IsRoomCleared(room.RoomId)))
             {
                 continue;
             }
 
+            if (forceNamedNormalRoom)
+                blockGridManager?.ForceNamedBlockForNextNormalRoom();
+
             Debug.Log(
                 "StageRoomNavigator: 디버그 즉시 입장, " +
-                $"RoomType={roomType}, RoomId={room.RoomId}",
+                $"RoomType={targetRoomType}, " +
+                $"ForcedNamed={forceNamedNormalRoom}, " +
+                $"RoomId={room.RoomId}",
                 this);
 
             // 이벤트 열쇠 등 일반 입장 조건은 테스트 이동에서 우회합니다.

@@ -6,6 +6,9 @@ using Random = UnityEngine.Random;
 [Serializable]
 public sealed class BlockWavePatternBuilder
 {
+    private readonly List<Vector2Int> selectedTeleportSlots =
+        new List<Vector2Int>();
+    private MapTeleportMode selectedTeleportMode;
     [Header("Block Data")]
 
     [SerializeField]
@@ -361,7 +364,7 @@ public sealed class BlockWavePatternBuilder
         int requiredRowCount =
             Mathf.Max(
                 baseRowCount,
-                featuredDefinition.GridSize.y
+                Mathf.Max(featuredDefinition.GridSize.y, 1) + 1
             );
 
         return Mathf.Clamp(
@@ -427,13 +430,24 @@ public sealed class BlockWavePatternBuilder
                 0
             );
 
+        int fixedMapRows = ricochetPocket.PrepareFixedLayout(
+            Mathf.Max(columnCount - 2, 0),
+            Mathf.Max(boardRowCount - 1, 0),
+            waveIndex);
+        if (fixedMapRows > 0)
+        {
+            layoutRowCount = Mathf.Min(
+                Mathf.Max(layoutRowCount, fixedMapRows + 1),
+                boardRowCount);
+        }
+
         List<BlockSpawnRequest> requests =
             new List<BlockSpawnRequest>();
 
         BlockWaveOccupancyMap occupancyMap =
             new BlockWaveOccupancyMap(
                 columnCount,
-                layoutRowCount
+                boardRowCount
             );
 
         if (featuredDefinition != null)
@@ -458,10 +472,9 @@ public sealed class BlockWavePatternBuilder
         }
 
         BlockWavePatternType selectedPattern =
-            SelectPattern(
-                columnCount,
-                layoutRowCount
-            );
+            ricochetPocket.HasPreparedFixedLayout
+                ? BlockWavePatternType.RicochetPocket
+                : SelectPattern(columnCount, layoutRowCount);
 
         if (selectedPattern == BlockWavePatternType.RicochetPocket)
         {
@@ -678,6 +691,11 @@ public sealed class BlockWavePatternBuilder
         int baseHealth,
         TeleportPairSpawnSettings teleportSettings)
     {
+        TryInjectSelectedMapTeleportPair(
+            requests,
+            teleportSettings,
+            waveIndex,
+            isNamedRoom);
         specialInjector.InjectScaledSpecialBlocks(
             requests,
             blockCatalog,
@@ -687,6 +705,26 @@ public sealed class BlockWavePatternBuilder
             isNamedRoom,
             baseHealth,
             teleportSettings);
+    }
+
+    private void TryInjectSelectedMapTeleportPair(
+        List<BlockSpawnRequest> requests,
+        TeleportPairSpawnSettings settings,
+        int waveIndex,
+        bool isNamedRoom)
+    {
+        if (selectedTeleportMode == MapTeleportMode.None ||
+            selectedTeleportSlots.Count != 2 || settings == null)
+            return;
+
+        bool shouldSpawn = selectedTeleportMode == MapTeleportMode.Required
+            ? settings.CanSpawn(isNamedRoom)
+            : settings.ShouldSpawn(isNamedRoom);
+        if (!shouldSpawn) return;
+
+        TeleportPairInjector.TryInjectAtPositions(
+            requests, settings, waveIndex,
+            selectedTeleportSlots[0], selectedTeleportSlots[1]);
     }
 
     public int CalculateLayoutRowCount(
@@ -757,7 +795,7 @@ public sealed class BlockWavePatternBuilder
     {
         if ((patternType == BlockWavePatternType.Automatic ||
              patternType == BlockWavePatternType.RicochetPocket) &&
-            ricochetPocket.CanBuild(columnCount, rowCount))
+            ricochetPocket.CanBuild(columnCount - 2, rowCount))
         {
             return BlockWavePatternType.RicochetPocket;
         }
@@ -817,8 +855,17 @@ public sealed class BlockWavePatternBuilder
         BlockWaveOccupancyMap occupancyMap,
         List<BlockSpawnRequest> requests)
     {
+        selectedTeleportSlots.Clear();
+        selectedTeleportMode = MapTeleportMode.None;
+        int pocketColumnCount = Mathf.Max(columnCount - 2, 0);
+        int pocketRowCount = Mathf.Min(
+            rowCount,
+            Mathf.Max(occupancyMap.RowCount - 1, 0));
         List<RicochetPocketPatternBuilder.Cell> cells =
-            ricochetPocket.Build(columnCount, rowCount);
+            ricochetPocket.Build(
+                pocketColumnCount,
+                pocketRowCount,
+                waveIndex);
         BlockDefinition indestructibleDefinition =
             blockCatalog != null
                 ? blockCatalog.GetById("boss_pattern_wall")
@@ -828,12 +875,22 @@ public sealed class BlockWavePatternBuilder
         for (int i = 0; i < cells.Count; i++)
         {
             RicochetPocketPatternBuilder.Cell cell = cells[i];
+            Vector2Int position = cell.Position + Vector2Int.one;
+            if (cell.CellType == PocketLayoutCellType.TeleportSlot)
+            {
+                selectedTeleportSlots.Add(position);
+                selectedTeleportMode = cell.TeleportMode;
+                continue;
+            }
+            if (cell.CellType == PocketLayoutCellType.SpecialSlot ||
+                cell.CellType == PocketLayoutCellType.NamedSlot)
+                continue;
             BlockDefinition definition = cell.Indestructible
                 ? indestructibleDefinition
                 : GetRandomFittingDefinition(
                     fillBlockType,
-                    cell.Position.x,
-                    cell.Position.y,
+                    position.x,
+                    position.y,
                     occupancyMap,
                     true);
             BlockType requestedType = definition != null
@@ -843,14 +900,14 @@ public sealed class BlockWavePatternBuilder
             if (definition == null && requestedType != BlockType.Normal)
                 continue;
             if (!occupancyMap.TryOccupy(
-                    cell.Position.x,
-                    cell.Position.y,
+                    position.x,
+                    position.y,
                     Vector2Int.one))
                 continue;
 
             BlockSpawnRequest request = new BlockSpawnRequest(
-                cell.Position.x,
-                cell.Position.y,
+                position.x,
+                position.y,
                 waveIndex,
                 definition,
                 requestedType,
@@ -1078,7 +1135,19 @@ public sealed class BlockWavePatternBuilder
                 maximumStartColumn + 1
             );
 
-        int startRow = 0;
+        int maximumStartRow =
+            occupancyMap.RowCount -
+            gridSize.y;
+
+        // 네임드 블럭은 최상단 행을 비워 두고 그 아래에 배치한다.
+        // 공이 블럭 위를 한 번 스치고 끝나는 대신 주변 구조물 사이에서
+        // 여러 차례 반사될 여지를 만들기 위한 규칙이다.
+        if (maximumStartRow < 1)
+        {
+            return null;
+        }
+
+        int startRow = Random.Range(1, maximumStartRow + 1);
 
         if (!occupancyMap.TryOccupy(
                 startColumn,

@@ -60,6 +60,10 @@ public sealed class BlockWaveSpecialInjector
     [SerializeField]
     private bool preferAdjacentPlacement = true;
 
+    [Tooltip("특수 블럭이 포켓 내부 후보로 인정되기 위한 최소 인접 벽 수입니다.")]
+    [SerializeField, Range(1, 4)]
+    private int minimumPocketAdjacency = 2;
+
     [Header("Guaranteed Reward")]
 
     [Tooltip(
@@ -191,6 +195,8 @@ public sealed class BlockWaveSpecialInjector
                 specialHealthMultiplier,
                 0.1f
             );
+
+        minimumPocketAdjacency = Mathf.Clamp(minimumPocketAdjacency, 1, 4);
 
         guardianSpawnChance = Mathf.Clamp01(guardianSpawnChance);
         maximumGuardiansInNormalWave = Mathf.Max(maximumGuardiansInNormalWave, 1);
@@ -552,9 +558,8 @@ public sealed class BlockWaveSpecialInjector
             enableGuardianBlocks &&
             guardianDefinition != null &&
             HasProtectableEnemy(requests);
-        bool canSelectTeleport =
-            teleportSettings != null &&
-            teleportSettings.CanSpawn(isNamedRoom);
+        // 텔레포트는 맵 에셋에 지정된 쌍 슬롯에서만 생성합니다.
+        bool canSelectTeleport = false;
 
         List<BlockDefinition> pool = blockCatalog != null
             ? blockCatalog.GetAll(BlockType.Special)
@@ -1179,7 +1184,17 @@ public sealed class BlockWaveSpecialInjector
                 if (occupancyMap.CanOccupy(
                         column,
                         row,
-                        gridSize))
+                        gridSize) &&
+                    !WouldCreateFilledTwoByTwo(
+                        column,
+                        row,
+                        gridSize,
+                        occupancyMap) &&
+                    CalculateAdjacencyScore(
+                        column,
+                        row,
+                        gridSize,
+                        occupancyMap) >= minimumPocketAdjacency)
                 {
                     return true;
                 }
@@ -1250,11 +1265,33 @@ public sealed class BlockWaveSpecialInjector
                     continue;
                 }
 
+                if (WouldCreateFilledTwoByTwo(
+                        column,
+                        row,
+                        gridSize,
+                        occupancyMap))
+                {
+                    continue;
+                }
+
                 Vector2Int candidatePosition =
                     new Vector2Int(
                         column,
                         row
                     );
+
+                int adjacencyScore =
+                    CalculateAdjacencyScore(
+                        column,
+                        row,
+                        gridSize,
+                        occupancyMap
+                    );
+
+                if (adjacencyScore < minimumPocketAdjacency)
+                {
+                    continue;
+                }
 
                 fittingPositions.Add(
                     candidatePosition
@@ -1264,14 +1301,6 @@ public sealed class BlockWaveSpecialInjector
                 {
                     continue;
                 }
-
-                int adjacencyScore =
-                    CalculateAdjacencyScore(
-                        column,
-                        row,
-                        gridSize,
-                        occupancyMap
-                    );
 
                 if (adjacencyScore >
                     bestAdjacencyScore)
@@ -1335,6 +1364,52 @@ public sealed class BlockWaveSpecialInjector
             ];
 
         return true;
+    }
+
+    private static bool WouldCreateFilledTwoByTwo(
+        int startColumn,
+        int startRow,
+        Vector2Int gridSize,
+        BlockWaveOccupancyMap occupancyMap)
+    {
+        int minimumWindowColumn = Mathf.Max(startColumn - 1, 0);
+        int maximumWindowColumn = Mathf.Min(
+            startColumn + gridSize.x - 1,
+            occupancyMap.ColumnCount - 2);
+        int minimumWindowRow = Mathf.Max(startRow - 1, 0);
+        int maximumWindowRow = Mathf.Min(
+            startRow + gridSize.y - 1,
+            occupancyMap.RowCount - 2);
+
+        for (int row = minimumWindowRow; row <= maximumWindowRow; row++)
+        for (int column = minimumWindowColumn;
+             column <= maximumWindowColumn;
+             column++)
+        {
+            bool allOccupied = true;
+            bool allBelongToProposedBlock = true;
+            for (int offsetY = 0; offsetY < 2; offsetY++)
+            for (int offsetX = 0; offsetX < 2; offsetX++)
+            {
+                int cellColumn = column + offsetX;
+                int cellRow = row + offsetY;
+                bool belongsToProposedBlock =
+                    cellColumn >= startColumn &&
+                    cellColumn < startColumn + gridSize.x &&
+                    cellRow >= startRow &&
+                    cellRow < startRow + gridSize.y;
+                bool occupied = belongsToProposedBlock ||
+                    occupancyMap.IsOccupied(cellColumn, cellRow);
+                allOccupied &= occupied;
+                allBelongToProposedBlock &= belongsToProposedBlock;
+            }
+
+            // 하나의 2x2 대형 블럭 자체는 네 개의 개별 블럭 군집으로
+            // 취급하지 않고, 기존 블럭과 합쳐져 생기는 2x2만 제한한다.
+            if (allOccupied && !allBelongToProposedBlock) return true;
+        }
+
+        return false;
     }
 
     private int CalculateAdjacencyScore(

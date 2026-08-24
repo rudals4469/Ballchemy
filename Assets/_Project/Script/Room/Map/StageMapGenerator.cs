@@ -1210,32 +1210,8 @@ public sealed class StageMapGenerator :
             return false;
         }
 
-        List<RoomNode> namedCandidates =
-            BuildSpecialRoomCandidates(
-                map,
-                false
-            );
-
-        int namedRoomCount =
-            CalculateNamedRoomCount(
-                stageNumber,
-                namedCandidates.Count
-            );
-
-        for (int i = 0;
-             i < namedRoomCount;
-             i++)
-        {
-            if (!AssignOneRoomType(
-                    namedCandidates,
-                    RoomType.NamedCombat,
-                    random
-                ))
-            {
-                break;
-            }
-        }
-
+        // 네임드는 별도 방이 아니라 일반 전투방의 블록으로 출현한다.
+        // NamedCombat 방은 신규 맵에 배치하지 않는다.
         return true;
     }
 
@@ -1563,11 +1539,7 @@ public sealed class StageMapGenerator :
                 baseRoomCount
             );
 
-        baseNamedRoomCount =
-            Mathf.Max(
-                baseNamedRoomCount,
-                1
-            );
+        baseNamedRoomCount = 0;
 
         stagesPerAdditionalNamedRoom =
             Mathf.Max(

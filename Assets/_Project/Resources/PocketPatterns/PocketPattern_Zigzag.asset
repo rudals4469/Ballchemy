@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91d61e4880d54b8eab2cd084695c3e8c, type: 3}
+  m_Name: PocketPattern_Zigzag
+  m_EditorClassIdentifier:
+  patternId: pocket_zigzag
+  displayName: 지그재그 포켓
+  grammarType: 2
+  minimumWaveIndex: 2
+  minimumRowCount: 6
+  selectionWeight: 1
+  minimumCorridorWidth: 2
+  maximumCorridorWidth: 3
+  pathNoiseChance: 0.45
+  allowTranspose: 1
+  minimumAttackerCount: 1
+  maximumAttackerCount: 2
+  wallBreathingGapChance: 0.55
+  preventFilledTwoByTwo: 1
+  maximumIndestructibleAnchors: 2
+  indestructibleAnchorChance: 0.7

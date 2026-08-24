@@ -67,10 +67,10 @@ public sealed class BlockOutlineView :
     [SerializeField]
     private Color guardianProtectionColor =
         new Color(
-            0.12f,
-            0.42f,
+            0.18f,
+            0.9f,
             1f,
-            0.76f
+            0.96f
         );
 
     [Tooltip(
@@ -78,7 +78,7 @@ public sealed class BlockOutlineView :
         "두 아웃라인이 동시에 보이도록 합니다."
     )]
     [SerializeField, Range(1.01f, 1.3f)]
-    private float shieldOutlineScale = 1.08f;
+    private float shieldOutlineScale = 1.14f;
 
     [SerializeField]
     private int shieldSortingOrderOffset = -2;
@@ -119,6 +119,24 @@ public sealed class BlockOutlineView :
     private void OnDestroy()
     {
         UnsubscribeEvents();
+    }
+
+    private void LateUpdate()
+    {
+        if (shieldOutlineRenderer == null ||
+            !shieldOutlineRenderer.enabled)
+        {
+            return;
+        }
+
+        float pulse = block != null && block.IsGuardianProtected
+            ? 1f + (Mathf.Sin(Time.unscaledTime * 5f) + 1f) * 0.025f
+            : 1f;
+        float visibleScale = block != null && block.IsGuardianProtected
+            ? Mathf.Max(shieldOutlineScale, 1.14f)
+            : shieldOutlineScale;
+        shieldOutlineRenderer.transform.localScale =
+            Vector3.one * visibleScale * pulse;
     }
 
     private void OnValidate()
@@ -382,6 +400,7 @@ public sealed class BlockOutlineView :
                 shieldOutlineRenderer,
                 ShieldOutlineName
             );
+
     }
 
     private SpriteRenderer

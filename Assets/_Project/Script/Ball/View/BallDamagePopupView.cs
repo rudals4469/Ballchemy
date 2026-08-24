@@ -20,6 +20,11 @@ public sealed class BallDamagePopupView :
         completedCallback;
 
     private Renderer textRenderer;
+    private SpriteRenderer elementIconRenderer;
+    private ElementType? activeElement;
+
+    private const float ElementIconWorldSize = 0.28f;
+    private const float ElementIconGap = 0.055f;
 
     private TMP_FontAsset defaultFontAsset;
     private Material defaultFontMaterial;
@@ -154,6 +159,8 @@ public sealed class BallDamagePopupView :
             activeStyle
         );
 
+        ApplyElementIcon(damageEvent);
+
         RefreshText();
 
         float visibleAlpha =
@@ -201,6 +208,8 @@ public sealed class BallDamagePopupView :
                 0
             );
 
+        ApplyElementIcon(damageEvent);
+
         RefreshText();
 
         PlayPulse(
@@ -233,6 +242,109 @@ public sealed class BallDamagePopupView :
             $"{prefix}" +
             $"{accumulatedDisplayedDamage}" +
             $"{suffix}";
+
+        UpdateElementIconPosition();
+    }
+
+    private void ApplyElementIcon(BallDamageEvent damageEvent)
+    {
+        activeElement = ResolveElement(damageEvent.SourceDefinition);
+        if (!activeElement.HasValue)
+        {
+            SetElementIconVisible(false);
+            return;
+        }
+
+        EnsureElementIconRenderer();
+        Sprite sprite = Resources.Load<Sprite>(GetElementIconPath(activeElement.Value));
+        if (sprite == null)
+        {
+            SetElementIconVisible(false);
+            return;
+        }
+
+        elementIconRenderer.sprite = sprite;
+        elementIconRenderer.color = ResolveElementColor(activeElement.Value);
+        elementIconRenderer.enabled = true;
+
+        float largestDimension = Mathf.Max(sprite.bounds.size.x, sprite.bounds.size.y);
+        float scale = largestDimension > 0.001f
+            ? ElementIconWorldSize / largestDimension
+            : 1f;
+        elementIconRenderer.transform.localScale = Vector3.one * scale;
+        UpdateElementIconPosition();
+    }
+
+    private void EnsureElementIconRenderer()
+    {
+        if (elementIconRenderer != null) return;
+
+        Transform existing = transform.Find("ElementIcon");
+        GameObject iconObject = existing != null
+            ? existing.gameObject
+            : new GameObject("ElementIcon");
+        iconObject.transform.SetParent(transform, false);
+        elementIconRenderer = iconObject.GetComponent<SpriteRenderer>();
+        if (elementIconRenderer == null)
+            elementIconRenderer = iconObject.AddComponent<SpriteRenderer>();
+        if (textRenderer != null)
+        {
+            elementIconRenderer.sortingLayerName = textRenderer.sortingLayerName;
+            elementIconRenderer.sortingOrder = textRenderer.sortingOrder + 1;
+        }
+        elementIconRenderer.enabled = false;
+    }
+
+    private void UpdateElementIconPosition()
+    {
+        if (elementIconRenderer == null || !elementIconRenderer.enabled || damageText == null)
+            return;
+
+        damageText.ForceMeshUpdate();
+        float halfTextWidth = damageText.textBounds.size.x * 0.5f;
+        float halfIconWidth = elementIconRenderer.bounds.size.x * 0.5f;
+        elementIconRenderer.transform.localPosition = new Vector3(
+            -(halfTextWidth + halfIconWidth + ElementIconGap),
+            0.02f,
+            0f);
+    }
+
+    private void SetElementIconVisible(bool visible)
+    {
+        if (elementIconRenderer != null)
+            elementIconRenderer.enabled = visible;
+    }
+
+    private static ElementType? ResolveElement(BallDefinition definition)
+    {
+        return definition != null &&
+               definition.TraitDefinition is ElementalBallTraitDefinition elemental
+            ? elemental.ElementType
+            : (ElementType?)null;
+    }
+
+    private static string GetElementIconPath(ElementType element)
+    {
+        switch (element)
+        {
+            case ElementType.Electric: return "VFX/ElementSymbols/Icon_Element_Lightning";
+            case ElementType.Water: return "VFX/ElementSymbols/Icon_Element_Water";
+            case ElementType.Ice: return "VFX/ElementSymbols/Icon_Element_Ice";
+            case ElementType.Fire: return "VFX/ElementSymbols/Icon_Element_Fire";
+            default: return string.Empty;
+        }
+    }
+
+    private static Color ResolveElementColor(ElementType element)
+    {
+        switch (element)
+        {
+            case ElementType.Electric: return new Color(1f, 0.94f, 0.58f, 1f);
+            case ElementType.Water: return new Color(0.32f, 0.78f, 1f, 1f);
+            case ElementType.Ice: return new Color(0.68f, 0.96f, 1f, 1f);
+            case ElementType.Fire: return new Color(1f, 0.38f, 0.08f, 1f);
+            default: return Color.white;
+        }
     }
 
     private void ApplyVisualStyle(
@@ -278,8 +390,8 @@ public sealed class BallDamagePopupView :
 
         damageText.fontSize =
             style != null
-                ? style.FontSize
-                : defaultFontSize;
+                ? style.FontSize + 1f
+                : defaultFontSize + 1f;
 
         damageText.fontStyle =
             style != null
@@ -306,6 +418,12 @@ public sealed class BallDamagePopupView :
             style != null
                 ? style.SortingOrder
                 : defaultSortingOrder;
+
+        if (elementIconRenderer != null)
+        {
+            elementIconRenderer.sortingLayerName = textRenderer.sortingLayerName;
+            elementIconRenderer.sortingOrder = textRenderer.sortingOrder + 1;
+        }
     }
 
     private void PlayPulse(
@@ -532,6 +650,13 @@ public sealed class BallDamagePopupView :
                 )
         );
 
+        if (elementIconRenderer != null && elementIconRenderer.enabled)
+        {
+            exitSequence.Insert(
+                fadeStartTime,
+                elementIconRenderer.DOFade(0f, fadeDuration).SetEase(fadeEase));
+        }
+
         exitSequence.OnComplete(
             Complete
         );
@@ -570,6 +695,8 @@ public sealed class BallDamagePopupView :
         accumulatedAppliedHealthDamage = 0;
 
         isAcceptingDamage = false;
+        activeElement = null;
+        SetElementIconVisible(false);
     }
 
     private void Complete()

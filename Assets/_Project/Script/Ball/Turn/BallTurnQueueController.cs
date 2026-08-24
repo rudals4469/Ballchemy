@@ -431,6 +431,7 @@ public sealed class BallTurnQueueController :
         int plannedLaunchCount)
     {
         AugmentCombatModifiers.BeginTurn();
+        NamedCoreBehavior.BeginPlayerTurn();
 
         EnsureQueuePrepared();
 

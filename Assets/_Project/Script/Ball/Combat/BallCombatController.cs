@@ -365,12 +365,21 @@ public sealed class BallCombatController :
             return 0;
         }
 
+        bool isPrimaryDirectHit = isResolvingDirectBlockHit &&
+            resolvingDirectHitBlock == target && !hasCapturedDirectDamage;
+
         if (applyAugmentModifiers)
         {
-            bool isPrimaryDirectHit = isResolvingDirectBlockHit &&
-                resolvingDirectHitBlock == target && !hasCapturedDirectDamage;
             calculatedDamage = AugmentCombatModifiers.ModifyDamage(
                 ball, target, calculatedDamage, isPrimaryDirectHit);
+        }
+
+        if (isPrimaryDirectHit)
+        {
+            calculatedDamage = NamedCoreBehavior.ModifyDirectDamage(
+                ball,
+                target,
+                calculatedDamage);
         }
 
         if (isResolvingDirectBlockHit &&

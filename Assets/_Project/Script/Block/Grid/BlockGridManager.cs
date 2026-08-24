@@ -593,6 +593,11 @@ public sealed class BlockGridManager :
         return true;
     }
 
+    public void ForceNamedBlockForNextNormalRoom()
+    {
+        waveDirector?.ForceNamedInNextNormalRoom();
+    }
+
     public void ClearRoomWaveSnapshots()
     {
         currentRoomId = -1;

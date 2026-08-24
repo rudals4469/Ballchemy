@@ -3,6 +3,90 @@ using UnityEngine;
 
 public static class TeleportPairInjector
 {
+    public static bool TryInjectAtPositions(
+        List<BlockSpawnRequest> requests,
+        TeleportPairSpawnSettings settings,
+        int waveIndex,
+        Vector2Int first,
+        Vector2Int second)
+    {
+        if (requests == null || settings == null ||
+            settings.Definition == null || first == second ||
+            IsOccupied(requests, first) || IsOccupied(requests, second))
+            return false;
+
+        int pairId = ResolveNextPairId(requests);
+        AddPortal(requests, settings.Definition, waveIndex,
+            first, second, pairId);
+        AddPortal(requests, settings.Definition, waveIndex,
+            second, first, pairId);
+        return true;
+    }
+
+    private static bool IsOccupied(
+        IReadOnlyList<BlockSpawnRequest> requests,
+        Vector2Int cell)
+    {
+        for (int i = 0; i < requests.Count; i++)
+        {
+            BlockSpawnRequest request = requests[i];
+            if (request == null) continue;
+            if (cell.x >= request.StartColumn &&
+                cell.x < request.StartColumn + request.GridSize.x &&
+                cell.y >= request.StartRow &&
+                cell.y < request.StartRow + request.GridSize.y)
+                return true;
+        }
+        return false;
+    }
+    public static bool TryInjectPocketBridge(
+        List<BlockSpawnRequest> requests,
+        TeleportPairSpawnSettings settings,
+        int columnCount,
+        int boardRowCount,
+        int waveIndex,
+        bool isNamedRoom)
+    {
+        if (requests == null || settings == null ||
+            !settings.CanSpawn(isNamedRoom) || HasTeleportPair(requests))
+            return false;
+
+        int activeRowCount = ResolveActiveRowCount(requests, boardRowCount);
+        BlockWaveOccupancyMap occupancy =
+            new BlockWaveOccupancyMap(columnCount, activeRowCount);
+        OccupyExisting(requests, occupancy);
+
+        HashSet<Vector2Int> reachable = CollectReachableEmptyCells(occupancy);
+        List<Vector2Int> outsideCandidates = new List<Vector2Int>();
+        List<Vector2Int> insideCandidates = new List<Vector2Int>();
+        for (int row = 0; row < occupancy.RowCount; row++)
+        for (int column = 0; column < occupancy.ColumnCount; column++)
+        {
+            Vector2Int cell = new Vector2Int(column, row);
+            if (IsReservedPerimeter(cell, occupancy) ||
+                occupancy.IsOccupied(column, row))
+                continue;
+            if (reachable.Contains(cell)) outsideCandidates.Add(cell);
+            else insideCandidates.Add(cell);
+        }
+
+        if (outsideCandidates.Count == 0 || insideCandidates.Count == 0)
+            return false;
+
+        Vector2Int inside = SelectMostEnclosed(insideCandidates, occupancy);
+        Vector2Int outside = SelectFarthest(outsideCandidates, inside);
+        if (!HasCardinalExit(inside, occupancy, outside) ||
+            !HasCardinalExit(outside, occupancy, inside))
+            return false;
+
+        int pairId = ResolveNextPairId(requests);
+        AddPortal(requests, settings.Definition, waveIndex,
+            outside, inside, pairId);
+        AddPortal(requests, settings.Definition, waveIndex,
+            inside, outside, pairId);
+        return true;
+    }
+
     public static bool TryInjectSelectedPair(
         List<BlockSpawnRequest> requests,
         TeleportPairSpawnSettings settings,
@@ -152,6 +236,100 @@ public static class TeleportPairInjector
         return false;
     }
 
+    private static HashSet<Vector2Int> CollectReachableEmptyCells(
+        BlockWaveOccupancyMap occupancy)
+    {
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        for (int column = 0; column < occupancy.ColumnCount; column++)
+        {
+            if (occupancy.IsOccupied(column, 0)) continue;
+            Vector2Int start = new Vector2Int(column, 0);
+            visited.Add(start);
+            queue.Enqueue(start);
+        }
+
+        Vector2Int[] directions =
+        {
+            Vector2Int.left, Vector2Int.right,
+            Vector2Int.up, Vector2Int.down
+        };
+        while (queue.Count > 0)
+        {
+            Vector2Int current = queue.Dequeue();
+            for (int i = 0; i < directions.Length; i++)
+            {
+                Vector2Int next = current + directions[i];
+                if (!occupancy.IsInside(next.x, next.y) ||
+                    occupancy.IsOccupied(next.x, next.y) ||
+                    !visited.Add(next))
+                    continue;
+                queue.Enqueue(next);
+            }
+        }
+        return visited;
+    }
+
+    private static Vector2Int SelectMostEnclosed(
+        IReadOnlyList<Vector2Int> candidates,
+        BlockWaveOccupancyMap occupancy)
+    {
+        Vector2Int best = default;
+        int bestScore = -1;
+        Vector2Int[] directions =
+        {
+            Vector2Int.left, Vector2Int.right,
+            Vector2Int.up, Vector2Int.down
+        };
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            int score = 0;
+            for (int j = 0; j < directions.Length; j++)
+            {
+                Vector2Int neighbor = candidates[i] + directions[j];
+                if (!occupancy.IsInside(neighbor.x, neighbor.y) ||
+                    occupancy.IsOccupied(neighbor.x, neighbor.y))
+                    score++;
+            }
+            if (score < 4 && score > bestScore)
+            {
+                best = candidates[i];
+                bestScore = score;
+            }
+        }
+        return best;
+    }
+
+    private static Vector2Int SelectFarthest(
+        IReadOnlyList<Vector2Int> candidates,
+        Vector2Int from)
+    {
+        Vector2Int best = candidates[0];
+        int bestDistance = -1;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            int distance = Mathf.Abs(candidates[i].x - from.x) +
+                           Mathf.Abs(candidates[i].y - from.y);
+            if (distance > bestDistance)
+            {
+                best = candidates[i];
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    private static bool HasTeleportPair(
+        IReadOnlyList<BlockSpawnRequest> requests)
+    {
+        for (int i = 0; i < requests.Count; i++)
+        {
+            if (requests[i] != null && requests[i].HasTeleportPair)
+                return true;
+        }
+        return false;
+    }
+
     private static List<Vector2Int> CollectCandidates(BlockWaveOccupancyMap occupancy)
     {
         List<Vector2Int> result = new List<Vector2Int>();
@@ -162,12 +340,23 @@ public static class TeleportPairInjector
             {
                 if (!occupancy.IsOccupied(column, row))
                 {
-                    result.Add(new Vector2Int(column, row));
+                    Vector2Int cell = new Vector2Int(column, row);
+                    if (!IsReservedPerimeter(cell, occupancy))
+                        result.Add(cell);
                 }
             }
         }
 
         return result;
+    }
+
+    private static bool IsReservedPerimeter(
+        Vector2Int cell,
+        BlockWaveOccupancyMap occupancy)
+    {
+        return cell.y == 0 ||
+               cell.x == 0 ||
+               cell.x == occupancy.ColumnCount - 1;
     }
 
     private static void OccupyExisting(

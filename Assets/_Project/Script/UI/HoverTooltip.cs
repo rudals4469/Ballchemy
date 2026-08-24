@@ -320,16 +320,6 @@ public sealed class HoverTooltip : MonoBehaviour,
         if (tooltipPanel != null)
         {
             tooltipPanel.gameObject.SetActive(false);
-
-            if (originalPanelParent != null &&
-                tooltipPanel.parent != originalPanelParent)
-            {
-                tooltipPanel.SetParent(originalPanelParent, false);
-                tooltipPanel.SetSiblingIndex(Mathf.Clamp(
-                    originalPanelSiblingIndex,
-                    0,
-                    originalPanelParent.childCount - 1));
-            }
         }
     }
 

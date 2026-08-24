@@ -29,6 +29,17 @@ public sealed class RewardCardUI :
     [SerializeField]
     private Image backgroundImage;
 
+    [Header("Augment Value Sprites")]
+
+    [SerializeField]
+    private Sprite value1BackgroundSprite;
+
+    [SerializeField]
+    private Sprite value2BackgroundSprite;
+
+    [SerializeField]
+    private Sprite value3BackgroundSprite;
+
     [SerializeField]
     private GameObject iconRoot;
 
@@ -105,6 +116,7 @@ public sealed class RewardCardUI :
     private OneShotSelectionVisual selectionVisual;
     private CommonChoiceCardLayout commonLayout;
     private Color originalBackgroundColor = Color.white;
+    private Sprite originalBackgroundSprite;
     private bool hasCapturedBackgroundColor;
 
     public RewardDefinition
@@ -536,6 +548,7 @@ public sealed class RewardCardUI :
         if (backgroundImage != null && !hasCapturedBackgroundColor)
         {
             originalBackgroundColor = backgroundImage.color;
+            originalBackgroundSprite = backgroundImage.sprite;
             hasCapturedBackgroundColor = true;
         }
 
@@ -588,12 +601,17 @@ public sealed class RewardCardUI :
 
     private void ConfigureTextWrapping()
     {
-        CommonChoiceCardLayout.ConfigureText(
-            titleText, TextAlignmentOptions.TopLeft);
-        CommonChoiceCardLayout.ConfigureText(
-            grantText, TextAlignmentOptions.TopRight);
-        CommonChoiceCardLayout.ConfigureText(
-            effectText, TextAlignmentOptions.TopLeft);
+        ConfigureTextWrapping(titleText);
+        ConfigureTextWrapping(grantText);
+        ConfigureTextWrapping(effectText);
+    }
+
+    private static void ConfigureTextWrapping(TMP_Text text)
+    {
+        if (text == null) return;
+        text.textWrappingMode = TextWrappingModes.Normal;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+        text.enableAutoSizing = false;
     }
 
     private void ConfigureLevelStarsAlignment()
@@ -621,8 +639,19 @@ public sealed class RewardCardUI :
         if (boundRewardDefinition is AugmentRewardDefinition augmentReward &&
             augmentReward.AugmentDefinition != null)
         {
-            backgroundImage.color = ResolveValueColor(
+            Sprite valueSprite = ResolveValueSprite(
                 augmentReward.AugmentDefinition.ValueTier);
+
+            if (valueSprite != null)
+            {
+                backgroundImage.sprite = valueSprite;
+                backgroundImage.color = Color.white;
+            }
+            else
+            {
+                backgroundImage.color = ResolveValueColor(
+                    augmentReward.AugmentDefinition.ValueTier);
+            }
             return;
         }
 
@@ -634,7 +663,23 @@ public sealed class RewardCardUI :
     private void RestoreBackgroundColor()
     {
         if (backgroundImage != null && hasCapturedBackgroundColor)
+        {
+            backgroundImage.sprite = originalBackgroundSprite;
             backgroundImage.color = originalBackgroundColor;
+        }
+    }
+
+    private Sprite ResolveValueSprite(AugmentValueTier valueTier)
+    {
+        switch (valueTier)
+        {
+            case AugmentValueTier.Value1:
+                return value1BackgroundSprite;
+            case AugmentValueTier.Value2:
+                return value2BackgroundSprite;
+            default:
+                return value3BackgroundSprite;
+        }
     }
 
     private void RefreshIconLevelPanel()
