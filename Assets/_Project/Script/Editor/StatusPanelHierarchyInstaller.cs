@@ -10,13 +10,67 @@ using UnityEngine.UI;
 public static class StatusPanelHierarchyInstaller
 {
     // Versioned scene migration for the always-visible LeftPanel status board.
-    private const string VersionMarker = "StatusPanel_Left_V12";
+    private const string VersionMarker = "StatusPanel_Left_V13";
+    private static readonly Color ParchmentTextColor =
+        new Color32(74, 42, 24, 255);
     static StatusPanelHierarchyInstaller() => EditorApplication.delayCall += RunSceneMaintenance;
 
     private static void RunSceneMaintenance()
     {
         CleanupLegacyStageInfo();
         InstallIfNeeded();
+        RepairParchmentLayout();
+    }
+
+    [MenuItem("Ballchemy/UI/Repair Parchment Panel Layout")]
+    public static void RepairParchmentLayout()
+    {
+        if (Application.isPlaying) return;
+        Scene scene = SceneManager.GetActiveScene();
+        if (Application.isBatchMode && scene.path != "Assets/_Project/Scene/SampleScene.unity")
+            scene = EditorSceneManager.OpenScene("Assets/_Project/Scene/SampleScene.unity");
+        if (!scene.IsValid() || !scene.path.EndsWith("SampleScene.unity")) return;
+        const string repairMarker = "StatusPanel_ParchmentLayout_V14";
+        GameObject panel = FindSceneObject("StatusPanel");
+        if (panel == null || FindSceneObject(repairMarker) != null) return;
+
+        // Repair the existing objects; keep presenter references and user content intact.
+        Transform stage = panel.transform.Find("StageInfoSection");
+        Transform balls = panel.transform.Find("BallInfoSection");
+        Transform augments = panel.transform.Find("AugmentColumn");
+        Transform stats = panel.transform.Find("BeneficialEffectColumn");
+        if (stage == null || balls == null || augments == null || stats == null) return;
+        SetRect(stage as RectTransform, new Vector2(0f, 465f), new Vector2(555f, 90f));
+        SetRect(balls as RectTransform, new Vector2(-96.25f, 242.5f), new Vector2(362.5f, 335f));
+        SetRect(augments as RectTransform, new Vector2(183.75f, 242.5f), new Vector2(187.5f, 335f));
+        SetRect(stats as RectTransform, new Vector2(0f, -227.5f), new Vector2(555f, 585f));
+        ApplyParchment(stage.GetComponent<Image>(), "Panel_Parchment_Stage");
+        ApplyParchment(balls.GetComponent<Image>(), "Panel_Parchment_BallInfo");
+        ApplyParchment(augments.GetComponent<Image>(), "Panel_Parchment_Augment");
+        ApplyParchment(stats.GetComponent<Image>(), "Panel_Parchment_DetailStats");
+
+        TMP_Text stageLabel = stage.Find("StageText")?.GetComponent<TMP_Text>();
+        TMP_Text timeLabel = stage.Find("PlayTimeText")?.GetComponent<TMP_Text>();
+        if (stageLabel != null)
+        {
+            SetRect(stageLabel.rectTransform, new Vector2(-142.5f, 0f), new Vector2(220f, 40f));
+            stageLabel.alignment = TextAlignmentOptions.MidlineLeft;
+        }
+        if (timeLabel != null)
+        {
+            SetRect(timeLabel.rectTransform, new Vector2(127.5f, 0f), new Vector2(250f, 34f));
+            timeLabel.alignment = TextAlignmentOptions.MidlineRight;
+        }
+        TMP_Text empty = balls.Find("BallInfoContent/BallEmptyText")?.GetComponent<TMP_Text>();
+        if (empty != null) empty.rectTransform.sizeDelta = new Vector2(330f, 34f);
+        Transform lineage = panel.transform.Find("LineageSection");
+        if (lineage != null) lineage.gameObject.SetActive(false);
+
+        GameObject marker = CreateRect(repairMarker, panel.transform);
+        marker.SetActive(false);
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("StatusPanelHierarchyInstaller: parchment padding, corners and original column alignment repaired.");
     }
 
     private static void CleanupLegacyStageInfo()
@@ -50,17 +104,17 @@ public static class StatusPanelHierarchyInstaller
         DestroyNamed("StatusPanelSystem"); DestroyNamed("StatusOpenButton"); DestroyNamed("StatusPanel");
         TMP_FontAsset font = FindFont();
         GameObject marker = CreateRect(VersionMarker, leftPanel.transform); marker.SetActive(false);
-        GameObject panel = CreateImage("StatusPanel", leftPanel.transform, new Color(0.055f, 0.065f, 0.075f, 0.96f));
+        GameObject panel = CreateImage("StatusPanel", leftPanel.transform, Color.clear);
         Stretch(panel.GetComponent<RectTransform>());
         StatusPanelPresenter presenter = panel.AddComponent<StatusPanelPresenter>();
 
-        GameObject stageSection = Section("StageInfoSection", panel.transform, new Vector2(0f, 465f), new Vector2(555f, 90f));
-        TMP_Text stageText = Text("StageText", stageSection.transform, "Stage 1", font, 30f, new Vector2(-10f, 20f), new Vector2(500f, 40f), TextAlignmentOptions.Left);
-        TMP_Text playTimeText = Text("PlayTimeText", stageSection.transform, "Play Time  00:00", font, 23f, new Vector2(-10f, -22f), new Vector2(500f, 34f), TextAlignmentOptions.Left);
+        GameObject stageSection = Section("StageInfoSection", panel.transform, new Vector2(0f, 465f), new Vector2(555f, 90f), "Panel_Parchment_Stage");
+        TMP_Text stageText = Text("StageText", stageSection.transform, "Stage 1", font, 30f, new Vector2(-142.5f, 0f), new Vector2(220f, 40f), TextAlignmentOptions.MidlineLeft);
+        TMP_Text playTimeText = Text("PlayTimeText", stageSection.transform, "Play Time  00:00", font, 23f, new Vector2(127.5f, 0f), new Vector2(250f, 34f), TextAlignmentOptions.MidlineRight);
 
-        GameObject ballSection = Section("BallInfoSection", panel.transform, new Vector2(-95f, 260f), new Vector2(360f, 300f));
-        TMP_Text totalBallCount = Text("TotalBallCountText", ballSection.transform, "총 0개", font, 21f, new Vector2(108f, 125f), new Vector2(100f, 36f), TextAlignmentOptions.Right);
-        Text("SectionTitle", ballSection.transform, "공 정보", font, 27f, new Vector2(0f, 115f), new Vector2(510f, 42f), TextAlignmentOptions.Left);
+        GameObject ballSection = Section("BallInfoSection", panel.transform, new Vector2(-96.25f, 242.5f), new Vector2(362.5f, 335f), "Panel_Parchment_BallInfo");
+        TMP_Text totalBallCount = Text("TotalBallCountText", ballSection.transform, "총 0개", font, 21f, new Vector2(108f, 142.5f), new Vector2(100f, 36f), TextAlignmentOptions.Right);
+        Text("SectionTitle", ballSection.transform, "공 정보", font, 27f, new Vector2(0f, 132.5f), new Vector2(510f, 42f), TextAlignmentOptions.Left);
         Transform ballContent = Content("BallInfoContent", ballSection.transform, new Vector2(0f, -42f), new Vector2(330f, 210f));
         RectTransform ballContentRect = ballContent as RectTransform;
         ballContentRect.anchorMin = ballContentRect.anchorMax = new Vector2(0.5f, 1f);
@@ -68,39 +122,35 @@ public static class StatusPanelHierarchyInstaller
         ballContentRect.anchoredPosition = new Vector2(0f, -96f);
         ballContent.GetComponent<VerticalLayoutGroup>().spacing = 2f;
         StatusEntryView ballTemplate = Entry("BallTypeRowTemplate", ballContent, font, 320f, true);
-        TMP_Text ballEmpty = Text("BallEmptyText", ballContent, "보유한 공이 없습니다.", font, 16f, Vector2.zero, new Vector2(490f, 34f), TextAlignmentOptions.Left);
+        TMP_Text ballEmpty = Text("BallEmptyText", ballContent, "보유한 공이 없습니다.", font, 16f, Vector2.zero, new Vector2(330f, 34f), TextAlignmentOptions.Left);
 
-        SetRect(ballSection.transform.Find("SectionTitle") as RectTransform, new Vector2(-45f, 125f), new Vector2(220f, 42f));
-        Text("AttributeHeader", ballSection.transform, "\uC18D\uC131", font, 20f, new Vector2(-110f, 82f), new Vector2(80f, 30f), TextAlignmentOptions.Center);
-        Text("Grade1Header", ballSection.transform, "1★", font, 20f, new Vector2(-25f, 82f), new Vector2(58f, 30f), TextAlignmentOptions.Center);
-        Text("Grade2Header", ballSection.transform, "2★", font, 20f, new Vector2(45f, 82f), new Vector2(58f, 30f), TextAlignmentOptions.Center);
-        Text("Grade3Header", ballSection.transform, "3★", font, 20f, new Vector2(115f, 82f), new Vector2(58f, 30f), TextAlignmentOptions.Center);
+        SetRect(ballSection.transform.Find("SectionTitle") as RectTransform, new Vector2(-45f, 142.5f), new Vector2(220f, 42f));
+        Text("AttributeHeader", ballSection.transform, "\uC18D\uC131", font, 20f, new Vector2(-110f, 99.5f), new Vector2(80f, 30f), TextAlignmentOptions.Center);
+        Text("Grade1Header", ballSection.transform, "1★", font, 20f, new Vector2(-25f, 99.5f), new Vector2(58f, 30f), TextAlignmentOptions.Center);
+        Text("Grade2Header", ballSection.transform, "2★", font, 20f, new Vector2(45f, 99.5f), new Vector2(58f, 30f), TextAlignmentOptions.Center);
+        Text("Grade3Header", ballSection.transform, "3★", font, 20f, new Vector2(115f, 99.5f), new Vector2(58f, 30f), TextAlignmentOptions.Center);
 
         GameObject effectSection = CreateRect("StatusBody", panel.transform);
         SetRect(effectSection.GetComponent<RectTransform>(), Vector2.zero, new Vector2(555f, 1f));
         Text("SectionTitle", effectSection.transform, "현재 적용 효과", font, 27f, new Vector2(0f, 235f), new Vector2(510f, 42f), TextAlignmentOptions.Left);
         GameObject columns = CreateRect("EffectColumns", effectSection.transform); SetRect(columns.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
         effectSection.transform.Find("SectionTitle")?.gameObject.SetActive(false);
-        GameObject augmentColumn = Section("AugmentColumn", panel.transform, new Vector2(180f, 260f), new Vector2(180f, 300f));
+        GameObject augmentColumn = Section("AugmentColumn", panel.transform, new Vector2(183.75f, 242.5f), new Vector2(187.5f, 335f), "Panel_Parchment_Augment");
         Text("ColumnTitle", augmentColumn.transform, "증강", font, 22f, new Vector2(0f, 195f), new Vector2(220f, 34f), TextAlignmentOptions.Left);
-        Transform augmentContent = ScrollContent("AugmentScrollView", "AugmentContent", augmentColumn.transform, new Vector2(0f, -18f), new Vector2(150f, 225f));
-        SetRect(augmentColumn.transform.Find("ColumnTitle") as RectTransform, new Vector2(0f, 125f), new Vector2(150f, 42f));
+        Transform augmentContent = ScrollContent("AugmentScrollView", "AugmentContent", augmentColumn.transform, new Vector2(0f, -18f), new Vector2(150f, 260f));
+        SetRect(augmentColumn.transform.Find("ColumnTitle") as RectTransform, new Vector2(0f, 142.5f), new Vector2(150f, 42f));
         StatusEntryView augmentTemplate = Entry("AugmentRowTemplate", augmentContent, font, 140f, false);
         TMP_Text augmentEmpty = Text("AugmentEmptyText", augmentContent, string.Empty, font, 15f, Vector2.zero, new Vector2(210f, 30f), TextAlignmentOptions.Left);
-        GameObject beneficialColumn = Section("BeneficialEffectColumn", panel.transform, new Vector2(0f, -125f), new Vector2(555f, 450f));
+        GameObject beneficialColumn = Section("BeneficialEffectColumn", panel.transform, new Vector2(0f, -227.5f), new Vector2(555f, 585f), "Panel_Parchment_DetailStats");
         Text("ColumnTitle", beneficialColumn.transform, "상세 스탯", font, 22f, new Vector2(0f, 195f), new Vector2(220f, 34f), TextAlignmentOptions.Left);
-        Transform beneficialContent = ScrollContent("BeneficialEffectScrollView", "BeneficialEffectContent", beneficialColumn.transform, new Vector2(0f, -20f), new Vector2(515f, 365f));
-        SetRect(beneficialColumn.transform.Find("ColumnTitle") as RectTransform, new Vector2(0f, 198f), new Vector2(510f, 42f));
+        Transform beneficialContent = ScrollContent("BeneficialEffectScrollView", "BeneficialEffectContent", beneficialColumn.transform, new Vector2(0f, -20f), new Vector2(515f, 500f));
+        SetRect(beneficialColumn.transform.Find("ColumnTitle") as RectTransform, new Vector2(0f, 265.5f), new Vector2(510f, 42f));
         StatusEntryView beneficialTemplate = Entry("BeneficialEffectRowTemplate", beneficialContent, font, 500f, false);
         TMP_Text beneficialName = beneficialTemplate.transform.Find("NameText")?.GetComponent<TMP_Text>();
         if (beneficialName != null) beneficialName.fontSize = 23f;
         LayoutElement beneficialLayout = beneficialTemplate.GetComponent<LayoutElement>();
         if (beneficialLayout != null) beneficialLayout.preferredHeight = 40f;
         TMP_Text beneficialEmpty = Text("BeneficialEffectEmptyText", beneficialContent, string.Empty, font, 15f, Vector2.zero, new Vector2(210f, 30f), TextAlignmentOptions.Left);
-
-        GameObject professionSection = Section("LineageSection", panel.transform, new Vector2(0f, -470f), new Vector2(555f, 105f));
-        Text("LineageTitle", professionSection.transform, "계열", font, 26f, new Vector2(0f, 28f), new Vector2(510f, 38f), TextAlignmentOptions.Left);
-        TMP_Text professionValue = Text("ProfessionValueText", professionSection.transform, string.Empty, font, 22f, new Vector2(0f, -18f), new Vector2(510f, 36f), TextAlignmentOptions.Left);
 
         GameObject tooltip = CreateImage("StatusTooltipPanel", panel.transform, Color.white);
         tooltip.AddComponent<Outline>().effectColor = Color.black;
@@ -113,7 +163,7 @@ public static class StatusPanelHierarchyInstaller
         Set(so,"ballContent",ballContent); Set(so,"ballEntryTemplate",ballTemplate); Set(so,"ballEmptyText",ballEmpty); Set(so,"totalBallCountText",totalBallCount);
         Set(so,"augmentContent",augmentContent); Set(so,"augmentEntryTemplate",augmentTemplate); Set(so,"augmentEmptyText",augmentEmpty);
         Set(so,"beneficialContent",beneficialContent); Set(so,"beneficialEntryTemplate",beneficialTemplate); Set(so,"beneficialEmptyText",beneficialEmpty);
-        Set(so,"professionValueText",professionValue); Set(so,"tooltipPanel",tooltipRect); Set(so,"tooltipText",tooltipText);
+        Set(so,"tooltipPanel",tooltipRect); Set(so,"tooltipText",tooltipText);
         so.ApplyModifiedPropertiesWithoutUndo();
         ballTemplate.gameObject.SetActive(false); augmentTemplate.gameObject.SetActive(false); beneficialTemplate.gameObject.SetActive(false);
         EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene);
@@ -140,7 +190,7 @@ public static class StatusPanelHierarchyInstaller
             new Vector2(showIcon ? -110f : 0f, 0f),
             new Vector2(showIcon ? 80f : Mathf.Max(80f, width - 20f), 30f));
         if (showIcon) title.alignment = TextAlignmentOptions.Center;
-        GameObject underline = CreateImage("Underline", title.transform, new Color(0.78f,0.68f,1f,1f)); SetRect(underline.GetComponent<RectTransform>(), new Vector2(0f,-11f), new Vector2(60f,1.5f));
+        GameObject underline = CreateImage("Underline", title.transform, new Color32(164, 101, 42, 255)); SetRect(underline.GetComponent<RectTransform>(), new Vector2(0f,-11f), new Vector2(60f,1.5f));
         TMP_Text value = Text("ValueText", row.transform, string.Empty, font, showIcon?18f:17f, new Vector2(showIcon?100f:0f,0f), new Vector2(showIcon?190f:Mathf.Max(80f,width-20f),30f), TextAlignmentOptions.Right);
         value.raycastTarget = false;
         GameObject gradeRoot = CreateRect("GradeSlots", row.transform);
@@ -193,8 +243,29 @@ public static class StatusPanelHierarchyInstaller
         scroll.content = contentRect;
         return content;
     }
-    private static GameObject Section(string name, Transform parent, Vector2 pos, Vector2 size) { GameObject go=CreateImage(name,parent,new Color(1f,1f,1f,0.055f)); SetRect(go.GetComponent<RectTransform>(),pos,size); return go; }
-    private static TMP_Text Text(string name,Transform parent,string value,TMP_FontAsset font,float size,Vector2 pos,Vector2 rectSize,TextAlignmentOptions alignment) { GameObject go=CreateRect(name,parent); SetRect(go.GetComponent<RectTransform>(),pos,rectSize); TextMeshProUGUI text=go.AddComponent<TextMeshProUGUI>(); if(font!=null)text.font=font; text.text=value;text.fontSize=size;text.color=Color.white;text.alignment=alignment;text.textWrappingMode=TextWrappingModes.Normal;return text; }
+    private static GameObject Section(string name, Transform parent, Vector2 pos, Vector2 size, string parchmentName) { GameObject go=CreateImage(name,parent,Color.white); SetRect(go.GetComponent<RectTransform>(),pos,size); ApplyParchment(go.GetComponent<Image>(), parchmentName); return go; }
+    private static TMP_Text Text(string name,Transform parent,string value,TMP_FontAsset font,float size,Vector2 pos,Vector2 rectSize,TextAlignmentOptions alignment) { GameObject go=CreateRect(name,parent); SetRect(go.GetComponent<RectTransform>(),pos,rectSize); TextMeshProUGUI text=go.AddComponent<TextMeshProUGUI>(); if(font!=null)text.font=font; text.text=value;text.fontSize=size;text.color=ParchmentTextColor;text.alignment=alignment;text.textWrappingMode=TextWrappingModes.Normal;return text; }
+    private static void ApplyParchment(Image image, string assetName)
+    {
+        string path = $"Assets/_Project/Resources/UI/Parchment/{assetName}.png";
+        TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (importer != null &&
+            (importer.textureType != TextureImporterType.Sprite || importer.spriteBorder == Vector4.zero))
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.spriteBorder = new Vector4(80f, 80f, 80f, 80f);
+            importer.SaveAndReimport();
+        }
+        image.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = 4f;
+        image.color = Color.white;
+        image.raycastTarget = false;
+    }
     private static GameObject CreateImage(string name,Transform parent,Color color){GameObject go=CreateRect(name,parent);go.AddComponent<Image>().color=color;return go;}
     private static GameObject CreateRect(string name,Transform parent){GameObject go=new(name,typeof(RectTransform));go.transform.SetParent(parent,false);return go;}
     private static void Set(SerializedObject so,string name,Object value)=>so.FindProperty(name).objectReferenceValue=value;

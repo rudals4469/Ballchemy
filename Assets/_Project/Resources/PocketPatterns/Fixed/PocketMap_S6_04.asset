@@ -73,9 +73,6 @@ MonoBehaviour:
   - position: {x: 0, y: 2}
     cellType: 0
     pairGroupId: 0
-  - position: {x: 1, y: 2}
-    cellType: 0
-    pairGroupId: 0
   - position: {x: 2, y: 2}
     cellType: 0
     pairGroupId: 0
@@ -86,9 +83,6 @@ MonoBehaviour:
     cellType: 0
     pairGroupId: 0
   - position: {x: 6, y: 2}
-    cellType: 0
-    pairGroupId: 0
-  - position: {x: 7, y: 2}
     cellType: 0
     pairGroupId: 0
   - position: {x: 8, y: 2}
@@ -118,13 +112,7 @@ MonoBehaviour:
   - position: {x: 0, y: 6}
     cellType: 0
     pairGroupId: 0
-  - position: {x: 1, y: 6}
-    cellType: 0
-    pairGroupId: 0
   - position: {x: 2, y: 6}
-    cellType: 0
-    pairGroupId: 0
-  - position: {x: 3, y: 6}
     cellType: 0
     pairGroupId: 0
   - position: {x: 4, y: 6}
@@ -134,9 +122,6 @@ MonoBehaviour:
     cellType: 0
     pairGroupId: 0
   - position: {x: 6, y: 6}
-    cellType: 0
-    pairGroupId: 0
-  - position: {x: 7, y: 6}
     cellType: 0
     pairGroupId: 0
   - position: {x: 8, y: 6}
@@ -166,4 +151,21 @@ MonoBehaviour:
   - position: {x: 8, y: 8}
     cellType: 0
     pairGroupId: 0
-
+  - position: {x: 2, y: 8}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 4, y: 8}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 5, y: 8}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 6, y: 8}
+    cellType: 0
+    pairGroupId: 0
+  - position: {x: 4, y: 0}
+    cellType: 6
+    pairGroupId: 0
+  - position: {x: 3, y: 8}
+    cellType: 7
+    pairGroupId: 0

@@ -340,6 +340,8 @@ public sealed class AlchemyPanelPresenter :
         for (int i = 0; i < candidateButtons.Length; i++)
         {
             bool hasCandidate = i < currentCandidates.Count;
+            if (candidateLayouts != null && i < candidateLayouts.Length)
+                candidateLayouts[i]?.SetIcon(hasCandidate ? currentCandidates[i].Sprite : null);
             if (candidateButtons[i] != null)
             {
                 candidateButtons[i].interactable = hasCandidate;

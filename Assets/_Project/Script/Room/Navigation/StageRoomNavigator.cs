@@ -956,6 +956,48 @@ public sealed class StageRoomNavigator :
         return false;
     }
 
+    public bool TryEnterDebugMapTestRoom()
+    {
+        if (currentMap == null ||
+            currentRoom == null ||
+            isNavigationLocked ||
+            Ball.ActiveMovingBallCount > 0 ||
+            ballLauncher == null ||
+            blockGridManager == null)
+        {
+            return false;
+        }
+
+        if (currentRoom.RoomType != RoomType.DebugMapTest)
+        {
+            RoomNode departedRoom = currentRoom;
+            previousRoom = departedRoom;
+            currentRoom = new RoomNode(
+                int.MaxValue,
+                new Vector2Int(-999, -999),
+                RoomType.DebugMapTest);
+
+            ballLauncher.TryResetLaunchPositionToCenter();
+            blockGridManager.PrepareEmptyRoom();
+            ballCollection?.SetBallsVisible(true);
+            turnManager?.ResetToAiming(true);
+
+            RoomChanged?.Invoke(departedRoom, currentRoom);
+            NavigationAvailabilityChanged?.Invoke();
+
+            Debug.Log(
+                "StageRoomNavigator: F7 특수 맵 테스트방에 입장했습니다.",
+                this);
+        }
+        else
+        {
+            ballCollection?.SetBallsVisible(true);
+            turnManager?.ResetToAiming(true);
+        }
+
+        return true;
+    }
+
     public bool TryDebugEnterBossRoom()
     {
         if (currentMap == null ||
@@ -1537,6 +1579,13 @@ public sealed class StageRoomNavigator :
                 );
             }
 
+            return;
+        }
+
+        if (currentRoom.RoomType == RoomType.DebugMapTest)
+        {
+            ballCollection?.SetBallsVisible(true);
+            turnManager?.ResetToAiming(true);
             return;
         }
 

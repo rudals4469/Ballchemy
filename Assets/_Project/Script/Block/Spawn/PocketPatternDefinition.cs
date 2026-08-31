@@ -15,7 +15,9 @@ public enum PocketLayoutCellType
     Indestructible = 2,
     SpecialSlot = 3,
     NamedSlot = 4,
-    TeleportSlot = 5
+    TeleportSlot = 5,
+    Entrance = 6,
+    Exit = 7
 }
 
 public enum MapTeleportMode

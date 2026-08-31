@@ -212,6 +212,8 @@ public sealed class ShopItemSlotPresenter :
                 currentItem.Icon != null;
         }
 
+        commonLayout?.SetIcon(currentItem.Icon);
+
         if (itemNameText != null)
         {
             CommonChoiceCardLayout.SetText(itemNameText, currentItem.DisplayName);
@@ -223,7 +225,10 @@ public sealed class ShopItemSlotPresenter :
         }
 
         if (slotButton != null && slotButton.targetGraphic != null)
-            slotButton.targetGraphic.color = CommonChoiceCardLayout.Silver;
+            slotButton.targetGraphic.color =
+                slotButton.targetGraphic is Image paperImage &&
+                CommonChoiceCardLayout.IsWorkbenchCard(paperImage.sprite)
+                    ? Color.white : CommonChoiceCardLayout.Silver;
 
         ApplyPriceVisual();
         ApplyInteractionState();

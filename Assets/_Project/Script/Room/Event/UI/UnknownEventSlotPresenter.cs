@@ -1063,6 +1063,13 @@ public sealed class UnknownEventSlotPresenter :
 
         resultText.text =
             text ?? string.Empty;
+        resultText.enableAutoSizing = true;
+        resultText.fontSizeMin = 14f;
+        resultText.fontSizeMax = 26f;
+        resultText.textWrappingMode = TextWrappingModes.Normal;
+        resultText.overflowMode = TextOverflowModes.Ellipsis;
+        resultText.color = new Color32(65, 40, 25, 255);
+        resultText.margin = Vector4.zero;
     }
 
     private void SetTextPosition(

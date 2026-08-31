@@ -62,6 +62,8 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
     private Sprite thermalBurstSprite;
     private int nextIndex;
     private int nextSymbolIndex;
+    private int electricSequenceFrame = -1;
+    private int electricSequenceIndex;
     private Material sharedMaterial;
 
     private void Awake()
@@ -114,6 +116,12 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         {
             State state = states[i];
             if (state == null || !pool[i].enabled) continue;
+            if (now < state.Began)
+            {
+                pool[i].startColor = Color.clear;
+                pool[i].endColor = Color.clear;
+                continue;
+            }
             float progress = (now - state.Began) / state.Duration;
             if (progress >= 1f)
             {
@@ -127,6 +135,13 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         {
             SymbolState state = symbolStates[i];
             if (state == null || !symbolPool[i].enabled) continue;
+            if (now < state.Began)
+            {
+                Color waitingColor = state.Color;
+                waitingColor.a = 0f;
+                symbolPool[i].color = waitingColor;
+                continue;
+            }
             float progress = (now - state.Began) / state.Duration;
             if (progress >= 1f)
             {
@@ -286,7 +301,9 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         float lateralOffset,
         float widthScale,
         bool flipY,
-        float angleOffset)
+        float angleOffset,
+        float delay = 0f,
+        float durationScale = 1f)
     {
         if (lightningChainSprite == null) return;
         Vector3 delta = end - start;
@@ -304,19 +321,26 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         renderer.transform.localScale = new Vector3(length, widthScale, 1f);
         renderer.flipX = false;
         renderer.flipY = flipY;
+        renderer.color = delay > 0f
+            ? new Color(color.r, color.g, color.b, 0f)
+            : color;
         renderer.enabled = true;
         symbolStates[index] = new SymbolState
         {
             Kind = SpriteEffectKind.Chain,
-            Began = Time.time,
-            Duration = travelDuration,
+            Began = Time.time + delay,
+            Duration = travelDuration * durationScale,
             Scale = widthScale,
             Color = color,
             EndColor = color
         };
     }
 
-    private void PlayChainBundle(Vector3 start, Vector3 end, Color color)
+    private void PlayChainBundle(
+        Vector3 start,
+        Vector3 end,
+        Color color,
+        float sequenceDelay)
     {
         Vector3 delta = end - start;
         if (delta.sqrMagnitude <= 0.001f) return;
@@ -324,20 +348,106 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         Vector3 perpendicular =
             Vector3.Cross(delta.normalized, Vector3.forward);
 
-        // 이미지 번개를 서로 반전하고 비껴 겹쳐 굵은 주 전류를 만든다.
-        PlayChainSprite(start, end, color, 0f, 1.03f, false, -2.5f);
-        PlayChainSprite(start, end, WithAlpha(color, 0.78f),
-            0.11f, 0.74f, true, 4.5f);
-        PlayChainSprite(start, end, WithAlpha(color, 0.62f),
-            -0.1f, 0.65f, false, -5.5f);
+        // 1. 얇은 예고 전류가 먼저 경로를 짚는다.
+        Play(start, end, new Color(1f, 0.96f, 0f, 0.78f),
+            0.055f, 0.24f, Style.Lightning, sequenceDelay);
+
+        // 2. 거의 흰 중심 낙뢰와 노란 외곽 전류가 짧고 강하게 친다.
+        float strikeDelay = sequenceDelay + 0.045f;
+        Color hotCore = Color.Lerp(color, Color.white, 0.16f);
+        PlayChainSprite(start, end, hotCore, 0f, 1.34f, false, -2.5f,
+            strikeDelay, 0.3f);
+        PlayChainSprite(start, end, WithAlpha(color, 0.86f),
+            0.13f, 0.92f, true, 4.5f, strikeDelay, 0.34f);
+        PlayChainSprite(start, end, WithAlpha(color, 0.72f),
+            -0.12f, 0.8f, false, -5.5f, strikeDelay, 0.32f);
 
         // 기존 동적 번개도 양옆으로 꼬아 정지 이미지처럼 보이지 않게 한다.
         Play(start + perpendicular * 0.07f, end - perpendicular * 0.05f,
-            WithAlpha(color, 0.9f), travelDuration * 0.92f, 0.86f,
-            Style.Lightning);
+            WithAlpha(hotCore, 0.96f), 0.15f, 1.04f,
+            Style.Lightning, strikeDelay);
         Play(start - perpendicular * 0.08f, end + perpendicular * 0.065f,
-            WithAlpha(color, 0.68f), travelDuration * 0.78f, 0.6f,
-            Style.Lightning);
+            WithAlpha(color, 0.76f), 0.17f, 0.76f,
+            Style.Lightning, strikeDelay);
+
+        // 주 전류 중간에서 짧은 가지가 갈라져 번개 실루엣을 만든다.
+        Vector3 direction = delta.normalized;
+        Vector3 middle = (start + end) * 0.5f;
+        float branchSide = Random.value < 0.5f ? -1f : 1f;
+        Vector3 firstBranchEnd = middle + direction * 0.12f +
+            perpendicular * branchSide * Random.Range(0.32f, 0.48f);
+        PlayChainSprite(middle - direction * 0.08f, firstBranchEnd,
+            WithAlpha(hotCore, 0.88f), 0f, 0.72f, branchSide < 0f,
+            branchSide * 8f, strikeDelay, 0.28f);
+
+        Vector3 secondStart = Vector3.Lerp(start, end, 0.68f);
+        Vector3 secondBranchEnd = secondStart - direction * 0.06f -
+            perpendicular * branchSide * Random.Range(0.22f, 0.34f);
+        PlayChainSprite(secondStart, secondBranchEnd,
+            WithAlpha(color, 0.72f), 0f, 0.5f, branchSide > 0f,
+            -branchSide * 10f, strikeDelay, 0.26f);
+
+        // 3. 도착점 섬광과 방사형 파편이 선을 실제 타격으로 읽히게 한다.
+        float impactDelay = strikeDelay + 0.055f;
+        Play(end, end + Vector3.right * 0.21f,
+            new Color(1f, 0.94f, 0f, 1f),
+            0.16f, 0.72f, Style.ThermalRing, impactDelay);
+        int sparkCount = Random.Range(4, 7);
+        float angleOffset = Random.Range(0f, Mathf.PI * 2f);
+        for (int i = 0; i < sparkCount; i++)
+        {
+            float angle = angleOffset + i * Mathf.PI * 2f / sparkCount;
+            Vector3 sparkDirection = new Vector3(
+                Mathf.Cos(angle), Mathf.Sin(angle));
+            float sparkLength = Random.Range(0.2f, 0.38f);
+            Play(end, end + sparkDirection * sparkLength,
+                WithAlpha(color, Random.Range(0.72f, 1f)),
+                Random.Range(0.1f, 0.16f), 0.58f,
+                Style.Lightning, impactDelay + Random.Range(0f, 0.025f));
+        }
+
+        // 4. 본체가 꺼진 뒤에는 가는 주황빛 잔류 전류만 남는다.
+        Play(start, end, new Color(1f, 0.82f, 0f, 0.58f),
+            0.2f, 0.34f, Style.Lightning, strikeDelay + 0.105f);
+    }
+
+    private void PlayPrimaryLightningStrike(
+        Vector3 target,
+        Color color)
+    {
+        Vector3 sky = target + Vector3.up * 2.45f;
+        Color whiteCore = Color.Lerp(color, Color.white, 0.24f);
+
+        // 중심 블록 발동을 알리는 가장 크고 밝은 수직 낙뢰다.
+        Play(sky, target, new Color(1f, 0.96f, 0f, 0.76f),
+            0.045f, 0.28f, Style.Lightning);
+        PlayChainSprite(sky, target, whiteCore,
+            0f, 1.82f, false, -1.5f, 0.035f, 0.34f);
+        PlayChainSprite(sky, target, WithAlpha(color, 0.94f),
+            0.16f, 1.28f, true, 4f, 0.035f, 0.38f);
+        PlayChainSprite(sky, target, WithAlpha(color, 0.76f),
+            -0.14f, 1.02f, false, -5f, 0.035f, 0.35f);
+        Play(sky + Vector3.left * 0.08f, target + Vector3.right * 0.04f,
+            whiteCore, 0.18f, 1.34f, Style.Lightning, 0.035f);
+
+        // 얼음-불 폭발과 겹쳐도 중심이 보이도록 이중 충격파를 남긴다.
+        Play(target, target + Vector3.right * 0.29f,
+            new Color(1f, 0.92f, 0f, 1f),
+            0.2f, 0.92f, Style.ThermalRing, 0.075f);
+        Play(target, target + Vector3.right * 0.18f,
+            whiteCore, 0.14f, 0.68f, Style.ThermalRing, 0.09f);
+
+        int sparkCount = 7;
+        float angleOffset = Random.Range(0f, Mathf.PI * 2f);
+        for (int i = 0; i < sparkCount; i++)
+        {
+            float angle = angleOffset + i * Mathf.PI * 2f / sparkCount;
+            Vector3 direction = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle));
+            Play(target, target + direction * Random.Range(0.28f, 0.48f),
+                WithAlpha(color, Random.Range(0.82f, 1f)),
+                Random.Range(0.12f, 0.18f), 0.72f,
+                Style.Lightning, 0.08f + Random.Range(0f, 0.025f));
+        }
     }
 
     private static Color WithAlpha(Color color, float alpha)
@@ -349,25 +459,31 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
     private void PlayBurstSprite(
         Vector3 position,
         Color startColor,
-        Color endColor)
+        Color endColor,
+        float rotation,
+        float scale,
+        float delay,
+        float duration)
     {
         if (thermalBurstSprite == null) return;
         int index = AcquireSymbolIndex();
         SpriteRenderer renderer = symbolPool[index];
         renderer.sprite = thermalBurstSprite;
         renderer.transform.position = position;
-        renderer.transform.rotation = Quaternion.Euler(
-            0f, 0f, Random.Range(-10f, 10f));
+        renderer.transform.rotation = Quaternion.Euler(0f, 0f, rotation);
         renderer.transform.localScale = Vector3.zero;
         renderer.flipX = false;
         renderer.flipY = false;
+        renderer.color = delay > 0f
+            ? new Color(startColor.r, startColor.g, startColor.b, 0f)
+            : startColor;
         renderer.enabled = true;
         symbolStates[index] = new SymbolState
         {
             Kind = SpriteEffectKind.Burst,
-            Began = Time.time,
-            Duration = 0.62f,
-            Scale = 4.6f,
+            Began = Time.time + delay,
+            Duration = duration,
+            Scale = scale,
             Color = startColor,
             EndColor = endColor
         };
@@ -382,17 +498,30 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         Vector3 end = target.transform.position;
         Color color = ResolveColor(element);
         if (element == ElementType.Electric)
-            color = new Color(1f, 0.96f, 0.72f, 1f);
+            color = new Color(1f, 0.93f, 0f, 1f);
         if (element == ElementType.Electric)
         {
+            if (electricSequenceFrame != Time.frameCount)
+            {
+                electricSequenceFrame = Time.frameCount;
+                electricSequenceIndex = 0;
+            }
+            bool isFirstLink = electricSequenceIndex == 0;
+            if (isFirstLink)
+                PlayPrimaryLightningStrike(start, color);
+
+            // 수직 낙뢰가 꽂힌 뒤 중심에서 바깥으로 전류가 퍼진다.
+            float sequenceDelay = 0.115f + electricSequenceIndex * 0.055f;
+            electricSequenceIndex++;
+
             Vector3 direction = end - start;
             if (direction.sqrMagnitude > 0.001f)
             {
                 direction.Normalize();
-                start -= direction * 0.14f;
-                end += direction * 0.14f;
+                start -= direction * 0.22f;
+                end += direction * 0.22f;
             }
-            PlayChainBundle(start, end, color);
+            PlayChainBundle(start, end, color, sequenceDelay);
             return;
         }
         Vector3 delta = end - start;
@@ -414,25 +543,56 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
     {
         if (center == null) return;
         Vector3 position = center.transform.position;
-        Color red = new Color(1f, 0.16f, 0.06f, 1f);
-        Color orange = new Color(1f, 0.72f, 0.18f, 1f);
-        PlayBurstSprite(position, red, orange);
+        Color red = new Color(1f, 0f, 0f, 1f);
+        Color orange = new Color(1f, 0.42f, 0f, 1f);
+        int pattern = Random.Range(0, 3);
+        if (pattern == 0)
+        {
+            PlayBurstSprite(position, red, orange,
+                Random.Range(-12f, 12f), 4.8f, 0f, 0.66f);
+            return;
+        }
+
+        if (pattern == 1)
+        {
+            PlayBurstSprite(position + new Vector3(-0.08f, 0.02f),
+                red, orange, -18f, 4.25f, 0f, 0.62f);
+            PlayBurstSprite(position + new Vector3(0.1f, -0.025f),
+                WithAlpha(red, 0.82f), WithAlpha(orange, 0.82f),
+                24f, 3.65f, 0.055f, 0.58f);
+            return;
+        }
+
+        PlayBurstSprite(position, red, orange, 0f, 4.15f, 0f, 0.62f);
+        PlayBurstSprite(position + new Vector3(-0.12f, 0.08f),
+            WithAlpha(red, 0.76f), WithAlpha(orange, 0.76f),
+            -28f, 3.15f, 0.07f, 0.54f);
+        PlayBurstSprite(position + new Vector3(0.13f, -0.07f),
+            WithAlpha(red, 0.68f), WithAlpha(orange, 0.68f),
+            31f, 2.7f, 0.13f, 0.5f);
 
     }
 
     private void Play(Vector3 start, Vector3 end, Color color,
-        float duration, float widthMultiplier, Style style)
+        float duration, float widthMultiplier, Style style,
+        float delay = 0f)
     {
         int index = AcquireLineIndex();
         states[index] = new State
         {
             Start = start, End = end, Color = color,
-            Began = Time.time, Duration = duration,
+            Began = Time.time + delay, Duration = duration,
             Width = lineWidth * widthMultiplier,
             Seed = Random.Range(0f, 1000f), Style = style
         };
         pool[index].enabled = true;
-        Animate(pool[index], states[index], 0f, Time.time);
+        if (delay <= 0f)
+            Animate(pool[index], states[index], 0f, Time.time);
+        else
+        {
+            pool[index].startColor = Color.clear;
+            pool[index].endColor = Color.clear;
+        }
     }
 
     private static void Animate(LineRenderer line, State state,
@@ -547,10 +707,10 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
     {
         switch (element)
         {
-            case ElementType.Water: return new Color(0.18f, 0.72f, 1f, 1f);
-            case ElementType.Electric: return new Color(1f, 0.92f, 0.16f, 1f);
-            case ElementType.Ice: return new Color(0.58f, 0.95f, 1f, 1f);
-            case ElementType.Fire: return new Color(1f, 0.28f, 0.035f, 1f);
+            case ElementType.Water: return new Color(0f, 0.72f, 1f, 1f);
+            case ElementType.Electric: return new Color(1f, 0.93f, 0f, 1f);
+            case ElementType.Ice: return new Color(0f, 0.9f, 1f, 1f);
+            case ElementType.Fire: return new Color(1f, 0f, 0f, 1f);
             default: return Color.white;
         }
     }

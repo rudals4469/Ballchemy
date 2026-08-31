@@ -43,9 +43,6 @@ MonoBehaviour:
   - position: {x: 2, y: 0}
     cellType: 0
     pairGroupId: 0
-  - position: {x: 3, y: 0}
-    cellType: 0
-    pairGroupId: 0
   - position: {x: 4, y: 0}
     cellType: 0
     pairGroupId: 0
@@ -121,9 +118,6 @@ MonoBehaviour:
   - position: {x: 2, y: 6}
     cellType: 5
     pairGroupId: 1
-  - position: {x: 3, y: 6}
-    cellType: 0
-    pairGroupId: 0
   - position: {x: 4, y: 6}
     cellType: 0
     pairGroupId: 0
@@ -133,4 +127,9 @@ MonoBehaviour:
   - position: {x: 6, y: 6}
     cellType: 0
     pairGroupId: 0
-
+  - position: {x: 3, y: 0}
+    cellType: 6
+    pairGroupId: 0
+  - position: {x: 3, y: 6}
+    cellType: 7
+    pairGroupId: 0

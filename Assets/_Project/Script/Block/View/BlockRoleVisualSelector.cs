@@ -11,11 +11,11 @@ public static class BlockRoleVisualSelector
     private static readonly Dictionary<string, Sprite> SpriteCache =
         new Dictionary<string, Sprite>();
 
-    private static readonly Color AttackerBackground = new Color32(255, 48, 36, 255);
-    private static readonly Color TankBackground = new Color32(20, 118, 255, 255);
-    private static readonly Color NamedBackground = new Color32(255, 190, 0, 255);
-    private static readonly Color NamedSymbol = new Color32(255, 241, 174, 255);
-    private static readonly Color IndestructibleBackground = new Color32(132, 145, 160, 255);
+    private static readonly Color AttackerBackground = new Color32(255, 34, 0, 255);
+    private static readonly Color TankBackground = new Color32(0, 102, 255, 255);
+    private static readonly Color NamedBackground = new Color32(255, 208, 0, 255);
+    private static readonly Color NamedSymbol = new Color32(255, 248, 190, 255);
+    private static readonly Color IndestructibleBackground = new Color32(88, 112, 142, 255);
 
     private readonly struct SpecialVisualStyle
     {
@@ -83,15 +83,15 @@ public static class BlockRoleVisualSelector
     private static readonly Dictionary<string, SpecialVisualStyle> SpecialStyles =
         new Dictionary<string, SpecialVisualStyle>
         {
-            { "special_heal", new SpecialVisualStyle(new Color32(0,220,96,255), new Color32(218,255,231,255)) },
-            { "special_seal", new SpecialVisualStyle(new Color32(183,54,255,255), new Color32(255,224,102,255)) },
-            { "special_curse", new SpecialVisualStyle(new Color32(132,45,210,255), new Color32(232,209,255,255)) },
-            { "special_explosion", new SpecialVisualStyle(new Color32(255,91,20,255), new Color32(255,211,163,255)) },
-            { "special_repair", new SpecialVisualStyle(new Color32(0,210,205,255), new Color32(207,255,255,255)) },
-            { "special_shield", new SpecialVisualStyle(new Color32(15,125,255,255), new Color32(220,239,255,255)) },
-            { "special_guardian", new SpecialVisualStyle(new Color32(0,185,225,255), new Color32(205,248,255,255)) },
-            { "special_gold", new SpecialVisualStyle(new Color32(255,178,0,255), new Color32(255,241,174,255)) },
-            { "special_teleport", new SpecialVisualStyle(new Color32(62,82,255,255), new Color32(224,235,255,255)) }
+            { "special_heal", new SpecialVisualStyle(new Color32(0,240,90,255), new Color32(220,255,230,255)) },
+            { "special_seal", new SpecialVisualStyle(new Color32(198,0,255,255), new Color32(255,235,90,255)) },
+            { "special_curse", new SpecialVisualStyle(new Color32(120,0,235,255), new Color32(238,215,255,255)) },
+            { "special_explosion", new SpecialVisualStyle(new Color32(255,52,0,255), new Color32(255,222,165,255)) },
+            { "special_repair", new SpecialVisualStyle(new Color32(0,230,215,255), new Color32(210,255,252,255)) },
+            { "special_shield", new SpecialVisualStyle(new Color32(0,105,255,255), new Color32(220,240,255,255)) },
+            { "special_guardian", new SpecialVisualStyle(new Color32(0,205,255,255), new Color32(210,250,255,255)) },
+            { "special_gold", new SpecialVisualStyle(new Color32(255,196,0,255), new Color32(255,245,180,255)) },
+            { "special_teleport", new SpecialVisualStyle(new Color32(60,30,255,255), new Color32(228,235,255,255)) }
         };
 
     public static void Apply(

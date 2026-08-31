@@ -23,16 +23,52 @@ public static class PocketMapCatalogGenerator
     {
         EditorApplication.delayCall += () =>
         {
-            if (AssetDatabase.IsValidFolder(OutputFolder) &&
-                AssetDatabase.FindAssets(
-                    "t:PocketPatternDefinition",
-                    new[] { OutputFolder }).Length >= 50)
+            if (!CatalogNeedsRegeneration())
             {
                 return;
             }
 
             Generate();
         };
+    }
+
+    private static bool CatalogNeedsRegeneration()
+    {
+        if (!AssetDatabase.IsValidFolder(OutputFolder))
+            return true;
+
+        string[] guids = AssetDatabase.FindAssets(
+            "t:PocketPatternDefinition", new[] { OutputFolder });
+        if (guids.Length < 50)
+            return true;
+
+        for (int i = 0; i < guids.Length; i++)
+        {
+            PocketPatternDefinition map =
+                AssetDatabase.LoadAssetAtPath<PocketPatternDefinition>(
+                    AssetDatabase.GUIDToAssetPath(guids[i]));
+            if (map == null || !HasSingleEntranceAndExit(map))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasSingleEntranceAndExit(PocketPatternDefinition map)
+    {
+        int entranceCount = 0;
+        int exitCount = 0;
+        PocketLayoutCell[] cells = map.FixedCells;
+        if (cells == null) return false;
+        for (int i = 0; i < cells.Length; i++)
+        {
+            if (cells[i] == null) continue;
+            if (cells[i].CellType == PocketLayoutCellType.Entrance)
+                entranceCount++;
+            else if (cells[i].CellType == PocketLayoutCellType.Exit)
+                exitCount++;
+        }
+        return entranceCount == 1 && exitCount == 1;
     }
 
     [MenuItem("Ballchemy/Generate Fixed Pocket Maps")]
@@ -63,13 +99,16 @@ public static class PocketMapCatalogGenerator
             AssetDatabase.CreateAsset(asset, path);
         }
 
+        string[] normalizedRows = EnsureSingleEntranceAndExit(
+            spec.Rows, spec.TeleportMode);
         List<PocketLayoutCell> cells = new List<PocketLayoutCell>();
-        for (int y = 0; y < spec.Rows.Length; y++)
-        for (int x = 0; x < spec.Rows[y].Length; x++)
+        for (int y = 0; y < normalizedRows.Length; y++)
+        for (int x = 0; x < normalizedRows[y].Length; x++)
         {
-            char symbol = spec.Rows[y][x];
+            char symbol = normalizedRows[y][x];
                 if (symbol != 'T' && symbol != 'A' && symbol != 'X' &&
-                    symbol != 'S' && symbol != 'N' && symbol != '1')
+                    symbol != 'S' && symbol != 'N' && symbol != '1' &&
+                    symbol != 'I' && symbol != 'O')
                 continue;
             PocketLayoutCell cell = new PocketLayoutCell();
             PocketLayoutCellType type = symbol == 'A'
@@ -81,7 +120,11 @@ public static class PocketMapCatalogGenerator
                         : symbol == 'N'
                             ? PocketLayoutCellType.NamedSlot
                             : symbol == '1'
-                                ? PocketLayoutCellType.TeleportSlot
+                            ? PocketLayoutCellType.TeleportSlot
+                            : symbol == 'I'
+                                ? PocketLayoutCellType.Entrance
+                                : symbol == 'O'
+                                    ? PocketLayoutCellType.Exit
                                 : PocketLayoutCellType.Tank;
             cell.Configure(
                 new Vector2Int(x, y),
@@ -95,10 +138,223 @@ public static class PocketMapCatalogGenerator
             spec.Name,
             spec.MinimumStage,
             spec.MaximumStage,
-            new Vector2Int(spec.Rows[0].Length, spec.Rows.Length),
+            new Vector2Int(normalizedRows[0].Length, normalizedRows.Length),
             cells.ToArray(),
             spec.TeleportMode);
         EditorUtility.SetDirty(asset);
+    }
+
+    private static string[] EnsureSingleEntranceAndExit(
+        string[] source, MapTeleportMode teleportMode)
+    {
+        int height = source.Length;
+        int width = source[0].Length;
+        char[][] grid = new char[height][];
+        for (int y = 0; y < height; y++)
+            grid[y] = source[y].ToCharArray();
+
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
+        {
+            if (!IsBoundary(x, y, width, height) || grid[y][x] != '.')
+                continue;
+            if (HasOpenInnerNeighbour(grid, x, y, width, height))
+                candidates.Add(new Vector2Int(x, y));
+        }
+
+        if (candidates.Count < 2)
+        {
+            AddBreakableBoundaryCandidates(
+                grid, candidates, width, height);
+        }
+
+        Vector2Int entrance = candidates[0];
+        Vector2Int exit = candidates[1];
+        int bestDistance = -1;
+        for (int i = 0; i < candidates.Count; i++)
+        for (int j = i + 1; j < candidates.Count; j++)
+        {
+            int distance = Mathf.Abs(candidates[i].x - candidates[j].x) +
+                           Mathf.Abs(candidates[i].y - candidates[j].y);
+            if (distance <= bestDistance) continue;
+            bestDistance = distance;
+            entrance = candidates[i];
+            exit = candidates[j];
+        }
+
+        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
+            if (IsBoundary(x, y, width, height) && grid[y][x] == '.')
+                grid[y][x] = 'T';
+        grid[entrance.y][entrance.x] = 'I';
+        grid[exit.y][exit.x] = 'O';
+        Vector2Int entranceThroat = ResolveOpeningThroat(
+            entrance, width, height);
+        Vector2Int exitThroat = ResolveOpeningThroat(exit, width, height);
+        grid[entranceThroat.y][entranceThroat.x] = '.';
+        grid[exitThroat.y][exitThroat.x] = '.';
+        if (teleportMode != MapTeleportMode.Required)
+            EnsureOpenAreasConnected(grid, entrance, width, height);
+
+        string[] result = new string[height];
+        for (int y = 0; y < height; y++)
+            result[y] = new string(grid[y]);
+        return result;
+    }
+
+    private static void EnsureOpenAreasConnected(
+        char[][] grid, Vector2Int entrance, int width, int height)
+    {
+        int safety = width * height;
+        while (safety-- > 0)
+        {
+            HashSet<Vector2Int> reachable = FloodOpenArea(
+                grid, entrance, width, height);
+            Vector2Int target = new Vector2Int(-1, -1);
+            for (int y = 0; y < height && target.x < 0; y++)
+            for (int x = 0; x < width; x++)
+                if (IsOpenCell(grid[y][x]) &&
+                    !reachable.Contains(new Vector2Int(x, y)))
+                {
+                    target = new Vector2Int(x, y);
+                    break;
+                }
+            if (target.x < 0) return;
+
+            Dictionary<Vector2Int, Vector2Int> previous =
+                new Dictionary<Vector2Int, Vector2Int>();
+            Queue<Vector2Int> pending = new Queue<Vector2Int>();
+            HashSet<Vector2Int> visited =
+                new HashSet<Vector2Int>(reachable);
+            foreach (Vector2Int position in reachable)
+                pending.Enqueue(position);
+
+            while (pending.Count > 0 && !visited.Contains(target))
+            {
+                Vector2Int current = pending.Dequeue();
+                foreach (Vector2Int next in EnumerateNeighbours(
+                             current, width, height))
+                {
+                    if (visited.Contains(next) ||
+                        !CanCarveCell(grid[next.y][next.x]))
+                        continue;
+                    visited.Add(next);
+                    previous[next] = current;
+                    pending.Enqueue(next);
+                }
+            }
+
+            if (!visited.Contains(target)) return;
+            Vector2Int cursor = target;
+            while (!reachable.Contains(cursor))
+            {
+                if (grid[cursor.y][cursor.x] == 'T')
+                    grid[cursor.y][cursor.x] = '.';
+                if (!previous.TryGetValue(cursor, out cursor)) break;
+            }
+        }
+    }
+
+    private static HashSet<Vector2Int> FloodOpenArea(
+        char[][] grid, Vector2Int start, int width, int height)
+    {
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int> { start };
+        Queue<Vector2Int> pending = new Queue<Vector2Int>();
+        pending.Enqueue(start);
+        while (pending.Count > 0)
+        {
+            Vector2Int current = pending.Dequeue();
+            foreach (Vector2Int next in EnumerateNeighbours(
+                         current, width, height))
+            {
+                if (visited.Contains(next) ||
+                    !IsOpenCell(grid[next.y][next.x]))
+                    continue;
+                visited.Add(next);
+                pending.Enqueue(next);
+            }
+        }
+        return visited;
+    }
+
+    private static IEnumerable<Vector2Int> EnumerateNeighbours(
+        Vector2Int position, int width, int height)
+    {
+        Vector2Int[] directions =
+        {
+            Vector2Int.right, Vector2Int.left,
+            Vector2Int.up, Vector2Int.down
+        };
+        for (int i = 0; i < directions.Length; i++)
+        {
+            Vector2Int next = position + directions[i];
+            if (next.x >= 0 && next.x < width &&
+                next.y >= 0 && next.y < height)
+                yield return next;
+        }
+    }
+
+    private static bool IsOpenCell(char value) =>
+        value == '.' || value == 'I' || value == 'O';
+
+    private static bool CanCarveCell(char value) =>
+        IsOpenCell(value) || value == 'T';
+
+    private static Vector2Int ResolveOpeningThroat(
+        Vector2Int opening, int width, int height)
+    {
+        if (opening.y == 0) return new Vector2Int(opening.x, 1);
+        if (opening.y == height - 1)
+            return new Vector2Int(opening.x, height - 2);
+        if (opening.x == 0) return new Vector2Int(1, opening.y);
+        return new Vector2Int(width - 2, opening.y);
+    }
+
+    private static void AddBreakableBoundaryCandidates(
+        char[][] grid,
+        List<Vector2Int> candidates,
+        int width,
+        int height)
+    {
+        for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
+        {
+            if (!IsBoundary(x, y, width, height) || grid[y][x] != 'T')
+                continue;
+            if (!HasOpenInnerNeighbour(grid, x, y, width, height))
+                continue;
+            Vector2Int position = new Vector2Int(x, y);
+            if (!candidates.Contains(position))
+                candidates.Add(position);
+        }
+
+        if (candidates.Count >= 2) return;
+
+        // 극단적인 완전 밀폐형에서도 특수/텔레포트 셀은 보존하고
+        // 일반 탱커 벽만 입구로 전환합니다.
+        for (int y = 0; y < height && candidates.Count < 2; y++)
+        for (int x = 0; x < width && candidates.Count < 2; x++)
+        {
+            if (!IsBoundary(x, y, width, height) || grid[y][x] != 'T')
+                continue;
+            Vector2Int position = new Vector2Int(x, y);
+            if (!candidates.Contains(position))
+                candidates.Add(position);
+        }
+    }
+
+    private static bool IsBoundary(int x, int y, int width, int height) =>
+        x == 0 || y == 0 || x == width - 1 || y == height - 1;
+
+    private static bool HasOpenInnerNeighbour(
+        char[][] grid, int x, int y, int width, int height)
+    {
+        if (y == 0 && height > 1 && grid[1][x] == '.') return true;
+        if (y == height - 1 && height > 1 && grid[height - 2][x] == '.') return true;
+        if (x == 0 && width > 1 && grid[y][1] == '.') return true;
+        if (x == width - 1 && width > 1 && grid[y][width - 2] == '.') return true;
+        return false;
     }
 
     private static void EnsureFolder()

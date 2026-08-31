@@ -1,0 +1,67 @@
+fileFormatVersion: 2
+guid: e8218f6ad63b40db96e2ef45000acd11
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    enableMipMap: 0
+    sRGBTexture: 1
+  isReadable: 0
+  maxTextureSize: 4096
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  spritePixelsToUnits: 100
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  textureType: 8
+  textureShape: 1
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 4096
+    textureFormat: -1
+    textureCompression: 0
+    overridden: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: Retreat_Alchemy
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1254
+        height: 1254
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e8218f6ad63b40db96e2ef45000acd11
+      internalID: 21300000
+      vertices: []
+      indices:
+      edges: []
+      weights: []
+    outline: []
+    physicsShape: []
+    bones: []
+    secondaryTextures: []
+    nameFileIdTable:
+      Retreat_Alchemy: 21300000
+  userData:
+  assetBundleName:
+  assetBundleVariant:

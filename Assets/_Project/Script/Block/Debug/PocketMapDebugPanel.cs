@@ -21,6 +21,7 @@ public sealed class PocketMapDebugPanel : MonoBehaviour
     private int stageFilter;
     private int selectedIndex;
     private GUIStyle centeredCellStyle;
+    private string generationMessage;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void EnsureRuntimePanel()
@@ -97,6 +98,7 @@ public sealed class PocketMapDebugPanel : MonoBehaviour
             selectedIndex, 0, filteredMaps.Count - 1);
         DrawNavigation();
         DrawMapInfo(filteredMaps[selectedIndex]);
+        DrawGenerationControls();
         DrawGrid(filteredMaps[selectedIndex]);
         DrawLegend();
         DrawMapList();
@@ -153,6 +155,18 @@ public sealed class PocketMapDebugPanel : MonoBehaviour
             $"블럭 {CountCells(map)}개  |  텔레포트 {map.TeleportMode}");
     }
 
+    private void DrawGenerationControls()
+    {
+        Color previous = GUI.backgroundColor;
+        GUI.backgroundColor = new Color(0.25f, 0.85f, 0.45f, 1f);
+        if (GUILayout.Button("선택한 맵 즉시 생성", GUILayout.Height(32f)))
+            GenerateSelectedMap();
+        GUI.backgroundColor = previous;
+
+        if (!string.IsNullOrEmpty(generationMessage))
+            GUILayout.Label(generationMessage);
+    }
+
     private void DrawGrid(PocketPatternDefinition map)
     {
         Vector2Int size = map.FixedLayoutSize;
@@ -199,7 +213,9 @@ public sealed class PocketMapDebugPanel : MonoBehaviour
 
     private static void DrawLegend()
     {
-        GUILayout.Label("T 탱커   A 공격형   X 파괴 불가   S 특수 슬롯   N 네임드 슬롯");
+        GUILayout.Label(
+            "IN 입구   OUT 출구   T 탱커   A 공격형   X 파괴 불가   " +
+            "S 특수 슬롯   N 네임드 슬롯");
     }
 
     private void DrawMapList()
@@ -212,11 +228,42 @@ public sealed class PocketMapDebugPanel : MonoBehaviour
             Color previous = GUI.backgroundColor;
             if (i == selectedIndex)
                 GUI.backgroundColor = new Color(0.25f, 0.75f, 1f, 1f);
-            if (GUILayout.Button(filteredMaps[i].DisplayName))
+            bool clicked = GUILayout.Button(filteredMaps[i].DisplayName);
+            Rect itemRect = GUILayoutUtility.GetLastRect();
+            if (clicked)
                 selectedIndex = i;
+            if (Event.current.type == EventType.MouseDown &&
+                Event.current.button == 0 &&
+                Event.current.clickCount == 2 &&
+                itemRect.Contains(Event.current.mousePosition))
+            {
+                selectedIndex = i;
+                GenerateSelectedMap();
+                Event.current.Use();
+            }
             GUI.backgroundColor = previous;
         }
         GUILayout.EndScrollView();
+    }
+
+    private void GenerateSelectedMap()
+    {
+        if (filteredMaps.Count == 0)
+            return;
+
+        PocketPatternDefinition map = filteredMaps[Mathf.Clamp(
+            selectedIndex, 0, filteredMaps.Count - 1)];
+        StageRoomNavigator navigator =
+            FindFirstObjectByType<StageRoomNavigator>();
+        BlockGridManager manager = FindFirstObjectByType<BlockGridManager>();
+        bool enteredTestRoom = navigator != null &&
+            navigator.TryEnterDebugMapTestRoom();
+        bool generated = enteredTestRoom && manager != null &&
+            manager.GenerateDebugFixedMap(map, mirrorHorizontally);
+        generationMessage = generated
+            ? $"생성 완료: {map.DisplayName}" +
+              (mirrorHorizontally ? " (좌우 반전)" : string.Empty)
+            : "생성 실패: 테스트방 입장 및 보드 상태를 확인하세요.";
     }
 
     private void ReloadMaps()
@@ -264,8 +311,26 @@ public sealed class PocketMapDebugPanel : MonoBehaviour
             if (mirror)
                 position.x = map.FixedLayoutSize.x - 1 - position.x;
             result[position] = cells[i].CellType;
+            if (cells[i].CellType == PocketLayoutCellType.Entrance ||
+                cells[i].CellType == PocketLayoutCellType.Exit)
+            {
+                Vector2Int throat = ResolveOpeningThroat(
+                    position, map.FixedLayoutSize);
+                result.Remove(throat);
+            }
         }
         return result;
+    }
+
+    private static Vector2Int ResolveOpeningThroat(
+        Vector2Int opening,
+        Vector2Int size)
+    {
+        if (opening.y == 0) return new Vector2Int(opening.x, 1);
+        if (opening.y == size.y - 1)
+            return new Vector2Int(opening.x, size.y - 2);
+        if (opening.x == 0) return new Vector2Int(1, opening.y);
+        return new Vector2Int(size.x - 2, opening.y);
     }
 
     private static int CountCells(PocketPatternDefinition map) =>
@@ -285,6 +350,10 @@ public sealed class PocketMapDebugPanel : MonoBehaviour
                 return new Color(1f, 0.72f, 0.15f, 1f);
             case PocketLayoutCellType.TeleportSlot:
                 return new Color(0.72f, 0.35f, 1f, 1f);
+            case PocketLayoutCellType.Entrance:
+                return new Color(0.2f, 0.9f, 0.85f, 1f);
+            case PocketLayoutCellType.Exit:
+                return new Color(1f, 0.55f, 0.15f, 1f);
             default:
                 return new Color(0.2f, 0.55f, 1f, 1f);
         }
@@ -299,6 +368,8 @@ public sealed class PocketMapDebugPanel : MonoBehaviour
             case PocketLayoutCellType.SpecialSlot: return "S";
             case PocketLayoutCellType.NamedSlot: return "N";
             case PocketLayoutCellType.TeleportSlot: return "1";
+            case PocketLayoutCellType.Entrance: return "IN";
+            case PocketLayoutCellType.Exit: return "OUT";
             default: return "T";
         }
     }

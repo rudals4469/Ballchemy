@@ -43,6 +43,7 @@ public sealed class HoverTooltip : MonoBehaviour,
 
         sharedPanel.gameObject.SetActive(true);
         sharedPanel.SetAsLastSibling();
+        PrepareView(sharedPanel, sharedText);
 
         sharedText.text = nextContent;
         sharedText.fontSize = 20f;
@@ -57,7 +58,7 @@ public sealed class HoverTooltip : MonoBehaviour,
         sharedText.enabled = true;
 
         const float maximumWidth = 560f;
-        Vector2 padding = new Vector2(24f, 18f);
+        Vector2 padding = new Vector2(40f, 32f);
 
         sharedText.ForceMeshUpdate(true, true);
 
@@ -114,6 +115,7 @@ public sealed class HoverTooltip : MonoBehaviour,
         }
 
         Canvas.ForceUpdateCanvases();
+        sharedText.ForceMeshUpdate(true, true);
     }
 
     public static void HideShared()
@@ -130,7 +132,7 @@ public sealed class HoverTooltip : MonoBehaviour,
     [SerializeField] private TMP_Text tooltipText;
     [SerializeField] private RectTransform underline;
     [SerializeField, Min(0f)] private float underlineGap = 1f;
-    [SerializeField] private Vector2 padding = new Vector2(24f, 18f);
+    [SerializeField] private Vector2 padding = new Vector2(40f, 32f);
     [SerializeField, Min(80f)] private float maximumWidth = 560f;
     [SerializeField, Min(8f)] private float fontSize = 20f;
     [SerializeField] private bool showOnlyWhenTextIsTruncated;
@@ -138,6 +140,31 @@ public sealed class HoverTooltip : MonoBehaviour,
     private TMP_Text triggerText;
     private Transform originalPanelParent;
     private int originalPanelSiblingIndex;
+    private bool usesSharedView;
+
+    private static void PrepareView(RectTransform panel, TMP_Text text)
+    {
+        // Keep the label with its popup, outside the originating card's masks.
+        if (text.transform.parent != panel)
+            text.transform.SetParent(panel, false);
+        panel.localScale = Vector3.one;
+        text.rectTransform.localScale = Vector3.one;
+        text.gameObject.SetActive(true);
+        text.transform.SetAsLastSibling();
+        text.enableAutoSizing = false;
+        text.margin = Vector4.zero;
+        text.canvasRenderer.SetAlpha(1f);
+        foreach (Graphic graphic in panel.GetComponentsInChildren<Graphic>(true))
+        {
+            graphic.raycastTarget = false;
+            if (graphic is MaskableGraphic maskable)
+            {
+                maskable.maskable = false;
+                maskable.RecalculateMasking();
+                maskable.RecalculateClipping();
+            }
+        }
+    }
 
     private void Awake()
     {
@@ -165,14 +192,25 @@ public sealed class HoverTooltip : MonoBehaviour,
             return;
         }
 
-        triggerText.ForceMeshUpdate();
+        triggerText.ForceMeshUpdate(true);
         Bounds bounds = triggerText.textBounds;
         float width = Mathf.Max(bounds.size.x, 8f);
+        if (underline.parent != triggerText.transform)
+            underline.SetParent(triggerText.transform, false);
+        // textBounds uses the text pivot as its origin, not the rect's center.
+        underline.anchorMin = underline.anchorMax = triggerText.rectTransform.pivot;
+        underline.pivot = new Vector2(0.5f, 1f);
         underline.sizeDelta = new Vector2(width, 2f);
         underline.anchoredPosition = new Vector2(
             bounds.center.x,
             bounds.min.y - underlineGap);
         underline.gameObject.SetActive(true);
+    }
+
+    private void LateUpdate()
+    {
+        if (underline != null && triggerText != null)
+            RefreshUnderline();
     }
 
     private void OnDisable()
@@ -193,6 +231,7 @@ public sealed class HoverTooltip : MonoBehaviour,
         content = nextContent ?? string.Empty;
         tooltipPanel = panel;
         tooltipText = text;
+        usesSharedView = panel == null || text == null;
         underline = underlineGraphic;
         triggerText = GetComponent<TMP_Text>();
         if (panel != null && text != null)
@@ -238,13 +277,12 @@ public sealed class HoverTooltip : MonoBehaviour,
 
     public void Show()
     {
-        if (tooltipPanel == null && sharedPanel != null)
+        if (usesSharedView || tooltipPanel == null || tooltipText == null)
         {
             tooltipPanel = sharedPanel;
-            originalPanelParent = tooltipPanel.parent;
-            originalPanelSiblingIndex = tooltipPanel.GetSiblingIndex();
+            tooltipText = sharedText;
+            usesSharedView = true;
         }
-        if (tooltipText == null) tooltipText = sharedText;
         if (tooltipPanel == null || tooltipText == null)
         {
             return;
@@ -274,6 +312,7 @@ public sealed class HoverTooltip : MonoBehaviour,
 
         tooltipPanel.gameObject.SetActive(true);
         tooltipPanel.SetAsLastSibling();
+        PrepareView(tooltipPanel, tooltipText);
 
         tooltipText.text = content;
         tooltipText.fontSize = fontSize;
@@ -313,6 +352,7 @@ public sealed class HoverTooltip : MonoBehaviour,
 
         Canvas.ForceUpdateCanvases();
         KeepInsideCanvas(rootCanvas);
+        tooltipText.ForceMeshUpdate(true, true);
     }
 
     public void Hide()

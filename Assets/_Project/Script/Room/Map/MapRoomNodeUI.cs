@@ -303,6 +303,10 @@ public sealed class MapRoomNodeUI :
 
         roomIcon.sprite =
             iconSprite;
+
+        roomIcon.preserveAspect = true;
+        roomIcon.color = Color.white;
+        roomIcon.raycastTarget = false;
     }
 
     private void ApplySymbol(

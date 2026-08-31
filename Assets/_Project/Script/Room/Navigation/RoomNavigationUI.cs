@@ -32,6 +32,9 @@ public sealed class RoomNavigationUI :
     [SerializeField]
     private Button nextStageButton;
 
+    [SerializeField]
+    private Sprite nextStageButtonSprite;
+
     [Header("Display")]
 
     [Tooltip(
@@ -409,6 +412,8 @@ public sealed class RoomNavigationUI :
         Image image = nextStageButton.targetGraphic as Image;
         if (image != null)
         {
+            if (nextStageButtonSprite != null)
+                image.sprite = nextStageButtonSprite;
             image.color = new Color(0.35f, 0.85f, 0.45f, 1f);
         }
 

@@ -953,7 +953,7 @@ public sealed class StageMapUI :
                 return normalRoomSymbol;
 
             case RoomType.NamedCombat:
-                return namedRoomSymbol;
+                return string.Empty;
 
             case RoomType.Boss:
                 return bossRoomSymbol;
@@ -987,7 +987,7 @@ public sealed class StageMapUI :
                 return startRoomIcon;
 
             case RoomType.NamedCombat:
-                return namedRoomIcon;
+                return null;
 
             case RoomType.Boss:
                 return bossRoomIcon;
@@ -1008,6 +1008,9 @@ public sealed class StageMapUI :
                 return secretRoomIcon;
 
             case RoomType.NormalCombat:
+                // Ordinary combat rooms intentionally use an empty tile.
+                return null;
+
             default:
                 return null;
         }

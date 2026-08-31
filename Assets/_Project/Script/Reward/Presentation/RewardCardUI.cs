@@ -118,6 +118,7 @@ public sealed class RewardCardUI :
     private Color originalBackgroundColor = Color.white;
     private Sprite originalBackgroundSprite;
     private bool hasCapturedBackgroundColor;
+    private Outline augmentTierOutline;
 
     public RewardDefinition
         BoundRewardDefinition =>
@@ -224,6 +225,9 @@ public sealed class RewardCardUI :
 
         commonLayout?.SetAugmentLayoutEnabled(
             boundRewardDefinition is AugmentRewardDefinition);
+        commonLayout?.SetCategory(boundRewardDefinition is AugmentRewardDefinition
+            ? CommonChoiceCardLayout.CardCategory.Augment
+            : CommonChoiceCardLayout.CardCategory.Ball);
 
         ApplyRewardCardColor();
         RefreshIconLevelPanel();
@@ -381,6 +385,8 @@ public sealed class RewardCardUI :
                 hasIcon
             );
         }
+
+        commonLayout?.SetIcon(displayedIcon);
 
         bool hasEffectText =
             content.HasEffectText;
@@ -636,6 +642,28 @@ public sealed class RewardCardUI :
         if (backgroundImage == null || boundRewardDefinition == null)
             return;
 
+        if (CommonChoiceCardLayout.IsWorkbenchCard(originalBackgroundSprite))
+        {
+            if (boundRewardDefinition is AugmentRewardDefinition paperAugment &&
+                paperAugment.AugmentDefinition != null)
+            {
+                backgroundImage.color = Color.white;
+                if (augmentTierOutline == null)
+                    augmentTierOutline = backgroundImage.gameObject.AddComponent<Outline>();
+                augmentTierOutline.effectColor = CommonChoiceCardLayout.WorkbenchAugmentBorderColor(
+                    paperAugment.AugmentDefinition.ValueTier);
+                augmentTierOutline.effectDistance = new Vector2(4f, -4f);
+                augmentTierOutline.useGraphicAlpha = true;
+                augmentTierOutline.enabled = true;
+            }
+            else
+            {
+                backgroundImage.color = CommonChoiceCardLayout.WorkbenchTierColor(
+                    (int)boundRewardDefinition.RewardTier);
+            }
+            return;
+        }
+
         if (boundRewardDefinition is AugmentRewardDefinition augmentReward &&
             augmentReward.AugmentDefinition != null)
         {
@@ -662,6 +690,8 @@ public sealed class RewardCardUI :
 
     private void RestoreBackgroundColor()
     {
+        if (augmentTierOutline != null)
+            augmentTierOutline.enabled = false;
         if (backgroundImage != null && hasCapturedBackgroundColor)
         {
             backgroundImage.sprite = originalBackgroundSprite;

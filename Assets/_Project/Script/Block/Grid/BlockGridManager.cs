@@ -598,6 +598,48 @@ public sealed class BlockGridManager :
         waveDirector?.ForceNamedInNextNormalRoom();
     }
 
+    public bool GenerateDebugFixedMap(
+        PocketPatternDefinition definition,
+        bool mirrorHorizontally)
+    {
+        if (definition == null ||
+            !InitializeRuntimeIfNeeded() ||
+            bossMode.IsActive)
+        {
+            return false;
+        }
+
+        blockRegistry.ClearAndDestroy();
+        List<Block> generatedBlocks = waveGenerator.GenerateDebugFixedMap(
+            definition,
+            mirrorHorizontally,
+            Mathf.Max(CurrentStageNumber - 1, 0));
+        blockRegistry.AddRange(generatedBlocks);
+        blockRegistry.RemoveInvalidBlocks();
+
+        if (blockRegistry.Count <= 0)
+        {
+            Debug.LogError(
+                $"BlockGridManager: 디버그 맵 {definition.DisplayName}을 " +
+                "생성하지 못했습니다.", this);
+            return false;
+        }
+
+        currentTurn = 0;
+        currentRoomId = -1;
+        isCurrentRoomCleared = false;
+        enemyAttackCycle.InitializeCycle();
+        ballSealController?.ClearPendingSeal();
+        ChangeRoomState(RoomCombatState.InCombat);
+        WaveGenerated?.Invoke(CurrentWaveNumber);
+
+        Debug.Log(
+            $"BlockGridManager: 디버그 맵 {definition.DisplayName} 생성 완료 " +
+            $"({blockRegistry.Count}개 블럭, 좌우 반전 {mirrorHorizontally})",
+            this);
+        return true;
+    }
+
     public void ClearRoomWaveSnapshots()
     {
         currentRoomId = -1;

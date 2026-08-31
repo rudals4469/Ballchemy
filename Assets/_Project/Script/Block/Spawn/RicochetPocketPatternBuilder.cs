@@ -32,6 +32,7 @@ public sealed class RicochetPocketPatternBuilder
     [NonSerialized] private bool runtimePreventFilledTwoByTwo = true;
     [NonSerialized] private string lastFixedPatternId;
     [NonSerialized] private PocketPatternDefinition preparedFixedLayout;
+    [NonSerialized] private bool? preparedMirrorOverride;
 
     public bool HasPreparedFixedLayout => preparedFixedLayout != null;
 
@@ -40,11 +41,35 @@ public sealed class RicochetPocketPatternBuilder
         int maximumRows,
         int stageIndex)
     {
-        preparedFixedLayout = SelectFixedDefinition(
-            columns, maximumRows, stageIndex);
+        if (preparedFixedLayout == null)
+        {
+            preparedFixedLayout = SelectFixedDefinition(
+                columns, maximumRows, stageIndex);
+            preparedMirrorOverride = null;
+        }
         return preparedFixedLayout != null
             ? preparedFixedLayout.FixedLayoutSize.y
             : 0;
+    }
+
+    public bool PrepareFixedLayout(
+        PocketPatternDefinition definition,
+        bool mirrorHorizontally,
+        int columns,
+        int maximumRows)
+    {
+        if (definition == null || !definition.UseFixedLayout ||
+            definition.FixedLayoutSize.x > columns ||
+            definition.FixedLayoutSize.y > maximumRows)
+        {
+            preparedFixedLayout = null;
+            preparedMirrorOverride = null;
+            return false;
+        }
+
+        preparedFixedLayout = definition;
+        preparedMirrorOverride = mirrorHorizontally;
+        return true;
     }
 
     public void Normalize(int columns, int rows)
@@ -72,14 +97,16 @@ public sealed class RicochetPocketPatternBuilder
         if (!CanBuild(columns, rows)) return new List<Cell>();
 
         PocketPatternDefinition definition = preparedFixedLayout;
+        bool? mirrorOverride = preparedMirrorOverride;
         preparedFixedLayout = null;
+        preparedMirrorOverride = null;
         if (definition == null)
             definition = SelectFixedDefinition(columns, rows, waveIndex);
 
         if (definition != null)
         {
             List<Cell> fixedLayout = BuildFixedLayout(
-                definition, columns, rows);
+                definition, columns, rows, mirrorOverride);
             if (fixedLayout.Count > 0) return fixedLayout;
         }
 
@@ -159,7 +186,8 @@ public sealed class RicochetPocketPatternBuilder
     private static List<Cell> BuildFixedLayout(
         PocketPatternDefinition definition,
         int columns,
-        int rows)
+        int rows,
+        bool? mirrorOverride = null)
     {
         List<Cell> result = new List<Cell>();
         Vector2Int size = definition.FixedLayoutSize;
@@ -170,7 +198,8 @@ public sealed class RicochetPocketPatternBuilder
 
         int offsetX = Mathf.Max((columns - size.x) / 2, 0);
         int offsetY = Mathf.Max((rows - size.y) / 2, 0);
-        bool mirror = definition.AllowHorizontalMirror && Random.value < 0.5f;
+        bool mirror = mirrorOverride ??
+            (definition.AllowHorizontalMirror && Random.value < 0.5f);
         for (int i = 0; i < source.Length; i++)
         {
             PocketLayoutCell layoutCell = source[i];
@@ -182,9 +211,19 @@ public sealed class RicochetPocketPatternBuilder
                 continue;
 
             PocketLayoutCellType type = layoutCell.CellType;
+            Vector2Int finalPosition = local + new Vector2Int(offsetX, offsetY);
+            if (type == PocketLayoutCellType.Entrance ||
+                type == PocketLayoutCellType.Exit)
+            {
+                result.RemoveAll(cell => cell.Position == finalPosition);
+                Vector2Int throat = ResolveOpeningThroat(local, size);
+                Vector2Int finalThroat = throat +
+                    new Vector2Int(offsetX, offsetY);
+                result.RemoveAll(cell => cell.Position == finalThroat);
+            }
             result.Add(new Cell
             {
-                Position = local + new Vector2Int(offsetX, offsetY),
+                Position = finalPosition,
                 Role = type == PocketLayoutCellType.Attacker
                     ? BlockSpawnRequest.CombatRole.Attacker
                     : BlockSpawnRequest.CombatRole.Tank,
@@ -195,6 +234,19 @@ public sealed class RicochetPocketPatternBuilder
             });
         }
         return result;
+    }
+
+    private static Vector2Int ResolveOpeningThroat(
+        Vector2Int opening,
+        Vector2Int size)
+    {
+        if (opening.y == 0)
+            return new Vector2Int(opening.x, Mathf.Min(1, size.y - 1));
+        if (opening.y == size.y - 1)
+            return new Vector2Int(opening.x, Mathf.Max(size.y - 2, 0));
+        if (opening.x == 0)
+            return new Vector2Int(Mathf.Min(1, size.x - 1), opening.y);
+        return new Vector2Int(Mathf.Max(size.x - 2, 0), opening.y);
     }
 
     private List<Cell> BuildCandidate(

@@ -43,7 +43,9 @@ public sealed class RoomNode
         roomType ==
             RoomType.NamedCombat ||
         roomType ==
-            RoomType.Boss;
+            RoomType.Boss ||
+        roomType ==
+            RoomType.DebugMapTest;
 
     public bool IsSpecialRoom =>
         roomType ==

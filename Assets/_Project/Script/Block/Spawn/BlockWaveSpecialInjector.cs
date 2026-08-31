@@ -633,6 +633,126 @@ public sealed class BlockWaveSpecialInjector
             $"injected unique slots={injectedSlotCount}");
     }
 
+    public void InjectScaledSpecialBlocksAtSlots(
+        List<BlockSpawnRequest> requests,
+        BlockCatalog blockCatalog,
+        IReadOnlyList<Vector2Int> authoredSlots,
+        int columnCount,
+        int boardRowCount,
+        int waveIndex,
+        bool isNamedRoom,
+        int baseHealth)
+    {
+        Normalize();
+        if (requests == null || authoredSlots == null ||
+            authoredSlots.Count == 0)
+            return;
+
+        int baseBlockCount = 0;
+        for (int i = 0; i < requests.Count; i++)
+            if (requests[i] != null &&
+                requests[i].RequestedBlockType != BlockType.Special)
+                baseBlockCount++;
+
+        int waveNumber = waveIndex + 1;
+        if (baseBlockCount <= 0 ||
+            !ShouldInjectSpecialBlocks(waveNumber, isNamedRoom))
+            return;
+
+        int requestedCount = Mathf.Min(
+            Mathf.CeilToInt(baseBlockCount / (float)blocksPerSpecialSlot),
+            authoredSlots.Count);
+        BlockWaveOccupancyMap occupancy = CreateOccupancyMap(
+            requests, columnCount, Mathf.Max(boardRowCount, 1));
+        List<Vector2Int> slots = new List<Vector2Int>(authoredSlots);
+        for (int i = slots.Count - 1; i > 0; i--)
+        {
+            int swapIndex = Random.Range(0, i + 1);
+            (slots[i], slots[swapIndex]) = (slots[swapIndex], slots[i]);
+        }
+
+        List<BlockDefinition> pool = blockCatalog != null
+            ? blockCatalog.GetAll(BlockType.Special)
+            : GetRandomSpecialPool(blockCatalog);
+        HashSet<BlockDefinition> used = new HashSet<BlockDefinition>();
+        int injected = 0;
+        for (int slotIndex = 0;
+             slotIndex < slots.Count && injected < requestedCount;
+             slotIndex++)
+        {
+            BlockDefinition selected = SelectSpecialForAuthoredSlot(
+                pool, used, occupancy, slots[slotIndex], requests);
+            if (selected == null) continue;
+            if (!TryAppendSpecialRequestAtPosition(
+                    requests, occupancy, selected, slots[slotIndex],
+                    waveIndex, baseHealth))
+                continue;
+            used.Add(selected);
+            injected++;
+        }
+
+        Debug.Log(
+            $"BlockWaveSpecialInjector: 에셋 S 슬롯 {authoredSlots.Count}개 중 " +
+            $"특수 블록 {injected}개 생성");
+    }
+
+    private BlockDefinition SelectSpecialForAuthoredSlot(
+        IReadOnlyList<BlockDefinition> definitions,
+        HashSet<BlockDefinition> used,
+        BlockWaveOccupancyMap occupancy,
+        Vector2Int position,
+        IReadOnlyList<BlockSpawnRequest> requests)
+    {
+        List<BlockDefinition> candidates = new List<BlockDefinition>();
+        int totalWeight = 0;
+        if (definitions == null) return null;
+        bool hasProtectableEnemy = HasProtectableEnemy(requests);
+        for (int i = 0; i < definitions.Count; i++)
+        {
+            BlockDefinition definition = definitions[i];
+            if (!IsUnifiedSpecialDefinition(definition) ||
+                used.Contains(definition) ||
+                definition.SpecialCategory == SpecialBlockCategory.Teleport ||
+                (definition.SpecialCategory == SpecialBlockCategory.Guardian &&
+                 (!enableGuardianBlocks || definition != guardianDefinition ||
+                  !hasProtectableEnemy)))
+                continue;
+            Vector2Int size = NormalizeGridSize(definition.GridSize);
+            if (!occupancy.CanOccupy(position.x, position.y, size))
+                continue;
+            candidates.Add(definition);
+            totalWeight += definition.SelectionWeight;
+        }
+        if (candidates.Count == 0 || totalWeight <= 0) return null;
+        int roll = Random.Range(0, totalWeight);
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            roll -= candidates[i].SelectionWeight;
+            if (roll < 0) return candidates[i];
+        }
+        return candidates[candidates.Count - 1];
+    }
+
+    private bool TryAppendSpecialRequestAtPosition(
+        List<BlockSpawnRequest> requests,
+        BlockWaveOccupancyMap occupancy,
+        BlockDefinition definition,
+        Vector2Int position,
+        int waveIndex,
+        int baseHealth)
+    {
+        Vector2Int size = NormalizeGridSize(definition.GridSize);
+        if (!occupancy.TryOccupy(position.x, position.y, size)) return false;
+        int health = Mathf.Max(1, Mathf.RoundToInt(
+            Mathf.Max(baseHealth, 1) * specialHealthMultiplier *
+            (definition.SpecialCategory == SpecialBlockCategory.Guardian
+                ? guardianHealthMultiplier : 1f)));
+        requests.Add(new BlockSpawnRequest(
+            position.x, position.y, waveIndex, definition,
+            BlockType.Special, size, health, 0));
+        return true;
+    }
+
     private BlockDefinition SelectUnifiedDefinition(
         IReadOnlyList<BlockDefinition> definitions,
         BlockWaveOccupancyMap occupancyMap,

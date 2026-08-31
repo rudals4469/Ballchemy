@@ -757,6 +757,40 @@ public sealed class BlockWaveGenerator :
         return generatedBlocks;
     }
 
+    public List<Block> GenerateDebugFixedMap(
+        PocketPatternDefinition definition,
+        bool mirrorHorizontally,
+        int stageIndex)
+    {
+        if (definition == null || !IsReady)
+            return new List<Block>();
+
+        EnsureHelpers();
+        NormalizeSettings();
+        if (!patternBuilder.PrepareDebugFixedLayout(
+                definition,
+                mirrorHorizontally,
+                ColumnCount,
+                RowCount))
+        {
+            Debug.LogWarning(
+                $"BlockWaveGenerator: {definition.DisplayName} 맵은 " +
+                "현재 보드 크기에 들어가지 않습니다.", this);
+            return new List<Block>();
+        }
+
+        int requestedRows = Mathf.Clamp(
+            definition.FixedLayoutSize.y + 1, 1, RowCount);
+        return GenerateWaveInternal(
+            requestedRows,
+            Mathf.Max(stageIndex, 0),
+            defaultWaveBlockType,
+            null,
+            1f,
+            1f,
+            null);
+    }
+
     private static void RemovePerimeterRequests(
         List<BlockSpawnRequest> requests,
         int columnCount)

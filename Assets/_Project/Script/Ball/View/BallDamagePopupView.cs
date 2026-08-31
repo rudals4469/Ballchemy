@@ -23,7 +23,7 @@ public sealed class BallDamagePopupView :
     private SpriteRenderer elementIconRenderer;
     private ElementType? activeElement;
 
-    private const float ElementIconWorldSize = 0.28f;
+    private const float ElementIconTextHeightRatio = 0.92f;
     private const float ElementIconGap = 0.055f;
 
     private TMP_FontAsset defaultFontAsset;
@@ -267,11 +267,6 @@ public sealed class BallDamagePopupView :
         elementIconRenderer.color = ResolveElementColor(activeElement.Value);
         elementIconRenderer.enabled = true;
 
-        float largestDimension = Mathf.Max(sprite.bounds.size.x, sprite.bounds.size.y);
-        float scale = largestDimension > 0.001f
-            ? ElementIconWorldSize / largestDimension
-            : 1f;
-        elementIconRenderer.transform.localScale = Vector3.one * scale;
         UpdateElementIconPosition();
     }
 
@@ -301,12 +296,29 @@ public sealed class BallDamagePopupView :
             return;
 
         damageText.ForceMeshUpdate();
+        ResizeElementIconToTextHeight();
         float halfTextWidth = damageText.textBounds.size.x * 0.5f;
         float halfIconWidth = elementIconRenderer.bounds.size.x * 0.5f;
         elementIconRenderer.transform.localPosition = new Vector3(
             -(halfTextWidth + halfIconWidth + ElementIconGap),
             0.02f,
             0f);
+    }
+
+    private void ResizeElementIconToTextHeight()
+    {
+        if (elementIconRenderer == null || elementIconRenderer.sprite == null)
+            return;
+
+        float spriteSize = Mathf.Max(
+            elementIconRenderer.sprite.bounds.size.x,
+            elementIconRenderer.sprite.bounds.size.y);
+        float textHeight = damageText.textBounds.size.y;
+        if (spriteSize <= 0.001f || textHeight <= 0.001f)
+            return;
+
+        float scale = textHeight * ElementIconTextHeightRatio / spriteSize;
+        elementIconRenderer.transform.localScale = Vector3.one * scale;
     }
 
     private void SetElementIconVisible(bool visible)

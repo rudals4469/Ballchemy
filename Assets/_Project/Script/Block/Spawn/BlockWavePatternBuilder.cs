@@ -8,6 +8,9 @@ public sealed class BlockWavePatternBuilder
 {
     private readonly List<Vector2Int> selectedTeleportSlots =
         new List<Vector2Int>();
+    private readonly List<Vector2Int> selectedSpecialSlots =
+        new List<Vector2Int>();
+    private bool selectedFixedMapActive;
     private MapTeleportMode selectedTeleportMode;
     [Header("Block Data")]
 
@@ -434,6 +437,7 @@ public sealed class BlockWavePatternBuilder
             Mathf.Max(columnCount - 2, 0),
             Mathf.Max(boardRowCount - 1, 0),
             waveIndex);
+        selectedFixedMapActive = ricochetPocket.HasPreparedFixedLayout;
         if (fixedMapRows > 0)
         {
             layoutRowCount = Mathf.Min(
@@ -682,6 +686,20 @@ public sealed class BlockWavePatternBuilder
         return requests;
     }
 
+    public bool PrepareDebugFixedLayout(
+        PocketPatternDefinition definition,
+        bool mirrorHorizontally,
+        int columnCount,
+        int boardRowCount)
+    {
+        EnsureHelpers();
+        return ricochetPocket.PrepareFixedLayout(
+            definition,
+            mirrorHorizontally,
+            Mathf.Max(columnCount - 2, 0),
+            Mathf.Max(boardRowCount - 1, 0));
+    }
+
     public void InjectScaledSpecialBlocks(
         List<BlockSpawnRequest> requests,
         int columnCount,
@@ -696,6 +714,19 @@ public sealed class BlockWavePatternBuilder
             teleportSettings,
             waveIndex,
             isNamedRoom);
+        if (selectedFixedMapActive)
+        {
+            specialInjector.InjectScaledSpecialBlocksAtSlots(
+                requests,
+                blockCatalog,
+                selectedSpecialSlots,
+                columnCount,
+                rowCount,
+                waveIndex,
+                isNamedRoom,
+                baseHealth);
+            return;
+        }
         specialInjector.InjectScaledSpecialBlocks(
             requests,
             blockCatalog,
@@ -856,6 +887,7 @@ public sealed class BlockWavePatternBuilder
         List<BlockSpawnRequest> requests)
     {
         selectedTeleportSlots.Clear();
+        selectedSpecialSlots.Clear();
         selectedTeleportMode = MapTeleportMode.None;
         int pocketColumnCount = Mathf.Max(columnCount - 2, 0);
         int pocketRowCount = Mathf.Min(
@@ -882,8 +914,15 @@ public sealed class BlockWavePatternBuilder
                 selectedTeleportMode = cell.TeleportMode;
                 continue;
             }
-            if (cell.CellType == PocketLayoutCellType.SpecialSlot ||
-                cell.CellType == PocketLayoutCellType.NamedSlot)
+            if (cell.CellType == PocketLayoutCellType.Entrance ||
+                cell.CellType == PocketLayoutCellType.Exit)
+                continue;
+            if (cell.CellType == PocketLayoutCellType.SpecialSlot)
+            {
+                selectedSpecialSlots.Add(position);
+                continue;
+            }
+            if (cell.CellType == PocketLayoutCellType.NamedSlot)
                 continue;
             BlockDefinition definition = cell.Indestructible
                 ? indestructibleDefinition

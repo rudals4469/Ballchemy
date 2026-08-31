@@ -6,6 +6,39 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class CommonChoiceCardLayout : MonoBehaviour
 {
+    public enum CardCategory { Ball, Augment, Shop, Event, Alchemy, Secret }
+
+    [Header("Authored category pennant (layout stays in the hierarchy)")]
+    [SerializeField] private CardCategory category;
+    [SerializeField] private Image categoryPennant;
+    [SerializeField] private Image categorySymbol;
+    [SerializeField] private Image authoredIcon;
+    [SerializeField] private Sprite fallbackIcon;
+    [SerializeField] private bool useTemporaryQuestionIcon = true;
+
+    private static Sprite TemporaryQuestionIcon => Resources.Load<Sprite>("UI/MapIcons/Map_Event_Readable");
+
+    public void SetCategory(CardCategory value)
+    {
+        category = value;
+        Color32[] colors = {
+            new Color32(130, 187, 231, 255), new Color32(116, 205, 192, 255),
+            new Color32(242, 204, 113, 255), new Color32(231, 150, 133, 255),
+            new Color32(162, 205, 133, 255), new Color32(188, 172, 218, 255)
+        };
+        string[] paths = {
+            "UI/MapIcons/Map_Combat", "UI/MapIcons/Map_Augment_Readable",
+            "UI/MapIcons/Map_Shop_Readable", "UI/MapIcons/Map_Event_Readable",
+            "UI/MapIcons/Map_Alchemy_Readable", "UI/MapIcons/Map_Secret_Readable"
+        };
+        int index = Mathf.Clamp((int)value, 0, paths.Length - 1);
+        if (categoryPennant != null) categoryPennant.color = colors[index];
+        if (categorySymbol != null)
+        {
+            categorySymbol.sprite = Resources.Load<Sprite>(paths[index]);
+            categorySymbol.enabled = categorySymbol.sprite != null;
+        }
+    }
     public static readonly Color Bronze = new Color(0.53f, 0.39f, 0.28f, 1f);
     public static readonly Color Silver = new Color(0.47f, 0.50f, 0.54f, 1f);
     public static readonly Color Gold = new Color(0.58f, 0.49f, 0.25f, 1f);
@@ -42,8 +75,8 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
     {
         button = cardButton != null ? cardButton : GetComponent<Button>();
         background = button != null ? button.targetGraphic as Image : GetComponent<Image>();
-        icon = iconImage;
-        iconRoot = iconContainer;
+        icon = iconImage != null ? iconImage : authoredIcon;
+        iconRoot = iconContainer != null ? iconContainer : (icon != null ? icon.transform.parent.gameObject : null);
         title = titleText;
         auxiliary = auxiliaryText;
         description = descriptionText;
@@ -52,6 +85,8 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
         ConfigureTextPreservingAlignment(auxiliary);
         ConfigureTextPreservingAlignment(description);
         CaptureAuthoredLayout();
+        SetCategory(category);
+        SetIcon(icon != null ? icon.sprite : null);
     }
 
     public void SetAugmentLayoutEnabled(bool enabled)
@@ -75,6 +110,8 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
 
     public void SetIcon(Sprite sprite)
     {
+        if (useTemporaryQuestionIcon) sprite = TemporaryQuestionIcon;
+        if (sprite == null) sprite = fallbackIcon;
         if (icon != null)
         {
             icon.sprite = sprite;
@@ -86,7 +123,35 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
 
     public void SetBackgroundColor(Color color)
     {
-        if (background != null) background.color = color;
+        if (background != null)
+            background.color = IsWorkbenchCard(background.sprite) ? Color.white : color;
+    }
+
+    public static bool IsWorkbenchCard(Sprite sprite)
+    {
+        return sprite != null && sprite.name.StartsWith("Card_Workbench", System.StringComparison.Ordinal);
+    }
+
+    public static Color WorkbenchAugmentBorderColor(AugmentValueTier tier)
+    {
+        switch (tier)
+        {
+            case AugmentValueTier.Value1: return new Color32(176, 105, 52, 255);
+            case AugmentValueTier.Value2: return new Color32(190, 203, 221, 255);
+            default: return new Color32(235, 182, 42, 255);
+        }
+    }
+
+    public static Color WorkbenchTierColor(int tier)
+    {
+        // Keep the paper readable while retaining the blue / green / yellow value distinction.
+        switch (tier)
+        {
+            case 1: return new Color32(220, 237, 255, 255);
+            case 2: return new Color32(223, 250, 223, 255);
+            case 3: return new Color32(255, 239, 194, 255);
+            default: return Color.white;
+        }
     }
 
     public void SetIconAuxiliaryPanelVisible(bool visible, bool showDivider)

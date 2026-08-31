@@ -252,7 +252,8 @@ public sealed class SecretRoomRewardController : MonoBehaviour
             SetText(
                 slotCostTexts,
                 i,
-                $"Cost :\nMax HP -{cost}");
+                $"최대 체력 -{cost}");
+            RefreshCostText(i);
 
             if (slotIcons != null && i < slotIcons.Length && slotIcons[i] != null)
             {
@@ -260,6 +261,8 @@ public sealed class SecretRoomRewardController : MonoBehaviour
                 slotIcons[i].enabled = content.Icon != null;
                 slotIcons[i].preserveAspect = true;
             }
+            if (slotLayouts != null && i < slotLayouts.Length)
+                slotLayouts[i]?.SetIcon(content.Icon);
         }
 
 
@@ -267,6 +270,26 @@ public sealed class SecretRoomRewardController : MonoBehaviour
         {
             ShowSelectionResult(selectedIndex);
         }
+    }
+
+    private void RefreshCostText(int index)
+    {
+        if (slotCostTexts == null || index >= slotCostTexts.Length)
+            return;
+        TMP_Text costText = slotCostTexts[index];
+        if (costText == null) return;
+        costText.gameObject.SetActive(true);
+        costText.enabled = true;
+        costText.color = new Color32(145, 44, 34, 255);
+        costText.enableAutoSizing = true;
+        costText.fontSizeMin = 16f;
+        costText.fontSizeMax = 18f;
+        costText.textWrappingMode = TextWrappingModes.NoWrap;
+        costText.alignment = TextAlignmentOptions.TopLeft;
+        costText.margin = Vector4.zero;
+        costText.canvasRenderer.SetAlpha(1f);
+        costText.transform.SetAsLastSibling();
+        costText.ForceMeshUpdate(true, true);
     }
 
     private void TrySelect(int index)

@@ -8,5 +8,6 @@ public enum RoomType
     Alchemy,
     Event,
     Secret,
-    Augment
+    Augment,
+    DebugMapTest
 }

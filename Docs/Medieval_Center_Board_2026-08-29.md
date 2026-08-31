@@ -1,0 +1,9 @@
+# Medieval central board
+
+Full-screen Background_CommonWood.png restored from original generated exec-689336e4-e4c1-49cf-b86a-08807da8e54f.png. Flat combat slate unchanged.
+
+Central asset: `Assets/_Project/Resources/UI/Workbench/Panel_CenterWornWood.png`, generated with built-in image_gen. Existing GUID retained. Uses 128px nine-slice borders at 256 pixels/unit to keep iron corners fixed while fitting the game surface and HUD bounds. Interior opacity material retained. C# build verified; actual Game view appearance not verified.
+
+## Final prompt
+
+Medieval alchemist workshop game UI backing board sprite, NOT modern furniture or a picture frame. Portrait 1024x1536. Hand-painted historical fantasy game art, humble 14th century laboratory atmosphere. Rough hand-hewn aged walnut planks, desaturated earthy umber brown average RGB around 85 65 45, matte grain and subtle tool marks, gentle worn stains. Irregular organically worn outer edge, corners mildly chipped, small blackened hand-forged iron corner staples no wider than 28 pixels, tiny irregular nailheads. No gold, no glossy varnish, no precise machined geometric trim, no crisp modern rectangular bevel. Decoration limited to outermost 32 pixels. Board occupies entire canvas with at most 3 pixel transparent exterior margin. Real alpha transparency only outside wood silhouette; absolutely fully opaque solid continuous wood interior, no holes. Interior quiet low contrast, empty enough for game slate, top keys and bottom health bar to overlay later. NO painted UI or text, no large magical circles, no bottles, candles, loose props, bones, skulls. Orthographic top-down face view, no perspective, flat diffuse lighting, no vignette, no corner lighting gradients. Thin rough perimeter suited to nine-slice UI rendering, no wide border. Evoke a medieval alchemist's used work surface, not a clean modern cabinet door.
