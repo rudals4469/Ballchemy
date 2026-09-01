@@ -9,7 +9,11 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
     [SerializeField] private SpriteRenderer commonBackground;
     [SerializeField] private SpriteRenderer centerBackground;
     [SerializeField] private RectTransform[] centralHudRoots;
-    [SerializeField] private Vector2 centerPadding = new Vector2(0.25f, 0.55f);
+    [Tooltip("켜면 활성화된 중앙 HUD 내용에 맞춰 프레임 크기가 자동으로 변합니다. " +
+             "끄면 Gameplay Area Size와 Center Padding만 사용합니다.")]
+    [SerializeField] private bool includeCentralHudInBounds;
+    [Tooltip("플레이 영역 바깥에 더할 좌우/상하 여백입니다.")]
+    [SerializeField] private Vector2 centerPadding = new Vector2(0.25f, 0.3f);
     private readonly Vector3[] hudCorners = new Vector3[4];
     [SerializeField] private SpriteRenderer combatBackground;
     [SerializeField] private bool showCombatBackground;
@@ -49,28 +53,31 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
     private void FitCenterBackground()
     {
         if (targetCamera == null || !targetCamera.orthographic || centerBackground == null ||
-            centerBackground.sprite == null || combatBackground == null || centralHudRoots == null) return;
+            centerBackground.sprite == null || combatBackground == null) return;
         // Include the play surface and the actual HUD graphics, not the small layout root rects.
         // The combat sprite may contain detached fragments in its transparent margin.
         // Fit the outer panel to the playable slab, not to those decorative fragments.
         Bounds bounds = new Bounds(combatBackground.transform.position,
             new Vector3(gameplayAreaSize.x, gameplayAreaSize.y, 0.2f));
-        foreach (RectTransform root in centralHudRoots)
+        if (includeCentralHudInBounds && centralHudRoots != null)
         {
-            if (root == null) continue;
-            Canvas canvas = root.GetComponentInParent<Canvas>();
-            Camera uiCamera = canvas != null && canvas.rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay
-                ? canvas.rootCanvas.worldCamera : null;
-            foreach (UnityEngine.UI.Graphic graphic in root.GetComponentsInChildren<UnityEngine.UI.Graphic>(false))
+            foreach (RectTransform root in centralHudRoots)
             {
-                if (!graphic.enabled) continue;
-                graphic.rectTransform.GetWorldCorners(hudCorners);
-                foreach (Vector3 corner in hudCorners)
+                if (root == null) continue;
+                Canvas canvas = root.GetComponentInParent<Canvas>();
+                Camera uiCamera = canvas != null && canvas.rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+                    ? canvas.rootCanvas.worldCamera : null;
+                foreach (UnityEngine.UI.Graphic graphic in root.GetComponentsInChildren<UnityEngine.UI.Graphic>(false))
                 {
-                    Vector2 screen = RectTransformUtility.WorldToScreenPoint(uiCamera, corner);
-                    Vector3 point = targetCamera.ScreenToWorldPoint(new Vector3(screen.x, screen.y,
-                        Mathf.Abs(centerBackground.transform.position.z - targetCamera.transform.position.z)));
-                    bounds.Encapsulate(point);
+                    if (!graphic.enabled) continue;
+                    graphic.rectTransform.GetWorldCorners(hudCorners);
+                    foreach (Vector3 corner in hudCorners)
+                    {
+                        Vector2 screen = RectTransformUtility.WorldToScreenPoint(uiCamera, corner);
+                        Vector3 point = targetCamera.ScreenToWorldPoint(new Vector3(screen.x, screen.y,
+                            Mathf.Abs(centerBackground.transform.position.z - targetCamera.transform.position.z)));
+                        bounds.Encapsulate(point);
+                    }
                 }
             }
         }

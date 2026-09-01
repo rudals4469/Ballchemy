@@ -9,11 +9,8 @@ using UnityEngine.UI;
 public sealed class RewardCardUI :
     MonoBehaviour
 {
-    private const string FallbackAugmentIconResourcePath =
-        "UI/Icon_Augment_Test";
     private const string AugmentLevelStarResourcePath =
         "UI/Icon_Augment_LevelStar";
-    private static Sprite fallbackAugmentIcon;
     private static Sprite augmentLevelStar;
     [Header("Interaction")]
 
@@ -225,9 +222,18 @@ public sealed class RewardCardUI :
 
         commonLayout?.SetAugmentLayoutEnabled(
             boundRewardDefinition is AugmentRewardDefinition);
-        commonLayout?.SetCategory(boundRewardDefinition is AugmentRewardDefinition
-            ? CommonChoiceCardLayout.CardCategory.Augment
-            : CommonChoiceCardLayout.CardCategory.Ball);
+        if (boundRewardDefinition is AugmentRewardDefinition)
+        {
+            commonLayout?.SetCategory(CommonChoiceCardLayout.CardCategory.Augment);
+        }
+        else if (boundRewardDefinition is BallRewardDefinition ballReward)
+        {
+            commonLayout?.SetBallRewardSymbol(ballReward.BallDefinition);
+        }
+        else
+        {
+            commonLayout?.SetCategory(CommonChoiceCardLayout.CardCategory.Event);
+        }
 
         ApplyRewardCardColor();
         RefreshIconLevelPanel();
@@ -348,13 +354,6 @@ public sealed class RewardCardUI :
         );
 
         Sprite displayedIcon = content.Icon;
-        if (displayedIcon == null &&
-            boundRewardDefinition is AugmentRewardDefinition)
-        {
-            if (fallbackAugmentIcon == null)
-                fallbackAugmentIcon = Resources.Load<Sprite>(FallbackAugmentIconResourcePath);
-            displayedIcon = fallbackAugmentIcon;
-        }
 
         bool hasIcon = displayedIcon != null;
 

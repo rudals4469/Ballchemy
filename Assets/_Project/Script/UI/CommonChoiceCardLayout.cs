@@ -14,9 +14,10 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
     [SerializeField] private Image categorySymbol;
     [SerializeField] private Image authoredIcon;
     [SerializeField] private Sprite fallbackIcon;
-    [SerializeField] private bool useTemporaryQuestionIcon = true;
+    [SerializeField] private bool useTemporaryQuestionIcon;
 
-    private static Sprite TemporaryQuestionIcon => Resources.Load<Sprite>("UI/MapIcons/Map_Event_Readable");
+    private static Sprite QuestionIcon =>
+        Resources.Load<Sprite>("UI/MapIcons/Map_Event_Readable");
 
     public void SetCategory(CardCategory value)
     {
@@ -28,7 +29,7 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
         };
         string[] paths = {
             "UI/MapIcons/Map_Combat", "UI/MapIcons/Map_Augment_Readable",
-            "UI/MapIcons/Map_Shop_Readable", "UI/MapIcons/Map_Event_Readable",
+            "UI/MapIcons/CardSymbol_ShopDollar", "UI/MapIcons/Map_Event_Readable",
             "UI/MapIcons/Map_Alchemy_Readable", "UI/MapIcons/Map_Secret_Readable"
         };
         int index = Mathf.Clamp((int)value, 0, paths.Length - 1);
@@ -38,6 +39,45 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
             categorySymbol.sprite = Resources.Load<Sprite>(paths[index]);
             categorySymbol.enabled = categorySymbol.sprite != null;
         }
+    }
+
+    public void SetBallRewardSymbol(BallDefinition definition)
+    {
+        SetCategory(CardCategory.Ball);
+
+        ElementalBallTraitDefinition elemental = definition != null
+            ? definition.TraitDefinition as ElementalBallTraitDefinition
+            : null;
+        if (elemental == null) return;
+
+        string path;
+        switch (elemental.ElementType)
+        {
+            case ElementType.Water:
+                path = "VFX/ElementSymbols/Icon_Element_Water";
+                break;
+            case ElementType.Electric:
+                path = "VFX/ElementSymbols/Icon_Element_Lightning";
+                break;
+            case ElementType.Fire:
+                path = "VFX/ElementSymbols/Icon_Element_Fire";
+                break;
+            case ElementType.Ice:
+                path = "VFX/ElementSymbols/Icon_Element_Ice";
+                break;
+            default:
+                return;
+        }
+
+        SetCategorySymbol(Resources.Load<Sprite>(path));
+    }
+
+    private void SetCategorySymbol(Sprite sprite)
+    {
+        if (categorySymbol == null) return;
+        categorySymbol.sprite = sprite;
+        categorySymbol.enabled = sprite != null;
+        categorySymbol.preserveAspect = true;
     }
     public static readonly Color Bronze = new Color(0.53f, 0.39f, 0.28f, 1f);
     public static readonly Color Silver = new Color(0.47f, 0.50f, 0.54f, 1f);
@@ -110,7 +150,7 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
 
     public void SetIcon(Sprite sprite)
     {
-        if (useTemporaryQuestionIcon) sprite = TemporaryQuestionIcon;
+        if (sprite == null) sprite = QuestionIcon;
         if (sprite == null) sprite = fallbackIcon;
         if (icon != null)
         {
