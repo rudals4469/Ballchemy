@@ -68,14 +68,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
     [SerializeField]
     private Ease exitEase = Ease.InQuad;
 
-    [Header("Turn Start")]
-    [Tooltip(
-        "새 턴을 준비할 때 공이 시작 위치보다 " +
-        "조금 위에서 내려오는 거리입니다."
-    )]
-    [SerializeField, Min(0f)]
-    private float turnStartOffsetY = 10f;
-
     private readonly List<NextBallQueueItemView>
         activeItems =
             new List<NextBallQueueItemView>();
@@ -88,7 +80,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
 
     private void Awake()
     {
-        ConfigureProportionalFlaskVisual();
         FindReferences();
         NormalizeSettings();
         ValidateReferences();
@@ -199,11 +190,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
                 0f
             );
 
-        turnStartOffsetY =
-            Mathf.Max(
-                turnStartOffsetY,
-                0f
-            );
     }
 
     private void ValidateReferences()
@@ -310,7 +296,10 @@ public sealed class NextBallQueuePanel : MonoBehaviour
     {
         hasQueueStartedMoving = false;
 
-        RebuildQueue(true);
+        // A prepared queue should already look settled. Only balls revealed
+        // later enter from above; rebuilding every item here made the whole
+        // column move whenever the queue was refreshed.
+        RebuildQueue(false);
     }
 
     private void HandleBallLaunchedFromQueue(
@@ -482,9 +471,9 @@ public sealed class NextBallQueuePanel : MonoBehaviour
             }
 
             Vector3 startPosition =
-                targetPosition +
-                Vector3.up *
-                turnStartOffsetY;
+                ConvertPointToItemRootPosition(
+                    spawnPoint
+                );
 
             item.PlayEnter(
                 startPosition,

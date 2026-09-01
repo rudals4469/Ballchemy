@@ -99,7 +99,7 @@ MonoBehaviour:
   layout:
     visualRenderer: {fileID: 5051892278997693569}
     boxCollider: {fileID: 8902717914776242626}
-    visualPadding: 0.04
+    visualPadding: 0.01
     colliderInset: 0.06
   gridState:
     boardGrid: {fileID: 0}

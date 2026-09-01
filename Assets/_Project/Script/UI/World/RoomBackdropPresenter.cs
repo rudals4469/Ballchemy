@@ -4,6 +4,9 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class RoomBackdropPresenter : MonoBehaviour
 {
+    private const string AlchemyCircleResourcePath =
+        "UI/Workbench/AlchemyCircle_Overlay";
+    private static Sprite solidSurfaceSprite;
     [SerializeField] private Camera targetCamera;
     [SerializeField] private StageRoomNavigator roomNavigator;
     [SerializeField] private SpriteRenderer commonBackground;
@@ -18,6 +21,11 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
     [SerializeField] private SpriteRenderer combatBackground;
     [SerializeField] private bool showCombatBackground;
     [SerializeField] private Vector2 gameplayAreaSize = new Vector2(11.55261f, 15.232537f);
+    [Header("Gameplay Boundary")]
+    [SerializeField] private BoardGrid boardGrid;
+    [SerializeField, Min(0.01f)] private float boundaryWidth = 0.055f;
+    private LineRenderer gameplayBoundary;
+    private SpriteRenderer alchemyCircleOverlay;
 
     private void OnEnable()
     {
@@ -26,6 +34,8 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
         RefreshCombatVisibility();
         FitCommonBackground();
         FitCenterBackground();
+        RefreshCombatSurface();
+        RefreshGameplayBoundary();
     }
 
     private void Start() => RefreshCombatVisibility();
@@ -42,12 +52,145 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
     {
         if (roomNavigator != null)
             roomNavigator.RoomChanged -= HandleRoomChanged;
+        if (gameplayBoundary != null)
+            gameplayBoundary.enabled = false;
+        if (alchemyCircleOverlay != null)
+            alchemyCircleOverlay.enabled = false;
     }
 
     private void LateUpdate()
     {
         FitCommonBackground();
         FitCenterBackground();
+        RefreshCombatSurface();
+        RefreshGameplayBoundary();
+    }
+
+    private void RefreshCombatSurface()
+    {
+        if (combatBackground == null) return;
+        if (boardGrid == null)
+            boardGrid = FindFirstObjectByType<BoardGrid>();
+        if (boardGrid == null) return;
+
+        EnsureSolidSurfaceSprite();
+        Vector3 topLeft = boardGrid.GetBoardTopLeftCorner();
+        Vector3 bottomRight = boardGrid.GetBoardBottomRightCorner();
+        Vector2 boardSize = new Vector2(
+            bottomRight.x - topLeft.x,
+            topLeft.y - bottomRight.y);
+        Vector3 center = (topLeft + bottomRight) * 0.5f;
+
+        combatBackground.sprite = solidSurfaceSprite;
+        // Mid-value warm gray keeps the board lively while preserving VFX contrast.
+        combatBackground.color = new Color(0.847f, 0.788f, 0.659f, 1f);
+        combatBackground.drawMode = SpriteDrawMode.Sliced;
+        combatBackground.size = boardSize;
+        combatBackground.transform.position = new Vector3(
+            center.x, center.y, combatBackground.transform.position.z);
+        Vector3 parentScale = combatBackground.transform.parent != null
+            ? combatBackground.transform.parent.lossyScale
+            : Vector3.one;
+        combatBackground.transform.localScale = new Vector3(
+            1f / Mathf.Max(Mathf.Abs(parentScale.x), 0.0001f),
+            1f / Mathf.Max(Mathf.Abs(parentScale.y), 0.0001f),
+            1f);
+
+        EnsureAlchemyCircleOverlay();
+        if (alchemyCircleOverlay == null || alchemyCircleOverlay.sprite == null)
+            return;
+
+        Vector2 artSize = alchemyCircleOverlay.sprite.bounds.size;
+        float scale = Mathf.Min(
+            boardSize.x * 0.72f / Mathf.Max(artSize.x, 0.001f),
+            boardSize.y * 0.72f / Mathf.Max(artSize.y, 0.001f));
+        alchemyCircleOverlay.transform.position = new Vector3(
+            center.x, center.y, combatBackground.transform.position.z);
+        alchemyCircleOverlay.transform.localScale = Vector3.one * scale;
+        alchemyCircleOverlay.enabled = combatBackground.enabled;
+    }
+
+    private static void EnsureSolidSurfaceSprite()
+    {
+        if (solidSurfaceSprite != null) return;
+        Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+        {
+            name = "Solid Gameplay Surface",
+            hideFlags = HideFlags.DontSave,
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp
+        };
+        texture.SetPixel(0, 0, Color.white);
+        texture.Apply(false, true);
+        solidSurfaceSprite = Sprite.Create(
+            texture, new Rect(0f, 0f, 1f, 1f),
+            new Vector2(0.5f, 0.5f), 1f);
+        solidSurfaceSprite.name = "Solid Gameplay Surface";
+        solidSurfaceSprite.hideFlags = HideFlags.DontSave;
+    }
+
+    private void EnsureAlchemyCircleOverlay()
+    {
+        if (alchemyCircleOverlay != null) return;
+        GameObject overlayObject = new GameObject("AlchemyCircle_Overlay");
+        overlayObject.hideFlags = HideFlags.DontSave;
+        alchemyCircleOverlay = overlayObject.AddComponent<SpriteRenderer>();
+        alchemyCircleOverlay.sprite = Resources.Load<Sprite>(
+            AlchemyCircleResourcePath);
+        alchemyCircleOverlay.color = new Color(0.48f, 0.40f, 0.30f, 0.58f);
+        alchemyCircleOverlay.sortingOrder = -98;
+    }
+
+    private void RefreshGameplayBoundary()
+    {
+        if (boardGrid == null)
+            boardGrid = FindFirstObjectByType<BoardGrid>();
+        if (boardGrid == null) return;
+
+        EnsureGameplayBoundary();
+        Vector3 topLeft = boardGrid.GetBoardTopLeftCorner();
+        Vector3 bottomRight = boardGrid.GetBoardBottomRightCorner();
+        float z = combatBackground != null
+            ? combatBackground.transform.position.z
+            : boardGrid.transform.position.z;
+
+        gameplayBoundary.enabled = true;
+        gameplayBoundary.startWidth = boundaryWidth;
+        gameplayBoundary.endWidth = boundaryWidth;
+        gameplayBoundary.SetPosition(0, new Vector3(topLeft.x, topLeft.y, z));
+        gameplayBoundary.SetPosition(1, new Vector3(bottomRight.x, topLeft.y, z));
+        gameplayBoundary.SetPosition(2, new Vector3(bottomRight.x, bottomRight.y, z));
+        gameplayBoundary.SetPosition(3, new Vector3(topLeft.x, bottomRight.y, z));
+    }
+
+    private void EnsureGameplayBoundary()
+    {
+        if (gameplayBoundary != null) return;
+
+        GameObject boundaryObject = new GameObject("GameplayBoundary_ActualGrid");
+        boundaryObject.hideFlags = HideFlags.DontSave;
+        boundaryObject.transform.SetParent(transform, false);
+        gameplayBoundary = boundaryObject.AddComponent<LineRenderer>();
+        gameplayBoundary.useWorldSpace = true;
+        gameplayBoundary.loop = true;
+        gameplayBoundary.positionCount = 4;
+        gameplayBoundary.numCornerVertices = 2;
+        gameplayBoundary.alignment = LineAlignment.TransformZ;
+        gameplayBoundary.textureMode = LineTextureMode.Stretch;
+        gameplayBoundary.startColor = Color.black;
+        gameplayBoundary.endColor = Color.black;
+        gameplayBoundary.sortingOrder = -90;
+
+        Shader shader = Shader.Find("Sprites/Default");
+        if (shader != null)
+        {
+            Material material = new Material(shader)
+            {
+                name = "Gameplay Boundary Black",
+                hideFlags = HideFlags.DontSave
+            };
+            gameplayBoundary.sharedMaterial = material;
+        }
     }
 
     private void FitCenterBackground()
@@ -100,10 +243,9 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
     {
         if (combatBackground == null) return;
         // Keep one continuous background unless a separate combat surface is explicitly enabled.
-        combatBackground.enabled = showCombatBackground &&
-            (!Application.isPlaying || roomNavigator == null ||
-            roomNavigator.CurrentRoom == null ||
-            roomNavigator.CurrentRoom.IsCombatRoom);
+        combatBackground.enabled = showCombatBackground;
+        if (alchemyCircleOverlay != null)
+            alchemyCircleOverlay.enabled = showCombatBackground;
     }
 
     private void FitCommonBackground()

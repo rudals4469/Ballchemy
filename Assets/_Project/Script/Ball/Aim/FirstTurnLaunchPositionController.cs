@@ -26,12 +26,6 @@ public sealed class FirstTurnLaunchPositionController :
 
     [Header("Selection Feedback")]
 
-    [SerializeField, Range(0f, 0.5f)]
-    private float pulseScaleAmount = 0.12f;
-
-    [SerializeField, Min(0.1f)]
-    private float pulseSpeed = 3f;
-
     [SerializeField, Range(1f, 2f)]
     private float confirmationPulseScale = 1.4f;
 
@@ -211,7 +205,6 @@ public sealed class FirstTurnLaunchPositionController :
         if (available)
         {
             StopConfirmationPulse();
-            RefreshPulseTargets();
         }
         else
         {
@@ -240,32 +233,7 @@ public sealed class FirstTurnLaunchPositionController :
 
     private void LateUpdate()
     {
-        if (!isSelectionAvailable)
-        {
-            return;
-        }
-
-        if (pulseTargets.Count == 0)
-        {
-            RefreshPulseTargets();
-        }
-
-        float multiplier =
-            1f +
-            Mathf.Sin(
-                Time.unscaledTime * pulseSpeed
-            ) *
-            pulseScaleAmount;
-
-        for (int i = 0;
-             i < pulseTargets.Count;
-             i++)
-        {
-            pulseTargets[i]
-                ?.SetAttentionScaleMultiplier(
-                    multiplier
-                );
-        }
+        // The first-turn balls stay at their normal size.
     }
 
     private void CreateSelectionArrowRenderer()
@@ -415,20 +383,10 @@ public sealed class FirstTurnLaunchPositionController :
         Vector2 selectedPosition =
             ballLauncher.CurrentLaunchPosition;
 
-        confirmationPulseTargets.Clear();
-        confirmationPulseTargets.AddRange(
-            pulseTargets
-        );
-
         selectionCompletedFrame =
             Time.frameCount;
 
         SetSelectionAvailable(false);
-
-        confirmationPulseCoroutine =
-            StartCoroutine(
-                PlayConfirmationPulseRoutine()
-            );
 
         SelectionCompleted?.Invoke(
             selectedPosition
