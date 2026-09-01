@@ -7,6 +7,11 @@ public static class BlockRoleVisualSelector
     private const string RoleSymbolOverlayName = "RoleSymbolOverlay";
     private const string NamedCornerBandName = "NamedCornerBand";
     private const string NamedCornerStarName = "NamedCornerStar";
+    private const string ColoredBackgroundBasePath =
+        "BlockVisuals/BlockBase_Alchemy";
+    private const string BossCrownPath = "BlockVisuals/BossCrown";
+    private const float ColoredBackgroundReferenceLuminance = 0.86f;
+    private const float ColoredBackgroundBorderPixels = 72f;
 
     private static readonly Dictionary<string, Sprite> SpriteCache =
         new Dictionary<string, Sprite>();
@@ -15,6 +20,7 @@ public static class BlockRoleVisualSelector
     private static readonly Color TankBackground = new Color32(0, 102, 255, 255);
     private static readonly Color NamedBackground = new Color32(255, 208, 0, 255);
     private static readonly Color NamedSymbol = new Color32(255, 248, 190, 255);
+    private static readonly Color BossSymbol = new Color32(255, 244, 205, 255);
     private static readonly Color IndestructibleBackground = new Color32(88, 112, 142, 255);
 
     private readonly struct SpecialVisualStyle
@@ -106,6 +112,14 @@ public static class BlockRoleVisualSelector
         SetOverlayVisible(block, false);
         SetNamedCornerBadgeVisible(block, false);
 
+        if (request.RequestedBlockType == BlockType.Boss &&
+            request.Definition != null)
+        {
+            ApplyColoredBackground(block, request.Definition.Color);
+            ApplySymbolOverlay(block, BossCrownPath, 0.72f, BossSymbol);
+            return;
+        }
+
         if (request.Definition != null &&
             request.Definition.DestructionRule == BlockDestructionRule.Indestructible &&
             request.RequestedBlockType != BlockType.Boss)
@@ -192,19 +206,52 @@ public static class BlockRoleVisualSelector
         if (SpriteCache.TryGetValue(cacheKey, out Sprite cached) && cached != null)
             return cached;
 
-        Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        Texture2D baseTexture = Resources.Load<Texture2D>(
+            ColoredBackgroundBasePath);
+        if (baseTexture == null || !baseTexture.isReadable)
+        {
+            Debug.LogWarning(
+                "BlockRoleVisualSelector: 연금술 블록 베이스를 읽을 수 없습니다. " +
+                $"경로={ColoredBackgroundBasePath}");
+            return null;
+        }
+
+        Texture2D texture = new Texture2D(
+            baseTexture.width,
+            baseTexture.height,
+            TextureFormat.RGBA32,
+            false);
         texture.name = "RuntimeBlockBackground_" + cacheKey;
         texture.filterMode = FilterMode.Bilinear;
         texture.wrapMode = TextureWrapMode.Clamp;
-        texture.SetPixels(new[] { color, color, color, color });
+        Color32[] sourcePixels = baseTexture.GetPixels32();
+        Color32[] tintedPixels = new Color32[sourcePixels.Length];
+        for (int i = 0; i < sourcePixels.Length; i++)
+        {
+            Color32 source = sourcePixels[i];
+            float luminance =
+                (source.r * 0.2126f + source.g * 0.7152f + source.b * 0.0722f) /
+                255f;
+            float shade = Mathf.Clamp(
+                luminance / ColoredBackgroundReferenceLuminance,
+                0.58f,
+                1.12f);
+            tintedPixels[i] = new Color(
+                Mathf.Clamp01(color.r * shade),
+                Mathf.Clamp01(color.g * shade),
+                Mathf.Clamp01(color.b * shade),
+                source.a / 255f);
+        }
+        texture.SetPixels32(tintedPixels);
         texture.Apply(false, true);
         Sprite background = Sprite.Create(
             texture,
-            new Rect(0f, 0f, 2f, 2f),
+            new Rect(0f, 0f, texture.width, texture.height),
             new Vector2(0.5f, 0.5f),
-            2f,
+            100f,
             0,
-            SpriteMeshType.FullRect);
+            SpriteMeshType.FullRect,
+            Vector4.one * ColoredBackgroundBorderPixels);
         background.name = texture.name + "_Background";
         SpriteCache[cacheKey] = background;
         return background;
@@ -222,9 +269,13 @@ public static class BlockRoleVisualSelector
     private static void ApplySymbolOverlay(
         Block block,
         string sourcePath,
-        float sizeRatio)
+        float sizeRatio,
+        Color? symbolColor = null)
     {
-        Sprite symbolCard = sourcePath.StartsWith("BlockVisuals/NamedSymbol_")
+        bool isDirectOverlay =
+            sourcePath.StartsWith("BlockVisuals/NamedSymbol_") ||
+            sourcePath == BossCrownPath;
+        Sprite symbolCard = isDirectOverlay
             ? LoadSprite(sourcePath)
             : LoadTransparentSymbolSprite(sourcePath);
         if (symbolCard == null) return;
@@ -245,7 +296,7 @@ public static class BlockRoleVisualSelector
         SortingGroup sortingGroup = overlayObject.GetComponent<SortingGroup>();
         if (sortingGroup == null) sortingGroup = overlayObject.AddComponent<SortingGroup>();
         overlay.sprite = symbolCard;
-        overlay.color = Color.white;
+        overlay.color = symbolColor ?? Color.white;
         // Explicitly inherit the prefab renderer's valid sprite material.
         // Assigning null can keep a stale missing-shader material on an
         // already-created runtime renderer and produces Unity's magenta quad.

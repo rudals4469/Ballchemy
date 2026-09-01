@@ -99,6 +99,10 @@ public sealed class BossEncounterController :
     private readonly List<Block> trapTerrainBlocks = new List<Block>();
     private readonly List<Block> temporaryTrapWalls = new List<Block>();
     private readonly List<Block> bossArenaNormalBlocks = new List<Block>();
+    private readonly List<Block> colonyGrowthBlocks = new List<Block>();
+    private readonly List<Block> frontlineCommandTargets = new List<Block>();
+    private readonly List<BossAttackTargetOutline> frontlineCommandOutlines =
+        new List<BossAttackTargetOutline>();
     private readonly List<TeleportPortalController> teleportCircuitPortals =
         new List<TeleportPortalController>();
     private Block trapAmplifierBlock;
@@ -107,6 +111,7 @@ public sealed class BossEncounterController :
     private BossDefinition activeBossDefinition;
     private BossPatternDefinition activePattern;
     private BossRunSequence bossRunSequence;
+    private BossDefinition debugBossOverride;
 
     private Coroutine startCoroutine;
     private Coroutine completeCoroutine;
@@ -163,6 +168,31 @@ public sealed class BossEncounterController :
 
     public event Action<int>
         DescendingWavesRemainingChanged;
+
+    public int CopyDebugBossesTo(List<BossDefinition> destination)
+    {
+        return bossCatalog != null
+            ? bossCatalog.CopyUniqueBossesTo(destination)
+            : 0;
+    }
+
+    public bool TryDebugStartBoss(BossDefinition boss)
+    {
+        if (boss == null || roomNavigator == null ||
+            isEncounterActive || isTransitioning)
+        {
+            return false;
+        }
+
+        debugBossOverride = boss;
+        if (roomNavigator.TryDebugEnterBossRoom())
+        {
+            return true;
+        }
+
+        debugBossOverride = null;
+        return false;
+    }
 
     private void Awake()
     {
@@ -850,6 +880,13 @@ public sealed class BossEncounterController :
                 ? descendingWavesSpawned > 0
                 : blockGridManager.RequiredEnemyCount > 0;
 
+        if (isEncounterActive &&
+            activeBossDefinition != null &&
+            activeBossDefinition.IsFrontlineCommander)
+        {
+            PrepareFrontlineCommandTargets();
+        }
+
         isTransitioning = false;
         startCoroutine = null;
 
@@ -1512,6 +1549,21 @@ public sealed class BossEncounterController :
             generatedBlocks.Count == 0)
         {
             return false;
+        }
+
+        int safeColumn = (descendingWavesSpawned * 3 + 1) %
+                         Mathf.Max(boardGrid.ColumnCount, 1);
+        for (int i = generatedBlocks.Count - 1; i >= 0; i--)
+        {
+            Block block = generatedBlocks[i];
+            if (block == null || !block.OccupiesCell(safeColumn, block.GridPosition.y))
+            {
+                continue;
+            }
+
+            generatedBlocks.RemoveAt(i);
+            block.gameObject.SetActive(false);
+            Destroy(block.gameObject);
         }
 
         encounterBlocks.AddRange(generatedBlocks);
@@ -2408,39 +2460,16 @@ public sealed class BossEncounterController :
         trap.Destroyed -= HandleTrapDestroyed;
         BlockDefinition definition = trap.Definition;
 
-        if (definition == activeBossDefinition.GetTrapDefinition(0))
-        {
-            currentBossBlock?.IncreaseMaxHealthAndHeal(
-                activeBossDefinition.TrapBossHealthIncrease
-            );
-        }
-        else if (definition == activeBossDefinition.GetTrapDefinition(1))
-        {
-            if (ballSealController != null && ballCollection != null)
-            {
-                float ratio = ballSealController.HasPendingSeal
-                    ? Mathf.Min(
-                        activeBossDefinition.TrapBallSealRatio * 2f,
-                        0.4f)
-                    : activeBossDefinition.TrapBallSealRatio;
+        currentBossBlock?.TakeScriptedDamage(
+            activeBossDefinition.TrapDisarmBossDamage);
 
-                ballSealController.ApplySealRatio(
-                    ratio,
-                    ballCollection.Count
-                );
-            }
+        if (definition == activeBossDefinition.GetTrapDefinition(1))
+        {
+            ballSealController?.ClearEncounterSeal();
         }
         else if (definition == activeBossDefinition.GetTrapDefinition(2))
         {
             MoveTrapMasterBossToRandomCell();
-        }
-        else if (definition == activeBossDefinition.GetTrapDefinition(3))
-        {
-            SpawnTrapBlocks(2, false);
-        }
-        else if (definition == activeBossDefinition.GetTrapDefinition(4))
-        {
-            SpawnTemporaryTrapWalls(2);
         }
     }
 
@@ -2459,14 +2488,8 @@ public sealed class BossEncounterController :
 
         if (currentBossBlock != null && currentBossBlock.IsAlive)
         {
-            int shieldCount =
-                activeBossDefinition.TrapAmplifierBaseShield +
-                GetCurrentStageNumber();
-
-            currentBossBlock.AddShield(
-                shieldCount,
-                shieldCount
-            );
+            currentBossBlock.TakeScriptedDamage(
+                activeBossDefinition.TrapDisarmBossDamage * 2);
         }
     }
 
@@ -2947,6 +2970,8 @@ public sealed class BossEncounterController :
             encounterBlocks.Add(child);
             spawnedBlocks.Add(child);
             colonyGrowthState.RegisterMember(child);
+            child.Destroyed += HandleColonyGrowthDestroyed;
+            colonyGrowthBlocks.Add(child);
         }
 
         for (int i = 0;
@@ -2962,6 +2987,32 @@ public sealed class BossEncounterController :
         blockGridManager.RegisterBossEncounterBlocks(
             spawnedBlocks
         );
+    }
+
+    private void HandleColonyGrowthDestroyed(Block destroyed)
+    {
+        if (destroyed == null || !colonyGrowthBlocks.Remove(destroyed))
+        {
+            return;
+        }
+
+        destroyed.Destroyed -= HandleColonyGrowthDestroyed;
+        Vector2Int cell = destroyed.GridPosition;
+        Block[] snapshot = colonyGrowthBlocks.ToArray();
+        for (int i = 0; i < snapshot.Length; i++)
+        {
+            Block neighbor = snapshot[i];
+            if (neighbor == null || !neighbor.IsAlive)
+            {
+                continue;
+            }
+
+            Vector2Int delta = neighbor.GridPosition - cell;
+            if (Mathf.Abs(delta.x) + Mathf.Abs(delta.y) == 1)
+            {
+                neighbor.TakeScriptedDamage(2);
+            }
+        }
     }
 
     private bool IsCellOccupied(
@@ -3391,6 +3442,14 @@ public sealed class BossEncounterController :
         activeBossDefinition = null;
         activePattern = null;
 
+        if (debugBossOverride != null)
+        {
+            activeBossDefinition = debugBossOverride;
+            debugBossOverride = null;
+            activePattern = activeBossDefinition.PatternDefinition;
+            return activePattern != null;
+        }
+
         int stageNumber =
             roomNavigator != null && roomNavigator.CurrentMap != null
                 ? roomNavigator.CurrentMap.StageNumber
@@ -3609,9 +3668,10 @@ public sealed class BossEncounterController :
             yield break;
         }
 
-        if (activeBossDefinition.IsTeleportCircuit)
+        if (activeBossDefinition.IsFrontlineCommander)
         {
-            RewireTeleportCircuit();
+            yield return ResolveFrontlineCommanderTurnRoutine();
+            yield break;
         }
 
         if (blockGridManager.RequiredEnemyCount <= 0)
@@ -3709,7 +3769,114 @@ public sealed class BossEncounterController :
 
         yield return SpawnPostAttackBlocksRoutine();
 
+        if (activeBossDefinition.IsTeleportCircuit)
+        {
+            RewireTeleportCircuit();
+        }
+
         ResetBossAttackTurns();
+    }
+
+    private IEnumerator ResolveFrontlineCommanderTurnRoutine()
+    {
+        if (blockGridManager.RequiredEnemyCount <= 0)
+        {
+            yield break;
+        }
+
+        turnsUntilBossAttack = Mathf.Max(turnsUntilBossAttack - 1, 0);
+        NotifyBossAttackTurnsChanged();
+
+        if (turnsUntilBossAttack > 0)
+        {
+            yield break;
+        }
+
+        BossAttackDefinition attack = activeBossDefinition.GetAttack(0);
+        List<Block> survivingCommands = new List<Block>();
+
+        for (int i = 0; i < frontlineCommandTargets.Count; i++)
+        {
+            Block target = frontlineCommandTargets[i];
+            if (target != null && target.IsAlive)
+            {
+                survivingCommands.Add(target);
+            }
+        }
+
+        if (attack != null &&
+            survivingCommands.Count > 0 &&
+            enemyAttackSequence != null)
+        {
+            Debug.Log(
+                "BossEncounterController: 전선 지휘관 명령 실행, " +
+                $"생존 지휘 블록 {survivingCommands.Count}개",
+                this);
+
+            yield return enemyAttackSequence.ResolveAttackRoutine(
+                survivingCommands,
+                attack.Damage);
+        }
+        else
+        {
+            Debug.Log(
+                "BossEncounterController: 지휘 블록이 모두 파괴되어 " +
+                "전선 지휘관의 공격이 취소되었습니다.",
+                this);
+        }
+
+        ClearFrontlineCommandTargets();
+
+        if (turnManager != null && turnManager.IsGameOver)
+        {
+            yield break;
+        }
+
+        yield return SpawnPostAttackBlocksRoutine();
+
+        ResetBossAttackTurns();
+        PrepareFrontlineCommandTargets();
+    }
+
+    private void PrepareFrontlineCommandTargets()
+    {
+        ClearFrontlineCommandTargets();
+
+        if (activeBossDefinition == null ||
+            !activeBossDefinition.IsFrontlineCommander)
+        {
+            return;
+        }
+
+        BossAttackDefinition commandAttack =
+            activeBossDefinition.GetAttack(0);
+        if (commandAttack == null ||
+            commandAttack.AttackType != BossAttackType.SelectedBlockAttack)
+        {
+            Debug.LogWarning(
+                "BossEncounterController: 전선 지휘관에게 선택 블록 공격이 " +
+                "설정되어 있지 않습니다.",
+                activeBossDefinition);
+            return;
+        }
+
+        frontlineCommandTargets.AddRange(CreateAttackers(commandAttack));
+        frontlineCommandOutlines.AddRange(
+            ShowAttackTargetOutlines(
+                commandAttack,
+                frontlineCommandTargets));
+
+        Debug.Log(
+            "BossEncounterController: 전선 지휘관이 " +
+            $"지휘 블록 {frontlineCommandTargets.Count}개를 지정했습니다.",
+            this);
+    }
+
+    private void ClearFrontlineCommandTargets()
+    {
+        HideAttackTargetOutlines(frontlineCommandOutlines);
+        frontlineCommandOutlines.Clear();
+        frontlineCommandTargets.Clear();
     }
 
     private IEnumerator ResolveDescendingWaveTurnRoutine()
@@ -4365,8 +4532,18 @@ public sealed class BossEncounterController :
 
     private void ClearEncounterObjects()
     {
+        ClearFrontlineCommandTargets();
         HideGrowthOutlines();
         colonyGrowthState.Clear();
+
+        for (int i = 0; i < colonyGrowthBlocks.Count; i++)
+        {
+            if (colonyGrowthBlocks[i] != null)
+            {
+                colonyGrowthBlocks[i].Destroyed -= HandleColonyGrowthDestroyed;
+            }
+        }
+        colonyGrowthBlocks.Clear();
 
         if (activeBossDefinition != null &&
             activeBossDefinition.IsTrapMaster)

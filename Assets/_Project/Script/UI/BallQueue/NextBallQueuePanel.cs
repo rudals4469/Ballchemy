@@ -88,10 +88,41 @@ public sealed class NextBallQueuePanel : MonoBehaviour
 
     private void Awake()
     {
+        ConfigureProportionalFlaskVisual();
         FindReferences();
         NormalizeSettings();
         ValidateReferences();
         RefreshOverflowMarker();
+    }
+
+    private void ConfigureProportionalFlaskVisual()
+    {
+        ConfigureFlaskLayer("FlaskFrame", false);
+        ConfigureFlaskLayer("FlaskGlassOverlay", true);
+    }
+
+    private void ConfigureFlaskLayer(string childName, bool isGlass)
+    {
+        Transform child = transform.Find(childName);
+        if (child == null)
+        {
+            return;
+        }
+
+        Image stretchedImage = child.GetComponent<Image>();
+        if (stretchedImage != null)
+        {
+            stretchedImage.enabled = false;
+        }
+
+        QueueFlaskProportionalGraphic graphic =
+            child.GetComponent<QueueFlaskProportionalGraphic>();
+        if (graphic == null)
+        {
+            graphic = child.gameObject.AddComponent<QueueFlaskProportionalGraphic>();
+        }
+
+        graphic.Configure(isGlass);
     }
 
     private void OnEnable()
@@ -660,5 +691,193 @@ public sealed class NextBallQueuePanel : MonoBehaviour
     {
         UnsubscribeEvents();
         ClearActiveItems();
+    }
+}
+
+/// <summary>
+/// 큐 패널의 세로 길이와 무관하게 하단 플라스크 구체를 원형으로 유지한다.
+/// 목 부분만 남는 높이를 채우므로 한 장짜리 스프라이트 Stretch 왜곡이 없다.
+/// </summary>
+[RequireComponent(typeof(CanvasRenderer))]
+internal sealed class QueueFlaskProportionalGraphic : MaskableGraphic
+{
+    private const int BulbSegments = 24;
+    private bool drawGlass;
+
+    public void Configure(bool isGlass)
+    {
+        drawGlass = isGlass;
+        raycastTarget = false;
+        color = isGlass
+            ? new Color(0.72f, 0.9f, 0.98f, 0.13f)
+            : new Color(0.08f, 0.14f, 0.22f, 0.96f);
+        SetVerticesDirty();
+    }
+
+    protected override void OnPopulateMesh(VertexHelper vh)
+    {
+        vh.Clear();
+
+        Rect rect = rectTransform.rect;
+        float outline = Mathf.Clamp(rect.width * 0.055f, 3f, 6f);
+        List<Vector2> outer = BuildBottleContour(rect, 0f);
+
+        if (drawGlass)
+        {
+            AddFilledPolygon(vh, outer, color);
+            return;
+        }
+
+        List<Vector2> inner = BuildBottleContour(rect, outline);
+        AddContourRing(vh, outer, inner, color);
+        AddTopRim(vh, rect, outline, color);
+        AddTubeTicks(vh, rect, outline, color);
+    }
+
+    private static List<Vector2> BuildBottleContour(Rect rect, float inset)
+    {
+        float halfWidth = Mathf.Max(rect.width * 0.5f - inset, 1f);
+        float bulbRadius = Mathf.Max(halfWidth - 2f, 1f);
+        float bottom = rect.yMin + inset;
+        float centerY = bottom + bulbRadius;
+        float neckHalfWidth = Mathf.Max(rect.width * 0.19f - inset * 0.25f, 4f);
+        float neckTop = rect.yMax - Mathf.Max(rect.width * 0.12f, 8f) - inset;
+        float shoulderAngle = 48f * Mathf.Deg2Rad;
+
+        List<Vector2> points = new List<Vector2>(BulbSegments + 6)
+        {
+            new Vector2(-neckHalfWidth, neckTop),
+            new Vector2(-neckHalfWidth, centerY + bulbRadius * 0.72f)
+        };
+
+        for (int i = 0; i <= BulbSegments; i++)
+        {
+            float t = i / (float)BulbSegments;
+            float angle = Mathf.Lerp(
+                Mathf.PI - shoulderAngle,
+                Mathf.PI * 2f + shoulderAngle,
+                t);
+            points.Add(new Vector2(
+                Mathf.Cos(angle) * bulbRadius,
+                centerY + Mathf.Sin(angle) * bulbRadius));
+        }
+
+        points.Add(new Vector2(neckHalfWidth, centerY + bulbRadius * 0.72f));
+        points.Add(new Vector2(neckHalfWidth, neckTop));
+        return points;
+    }
+
+    private static void AddFilledPolygon(
+        VertexHelper vh,
+        List<Vector2> points,
+        Color tint)
+    {
+        Vector2 center = Vector2.zero;
+        for (int i = 0; i < points.Count; i++)
+        {
+            center += points[i];
+        }
+        center /= points.Count;
+
+        int centerIndex = vh.currentVertCount;
+        vh.AddVert(center, tint, Vector2.zero);
+        for (int i = 0; i < points.Count; i++)
+        {
+            vh.AddVert(points[i], tint, Vector2.zero);
+        }
+
+        for (int i = 0; i < points.Count; i++)
+        {
+            vh.AddTriangle(
+                centerIndex,
+                centerIndex + 1 + i,
+                centerIndex + 1 + (i + 1) % points.Count);
+        }
+    }
+
+    private static void AddContourRing(
+        VertexHelper vh,
+        List<Vector2> outer,
+        List<Vector2> inner,
+        Color tint)
+    {
+        int count = Mathf.Min(outer.Count, inner.Count);
+        for (int i = 0; i < count; i++)
+        {
+            int next = (i + 1) % count;
+            int start = vh.currentVertCount;
+            vh.AddVert(outer[i], tint, Vector2.zero);
+            vh.AddVert(outer[next], tint, Vector2.zero);
+            vh.AddVert(inner[next], tint, Vector2.zero);
+            vh.AddVert(inner[i], tint, Vector2.zero);
+            vh.AddTriangle(start, start + 1, start + 2);
+            vh.AddTriangle(start, start + 2, start + 3);
+        }
+    }
+
+    private static void AddTopRim(
+        VertexHelper vh,
+        Rect rect,
+        float outline,
+        Color tint)
+    {
+        float rimWidth = rect.width * 0.72f;
+        float rimHeight = Mathf.Max(rect.width * 0.1f, 7f);
+        float y = rect.yMax - rimHeight * 0.5f;
+        AddQuad(vh,
+            new Rect(-rimWidth * 0.5f, y - rimHeight * 0.5f, rimWidth, rimHeight),
+            tint);
+
+        if (outline > 0f)
+        {
+            AddQuad(vh,
+                new Rect(-rimWidth * 0.5f + outline, y - outline * 0.35f,
+                    rimWidth - outline * 2f, outline * 0.7f),
+                new Color(0.72f, 0.9f, 0.98f, 0.8f));
+        }
+    }
+
+    private static void AddTubeTicks(
+        VertexHelper vh,
+        Rect rect,
+        float outline,
+        Color tint)
+    {
+        float bulbRadius = rect.width * 0.5f - 2f;
+        float bulbCenterY = rect.yMin + bulbRadius;
+        float firstY = bulbCenterY + bulbRadius * 0.95f;
+        float lastY = rect.yMax - Mathf.Max(rect.width * 0.18f, 14f);
+        float neckEdge = rect.width * 0.19f;
+        float spacing = Mathf.Max(rect.width * 0.42f, 28f);
+        float tickHeight = Mathf.Max(outline * 0.55f, 2f);
+        int index = 0;
+
+        for (float y = firstY; y < lastY; y += spacing)
+        {
+            bool major = index % 5 == 0;
+            float length = major
+                ? rect.width * 0.16f
+                : rect.width * 0.1f;
+
+            AddQuad(vh,
+                new Rect(
+                    neckEdge + outline * 0.25f,
+                    y - tickHeight * 0.5f,
+                    length,
+                    tickHeight),
+                tint);
+            index++;
+        }
+    }
+
+    private static void AddQuad(VertexHelper vh, Rect rect, Color tint)
+    {
+        int start = vh.currentVertCount;
+        vh.AddVert(new Vector2(rect.xMin, rect.yMin), tint, Vector2.zero);
+        vh.AddVert(new Vector2(rect.xMin, rect.yMax), tint, Vector2.zero);
+        vh.AddVert(new Vector2(rect.xMax, rect.yMax), tint, Vector2.zero);
+        vh.AddVert(new Vector2(rect.xMax, rect.yMin), tint, Vector2.zero);
+        vh.AddTriangle(start, start + 1, start + 2);
+        vh.AddTriangle(start, start + 2, start + 3);
     }
 }

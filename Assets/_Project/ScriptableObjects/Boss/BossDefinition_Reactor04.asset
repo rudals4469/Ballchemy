@@ -38,22 +38,22 @@ MonoBehaviour:
   descendingMaximumRowCount: 4
   descendingDamagePerEscapedBlock: 1
   reactorBombDefinition: {fileID: 11400000, guid: b8ffbb2c9b494eaa9c4ed3ed5c7a02ac, type: 2}
-  reactorBombsToDestroy: 10
+  reactorBombsToDestroy: 6
   reactorBombHealth: 5
-  reactorInitialBombCount: 10
-  reactorBombsPerTurn: 10
+  reactorInitialBombCount: 3
+  reactorBombsPerTurn: 2
   reactorDescentRowCount: 1
   reactorEscapedBombDamage: 2
   reactorBombDamage: 20
   reactorExplosionBlockDamage: 1
   reactorChainBossDamageBonus: 5
-  reactorBaseAttackDamage: 2
+  reactorBaseAttackDamage: 1
   reactorCrossLockBonusDamage: 20
   reactorCrossLockAttackDelay: 1
   reactorBlockerDefinition: {fileID: 11400000, guid: 9ed93fcc248c4d5aadc8310f7ee84ae9, type: 2}
-  reactorBlockerCount: 6
+  reactorBlockerCount: 4
   arenaNormalBlockDefinition: {fileID: 11400000, guid: 86b5baec405c41a8b94e40b80f60a7d2, type: 2}
   arenaNormalBlockCount: 24
   arenaNormalBlockHealth: 8
-  arenaNormalRegenerationIntervalTurns: 1
-  arenaNormalRegenerationCount: 10
+  arenaNormalRegenerationIntervalTurns: 2
+  arenaNormalRegenerationCount: 5

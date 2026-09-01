@@ -33,7 +33,7 @@ MonoBehaviour:
   colonyMinimumCoreDistance: 4
   colonyInitialGrowthStepDelay: 0.22
   colonyGrowthOutlineColor: {r: 0.25, g: 1, b: 0.35, a: 0.95}
-  descendingWaveCount: 10
-  descendingMinimumRowCount: 2
-  descendingMaximumRowCount: 4
+  descendingWaveCount: 5
+  descendingMinimumRowCount: 3
+  descendingMaximumRowCount: 5
   descendingDamagePerEscapedBlock: 1

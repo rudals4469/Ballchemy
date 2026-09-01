@@ -79,6 +79,7 @@ public sealed class BossDefinition : ScriptableObject
     [SerializeField, Range(0.05f, 2f)] private float trapAmplifierHealthBallRatio = 0.75f;
     [SerializeField, Range(0.05f, 0.4f)] private float trapBallSealRatio = 0.2f;
     [SerializeField, Min(1)] private int trapBossHealthIncrease = 20;
+    [SerializeField, Min(1)] private int trapDisarmBossDamage = 8;
     [SerializeField, Min(0)] private int trapAmplifierBaseShield = 2;
 
     [Header("Boss Arena Blocks")]
@@ -114,6 +115,12 @@ public sealed class BossDefinition : ScriptableObject
         encounterArchetype == BossEncounterArchetype.TrapMaster;
     public bool IsTeleportCircuit =>
         encounterArchetype == BossEncounterArchetype.TeleportCircuit;
+    public bool IsFrontlineCommander =>
+        encounterArchetype == BossEncounterArchetype.Pattern &&
+        string.Equals(
+            bossId,
+            "boss_frontline_commander_01",
+            StringComparison.Ordinal);
     public float RequiredEnemyHealthMultiplier => Mathf.Max(requiredEnemyHealthMultiplier, 0.01f);
     public int AttackIntervalTurns => Mathf.Max(attackIntervalTurns, 1);
     public int AttackCount => attacks != null ? attacks.Length : 0;
@@ -160,6 +167,7 @@ public sealed class BossDefinition : ScriptableObject
         Mathf.Clamp(trapAmplifierHealthBallRatio, 0.05f, 2f);
     public float TrapBallSealRatio => Mathf.Clamp(trapBallSealRatio, 0.05f, 0.4f);
     public int TrapBossHealthIncrease => Mathf.Max(trapBossHealthIncrease, 1);
+    public int TrapDisarmBossDamage => Mathf.Max(trapDisarmBossDamage, 1);
     public int TrapAmplifierBaseShield => Mathf.Max(trapAmplifierBaseShield, 0);
     public BlockDefinition ArenaNormalBlockDefinition => arenaNormalBlockDefinition;
     public int ArenaNormalBlockCount => Mathf.Max(arenaNormalBlockCount, 0);

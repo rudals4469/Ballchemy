@@ -102,7 +102,8 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
         // Keep one continuous background unless a separate combat surface is explicitly enabled.
         combatBackground.enabled = showCombatBackground &&
             (!Application.isPlaying || roomNavigator == null ||
-            (roomNavigator.CurrentRoom != null && roomNavigator.CurrentRoom.IsCombatRoom));
+            roomNavigator.CurrentRoom == null ||
+            roomNavigator.CurrentRoom.IsCombatRoom);
     }
 
     private void FitCommonBackground()
