@@ -543,33 +543,39 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
     {
         if (center == null) return;
         Vector3 position = center.transform.position;
-        Color red = new Color(1f, 0f, 0f, 1f);
-        Color orange = new Color(1f, 0.42f, 0f, 1f);
+        Color red = new Color(0.95f, 0.025f, 0.005f, 1f);
+        Color orange = new Color(1f, 0.48f, 0.015f, 1f);
+        Color hotCore = new Color(1f, 0.84f, 0.12f, 1f);
+
+        // A dense outer burst and bright inner core keep the fire/ice
+        // reaction legible over the lighter board surface.
+        PlayBurstSprite(position, red, orange,
+            Random.Range(-10f, 10f), 5.15f, 0f, 0.8f);
+        PlayBurstSprite(position, hotCore, orange,
+            Random.Range(15f, 35f), 3.55f, 0.035f, 0.7f);
+
         int pattern = Random.Range(0, 3);
         if (pattern == 0)
         {
-            PlayBurstSprite(position, red, orange,
-                Random.Range(-12f, 12f), 4.8f, 0f, 0.66f);
             return;
         }
 
         if (pattern == 1)
         {
             PlayBurstSprite(position + new Vector3(-0.08f, 0.02f),
-                red, orange, -18f, 4.25f, 0f, 0.62f);
+                red, orange, -18f, 4.1f, 0.06f, 0.68f);
             PlayBurstSprite(position + new Vector3(0.1f, -0.025f),
-                WithAlpha(red, 0.82f), WithAlpha(orange, 0.82f),
-                24f, 3.65f, 0.055f, 0.58f);
+                WithAlpha(red, 0.94f), WithAlpha(orange, 0.94f),
+                24f, 3.55f, 0.1f, 0.64f);
             return;
         }
 
-        PlayBurstSprite(position, red, orange, 0f, 4.15f, 0f, 0.62f);
         PlayBurstSprite(position + new Vector3(-0.12f, 0.08f),
-            WithAlpha(red, 0.76f), WithAlpha(orange, 0.76f),
-            -28f, 3.15f, 0.07f, 0.54f);
+            WithAlpha(red, 0.9f), WithAlpha(orange, 0.9f),
+            -28f, 3.2f, 0.08f, 0.64f);
         PlayBurstSprite(position + new Vector3(0.13f, -0.07f),
-            WithAlpha(red, 0.68f), WithAlpha(orange, 0.68f),
-            31f, 2.7f, 0.13f, 0.5f);
+            WithAlpha(red, 0.84f), WithAlpha(orange, 0.84f),
+            31f, 2.85f, 0.14f, 0.6f);
 
     }
 
