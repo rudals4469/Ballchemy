@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Reward_T2_ElectricBall_2Star_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t2_electric_ball_2star_x1
-  displayName: "2\uC131 \uC804\uAE30 \uACF5 x1 "
+  displayName: "2성 전기 공 x3"
   description: "\uC804\uD558\uB97C \uBD80\uC5EC\uD558\uBA70, \n\uC816\uC740 \uC801\uC5D0\uAC8C
     \uAC10\uC804\uC744 \uC77C\uC73C\uD0B5\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 2
   selectionWeight: 2
   ballDefinition: {fileID: 11400000, guid: 1cdaf2d58092d874eb84e2c207dd4a23, type: 2}
-  amount: 1
+  amount: 3

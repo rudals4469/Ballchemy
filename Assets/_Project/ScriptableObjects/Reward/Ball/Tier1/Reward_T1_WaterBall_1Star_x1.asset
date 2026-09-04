@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: Reward_T1_WaterBall_1Star_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t1_water_ball_1star_x1
-  displayName: "1\uC131 \uBB3C \uACF5 x1"
+  displayName: "1성 물 공 x3"
   description: "\uC801\uC911\uD55C \uC801\uC5D0\uAC8C \uC816\uC74C\uC744 \uBD80\uC5EC\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 1
   selectionWeight: 1
   ballDefinition: {fileID: 11400000, guid: c69249269c66c4e4591d7d98c895b989, type: 2}
-  amount: 1
+  amount: 3

@@ -49,6 +49,13 @@ public sealed class BlockWaveGenerator :
     [SerializeField, Min(0)]
     private int healthIncreasePerWave = 2;
 
+    [Tooltip(
+        "후반의 공 개수와 직접 피해 보너스가 함께 증가하는 것을 " +
+        "따라가기 위한 웨이브별 체력 가속값입니다."
+    )]
+    [SerializeField, Min(0)]
+    private int healthAccelerationPerWave = 4;
+
     [Header("Block Attack")]
 
     [Tooltip(
@@ -190,6 +197,12 @@ public sealed class BlockWaveGenerator :
         healthIncreasePerWave =
             Mathf.Max(
                 healthIncreasePerWave,
+                0
+            );
+
+        healthAccelerationPerWave =
+            Mathf.Max(
+                healthAccelerationPerWave,
                 0
             );
 
@@ -998,7 +1011,10 @@ public sealed class BlockWaveGenerator :
             1,
             startingBlockHealth +
             waveIndex *
-            healthIncreasePerWave
+            healthIncreasePerWave +
+            waveIndex *
+            Mathf.Max(waveIndex - 1, 0) *
+            healthAccelerationPerWave
         );
     }
 

@@ -12,10 +12,10 @@ public sealed class AddBallRewardEffect :
 
     [Header("Reward")]
     [SerializeField, Min(1)]
-    private int minimumAddedBallCount = 1;
+    private int minimumAddedBallCount = 3;
 
     [SerializeField, Min(1)]
-    private int maximumAddedBallCount = 3;
+    private int maximumAddedBallCount = 6;
 
     private Block block;
 

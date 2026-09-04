@@ -528,6 +528,16 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         Vector3 perpendicular = delta.sqrMagnitude > 0.001f
             ? Vector3.Cross(delta.normalized, Vector3.forward)
             : Vector3.up;
+
+        // A narrow, layered stream reads as a fast water blade instead of a
+        // soft trail of unrelated droplets.
+        Play(start, end, WithAlpha(Color.white, 0.72f),
+            0.025f, 0.34f, Style.Water);
+        Play(start + perpendicular * 0.045f, end - perpendicular * 0.025f,
+            WithAlpha(color, 0.94f), 0.055f, 0.58f, Style.Water);
+        Play(start - perpendicular * 0.04f, end + perpendicular * 0.035f,
+            WithAlpha(color, 0.62f), 0.08f, 0.32f, Style.Water);
+
         for (int i = 0; i < 3; i++)
         {
             float t = 0.25f + i * 0.25f;
@@ -536,6 +546,17 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
                 Vector3.Lerp(start, end, t) + perpendicular * side,
                 ElementType.Water,
                 WithAlpha(color, 0.82f - i * 0.12f));
+        }
+
+        Vector3 waterDirection = delta.sqrMagnitude > 0.001f
+            ? delta.normalized : Vector3.right;
+        for (int i = -2; i <= 2; i++)
+        {
+            Vector3 splashDirection = waterDirection * 0.18f +
+                perpendicular * (i * 0.105f);
+            Play(end - waterDirection * 0.05f, end + splashDirection,
+                WithAlpha(color, 0.78f - Mathf.Abs(i) * 0.1f),
+                0.02f, 0.3f, Style.Water, 0.035f + Mathf.Abs(i) * 0.008f);
         }
     }
 
@@ -608,7 +629,7 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
             state.Style == Style.IceSnowflake ? IceSnowflakeShape.Length :
             state.Style == Style.FireIcon ? FireShape.Length :
             state.Style == Style.WaterDrop || state.Style == Style.ThermalRing
-                ? 18 : 10;
+                ? 18 : state.Style == Style.Lightning ? 12 : 10;
         line.positionCount = points;
         Vector3 delta = state.End - state.Start;
         Vector3 perpendicular = delta.sqrMagnitude > 0.0001f
@@ -665,13 +686,15 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
                 case Style.Lightning:
                     float noise = Mathf.PerlinNoise(
                         state.Seed + i * 1.73f, now * 24f) * 2f - 1f;
-                    point += perpendicular * noise * 0.48f * envelope;
+                    float hardStep = i % 2 == 0 ? -1f : 1f;
+                    point += perpendicular * (noise * 0.24f + hardStep * 0.2f)
+                        * envelope;
                     break;
                 case Style.Water:
                     point += perpendicular * Mathf.Sin(
-                        t * Mathf.PI * 3f - now * 15f + state.Seed)
-                        * 0.15f * envelope;
-                    point += Vector3.up * Mathf.Sin(t * Mathf.PI) * 0.14f;
+                        t * Mathf.PI * 4f - now * 18f + state.Seed)
+                        * 0.095f * envelope;
+                    point += Vector3.up * Mathf.Sin(t * Mathf.PI) * 0.08f;
                     break;
             }
             line.SetPosition(i, point);
@@ -690,7 +713,9 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         float pulse = state.Style == Style.Lightning
             ? 0.75f + Mathf.PingPong(now * 18f, 0.85f) : 1f;
         line.startWidth = state.Width * fade * pulse;
-        line.endWidth = state.Width * fade * (isClosedShape ? 1f : 0.25f);
+        float endTaper = state.Style == Style.Lightning ? 0.08f :
+            state.Style == Style.Water ? 0.06f : 0.25f;
+        line.endWidth = state.Width * fade * (isClosedShape ? 1f : endTaper);
     }
 
     private static Vector3 Direction(int index, int count)

@@ -17,6 +17,7 @@ MonoBehaviour:
   patternDefinition: {fileID: 11400000, guid: 857ddb12d0c98184696e4c48bc4a068f, type: 2}
   encounterArchetype: 0
   requiredEnemyHealthMultiplier: 1
+  bossHealthIncreasePerStageRatio: 0.55
   attackIntervalTurns: 2
   attacks:
   - {fileID: 11400000, guid: b3b235fb1cbf41ca8cb815a5f7a54312, type: 2}

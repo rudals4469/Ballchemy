@@ -3400,8 +3400,13 @@ public sealed class BossEncounterController :
         switch (symbol)
         {
             case 'B':
-                baseHealth = pattern
-                    .BossHealth;
+                baseHealth = activeBossDefinition != null
+                    ? activeBossDefinition.CalculateBossHealth(
+                        pattern.BossHealth,
+                        blockGridManager != null
+                            ? blockGridManager.CurrentStageNumber
+                            : 1)
+                    : pattern.BossHealth;
                 break;
 
             case 'X':
@@ -3428,6 +3433,11 @@ public sealed class BossEncounterController :
             definition.ClearRole != BlockClearRole.RequiredEnemy)
         {
             return baseHealth;
+        }
+
+        if (symbol == 'B')
+        {
+            return Mathf.Max(baseHealth, 1);
         }
 
         return Mathf.Max(

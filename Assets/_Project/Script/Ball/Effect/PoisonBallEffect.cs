@@ -54,14 +54,25 @@ public sealed class PoisonBallEffect : BallTraitEffect
 
         if (wasAtMaximum)
         {
-            ResolvePoisonCollapse(context, status, maximumStacks);
+            ResolvePoisonCollapse(context, status, maximumStacks, starGrade);
             return BallHitResult.HandledWithBounce();
         }
 
+        int beforeStacks = status.StackCount;
         status.AddStacks(
             poisonDefinition.GetStackAmount(starGrade) +
             AugmentCombatModifiers.GetPoisonAppliedStackBonus(context.Ball),
             maximumStacks);
+
+        if (starGrade == BallStarGrade.TwoStar ||
+            starGrade == BallStarGrade.ThreeStar)
+        {
+            int targetCount = starGrade == BallStarGrade.ThreeStar &&
+                beforeStacks < maximumStacks &&
+                status.StackCount >= maximumStacks ? 2 : 1;
+            SpreadPoison(context.Block, maximumStacks, 1, targetCount);
+            BallGradeVisualEvents.RaiseActivated(context.Ball);
+        }
 
         return BallHitResult.HandledWithBounce();
     }
@@ -89,7 +100,8 @@ public sealed class PoisonBallEffect : BallTraitEffect
     }
 
     private void ResolvePoisonCollapse(
-        BallHitContext context, PoisonBlockStatus status, int maximumStacks)
+        BallHitContext context, PoisonBlockStatus status, int maximumStacks,
+        BallStarGrade grade)
     {
         int consumedStacks = status.StackCount;
         status.ClearStacks();
@@ -100,6 +112,8 @@ public sealed class PoisonBallEffect : BallTraitEffect
         int radius = plagueDamage > 0 ? 2 : 1;
         int damage = plagueDamage > 0 ? plagueDamage :
             consumedStacks * 5 + AugmentCombatModifiers.GetPoisonCollapseBonus();
+        if (grade == BallStarGrade.ThreeStar)
+            damage = Mathf.Max(1, Mathf.RoundToInt(damage * 1.25f));
         List<Block> targets = grid != null
             ? BlockNeighborhoodResolver.FindSurroundingBlocks(
                 context.Block, grid.ActiveBlocks, radius)
@@ -128,5 +142,7 @@ public sealed class PoisonBallEffect : BallTraitEffect
         SpreadPoison(context.Block, maximumStacks,
             contagionStacks, contagionStacks * 2);
         AugmentCombatModifiers.NotifyPoisonCollapse();
+        if (grade == BallStarGrade.ThreeStar)
+            BallGradeVisualEvents.RaiseActivated(context.Ball);
     }
 }

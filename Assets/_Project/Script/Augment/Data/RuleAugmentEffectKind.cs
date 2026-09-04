@@ -74,5 +74,6 @@ public enum RuleAugmentEffectKind
     ElectricDamageBonus,
     IceAttackDelay,
     ThermalShockAmplify,
-    WaterCohesion
+    WaterCohesion,
+    AllElementDamage
 }

@@ -66,10 +66,10 @@ public sealed class ElementalBallEffect : BallTraitEffect
         switch (elementalDefinition.ElementType)
         {
             case ElementType.Water:
-                ResolveWater(target, status, grid, context, stackAmount, parameters);
+                ResolveWater(target, status, grid, context, stackAmount, parameters, grade);
                 break;
             case ElementType.Electric:
-                ResolveLightning(target, status, grid, context, parameters);
+                ResolveLightning(target, status, grid, context, parameters, grade);
                 break;
             case ElementType.Ice:
                 bool wasFrozen = status.IsFrozen;
@@ -78,12 +78,13 @@ public sealed class ElementalBallEffect : BallTraitEffect
                 {
                     AugmentCombatModifiers.NotifyFrozenApplied();
                     SpreadFrostOnFreeze(target, grid);
+                    ResolveIntrinsicIceGradeEffect(target, grid, context, grade);
                 }
                 ElementVisualEvents.RaiseImpact(ElementType.Ice, target);
                 break;
             case ElementType.Fire:
                 ResolveFire(target, status, grid, context, stackAmount, parameters,
-                    pendingThermalShock);
+                    pendingThermalShock, grade);
                 break;
         }
 
@@ -99,11 +100,16 @@ public sealed class ElementalBallEffect : BallTraitEffect
     private void ResolveWater(
         Block source, BlockElementStatus sourceStatus,
         BlockGridManager grid, BallHitContext context, int amount,
-        ElementRuntimeParameters parameters)
+        ElementRuntimeParameters parameters,
+        BallStarGrade grade)
     {
         int beforeHit = sourceStatus.WetStack;
         sourceStatus.AddWet(amount);
         ElementVisualEvents.RaiseImpact(ElementType.Water, source);
+
+        ResolveIntrinsicWaterGradeEffect(
+            source, sourceStatus, grid, context.Ball, grade, beforeHit,
+            sourceStatus.GetMaximumStack(ElementType.Water));
 
         if (AugmentCombatModifiers.NotifyWaterHitAndShouldFlood() && grid != null)
         {
@@ -157,7 +163,8 @@ public sealed class ElementalBallEffect : BallTraitEffect
     private void ResolveLightning(
         Block source, BlockElementStatus sourceStatus,
         BlockGridManager grid, BallHitContext context,
-        ElementRuntimeParameters parameters)
+        ElementRuntimeParameters parameters,
+        BallStarGrade grade)
     {
         ElementVisualEvents.RaiseImpact(ElementType.Electric, source);
         bool isElectrocution = sourceStatus.HasWet && grid != null;
@@ -190,7 +197,9 @@ public sealed class ElementalBallEffect : BallTraitEffect
             (alchemyBoosted ? 1 : 0) +
             (AugmentCombatModifiers.GetRuleInteger(
                 RuleAugmentEffectKind.LightningStorm) > 0 &&
-             AugmentCombatModifiers.GetElectrocutionCount() >= 5 ? 2 : 0);
+             AugmentCombatModifiers.GetElectrocutionCount() >= 5 ? 2 : 0) +
+            (grade == BallStarGrade.ThreeStar ? 2 :
+             grade == BallStarGrade.TwoStar ? 1 : 0);
         List<ElementChainLink> links = ElementGridResolver.FindConnectedWetChain(
             source, grid.ActiveBlocks, maximumTargets);
 
@@ -208,6 +217,19 @@ public sealed class ElementalBallEffect : BallTraitEffect
             AugmentCombatModifiers.MarkResidualCharge(link.Target);
             ElementVisualEvents.RaiseTravel(
                 ElementType.Electric, link.Source, link.Target);
+        }
+
+        if (links.Count > 0 &&
+            (grade == BallStarGrade.TwoStar ||
+             grade == BallStarGrade.ThreeStar))
+            BallGradeVisualEvents.RaiseActivated(context.Ball);
+
+        if (links.Count > 0 && grade == BallStarGrade.ThreeStar)
+        {
+            Block last = links[links.Count - 1].Target;
+            ApplyIndirectDamage(last,
+                Mathf.Max(1, context.DirectDamage / 2),
+                elementalDefinition.ElectrocutionDamageTextStyle);
         }
 
         int closedCircuit = AugmentCombatModifiers.GetRuleInteger(
@@ -260,7 +282,8 @@ public sealed class ElementalBallEffect : BallTraitEffect
     private void ResolveFire(
         Block source, BlockElementStatus sourceStatus,
         BlockGridManager grid, BallHitContext context, int amount,
-        ElementRuntimeParameters parameters, bool forceThermalShock)
+        ElementRuntimeParameters parameters, bool forceThermalShock,
+        BallStarGrade grade)
     {
         bool hadBurn = sourceStatus.HasBurn;
         if (sourceStatus.IsFrozen || forceThermalShock)
@@ -299,8 +322,12 @@ public sealed class ElementalBallEffect : BallTraitEffect
             ApplyReactionAugmentSideEffects(context, source);
         }
 
+        int burnBefore = sourceStatus.BurnStack;
         if (source != null && source.IsAlive)
             sourceStatus.AddBurn(amount, context.DirectDamage);
+
+        ResolveIntrinsicFireGradeEffect(
+            source, sourceStatus, grid, context, grade, burnBefore);
 
         int fireSpread = AugmentCombatModifiers.GetRuleInteger(
             RuleAugmentEffectKind.FireSpread);
@@ -326,6 +353,84 @@ public sealed class ElementalBallEffect : BallTraitEffect
             poisonStatus = source.gameObject.AddComponent<PoisonBlockStatus>();
         poisonStatus.AddStacks(poison,
             10 + AugmentCombatModifiers.GetPoisonMaximumStackBonus());
+    }
+
+    private void ResolveIntrinsicWaterGradeEffect(
+        Block source, BlockElementStatus sourceStatus, BlockGridManager grid,
+        Ball sourceBall, BallStarGrade grade, int beforeHit, int wetMaximum)
+    {
+        if ((grade != BallStarGrade.TwoStar &&
+             grade != BallStarGrade.ThreeStar) ||
+            source == null || grid == null)
+            return;
+        List<Block> neighbors = ElementGridResolver.FindEightNeighbors(
+            source, grid.ActiveBlocks);
+        int targetCount = grade == BallStarGrade.ThreeStar &&
+            beforeHit < wetMaximum && sourceStatus.WetStack >= wetMaximum
+                ? neighbors.Count : Mathf.Min(1, neighbors.Count);
+        for (int i = 0; i < targetCount; i++)
+        {
+            GetOrAddElementStatus(neighbors[i])?.AddWet(1);
+            ElementVisualEvents.RaiseTravel(ElementType.Water, source, neighbors[i]);
+        }
+        if (targetCount > 0)
+            BallGradeVisualEvents.RaiseActivated(sourceBall);
+    }
+
+    private void ResolveIntrinsicIceGradeEffect(
+        Block source, BlockGridManager grid, BallHitContext context,
+        BallStarGrade grade)
+    {
+        if ((grade != BallStarGrade.TwoStar &&
+             grade != BallStarGrade.ThreeStar) ||
+            source == null || grid == null)
+            return;
+        List<Block> neighbors = ElementGridResolver.FindEightNeighbors(
+            source, grid.ActiveBlocks);
+        int count = grade == BallStarGrade.ThreeStar
+            ? neighbors.Count : Mathf.Min(1, neighbors.Count);
+        for (int i = 0; i < count; i++)
+        {
+            BlockElementStatus neighborStatus =
+                GetOrAddElementStatus(neighbors[i]);
+            neighborStatus?.AddFrost(1);
+            if (grade == BallStarGrade.ThreeStar)
+                ApplyIndirectDamage(neighbors[i],
+                    Mathf.Max(1, context.DirectDamage / 2), null);
+        }
+        if (count > 0)
+            BallGradeVisualEvents.RaiseActivated(context.Ball);
+    }
+
+    private void ResolveIntrinsicFireGradeEffect(
+        Block source, BlockElementStatus sourceStatus, BlockGridManager grid,
+        BallHitContext context, BallStarGrade grade, int beforeHit)
+    {
+        if ((grade != BallStarGrade.TwoStar &&
+             grade != BallStarGrade.ThreeStar) ||
+            source == null || grid == null)
+            return;
+        List<Block> neighbors = ElementGridResolver.FindEightNeighbors(
+            source, grid.ActiveBlocks);
+        if (neighbors.Count <= 0)
+            return;
+
+        bool reachedMaximum = beforeHit <
+            sourceStatus.GetMaximumStack(ElementType.Fire) &&
+            sourceStatus.BurnStack >=
+            sourceStatus.GetMaximumStack(ElementType.Fire);
+        int count = grade == BallStarGrade.ThreeStar && reachedMaximum
+            ? neighbors.Count : 1;
+        count = Mathf.Min(count, neighbors.Count);
+        for (int i = 0; i < count; i++)
+        {
+            GetOrAddElementStatus(neighbors[i])?.AddBurn(
+                1, context.DirectDamage);
+            if (grade == BallStarGrade.ThreeStar && reachedMaximum)
+                ApplyIndirectDamage(neighbors[i],
+                    Mathf.Max(1, context.DirectDamage / 2), null);
+        }
+        BallGradeVisualEvents.RaiseActivated(context.Ball);
     }
 
     private void ApplyIndirectDamage(

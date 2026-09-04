@@ -24,6 +24,29 @@ public sealed class BasicBallEffect :
             context.HitPoint
         );
 
+        if (!context.Block.IsAlive &&
+            (context.Ball.StarGrade == BallStarGrade.TwoStar ||
+             context.Ball.StarGrade == BallStarGrade.ThreeStar))
+        {
+            BlockGridManager grid = FindFirstObjectByType<BlockGridManager>();
+            if (grid != null)
+            {
+                System.Collections.Generic.List<Block> neighbors =
+                    BlockNeighborhoodResolver.FindSurroundingBlocks(
+                        context.Block, grid.ActiveBlocks, 1);
+                int count = context.Ball.StarGrade == BallStarGrade.ThreeStar
+                    ? neighbors.Count : Mathf.Min(1, neighbors.Count);
+                int splashDamage = context.Ball.StarGrade == BallStarGrade.ThreeStar
+                    ? Mathf.Max(1, context.DirectDamage / 2) : 1;
+                for (int i = 0; i < count; i++)
+                    CombatController.ApplyDamage(
+                        neighbors[i], splashDamage,
+                        neighbors[i].transform.position, null, false);
+                if (count > 0)
+                    BallGradeVisualEvents.RaiseActivated(context.Ball);
+            }
+        }
+
         return BallHitResult
             .HandledWithBounce();
     }

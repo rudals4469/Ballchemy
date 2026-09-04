@@ -15,6 +15,6 @@ MonoBehaviour:
   attackId: direct
   displayName: Boss Direct Attack
   attackType: 0
-  damage: 5
+  damage: 4
   selectedBlockCount: 1
   telegraphDuration: 0

@@ -17,7 +17,7 @@ MonoBehaviour:
   bossDefinition: {fileID: 11400000, guid: 8766187ab52847f0a965595ee27fc155, type: 2}
   breakablePatternDefinition: {fileID: 11400000, guid: 10337aae5b6d6624682291cda6dcbea4, type: 2}
   indestructiblePatternDefinition: {fileID: 11400000, guid: 2e816761932060f4387e4c8cbeedafe2, type: 2}
-  bossHealth: 200
+  bossHealth: 450
   bossAttackPower: 0
   patternBlockHealth: 10
   patternText: '..#X...X#..

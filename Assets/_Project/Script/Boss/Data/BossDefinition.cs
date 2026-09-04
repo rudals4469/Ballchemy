@@ -21,6 +21,8 @@ public sealed class BossDefinition : ScriptableObject
         BossEncounterArchetype.Pattern;
     [Tooltip("RequiredEnemy 보스 블록에 적용할 체력 배율입니다.")]
     [SerializeField, Min(0.01f)] private float requiredEnemyHealthMultiplier = 1f;
+    [Tooltip("보스가 배정된 스테이지가 하나 증가할 때 보스 핵심 체력에 복리로 적용되는 비율입니다.")]
+    [SerializeField, Min(0f)] private float bossHealthIncreasePerStageRatio = 0.55f;
     [SerializeField, Min(1)] private int attackIntervalTurns = 2;
     [SerializeField] private BossAttackDefinition[] attacks = Array.Empty<BossAttackDefinition>();
     [SerializeField, Min(0)] private int spawnedBlockCountPerAttack = 2;
@@ -122,6 +124,23 @@ public sealed class BossDefinition : ScriptableObject
             "boss_frontline_commander_01",
             StringComparison.Ordinal);
     public float RequiredEnemyHealthMultiplier => Mathf.Max(requiredEnemyHealthMultiplier, 0.01f);
+    public float BossHealthIncreasePerStageRatio =>
+        Mathf.Max(bossHealthIncreasePerStageRatio, 0f);
+
+    public int CalculateBossHealth(int baseHealth, int stageNumber)
+    {
+        int stageIndex = Mathf.Max(stageNumber - 1, 0);
+        float stageMultiplier = Mathf.Pow(
+            1f + BossHealthIncreasePerStageRatio,
+            stageIndex);
+
+        return Mathf.Max(
+            Mathf.CeilToInt(
+                Mathf.Max(baseHealth, 1) *
+                stageMultiplier *
+                RequiredEnemyHealthMultiplier),
+            1);
+    }
     public int AttackIntervalTurns => Mathf.Max(attackIntervalTurns, 1);
     public int AttackCount => attacks != null ? attacks.Length : 0;
     public int SpawnedBlockCountPerAttack => Mathf.Max(spawnedBlockCountPerAttack, 0);

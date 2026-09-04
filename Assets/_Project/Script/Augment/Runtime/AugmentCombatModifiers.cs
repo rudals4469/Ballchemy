@@ -339,6 +339,10 @@ public static class AugmentCombatModifiers
         ElementType? element = GetElement(ball);
         bool isBasic = ball.TraitType == BallTraitType.Basic;
 
+        if (element.HasValue)
+            percent += GetRuleInteger(
+                RuleAugmentEffectKind.AllElementDamage);
+
         if (isBasic) percent += GetRuleInteger(RuleAugmentEffectKind.BasicDamage);
         if (isBasic && (elemental == null || !elemental.HasAnyStack) &&
             (poison == null || poison.StackCount <= 0))

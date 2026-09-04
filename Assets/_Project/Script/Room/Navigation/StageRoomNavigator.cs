@@ -36,6 +36,15 @@ public sealed class StageRoomNavigator :
     [SerializeField]
     private SecretRoomState secretRoomState;
 
+    [SerializeField]
+    private PlayerHealth playerHealth;
+
+    [Header("Stage Clear Recovery")]
+
+    [SerializeField]
+    [Range(0f, 1f)]
+    private float stageClearHealingRatio = 0.2f;
+
     [Header("Debug")]
     [SerializeField]
     private bool enableRoomTestKeys = true;
@@ -201,6 +210,9 @@ public sealed class StageRoomNavigator :
 
     private void OnValidate()
     {
+        stageClearHealingRatio =
+            Mathf.Clamp01(stageClearHealingRatio);
+
         FindReferences();
     }
 
@@ -267,6 +279,14 @@ public sealed class StageRoomNavigator :
             secretRoomState =
                 FindFirstObjectByType<
                     SecretRoomState
+                >();
+        }
+
+        if (playerHealth == null)
+        {
+            playerHealth =
+                FindFirstObjectByType<
+                    PlayerHealth
                 >();
         }
     }
@@ -344,6 +364,16 @@ public sealed class StageRoomNavigator :
                 "StageRoomNavigator: " +
                 "SecretRoomState를 찾지 못했습니다. " +
                 "잠긴 비밀방의 이동을 제어할 수 없습니다.",
+                this
+            );
+        }
+
+        if (playerHealth == null)
+        {
+            Debug.LogWarning(
+                "StageRoomNavigator: " +
+                "PlayerHealth를 찾지 못했습니다. " +
+                "스테이지 클리어 회복이 적용되지 않습니다.",
                 this
             );
         }
@@ -1709,6 +1739,8 @@ public sealed class StageRoomNavigator :
 
         if (nextMap != null && nextMap.RoomCount > 0)
         {
+            ApplyStageClearHealing();
+
             Debug.Log(
                 "StageRoomNavigator: " +
                 $"스테이지 {nextStageNumber} 맵으로 전환했습니다.",
@@ -1725,6 +1757,26 @@ public sealed class StageRoomNavigator :
             this
         );
         return false;
+    }
+
+    private void ApplyStageClearHealing()
+    {
+        if (playerHealth == null ||
+            stageClearHealingRatio <= 0f)
+        {
+            return;
+        }
+
+        int healingAmount =
+            Mathf.Max(
+                Mathf.CeilToInt(
+                    playerHealth.MaxHealth *
+                    stageClearHealingRatio
+                ),
+                1
+            );
+
+        playerHealth.Heal(healingAmount);
     }
 
     private void HandleTurnStateChanged(

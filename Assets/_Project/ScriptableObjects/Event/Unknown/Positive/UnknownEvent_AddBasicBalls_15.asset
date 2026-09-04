@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: UnknownEvent_AddBasicBalls_15
   m_EditorClassIdentifier: Assembly-CSharp::AddBasicBallsUnknownEventDefinition
   eventId: positive_add_basic_balls_15
-  displayName: "\uAE30\uBCF8 \uACF5 +15"
+  displayName: "기본 공 +25"
   description: "\uAE30\uBCF8 \uACF5\uC744 15\uAC1C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
   icon: {fileID: 0}
   selectionWeight: 3
   basicBallDefinition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
-  amount: 15
+  amount: 25

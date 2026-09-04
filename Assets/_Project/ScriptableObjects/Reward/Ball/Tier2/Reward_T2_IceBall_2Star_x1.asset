@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Reward_T2_IceBall_2Star_x1
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t2_ice_ball_2star_x1
-  displayName: "2\uC131 \uC5BC\uC74C \uACF5 x1"
+  displayName: "2성 얼음 공 x3"
   description: "\uB0C9\uAE30\uB97C \uBD80\uC5EC\uD558\uBA70, \n\uCD5C\uB300 \uC911\uCCA9
     \uC2DC \uC801\uC744 \uB3D9\uACB0\uC2DC\uD0B5\uB2C8\uB2E4."
   icon: {fileID: 0}
   rewardTier: 2
   selectionWeight: 2
   ballDefinition: {fileID: 11400000, guid: ded1842081b5fd64b9fc282ae3b254cd, type: 2}
-  amount: 1
+  amount: 3

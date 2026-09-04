@@ -346,7 +346,7 @@ MonoBehaviour:
     buildTag: 6
     effectKind: 37
     elementType: 0
-    selectionWeight: 1
+    selectionWeight: 2
     integerValues: 050000000a0000000f000000
     floatValues: []
   - augmentId: poison_contagion
@@ -416,14 +416,14 @@ MonoBehaviour:
   - augmentId: water_cohesion
     displayName: "\uC751\uC9D1\uC218"
     description: "\uC816\uC740 \uBE14\uB85D\uC5D0 \uBB3C \uACF5\uC73C\uB85C \uC8FC\uB294
-      \uD53C\uD574\uAC00 \uC99D\uAC00\uD569\uB2C8\uB2E4. (10% / 20% / 30%)"
+      \uD53C\uD574\uAC00 \uC99D\uAC00\uD569\uB2C8\uB2E4. (15% / 30% / 45%)"
     valueTier: 1
     maxLevel: 3
     buildTag: 3
     effectKind: 74
     elementType: 0
-    selectionWeight: 1
-    integerValues: 0a000000140000001e000000
+    selectionWeight: 2
+    integerValues: 0f0000001e0000002d000000
     floatValues: []
   - augmentId: water_pressure
     displayName: "\uC218\uC555"
@@ -435,7 +435,7 @@ MonoBehaviour:
     buildTag: 3
     effectKind: 69
     elementType: 0
-    selectionWeight: 1
+    selectionWeight: 2
     integerValues: 3200000064000000
     floatValues: []
   - augmentId: water_channel
@@ -479,15 +479,15 @@ MonoBehaviour:
   - augmentId: lightning_amplify
     displayName: "\uC804\uB958 \uC99D\uD3ED"
     description: "\uBC88\uAC1C \uACF5\uC758 \uAE30\uBCF8 \uCD94\uAC00 \uD53C\uD574\uC640
-      \uC804\uB3C4 \uD53C\uD574\uAC00 \uC99D\uAC00\uD569\uB2C8\uB2E4. (10% / 20%
-      / 30%)"
+      \uC804\uB3C4 \uD53C\uD574\uAC00 \uC99D\uAC00\uD569\uB2C8\uB2E4. (15% / 30%
+      / 45%)"
     valueTier: 1
     maxLevel: 3
     buildTag: 4
     effectKind: 71
     elementType: 1
-    selectionWeight: 1
-    integerValues: 0a000000140000001e000000
+    selectionWeight: 2
+    integerValues: 0f0000001e0000002d000000
     floatValues: []
   - augmentId: lightning_residual
     displayName: "\uC794\uB958 \uC804\uD558"
@@ -577,7 +577,7 @@ MonoBehaviour:
     buildTag: 5
     effectKind: 31
     elementType: 3
-    selectionWeight: 1
+    selectionWeight: 2
     integerValues: 0f0000001e0000002d000000
     floatValues: []
   - augmentId: ice_frost_infection
@@ -646,14 +646,14 @@ MonoBehaviour:
   - augmentId: fire_embers
     displayName: "\uC794\uBD88"
     description: "\uD654\uC0C1 \uBE14\uB85D\uC5D0 \uC8FC\uB294 \uD53C\uD574\uAC00
-      \uC99D\uAC00\uD569\uB2C8\uB2E4. (10% / 20% / 30%)"
+      \uC99D\uAC00\uD569\uB2C8\uB2E4. (15% / 30% / 45%)"
     valueTier: 1
     maxLevel: 3
     buildTag: 2
     effectKind: 13
     elementType: 2
-    selectionWeight: 1
-    integerValues: 0a000000140000001e000000
+    selectionWeight: 2
+    integerValues: 0f0000001e0000002d000000
     floatValues: []
   - augmentId: fire_heat_spread
     displayName: "\uC5F4 \uD655\uC0B0"
@@ -705,4 +705,17 @@ MonoBehaviour:
     elementType: 2
     selectionWeight: 1
     integerValues: 0f000000
+    floatValues: []
+  - augmentId: mixed_prismatic_power
+    displayName: "\uD504\uB9AC\uC998 \uC99D\uD3ED"
+    description: "\uBAA8\uB4E0 \uC6D0\uC18C \uACF5\uC758 \uC9C1\uC811 \uD53C\uD574\uC640
+      \uD2B9\uC131 \uCD94\uAC00 \uD53C\uD574\uAC00 \uC99D\uAC00\uD569\uB2C8\uB2E4.
+      (Lv.1 5% / Lv.2 10% / Lv.3 15%)"
+    valueTier: 1
+    maxLevel: 3
+    buildTag: 9
+    effectKind: 75
+    elementType: 0
+    selectionWeight: 2
+    integerValues: 050000000a0000000f000000
     floatValues: []

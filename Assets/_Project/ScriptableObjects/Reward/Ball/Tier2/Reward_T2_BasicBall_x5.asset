@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: Reward_T2_BasicBall_x5
   m_EditorClassIdentifier: Assembly-CSharp::BallRewardDefinition
   rewardId: t2_basic_ball_x5
-  displayName: "\uAE30\uBCF8 \uACF5 x5"
-  description: "\uAE30\uBCF8 \uACF5 5\uAC1C\uB97C \uD68D\uB4DD\uD569\uB2C8\uB2E4."
+  displayName: "기본 공 x10"
+  description: "기본 공 10개를 획득합니다."
   icon: {fileID: 0}
   rewardTier: 2
   selectionWeight: 2
   ballDefinition: {fileID: 11400000, guid: ce56375102a4e684681d0110d0a9ffd7, type: 2}
-  amount: 5
+  amount: 10
