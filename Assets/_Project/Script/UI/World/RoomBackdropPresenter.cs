@@ -4,9 +4,7 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class RoomBackdropPresenter : MonoBehaviour
 {
-    private const string AlchemyCircleResourcePath =
-        "UI/Workbench/AlchemyCircle_Overlay";
-    private static Sprite solidSurfaceSprite;
+    private const float FixedCenterPaddingY = 1.35f;
     [SerializeField] private Camera targetCamera;
     [SerializeField] private StageRoomNavigator roomNavigator;
     [SerializeField] private SpriteRenderer commonBackground;
@@ -16,19 +14,20 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
              "끄면 Gameplay Area Size와 Center Padding만 사용합니다.")]
     [SerializeField] private bool includeCentralHudInBounds;
     [Tooltip("플레이 영역 바깥에 더할 좌우/상하 여백입니다.")]
-    [SerializeField] private Vector2 centerPadding = new Vector2(0.25f, 0.3f);
+    [SerializeField] private Vector2 centerPadding = new Vector2(0.25f, FixedCenterPaddingY);
     private readonly Vector3[] hudCorners = new Vector3[4];
     [SerializeField] private SpriteRenderer combatBackground;
+    [SerializeField] private SpriteRenderer combatPatternOverlay;
     [SerializeField] private bool showCombatBackground;
     [SerializeField] private Vector2 gameplayAreaSize = new Vector2(11.55261f, 15.232537f);
     [Header("Gameplay Boundary")]
     [SerializeField] private BoardGrid boardGrid;
     [SerializeField, Min(0.01f)] private float boundaryWidth = 0.055f;
     private LineRenderer gameplayBoundary;
-    private SpriteRenderer alchemyCircleOverlay;
 
     private void OnEnable()
     {
+        LockCenterBoundsSettings();
         if (roomNavigator != null)
             roomNavigator.RoomChanged += HandleRoomChanged;
         RefreshCombatVisibility();
@@ -54,8 +53,6 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
             roomNavigator.RoomChanged -= HandleRoomChanged;
         if (gameplayBoundary != null)
             gameplayBoundary.enabled = false;
-        if (alchemyCircleOverlay != null)
-            alchemyCircleOverlay.enabled = false;
     }
 
     private void LateUpdate()
@@ -66,6 +63,17 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
         RefreshGameplayBoundary();
     }
 
+    private void OnValidate()
+    {
+        LockCenterBoundsSettings();
+    }
+
+    private void LockCenterBoundsSettings()
+    {
+        includeCentralHudInBounds = false;
+        centerPadding.y = FixedCenterPaddingY;
+    }
+
     private void RefreshCombatSurface()
     {
         if (combatBackground == null) return;
@@ -73,7 +81,7 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
             boardGrid = FindFirstObjectByType<BoardGrid>();
         if (boardGrid == null) return;
 
-        EnsureSolidSurfaceSprite();
+        if (combatBackground.sprite == null) return;
         Vector3 topLeft = boardGrid.GetBoardTopLeftCorner();
         Vector3 bottomRight = boardGrid.GetBoardBottomRightCorner();
         Vector2 boardSize = new Vector2(
@@ -81,9 +89,9 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
             topLeft.y - bottomRight.y);
         Vector3 center = (topLeft + bottomRight) * 0.5f;
 
-        combatBackground.sprite = solidSurfaceSprite;
-        // Mid-value warm gray keeps the board lively while preserving VFX contrast.
-        combatBackground.color = new Color(0.847f, 0.788f, 0.659f, 1f);
+        // The sprite, material, and tint are authored in the scene. Do not
+        // overwrite them here: doing so makes visual changes disappear after
+        // entering Play Mode or recompiling scripts.
         combatBackground.drawMode = SpriteDrawMode.Sliced;
         combatBackground.size = boardSize;
         combatBackground.transform.position = new Vector3(
@@ -96,49 +104,13 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
             1f / Mathf.Max(Mathf.Abs(parentScale.y), 0.0001f),
             1f);
 
-        EnsureAlchemyCircleOverlay();
-        if (alchemyCircleOverlay == null || alchemyCircleOverlay.sprite == null)
-            return;
-
-        Vector2 artSize = alchemyCircleOverlay.sprite.bounds.size;
-        float scale = Mathf.Min(
-            boardSize.x * 0.72f / Mathf.Max(artSize.x, 0.001f),
-            boardSize.y * 0.72f / Mathf.Max(artSize.y, 0.001f));
-        alchemyCircleOverlay.transform.position = new Vector3(
-            center.x, center.y, combatBackground.transform.position.z);
-        alchemyCircleOverlay.transform.localScale = Vector3.one * scale;
-        alchemyCircleOverlay.enabled = combatBackground.enabled;
-    }
-
-    private static void EnsureSolidSurfaceSprite()
-    {
-        if (solidSurfaceSprite != null) return;
-        Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+        if (combatPatternOverlay != null)
         {
-            name = "Solid Gameplay Surface",
-            hideFlags = HideFlags.DontSave,
-            filterMode = FilterMode.Bilinear,
-            wrapMode = TextureWrapMode.Clamp
-        };
-        texture.SetPixel(0, 0, Color.white);
-        texture.Apply(false, true);
-        solidSurfaceSprite = Sprite.Create(
-            texture, new Rect(0f, 0f, 1f, 1f),
-            new Vector2(0.5f, 0.5f), 1f);
-        solidSurfaceSprite.name = "Solid Gameplay Surface";
-        solidSurfaceSprite.hideFlags = HideFlags.DontSave;
-    }
+            // The patterned overlay was retired. Keep legacy scene references
+            // disabled so they cannot return during ExecuteAlways updates.
+            combatPatternOverlay.enabled = false;
+        }
 
-    private void EnsureAlchemyCircleOverlay()
-    {
-        if (alchemyCircleOverlay != null) return;
-        GameObject overlayObject = new GameObject("AlchemyCircle_Overlay");
-        overlayObject.hideFlags = HideFlags.DontSave;
-        alchemyCircleOverlay = overlayObject.AddComponent<SpriteRenderer>();
-        alchemyCircleOverlay.sprite = Resources.Load<Sprite>(
-            AlchemyCircleResourcePath);
-        alchemyCircleOverlay.color = new Color(0.48f, 0.40f, 0.30f, 0.58f);
-        alchemyCircleOverlay.sortingOrder = -98;
     }
 
     private void RefreshGameplayBoundary()
@@ -244,8 +216,6 @@ public sealed class RoomBackdropPresenter : MonoBehaviour
         if (combatBackground == null) return;
         // Keep one continuous background unless a separate combat surface is explicitly enabled.
         combatBackground.enabled = showCombatBackground;
-        if (alchemyCircleOverlay != null)
-            alchemyCircleOverlay.enabled = showCombatBackground;
     }
 
     private void FitCommonBackground()

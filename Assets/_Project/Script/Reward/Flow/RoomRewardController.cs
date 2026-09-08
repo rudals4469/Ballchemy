@@ -81,9 +81,38 @@ public sealed class RoomRewardController :
             new Dictionary<int, CompletedRewardSelection>();
 
     private bool isRewardPending;
+    private Action endlessRewardCompleted;
 
     public bool IsRewardPending =>
         isRewardPending;
+
+    public bool TryOpenEndlessAugmentReward(Action completed = null)
+    {
+        if (isRewardPending || rewardGenerator == null ||
+            rewardSelectionUI == null || ballCollection == null)
+        {
+            return false;
+        }
+
+        List<RewardDefinition> choices = rewardGenerator.GenerateAugmentChoices(
+            AugmentRewardSource.Boss,
+            rewardGenerator.ChoiceCount,
+            CreateApplyContext());
+
+        if (choices == null || choices.Count == 0)
+        {
+            return false;
+        }
+
+        pendingChoices.Clear();
+        pendingChoices.AddRange(choices);
+        endlessRewardCompleted = completed;
+        isRewardPending = true;
+        roomNavigator?.SetNavigationLocked(true);
+        turnManager?.SetInputLocked(true);
+        rewardSelectionUI.ShowChoices(pendingChoices);
+        return true;
+    }
 
     /*
      * 보상 선택 완료 후 다른 연출이 잠금을 이어받을 때 사용합니다.
@@ -589,6 +618,18 @@ public sealed class RoomRewardController :
     private void CompleteRewardSelection(
         RewardDefinition selectedReward)
     {
+        if (endlessRewardCompleted != null)
+        {
+            Action completed = endlessRewardCompleted;
+            endlessRewardCompleted = null;
+            pendingChoices.Clear();
+            isRewardPending = false;
+            rewardSelectionUI?.Hide();
+            ReleaseRoomAfterReward();
+            completed.Invoke();
+            return;
+        }
+
         RoomNode completedRoom =
             roomNavigator != null
                 ? roomNavigator.CurrentRoom

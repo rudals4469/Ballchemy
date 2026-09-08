@@ -53,6 +53,7 @@ public sealed class BlockGridManager :
 
     private bool isCurrentRoomCleared;
     private bool isRuntimeInitialized;
+    private bool isEndlessBossMode;
 
     private RoomCombatState currentRoomState =
         RoomCombatState.Unvisited;
@@ -99,6 +100,13 @@ public sealed class BlockGridManager :
     public bool IsRunCompleted =>
         waveDirector != null &&
         waveDirector.IsRunCompleted;
+
+    public bool IsEndlessBossMode => isEndlessBossMode;
+
+    public void SetEndlessBossMode(bool enabled)
+    {
+        isEndlessBossMode = enabled;
+    }
 
     public int ActiveBlockCount =>
         blockRegistry.Count;
@@ -886,7 +894,7 @@ public sealed class BlockGridManager :
     {
         if (!InitializeRuntimeIfNeeded() ||
             bossMode.IsActive ||
-            IsRunCompleted)
+            (IsRunCompleted && !isEndlessBossMode))
         {
             return false;
         }
@@ -930,15 +938,20 @@ public sealed class BlockGridManager :
         }
 
         blockRegistry.ClearAndDestroy();
-        isCurrentRoomCleared = true;
+        isCurrentRoomCleared = !isEndlessBossMode;
         currentTurn = 0;
         ballSealController?.ClearPendingSeal();
 
         ChangeRoomState(
-            RoomCombatState.Cleared
+            isEndlessBossMode
+                ? RoomCombatState.InCombat
+                : RoomCombatState.Cleared
         );
 
-        RoomCleared?.Invoke();
+        if (!isEndlessBossMode)
+        {
+            RoomCleared?.Invoke();
+        }
 
         Debug.Log(
             "BlockGridManager: Boss 방 전투를 완료했습니다. " +

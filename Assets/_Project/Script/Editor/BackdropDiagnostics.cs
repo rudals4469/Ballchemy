@@ -7,14 +7,7 @@ using UnityEngine.SceneManagement;
 
 public static class BackdropDiagnostics
 {
-    [InitializeOnLoadMethod]
-    private static void Schedule()
-    {
-        if (!SessionState.GetBool("Ballchemy.BackdropSync.ReadableCentralHud.v19", false))
-            EditorApplication.delayCall += ApplyAndCapture;
-    }
-
-    [MenuItem("Tools/Ballchemy/Apply Background Images")]
+    [MenuItem("Tools/Ballchemy/Legacy/Reapply Legacy Backgrounds")]
     public static void ApplyAndCapture()
     {
         Scene scene = SceneManager.GetActiveScene();
@@ -161,7 +154,6 @@ public static class BackdropDiagnostics
         presenter.RefreshVisuals();
         if (!EditorApplication.isPlaying) EditorSceneManager.MarkSceneDirty(scene);
         SceneView.RepaintAll();
-        SessionState.SetBool("Ballchemy.BackdropSync.ReadableCentralHud.v19", true);
         Capture();
     }
 

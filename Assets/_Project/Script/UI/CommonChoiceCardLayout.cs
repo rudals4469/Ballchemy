@@ -169,7 +169,10 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
 
     public static bool IsWorkbenchCard(Sprite sprite)
     {
-        return sprite != null && sprite.name.StartsWith("Card_Workbench", System.StringComparison.Ordinal);
+        if (sprite == null) return false;
+
+        return sprite.name.StartsWith("Card_Workbench", System.StringComparison.Ordinal) ||
+               sprite.name.StartsWith("Panel_Parchment_MissionClean", System.StringComparison.Ordinal);
     }
 
     public static Color WorkbenchAugmentBorderColor(AugmentValueTier tier)

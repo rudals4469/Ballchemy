@@ -4,6 +4,9 @@ using UnityEngine;
 public sealed class BlockHealthView :
     MonoBehaviour
 {
+    private const float ReadableMaximumFontSize = 42f;
+    private const float ReadableMinimumFontSize = 14f;
+
     [Header("References")]
     [SerializeField]
     private Block block;
@@ -43,10 +46,10 @@ public sealed class BlockHealthView :
 
     [Header("Auto Size")]
     [SerializeField, Min(1f)]
-    private float maximumFontSize = 36f;
+    private float maximumFontSize = ReadableMaximumFontSize;
 
     [SerializeField, Min(1f)]
-    private float minimumFontSize = 12f;
+    private float minimumFontSize = ReadableMinimumFontSize;
 
     [SerializeField]
     private Color textColor =
@@ -257,10 +260,16 @@ public sealed class BlockHealthView :
             true;
 
         healthText.fontSizeMax =
-            maximumFontSize;
+            Mathf.Max(
+                maximumFontSize,
+                ReadableMaximumFontSize
+            );
 
         healthText.fontSizeMin =
-            minimumFontSize;
+            Mathf.Max(
+                minimumFontSize,
+                ReadableMinimumFontSize
+            );
 
         healthText.textWrappingMode =
             TextWrappingModes.NoWrap;

@@ -129,6 +129,9 @@ public sealed class BossEncounterController :
     private int reactorBossHitAxisMask;
     private bool reactorCrossLockTriggered;
     private int bossArenaNormalRegenerationTurns;
+    private bool isEndlessEncounter;
+    private float endlessHealthMultiplier = 1f;
+    private float endlessDamageMultiplier = 1f;
 
     public bool IsEncounterActive =>
         isEncounterActive;
@@ -191,6 +194,34 @@ public sealed class BossEncounterController :
         }
 
         debugBossOverride = null;
+        return false;
+    }
+
+    public bool StartEndlessBossEncounter(
+        int encounterId,
+        BossDefinition boss,
+        float healthMultiplier,
+        float damageMultiplier)
+    {
+        if (boss == null || isEncounterActive || isTransitioning)
+        {
+            return false;
+        }
+
+        isEndlessEncounter = true;
+        endlessHealthMultiplier = Mathf.Max(healthMultiplier, 1f);
+        endlessDamageMultiplier = Mathf.Max(damageMultiplier, 1f);
+        debugBossOverride = boss;
+
+        if (StartBossRoomEncounter(encounterId))
+        {
+            return true;
+        }
+
+        debugBossOverride = null;
+        isEndlessEncounter = false;
+        endlessHealthMultiplier = 1f;
+        endlessDamageMultiplier = 1f;
         return false;
     }
 
@@ -865,7 +896,9 @@ public sealed class BossEncounterController :
 
         nextAttackIndex = 0;
         turnsUntilBossAttack =
-            activeBossDefinition != null &&
+            isEndlessEncounter
+                ? 3
+                : activeBossDefinition != null &&
             activeBossDefinition.IsProliferatingColony
                 ? 1
                 : activeBossDefinition != null
@@ -895,7 +928,7 @@ public sealed class BossEncounterController :
         );
 
         roomNavigator?.SetNavigationLocked(
-            false
+            isEndlessEncounter
         );
 
         if (!isEncounterActive)
@@ -3429,6 +3462,13 @@ public sealed class BossEncounterController :
                 break;
         }
 
+        if (isEndlessEncounter && symbol != '#')
+        {
+            baseHealth = Mathf.Max(
+                Mathf.CeilToInt(baseHealth * endlessHealthMultiplier),
+                1);
+        }
+
         if (activeBossDefinition == null || definition == null ||
             definition.ClearRole != BlockClearRole.RequiredEnemy)
         {
@@ -3620,7 +3660,7 @@ public sealed class BossEncounterController :
         );
 
         roomNavigator?.SetNavigationLocked(
-            false
+            isEndlessEncounter
         );
 
         bool roomCompleted =
@@ -3766,7 +3806,7 @@ public sealed class BossEncounterController :
 
             yield return enemyAttackSequence.ResolveAttackRoutine(
                 attackers,
-                attack.Damage
+                ScaleEndlessDamage(attack.Damage)
             );
         }
 
@@ -3825,7 +3865,7 @@ public sealed class BossEncounterController :
 
             yield return enemyAttackSequence.ResolveAttackRoutine(
                 survivingCommands,
-                attack.Damage);
+                ScaleEndlessDamage(attack.Damage));
         }
         else
         {
@@ -3964,11 +4004,11 @@ public sealed class BossEncounterController :
 
             yield return enemyAttackSequence.ResolveAttackRoutine(
                 new List<Block> { currentBossBlock },
-                attackDamage
+                ScaleEndlessDamage(attackDamage)
             );
 
             turnsUntilBossAttack =
-                activeBossDefinition.AttackIntervalTurns;
+                GetBossAttackInterval();
 
             NotifyBossAttackTurnsChanged();
 
@@ -4498,11 +4538,25 @@ public sealed class BossEncounterController :
     private void ResetBossAttackTurns()
     {
         turnsUntilBossAttack =
-            activeBossDefinition != null
-                ? activeBossDefinition.AttackIntervalTurns
-                : 0;
+            GetBossAttackInterval();
 
         NotifyBossAttackTurnsChanged();
+    }
+
+    private int GetBossAttackInterval()
+    {
+        return isEndlessEncounter
+            ? 3
+            : activeBossDefinition != null
+                ? activeBossDefinition.AttackIntervalTurns
+                : 0;
+    }
+
+    private int ScaleEndlessDamage(int damage)
+    {
+        return isEndlessEncounter
+            ? Mathf.Max(Mathf.CeilToInt(damage * endlessDamageMultiplier), 1)
+            : damage;
     }
 
     private void RecoverFromFailedStart()

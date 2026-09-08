@@ -148,6 +148,16 @@ public sealed class BlockOutlineView :
             return;
         }
 
+#if UNITY_EDITOR
+        // Entering Play Mode can validate prefab assets as well as scene
+        // instances. A prefab asset cannot accept newly parented children.
+        if (UnityEditor.EditorUtility.IsPersistent(this) ||
+            UnityEditor.PrefabUtility.IsPartOfPrefabAsset(gameObject))
+        {
+            return;
+        }
+#endif
+
         FindReferences();
         CreateOutlinesIfNeeded();
         RefreshAll();

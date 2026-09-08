@@ -182,15 +182,25 @@ public sealed class StageMissionSystem : MonoBehaviour
     private int tierUpgradeRewardsGranted;
     private int augmentRewardsGranted;
 
-    private Canvas canvas;
-    private GameObject selectionPanel;
-    private TMP_Text stageTitleText;
-    private readonly Button[] cardButtons = new Button[ChoiceCount];
-    private readonly TMP_Text[] cardTexts = new TMP_Text[ChoiceCount];
-    private GameObject trackerPanel;
-    private TMP_Text trackerText;
-    private TMP_Text resultText;
-    private TMP_FontAsset font;
+    [Header("Hierarchy UI")]
+    [SerializeField] private GameObject selectionPanel;
+    [SerializeField] private TMP_Text stageTitleText;
+    [SerializeField] private Button[] cardButtons = new Button[ChoiceCount];
+    [SerializeField] private CommonChoiceCardLayout[] cardLayouts = new CommonChoiceCardLayout[ChoiceCount];
+    [SerializeField] private Image[] cardIcons = new Image[ChoiceCount];
+    [SerializeField] private GameObject[] cardIconRoots = new GameObject[ChoiceCount];
+    [SerializeField] private TMP_Text[] cardTitleTexts = new TMP_Text[ChoiceCount];
+    [SerializeField] private TMP_Text[] cardRewardTexts = new TMP_Text[ChoiceCount];
+    [SerializeField] private TMP_Text[] cardDescriptionTexts = new TMP_Text[ChoiceCount];
+    [SerializeField] private TMP_Text[] cardPayoutTexts = new TMP_Text[ChoiceCount];
+    [SerializeField] private GameObject trackerPanel;
+    [SerializeField] private TMP_Text trackerText;
+    [SerializeField] private TMP_Text resultText;
+    [Header("Selected Mission Status")]
+    [SerializeField] private GameObject missionStatusRoot;
+    [SerializeField] private TMP_Text missionStatusNameText;
+    [SerializeField] private TMP_Text missionStatusConditionText;
+    [SerializeField] private TMP_Text missionStatusRewardText;
 
     public StageMissionChoice ActiveMission => activeMission;
     public bool HasActiveMission => activeMission != null;
@@ -199,17 +209,19 @@ public sealed class StageMissionSystem : MonoBehaviour
     {
         FindReferences();
         NormalizeSettings();
-        BuildRuntimeUI();
+        EnsureCardReferences();
     }
 
     private void OnEnable()
     {
+        BindCardButtons();
         Subscribe();
     }
 
     private void OnDisable()
     {
         Unsubscribe();
+        UnbindCardButtons();
     }
 
     private void OnValidate()
@@ -336,6 +348,7 @@ public sealed class StageMissionSystem : MonoBehaviour
 
         activeMap = map;
         activeMission = null;
+        ClearMissionStatus();
         startingBallCount = ballCollection != null ? ballCollection.Count : 0;
         damageTaken = 0;
         hitCount = 0;
@@ -468,6 +481,7 @@ public sealed class StageMissionSystem : MonoBehaviour
 
         activeMission = null;
         if (trackerPanel != null) trackerPanel.SetActive(false);
+        ClearMissionStatus();
     }
 
     private IEnumerator ApplyDeferredReward(StageMissionRewardOffer offer)
@@ -502,7 +516,6 @@ public sealed class StageMissionSystem : MonoBehaviour
         int seed = unchecked(map.StageNumber * 73856093 + CountRooms(map) * 19349663 + Environment.TickCount);
         System.Random random = new(seed);
         Shuffle(pool, random);
-        Shuffle(difficulties, random);
 
         HashSet<int> usedCategories = new();
         HashSet<StageMissionRewardKind> usedRewardKinds = new();
@@ -690,37 +703,90 @@ public sealed class StageMissionSystem : MonoBehaviour
         if (!selectionOpen || index < 0 || index >= choices.Count) return;
         activeMission = choices[index];
         selectionOpen = false;
-        selectionPanel.SetActive(false);
-        trackerPanel.SetActive(true);
-        resultText.gameObject.SetActive(false);
+        if (selectionPanel != null) selectionPanel.SetActive(false);
+        if (trackerPanel != null) trackerPanel.SetActive(false);
+        if (resultText != null) resultText.gameObject.SetActive(false);
         navigator?.SetNavigationLocked(false);
         turnManager?.SetInputLocked(false);
         RefreshTracker();
+        RefreshMissionStatus();
     }
 
     private void ShowSelection(int stageNumber)
     {
         if (selectionPanel == null || choices.Count == 0) return;
+        EnsureCardReferences();
         selectionOpen = true;
         selectionPanel.SetActive(true);
-        trackerPanel.SetActive(false);
-        resultText.gameObject.SetActive(false);
-        stageTitleText.text = $"STAGE {stageNumber}  계약 선택";
+        if (trackerPanel != null) trackerPanel.SetActive(false);
+        if (resultText != null) resultText.gameObject.SetActive(false);
+        if (stageTitleText != null) stageTitleText.text = $"STAGE {stageNumber}  미션 선택";
         navigator?.SetNavigationLocked(true);
         turnManager?.SetInputLocked(true);
 
         for (int i = 0; i < cardButtons.Length; i++)
         {
             bool valid = i < choices.Count;
+            if (cardButtons[i] == null) continue;
             cardButtons[i].gameObject.SetActive(valid);
             if (!valid) continue;
             StageMissionChoice choice = choices[i];
-            cardTexts[i].text =
-                $"<size=24><b>{DifficultyName(choice.Difficulty)}</b></size>\n\n" +
-                $"<size=30><b>{choice.Title}</b></size>\n\n" +
-                $"<size=23>{choice.Description}</size>\n\n" +
-                $"<color=#FFD66B><size=25>보상  {choice.Reward.DisplayText}</size></color>";
+            if (i < cardLayouts.Length && cardLayouts[i] != null)
+            {
+                cardLayouts[i].Configure(
+                    cardButtons[i], Get(cardIcons, i), Get(cardIconRoots, i),
+                    Get(cardTitleTexts, i), Get(cardRewardTexts, i),
+                    Get(cardDescriptionTexts, i));
+                cardLayouts[i].SetCategory(CommonChoiceCardLayout.CardCategory.Event);
+                cardLayouts[i].SetTexts(
+                    choice.Title,
+                    DifficultyName(choice.Difficulty),
+                    $"조건 : {choice.Description}");
+                CommonChoiceCardLayout.SetText(
+                    Get(cardPayoutTexts, i), $"보상 : {choice.Reward.DisplayText}");
+                ConfigureTruncatedTooltip(Get(cardDescriptionTexts, i),
+                    $"조건 : {choice.Description}");
+                ConfigureTruncatedTooltip(Get(cardPayoutTexts, i),
+                    $"보상 : {choice.Reward.DisplayText}");
+            }
         }
+    }
+
+    private static T Get<T>(T[] values, int index) where T : UnityEngine.Object
+        => values != null && index >= 0 && index < values.Length ? values[index] : null;
+
+    private void EnsureCardReferences()
+    {
+        for (int i = 0; i < cardButtons.Length; i++)
+        {
+            Button button = cardButtons[i];
+            if (button == null) continue;
+            if (Get(cardTitleTexts, i) == null)
+                cardTitleTexts[i] = FindNamed<TMP_Text>(button.transform, "TitleText");
+            if (Get(cardRewardTexts, i) == null)
+                cardRewardTexts[i] = FindNamed<TMP_Text>(button.transform, "GrantText");
+            if (Get(cardDescriptionTexts, i) == null)
+                cardDescriptionTexts[i] = FindNamed<TMP_Text>(button.transform, "EffectText");
+            if (Get(cardPayoutTexts, i) == null)
+                cardPayoutTexts[i] = FindNamed<TMP_Text>(button.transform, "MissionPayoutText");
+            if (Get(cardIcons, i) == null)
+                cardIcons[i] = FindNamed<Image>(button.transform, "Icon");
+            if (Get(cardIconRoots, i) == null && Get(cardIcons, i) != null)
+                cardIconRoots[i] = cardIcons[i].transform.parent.gameObject;
+            if (Get(cardRewardTexts, i) != null)
+                cardRewardTexts[i].fontSize = 20f;
+            if (Get(cardDescriptionTexts, i) != null)
+                cardDescriptionTexts[i].fontSize = 22f;
+            if (Get(cardPayoutTexts, i) != null)
+                cardPayoutTexts[i].fontSize = 22f;
+        }
+    }
+
+    private static T FindNamed<T>(Transform root, string objectName) where T : Component
+    {
+        foreach (T component in root.GetComponentsInChildren<T>(true))
+            if (component.name == objectName) return component;
+        return null;
     }
 
     private void RefreshTracker()
@@ -732,6 +798,51 @@ public sealed class StageMissionSystem : MonoBehaviour
         trackerText.text =
             $"<b>{activeMission.Title}</b>  {FormatProgress(activeMission, current)}\n" +
             $"<size=18><color=#FFD66B>성공 보상 {activeMission.Reward.DisplayText}</color></size>";
+        RefreshMissionStatus();
+    }
+
+    private void RefreshMissionStatus()
+    {
+        if (missionStatusRoot == null) return;
+        missionStatusRoot.SetActive(true);
+        if (activeMission == null)
+        {
+            ClearMissionStatusTexts();
+            return;
+        }
+
+        int current = GetCurrentValue(activeMission);
+        CommonChoiceCardLayout.SetText(missionStatusNameText,
+            $"[{DifficultyName(activeMission.Difficulty)}] {activeMission.Title}");
+        CommonChoiceCardLayout.SetText(missionStatusConditionText,
+            $"조건 : {activeMission.Description}  ({FormatProgress(activeMission, current)})");
+        CommonChoiceCardLayout.SetText(missionStatusRewardText,
+            $"보상 : {activeMission.Reward.DisplayText}");
+        ConfigureTruncatedTooltip(missionStatusConditionText,
+            $"조건 : {activeMission.Description}  ({FormatProgress(activeMission, current)})");
+        ConfigureTruncatedTooltip(missionStatusRewardText,
+            $"보상 : {activeMission.Reward.DisplayText}");
+    }
+
+    private void ClearMissionStatus()
+    {
+        if (missionStatusRoot != null) missionStatusRoot.SetActive(true);
+        ClearMissionStatusTexts();
+    }
+
+    private void ClearMissionStatusTexts()
+    {
+        CommonChoiceCardLayout.SetText(missionStatusNameText, string.Empty);
+        CommonChoiceCardLayout.SetText(missionStatusConditionText, string.Empty);
+        CommonChoiceCardLayout.SetText(missionStatusRewardText, string.Empty);
+    }
+
+    private static void ConfigureTruncatedTooltip(TMP_Text text, string content)
+    {
+        if (text == null) return;
+        HoverTooltip tooltip = text.GetComponent<HoverTooltip>();
+        if (tooltip == null) tooltip = text.gameObject.AddComponent<HoverTooltip>();
+        tooltip.ConfigureTruncatedContent(content);
     }
 
     private int GetCurrentValue(StageMissionChoice mission)
@@ -1252,97 +1363,19 @@ public sealed class StageMissionSystem : MonoBehaviour
         }
     }
 
-    private void BuildRuntimeUI()
+    private void BindCardButtons()
     {
-        font = Resources.Load<TMP_FontAsset>("Art/Font/BMJUA_ttf SDF");
-        GameObject canvasObject = new("StageMissionCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-        canvas = canvasObject.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 450;
-        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.matchWidthOrHeight = 0.5f;
-
-        selectionPanel = CreatePanel("MissionSelection", canvas.transform, new Color(0.025f, 0.035f, 0.06f, 0.96f));
-        Stretch(selectionPanel.GetComponent<RectTransform>());
-        stageTitleText = CreateText("Title", selectionPanel.transform, 42, TextAlignmentOptions.Center);
-        SetRect(stageTitleText.rectTransform, new Vector2(0, 390), new Vector2(1100, 80));
-
-        for (int i = 0; i < ChoiceCount; i++)
+        for (int i = 0; i < cardButtons.Length; i++)
         {
             int captured = i;
-            GameObject card = CreatePanel($"MissionCard{i + 1}", selectionPanel.transform, new Color(0.10f, 0.13f, 0.20f, 1f));
-            SetRect(card.GetComponent<RectTransform>(), new Vector2((i - 1) * 430f, 0), new Vector2(380, 570));
-            Button button = card.AddComponent<Button>();
-            ColorBlock colors = button.colors;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1.12f, 1.12f, 1.12f);
-            colors.pressedColor = new Color(0.82f, 0.82f, 0.82f);
-            button.colors = colors;
-            button.onClick.AddListener(() => SelectChoice(captured));
-            TMP_Text text = CreateText("Content", card.transform, 24, TextAlignmentOptions.Center);
-            Stretch(text.rectTransform, 24);
-            cardButtons[i] = button;
-            cardTexts[i] = text;
+            if (cardButtons[i] != null)
+                cardButtons[i].onClick.AddListener(() => SelectChoice(captured));
         }
-
-        TMP_Text hint = CreateText("Hint", selectionPanel.transform, 21, TextAlignmentOptions.Center);
-        hint.text = "실패 페널티는 없습니다 · 보스 처치 시 판정됩니다";
-        hint.color = new Color(0.72f, 0.76f, 0.84f);
-        SetRect(hint.rectTransform, new Vector2(0, -370), new Vector2(1000, 50));
-
-        trackerPanel = CreatePanel("MissionTracker", canvas.transform, new Color(0.04f, 0.055f, 0.09f, 0.9f));
-        RectTransform trackerRect = trackerPanel.GetComponent<RectTransform>();
-        trackerRect.anchorMin = trackerRect.anchorMax = new Vector2(1f, 1f);
-        trackerRect.pivot = new Vector2(1f, 1f);
-        trackerRect.anchoredPosition = new Vector2(-28, -120);
-        trackerRect.sizeDelta = new Vector2(430, 92);
-        trackerText = CreateText("TrackerText", trackerPanel.transform, 22, TextAlignmentOptions.Center);
-        Stretch(trackerText.rectTransform, 12);
-
-        resultText = CreateText("MissionResult", canvas.transform, 32, TextAlignmentOptions.Center);
-        SetRect(resultText.rectTransform, new Vector2(0, 360), new Vector2(700, 70));
-        resultText.gameObject.SetActive(false);
-        selectionPanel.SetActive(false);
-        trackerPanel.SetActive(false);
     }
 
-    private GameObject CreatePanel(string name, Transform parent, Color color)
+    private void UnbindCardButtons()
     {
-        GameObject value = new(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        value.transform.SetParent(parent, false);
-        value.GetComponent<Image>().color = color;
-        return value;
-    }
-
-    private TMP_Text CreateText(string name, Transform parent, float size, TextAlignmentOptions alignment)
-    {
-        GameObject value = new(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-        value.transform.SetParent(parent, false);
-        TMP_Text text = value.GetComponent<TMP_Text>();
-        text.font = font;
-        text.fontSize = size;
-        text.alignment = alignment;
-        text.color = Color.white;
-        text.textWrappingMode = TextWrappingModes.Normal;
-        text.raycastTarget = false;
-        return text;
-    }
-
-    private static void SetRect(RectTransform rect, Vector2 position, Vector2 size)
-    {
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = size;
-    }
-
-    private static void Stretch(RectTransform rect, float inset = 0)
-    {
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = new Vector2(inset, inset);
-        rect.offsetMax = new Vector2(-inset, -inset);
+        foreach (Button button in cardButtons)
+            if (button != null) button.onClick.RemoveAllListeners();
     }
 }

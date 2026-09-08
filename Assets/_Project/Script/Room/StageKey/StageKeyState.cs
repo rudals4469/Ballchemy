@@ -106,6 +106,14 @@ public sealed class StageKeyState :
         }
     }
 
+    public void RestoreState(int savedKeyRoomId, bool savedAcquired, bool savedConsumed)
+    {
+        keyRoomId = Mathf.Max(savedKeyRoomId, InvalidRoomId);
+        isKeyAcquired = savedAcquired;
+        isKeyConsumed = savedAcquired && savedConsumed;
+        StateChanged?.Invoke();
+    }
+
     public bool TryAssignKeyRoom(
         int roomId)
     {

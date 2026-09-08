@@ -122,6 +122,13 @@ public sealed class StageMapGenerator :
     public StageMap CurrentMap =>
         currentMap;
 
+    public void RestoreMap(StageMap savedMap)
+    {
+        currentMap = savedMap;
+        currentMap?.RebuildLookup();
+        MapGenerated?.Invoke(currentMap);
+    }
+
     public event Action<StageMap>
         MapGenerated;
 

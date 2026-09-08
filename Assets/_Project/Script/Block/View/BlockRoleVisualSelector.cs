@@ -16,12 +16,13 @@ public static class BlockRoleVisualSelector
     private static readonly Dictionary<string, Sprite> SpriteCache =
         new Dictionary<string, Sprite>();
 
-    private static readonly Color AttackerBackground = new Color32(255, 34, 0, 255);
-    private static readonly Color TankBackground = new Color32(0, 102, 255, 255);
-    private static readonly Color NamedBackground = new Color32(255, 208, 0, 255);
-    private static readonly Color NamedSymbol = new Color32(255, 248, 190, 255);
-    private static readonly Color BossSymbol = new Color32(255, 244, 205, 255);
-    private static readonly Color IndestructibleBackground = new Color32(88, 112, 142, 255);
+    private static readonly Color AttackerBackground = new Color32(205, 75, 54, 255);
+    private static readonly Color TankBackground = new Color32(55, 112, 176, 255);
+    private static readonly Color NamedBackground = new Color32(210, 161, 48, 255);
+    private static readonly Color NamedSymbol = new Color32(245, 224, 172, 255);
+    private static readonly Color BossSymbol = new Color32(244, 218, 164, 255);
+    private static readonly Color IndestructibleBackground = new Color32(91, 104, 119, 255);
+    private static readonly Color WarmSymbolTint = new Color32(244, 225, 190, 255);
 
     private readonly struct SpecialVisualStyle
     {
@@ -89,15 +90,15 @@ public static class BlockRoleVisualSelector
     private static readonly Dictionary<string, SpecialVisualStyle> SpecialStyles =
         new Dictionary<string, SpecialVisualStyle>
         {
-            { "special_heal", new SpecialVisualStyle(new Color32(0,240,90,255), new Color32(220,255,230,255)) },
-            { "special_seal", new SpecialVisualStyle(new Color32(198,0,255,255), new Color32(255,235,90,255)) },
-            { "special_curse", new SpecialVisualStyle(new Color32(120,0,235,255), new Color32(238,215,255,255)) },
-            { "special_explosion", new SpecialVisualStyle(new Color32(255,52,0,255), new Color32(255,222,165,255)) },
-            { "special_repair", new SpecialVisualStyle(new Color32(0,230,215,255), new Color32(210,255,252,255)) },
-            { "special_shield", new SpecialVisualStyle(new Color32(0,105,255,255), new Color32(220,240,255,255)) },
-            { "special_guardian", new SpecialVisualStyle(new Color32(0,205,255,255), new Color32(210,250,255,255)) },
-            { "special_gold", new SpecialVisualStyle(new Color32(255,196,0,255), new Color32(255,245,180,255)) },
-            { "special_teleport", new SpecialVisualStyle(new Color32(60,30,255,255), new Color32(228,235,255,255)) }
+            { "special_heal", new SpecialVisualStyle(new Color32(65,174,101,255), new Color32(218,239,211,255)) },
+            { "special_seal", new SpecialVisualStyle(new Color32(151,73,174,255), new Color32(237,215,151,255)) },
+            { "special_curse", new SpecialVisualStyle(new Color32(104,67,151,255), new Color32(222,204,229,255)) },
+            { "special_explosion", new SpecialVisualStyle(new Color32(205,76,43,255), new Color32(239,204,155,255)) },
+            { "special_repair", new SpecialVisualStyle(new Color32(54,157,153,255), new Color32(205,232,218,255)) },
+            { "special_shield", new SpecialVisualStyle(new Color32(55,111,174,255), new Color32(207,224,232,255)) },
+            { "special_guardian", new SpecialVisualStyle(new Color32(54,143,174,255), new Color32(204,230,229,255)) },
+            { "special_gold", new SpecialVisualStyle(new Color32(207,157,45,255), new Color32(239,220,159,255)) },
+            { "special_teleport", new SpecialVisualStyle(new Color32(78,68,164,255), new Color32(211,213,229,255)) }
         };
 
     public static void Apply(
@@ -194,9 +195,36 @@ public static class BlockRoleVisualSelector
 
     private static void ApplyColoredBackground(Block block, Color color)
     {
-        Sprite background = LoadColoredBackgroundSprite(color);
+        Sprite background = LoadColoredBackgroundSprite(
+            ResolveWarmPaletteColor(color));
         if (background != null)
             block.ApplyRuntimeSprite(background);
+    }
+
+    private static Color ResolveWarmPaletteColor(Color source)
+    {
+        Color.RGBToHSV(
+            source,
+            out float hue,
+            out float saturation,
+            out float value);
+
+        Color toned = Color.HSVToRGB(
+            hue,
+            saturation * 0.84f,
+            value * 0.91f);
+        Color warmPaper = new Color(
+            0.90f,
+            0.80f,
+            0.66f,
+            source.a);
+
+        toned = Color.Lerp(
+            toned,
+            warmPaper,
+            0.07f);
+        toned.a = source.a;
+        return toned;
     }
 
     private static Sprite LoadColoredBackgroundSprite(Color color)
@@ -296,7 +324,7 @@ public static class BlockRoleVisualSelector
         SortingGroup sortingGroup = overlayObject.GetComponent<SortingGroup>();
         if (sortingGroup == null) sortingGroup = overlayObject.AddComponent<SortingGroup>();
         overlay.sprite = symbolCard;
-        overlay.color = symbolColor ?? Color.white;
+        overlay.color = symbolColor ?? WarmSymbolTint;
         // Explicitly inherit the prefab renderer's valid sprite material.
         // Assigning null can keep a stale missing-shader material on an
         // already-created runtime renderer and produces Unity's magenta quad.

@@ -45,12 +45,23 @@ public sealed class BallLauncher :
     [Header("Launch Settings")]
 
     [Tooltip(
-        "발사 묶음 사이의 시간 간격입니다.\n" +
-        "다각도 발사 증강이 활성화되어도 " +
-        "같은 묶음의 공들은 같은 프레임에 발사됩니다."
+        "공이 적을 때 적용되는 발사 묶음 사이의 시간 간격입니다."
     )]
     [SerializeField, Min(0f)]
-    private float launchInterval = 0.08f;
+    private float sparseBallLaunchInterval = 0.12f;
+
+    [Tooltip(
+        "공이 많을 때 적용되는 발사 묶음 사이의 최소 시간 간격입니다."
+    )]
+    [SerializeField, Min(0f)]
+    private float crowdedBallLaunchInterval = 0.03f;
+
+    [Tooltip(
+        "이 발사 묶음 수부터 가장 빠른 발사 간격을 적용합니다.\n" +
+        "다각도 발사는 같은 프레임에 나가는 공들을 한 묶음으로 계산합니다."
+    )]
+    [SerializeField, Min(2)]
+    private int fullSpeedBundleCount = 60;
 
     [Tooltip(
         "발사 시작 방향을 중심으로 아직 발사되지 않은 공을 조향할 수 있는 최대 각도입니다.")]
@@ -276,10 +287,23 @@ public sealed class BallLauncher :
 
     private void NormalizeSettings()
     {
-        launchInterval =
+        sparseBallLaunchInterval =
             Mathf.Max(
-                launchInterval,
+                sparseBallLaunchInterval,
                 0f
+            );
+
+        crowdedBallLaunchInterval =
+            Mathf.Clamp(
+                crowdedBallLaunchInterval,
+                0f,
+                sparseBallLaunchInterval
+            );
+
+        fullSpeedBundleCount =
+            Mathf.Max(
+                fullSpeedBundleCount,
+                2
             );
 
         steeringAngle =
@@ -729,6 +753,11 @@ public sealed class BallLauncher :
         }
 
         int nextBallIndex = 0;
+        int bundleCount = Mathf.CeilToInt(
+            currentLaunchSnapshot.Count /
+            (float)branchCount);
+        float currentLaunchInterval =
+            GetLaunchInterval(bundleCount);
 
         while (nextBallIndex <
                currentLaunchSnapshot.Count)
@@ -788,11 +817,11 @@ public sealed class BallLauncher :
                 break;
             }
 
-            if (launchInterval > 0f)
+            if (currentLaunchInterval > 0f)
             {
                 yield return
                     new WaitForSeconds(
-                        launchInterval
+                        currentLaunchInterval
                     );
             }
             else
@@ -811,6 +840,25 @@ public sealed class BallLauncher :
             );
 
         TryCompleteAttack();
+    }
+
+    private float GetLaunchInterval(
+        int bundleCount)
+    {
+        float progress = Mathf.InverseLerp(
+            1f,
+            fullSpeedBundleCount,
+            Mathf.Max(bundleCount, 1));
+
+        progress = Mathf.SmoothStep(
+            0f,
+            1f,
+            progress);
+
+        return Mathf.Lerp(
+            sparseBallLaunchInterval,
+            crowdedBallLaunchInterval,
+            progress);
     }
 
     private void LaunchSingleBall(

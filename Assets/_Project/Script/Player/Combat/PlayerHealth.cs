@@ -159,6 +159,14 @@ public sealed class PlayerHealth :
         );
     }
 
+    public void RestoreState(int savedMaxHealth, int savedCurrentHealth)
+    {
+        maxHealth = Mathf.Max(1, savedMaxHealth);
+        currentHealth = Mathf.Clamp(savedCurrentHealth, 1, maxHealth);
+        isDead = false;
+        HealthChanged?.Invoke(currentHealth, maxHealth);
+    }
+
     public bool TryIncreaseMaxHealth(
         int amount)
     {

@@ -920,6 +920,42 @@ public sealed class StageRoomNavigator :
         );
     }
 
+    public int[] GetVisitedRoomIds() => new List<int>(visitedRoomIds).ToArray();
+
+    public int[] GetClearedCombatRoomIds() => new List<int>(clearedCombatRoomIds).ToArray();
+
+    public bool RestoreProgress(StageMap savedMap, int savedCurrentRoomId,
+        int savedPreviousRoomId, int[] savedVisitedRoomIds, int[] savedClearedRoomIds)
+    {
+        if (savedMap == null || savedMap.RoomCount <= 0)
+            return false;
+
+        savedMap.RebuildLookup();
+        RoomNode restoredRoom = savedMap.GetRoomById(savedCurrentRoomId);
+        if (restoredRoom == null)
+            return false;
+
+        currentMap = savedMap;
+        currentRoom = restoredRoom;
+        previousRoom = savedMap.GetRoomById(savedPreviousRoomId);
+        isNavigationLocked = false;
+        visitedRoomIds.Clear();
+        clearedCombatRoomIds.Clear();
+        if (savedVisitedRoomIds != null)
+            foreach (int id in savedVisitedRoomIds) visitedRoomIds.Add(id);
+        if (savedClearedRoomIds != null)
+            foreach (int id in savedClearedRoomIds) clearedCombatRoomIds.Add(id);
+        visitedRoomIds.Add(currentRoom.RoomId);
+
+        blockGridManager?.SynchronizeRoomStage(currentMap.StageNumber);
+        blockGridManager?.ClearRoomWaveSnapshots();
+        ConfigureCurrentRoomOnEntry();
+        MapInitialized?.Invoke(currentMap);
+        RoomChanged?.Invoke(previousRoom, currentRoom);
+        NavigationAvailabilityChanged?.Invoke();
+        return true;
+    }
+
     public bool TryDebugEnterRoom(RoomType roomType)
     {
         if (currentMap == null ||

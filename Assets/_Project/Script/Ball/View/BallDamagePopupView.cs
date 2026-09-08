@@ -400,6 +400,13 @@ public sealed class BallDamagePopupView :
                 ? style.TextColor
                 : defaultColor;
 
+        // Preserve each damage type's face color while keeping bright text
+        // readable over the parchment combat surface.
+        damageText.outlineColor =
+            new Color32(45, 28, 18, 230);
+        damageText.outlineWidth =
+            0.18f;
+
         damageText.fontSize =
             style != null
                 ? style.FontSize + 1f

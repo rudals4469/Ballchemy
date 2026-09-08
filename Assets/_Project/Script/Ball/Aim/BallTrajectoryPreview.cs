@@ -59,9 +59,9 @@ public sealed class BallTrajectoryPreview :
     [SerializeField]
     private Color shortDotColor =
         new Color(
-            1f,
-            1f,
-            1f,
+            0.18f,
+            0.11f,
+            0.07f,
             0.95f
         );
 
@@ -88,9 +88,9 @@ public sealed class BallTrajectoryPreview :
     [SerializeField]
     private Color longDotColor =
         new Color(
-            1f,
-            1f,
-            1f,
+            0.18f,
+            0.11f,
+            0.07f,
             0.6f
         );
 
@@ -1094,6 +1094,18 @@ public sealed class BallTrajectoryPreview :
 
         dot.color =
             dotColor;
+
+        Transform outlineTransform =
+            dotTransform.Find("AimDotOutline");
+        if (outlineTransform != null &&
+            outlineTransform.TryGetComponent(out SpriteRenderer outline))
+        {
+            outline.color = new Color(
+                0.96f,
+                0.86f,
+                0.68f,
+                dotColor.a * 0.72f);
+        }
     }
 
     private void EnsureDotPoolSize(

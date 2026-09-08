@@ -159,7 +159,36 @@ public sealed class BlockLayout
         }
 
         visualRenderer.color =
-            definition.Color;
+            ResolveWarmPaletteColor(
+                definition.Color
+            );
+    }
+
+    private static Color ResolveWarmPaletteColor(
+        Color source)
+    {
+        Color.RGBToHSV(
+            source,
+            out float hue,
+            out float saturation,
+            out float value);
+
+        Color toned = Color.HSVToRGB(
+            hue,
+            saturation * 0.84f,
+            value * 0.91f);
+        Color warmPaper = new Color(
+            0.90f,
+            0.80f,
+            0.66f,
+            source.a);
+
+        toned = Color.Lerp(
+            toned,
+            warmPaper,
+            0.07f);
+        toned.a = source.a;
+        return toned;
     }
 
     private void ApplyVisualLayout(

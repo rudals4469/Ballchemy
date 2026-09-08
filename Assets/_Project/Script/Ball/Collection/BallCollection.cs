@@ -604,6 +604,38 @@ public sealed class BallCollection :
         return replacedCount;
     }
 
+    public bool RestoreComposition(IReadOnlyList<BallDefinition> definitions)
+    {
+        if (Ball.ActiveMovingBallCount > 0)
+            return false;
+
+        RemoveDestroyedBallReferences();
+        for (int i = 0; i < balls.Count; i++)
+        {
+            if (balls[i] != null)
+                Destroy(balls[i].gameObject);
+        }
+        balls.Clear();
+
+        if (definitions != null)
+        {
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                BallDefinition definition = ResolveSupportedDefinition(definitions[i]);
+                if (definition != null)
+                    CreateBalls(1, definition);
+            }
+        }
+
+        if (balls.Count == 0)
+            CreateBalls(1, startingBallDefinition);
+
+        isInitialized = true;
+        ApplyCurrentVisibilityToAll();
+        BallCountChanged?.Invoke(balls.Count);
+        return true;
+    }
+
     public bool ReplaceBallDefinition(
         Ball targetBall,
         BallDefinition replacementDefinition)

@@ -262,6 +262,9 @@ public sealed class HoverTooltip : MonoBehaviour,
     public void ConfigureContent(string nextContent)
     {
         content = nextContent ?? string.Empty;
+        triggerText = GetComponent<TMP_Text>();
+        showOnlyWhenTextIsTruncated = false;
+        if (triggerText != null) triggerText.raycastTarget = true;
         RefreshUnderline();
     }
 

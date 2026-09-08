@@ -459,6 +459,27 @@ public sealed class BallVisualView :
         if (!visible || grade != BallStarGrade.ThreeStar)
             return;
 
+        if (ball != null && !ball.IsMoving)
+        {
+            outerGradeRing.transform.localScale =
+                Vector3.one * 1.26f;
+
+            if (innerGradeRing != null)
+                innerGradeRing.transform.localScale =
+                    Vector3.one * 1.08f;
+
+            if (gradeCoreGlow != null)
+            {
+                Color waitingGlow = gradeCoreGlow.color;
+                waitingGlow.a = 0.24f;
+                gradeCoreGlow.color = waitingGlow;
+                gradeCoreGlow.transform.localScale =
+                    Vector3.one * 0.82f;
+            }
+
+            return;
+        }
+
         float pulse = 0.5f + 0.5f * Mathf.Sin(
             Time.time * 5.5f + gradePulseOffset);
         outerGradeRing.transform.localScale =

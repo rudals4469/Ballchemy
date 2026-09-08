@@ -252,6 +252,26 @@ public sealed class RunAugmentState :
         return true;
     }
 
+    public void RestoreAugments(IReadOnlyList<AugmentDefinition> definitions,
+        IReadOnlyList<int> levels)
+    {
+        activeAugments.Clear();
+        ballRuntimeStats?.ResetRunBonuses();
+        if (definitions == null || levels == null)
+            return;
+
+        int count = Mathf.Min(definitions.Count, levels.Count);
+        for (int i = 0; i < count; i++)
+        {
+            AugmentDefinition definition = definitions[i];
+            int targetLevel = definition != null
+                ? Mathf.Clamp(levels[i], 0, definition.MaxLevel)
+                : 0;
+            for (int level = 0; level < targetLevel; level++)
+                TryIncreaseLevel(definition);
+        }
+    }
+
     private AugmentRuntimeEntry FindEntry(
         AugmentDefinition definition)
     {
