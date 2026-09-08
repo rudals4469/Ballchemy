@@ -131,11 +131,6 @@ public sealed class UnknownEventSlotPresenter :
     [SerializeField, Min(0.01f)]
     private float winnerPunchDuration = 0.2f;
 
-    [Header("State")]
-
-    [SerializeField]
-    private bool hideOnAwake = true;
-
     private readonly List<UnknownEventDefinition>
         candidates =
             new List<UnknownEventDefinition>();
@@ -159,7 +154,6 @@ public sealed class UnknownEventSlotPresenter :
 
     private void Awake()
     {
-        _ = hideOnAwake; // Legacy scene setting; panel roots now control visibility.
         FindReferences();
         NormalizeSettings();
         ValidateReferences();

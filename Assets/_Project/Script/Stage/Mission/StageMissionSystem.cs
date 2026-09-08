@@ -868,12 +868,6 @@ public sealed class StageMissionSystem : MonoBehaviour
         };
     }
 
-    private bool IsMissionSucceeded(StageMissionChoice mission)
-    {
-        int value = GetCurrentValue(mission);
-        return IsMissionSucceeded(mission, value);
-    }
-
     private static bool IsMissionSucceeded(StageMissionChoice mission, int value) =>
         IsMaximumMission(mission.Type) ? value <= mission.Target : value >= mission.Target;
 
@@ -1169,20 +1163,6 @@ public sealed class StageMissionSystem : MonoBehaviour
             1,
             new RewardApplyContext(ballCollection, runAugmentState));
         return rewards != null && rewards.Count > 0 ? rewards[0] : null;
-    }
-
-    private T FindCatalogReward<T>() where T : RewardDefinition
-    {
-        RewardCatalog catalog = rewardGenerator != null ? rewardGenerator.RewardCatalog : null;
-        if (catalog?.RewardDefinitions == null) return null;
-        RewardApplyContext context = new(ballCollection, runAugmentState);
-        List<T> candidates = new();
-        for (int i = 0; i < catalog.RewardDefinitions.Count; i++)
-        {
-            T reward = catalog.RewardDefinitions[i] as T;
-            if (reward != null && reward.CanApply(context)) candidates.Add(reward);
-        }
-        return candidates.Count > 0 ? candidates[UnityEngine.Random.Range(0, candidates.Count)] : null;
     }
 
     private bool ApplyMissionReward(StageMissionRewardOffer offer)

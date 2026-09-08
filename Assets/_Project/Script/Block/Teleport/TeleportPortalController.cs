@@ -16,13 +16,11 @@ public sealed class TeleportPortalController : MonoBehaviour
     [SerializeField, Min(0f)] private float maximumExitCorrection = 0.08f;
     [SerializeField, Min(0.001f)] private float exitCorrectionStep = 0.01f;
     [SerializeField] private LayerMask blockingLayers = ~0;
-    [SerializeField] private bool warnOnceWhenExitBlocked = true;
 
     private readonly Collider2D[] overlapResults = new Collider2D[32];
     private Block block;
     private BoxCollider2D triggerCollider;
     private TeleportPortalController partner;
-    private bool blockedWarningIssued;
 
     public TeleportPortalController Partner => partner;
     public bool IsLinked => partner != null && partner != this;
@@ -66,13 +64,11 @@ public sealed class TeleportPortalController : MonoBehaviour
     public void Link(TeleportPortalController other)
     {
         partner = other != this ? other : null;
-        blockedWarningIssued = false;
     }
 
     public void Unlink()
     {
         partner = null;
-        blockedWarningIssued = false;
     }
 
     public bool Overlaps(Collider2D other)
@@ -283,17 +279,6 @@ public sealed class TeleportPortalController : MonoBehaviour
     {
         Vector3 scale = collider.transform.lossyScale;
         return collider.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
-    }
-
-    private void WarnBlockedExit(Ball ball)
-    {
-        if (warnOnceWhenExitBlocked && blockedWarningIssued)
-        {
-            return;
-        }
-
-        blockedWarningIssued = true;
-        Debug.LogWarning($"TeleportPortalController: {name} 출구가 막혀 {ball.name} 텔레포트를 취소했습니다.", this);
     }
 
     private void NormalizeSettings()

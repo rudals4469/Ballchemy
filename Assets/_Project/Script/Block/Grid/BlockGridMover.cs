@@ -118,24 +118,6 @@ public sealed class BlockGridMover : MonoBehaviour
         );
     }
 
-    /*
-     * 기존 코드를 바로 전부 수정하지 않아도 되도록
-     * 이전 호출 형식을 유지하는 호환용 메서드다.
-     *
-     * Cell Size는 이제 Block과 BoardGrid가 관리하므로
-     * 여기서는 사용하지 않는다.
-     */
-    public IEnumerator MoveDownRoutine(
-        IReadOnlyList<Block> blocks,
-        int rowCount,
-        float unusedCellSize)
-    {
-        return MoveDownRoutine(
-            blocks,
-            rowCount
-        );
-    }
-
     private List<BlockGridMoveTarget>
         CreateMoveTargets(
             IReadOnlyList<Block> blocks,

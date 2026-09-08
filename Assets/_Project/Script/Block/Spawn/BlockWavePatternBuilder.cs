@@ -228,11 +228,6 @@ public sealed class BlockWavePatternBuilder
             availableColumns
         );
 
-        ricochetPocket.Normalize(
-            availableColumns,
-            availableRows
-        );
-
         horizontalStaggerDistance =
             Mathf.Clamp(
                 horizontalStaggerDistance,

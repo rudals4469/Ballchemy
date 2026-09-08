@@ -718,22 +718,6 @@ public sealed class ElementPlaceholderVfxController : MonoBehaviour
         line.endWidth = state.Width * fade * (isClosedShape ? 1f : endTaper);
     }
 
-    private static Vector3 Direction(int index, int count)
-    {
-        float angle = index * Mathf.PI * 2f / count;
-        return new Vector3(Mathf.Cos(angle), Mathf.Sin(angle));
-    }
-
-    private static Style ResolveStyle(ElementType element)
-    {
-        switch (element)
-        {
-            case ElementType.Water: return Style.Water;
-            case ElementType.Electric: return Style.Lightning;
-            default: return Style.Water;
-        }
-    }
-
     private static Color ResolveColor(ElementType element)
     {
         switch (element)

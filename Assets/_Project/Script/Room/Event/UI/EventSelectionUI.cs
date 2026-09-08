@@ -17,11 +17,6 @@ public sealed class EventSelectionUI :
     private List<EventChoiceCardUI> cards =
         new List<EventChoiceCardUI>();
 
-    [Header("State")]
-
-    [SerializeField]
-    private bool hideOnAwake = true;
-
     private bool isOpen;
     private bool hasSelection;
 
@@ -33,7 +28,6 @@ public sealed class EventSelectionUI :
 
     private void Awake()
     {
-        _ = hideOnAwake; // Legacy scene setting; panel roots now control visibility.
         RemoveDuplicateAndNullCards();
         ValidateReferences();
         SubscribeCards();

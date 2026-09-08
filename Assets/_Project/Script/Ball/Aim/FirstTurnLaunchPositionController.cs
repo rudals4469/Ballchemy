@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -20,17 +18,6 @@ public sealed class FirstTurnLaunchPositionController :
 
     [SerializeField]
     private BallCountView ballCountView;
-
-    [SerializeField]
-    private BallCollection ballCollection;
-
-    [Header("Selection Feedback")]
-
-    [SerializeField, Range(1f, 2f)]
-    private float confirmationPulseScale = 1.4f;
-
-    [SerializeField, Min(0.05f)]
-    private float confirmationPulseDuration = 0.22f;
 
     [Header("Selection Arrow")]
 
@@ -52,15 +39,6 @@ public sealed class FirstTurnLaunchPositionController :
     [SerializeField]
     private int selectionArrowSortingOrder = 30;
 
-    private readonly List<BallVisualView>
-        pulseTargets =
-            new List<BallVisualView>();
-
-    private readonly List<BallVisualView>
-        confirmationPulseTargets =
-            new List<BallVisualView>();
-
-    private Coroutine confirmationPulseCoroutine;
     private SpriteRenderer selectionArrowRenderer;
 
     private Camera mainCamera;
@@ -138,11 +116,6 @@ public sealed class FirstTurnLaunchPositionController :
                 );
         }
 
-        if (ballCollection == null)
-        {
-            ballCollection =
-                GetComponent<BallCollection>();
-        }
     }
 
     private void SubscribeEvents()
@@ -202,15 +175,6 @@ public sealed class FirstTurnLaunchPositionController :
 
         SetArrowVisible(available);
 
-        if (available)
-        {
-            StopConfirmationPulse();
-        }
-        else
-        {
-            ResetPulseTargets();
-        }
-
         if (available &&
             !wasAvailable)
         {
@@ -229,11 +193,6 @@ public sealed class FirstTurnLaunchPositionController :
                blockGridManager.CurrentRoomState ==
                    RoomCombatState.InCombat &&
                blockGridManager.CurrentTurn == 0;
-    }
-
-    private void LateUpdate()
-    {
-        // The first-turn balls stay at their normal size.
     }
 
     private void CreateSelectionArrowRenderer()
@@ -280,49 +239,6 @@ public sealed class FirstTurnLaunchPositionController :
                 visible &&
                 selectionArrowSprite != null;
         }
-    }
-
-    private void RefreshPulseTargets()
-    {
-        ResetPulseTargets();
-
-        if (ballCollection == null)
-        {
-            return;
-        }
-
-        List<Ball> balls =
-            ballCollection.CreateSnapshot();
-
-        for (int i = 0;
-             i < balls.Count;
-             i++)
-        {
-            BallVisualView view =
-                balls[i] != null
-                    ? balls[i].GetComponent<
-                        BallVisualView
-                    >()
-                    : null;
-
-            if (view != null)
-            {
-                pulseTargets.Add(view);
-            }
-        }
-    }
-
-    private void ResetPulseTargets()
-    {
-        for (int i = 0;
-             i < pulseTargets.Count;
-             i++)
-        {
-            pulseTargets[i]
-                ?.SetAttentionScaleMultiplier(1f);
-        }
-
-        pulseTargets.Clear();
     }
 
     private void HandleMouse()
@@ -393,65 +309,6 @@ public sealed class FirstTurnLaunchPositionController :
         );
     }
 
-    private IEnumerator PlayConfirmationPulseRoutine()
-    {
-        float elapsed = 0f;
-
-        while (elapsed <
-               confirmationPulseDuration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-
-            float progress =
-                Mathf.Clamp01(
-                    elapsed /
-                    confirmationPulseDuration
-                );
-
-            float multiplier =
-                Mathf.Lerp(
-                    confirmationPulseScale,
-                    1f,
-                    progress
-                );
-
-            for (int i = 0;
-                 i < confirmationPulseTargets.Count;
-                 i++)
-            {
-                confirmationPulseTargets[i]
-                    ?.SetAttentionScaleMultiplier(
-                        multiplier
-                    );
-            }
-
-            yield return null;
-        }
-
-        StopConfirmationPulse();
-    }
-
-    private void StopConfirmationPulse()
-    {
-        if (confirmationPulseCoroutine != null)
-        {
-            StopCoroutine(
-                confirmationPulseCoroutine
-            );
-            confirmationPulseCoroutine = null;
-        }
-
-        for (int i = 0;
-             i < confirmationPulseTargets.Count;
-             i++)
-        {
-            confirmationPulseTargets[i]
-                ?.SetAttentionScaleMultiplier(1f);
-        }
-
-        confirmationPulseTargets.Clear();
-    }
-
     private Vector2 ScreenToWorld(
         Vector2 screenPosition)
     {
@@ -505,7 +362,6 @@ public sealed class FirstTurnLaunchPositionController :
         }
 
         SetSelectionAvailable(false);
-        StopConfirmationPulse();
     }
 
 }

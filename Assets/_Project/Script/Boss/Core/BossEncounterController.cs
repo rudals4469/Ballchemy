@@ -529,11 +529,6 @@ public sealed class BossEncounterController :
         }
     }
 
-    private void HandleBossEncounterRequested()
-    {
-        StartBossEncounter();
-    }
-
     private void HandleTurnStateChanged(
         TurnState turnState)
     {
@@ -2524,66 +2519,6 @@ public sealed class BossEncounterController :
             currentBossBlock.TakeScriptedDamage(
                 activeBossDefinition.TrapDisarmBossDamage * 2);
         }
-    }
-
-    private void SpawnTemporaryTrapWalls(int requestedCount)
-    {
-        BlockDefinition definition =
-            activeBossDefinition.TrapTerrainDefinition;
-
-        if (definition == null || currentBossBlock == null)
-        {
-            return;
-        }
-
-        Vector2Int bossCell = currentBossBlock.GridPosition;
-        List<Vector2Int> candidates = new List<Vector2Int>
-        {
-            bossCell + Vector2Int.left,
-            bossCell + Vector2Int.right,
-            bossCell + Vector2Int.up,
-            bossCell + Vector2Int.down
-        };
-
-        Shuffle(candidates);
-        List<Block> spawned = new List<Block>();
-
-        for (int i = 0;
-             i < candidates.Count && spawned.Count < requestedCount;
-             i++)
-        {
-            Vector2Int cell = candidates[i];
-
-            if (cell.x < 0 ||
-                cell.x >= boardGrid.ColumnCount ||
-                cell.y < 0 ||
-                cell.y >= boardGrid.RowCount ||
-                IsEncounterCellOccupied(cell))
-            {
-                continue;
-            }
-
-            Block wall = SpawnPatternBlock(
-                definition,
-                '#',
-                cell.x,
-                cell.y,
-                cell.y,
-                1,
-                0
-            );
-
-            if (wall == null)
-            {
-                continue;
-            }
-
-            temporaryTrapWalls.Add(wall);
-            encounterBlocks.Add(wall);
-            spawned.Add(wall);
-        }
-
-        blockGridManager.RegisterBossEncounterBlocks(spawned);
     }
 
     private bool IsEncounterCellOccupied(Vector2Int cell)

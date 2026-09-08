@@ -23,18 +23,7 @@ public static class AugmentCombatModifiers
     private static void Reset()
     {
         cachedState = null;
-        hitCounts.Clear();
-        shockwaveTriggeredBalls.Clear();
-        dismantledBlocks.Clear();
-        splitTriggeredBalls.Clear();
-        lastHitBlockByBall.Clear();
-        differentBlockChains.Clear();
-        launchedElementMask = 0;
-        alchemyChainReady = false;
-        fireHitCount = poisonCollapseCount = electrocutionCount = 0;
-        waterHitCount = 0;
-        iceAgeActive = false;
-        floodTriggered = false;
+        BeginTurn();
     }
 
     public static void BeginTurn()
@@ -376,6 +365,30 @@ public static class AugmentCombatModifiers
             percent += Mathf.Min(maximum, ball.BounceCount / threshold * 10);
         }
 
+        percent += GetHitHistoryDamagePercent(ball, target, element, isPrimaryDirectHit);
+        percent += GetQueueSequenceDamagePercent(ball, queue, isBasic);
+
+        if (elemental != null && grade == BallStarGrade.ThreeStar &&
+            IsAtMaximumState(elemental))
+            percent += GetRuleInteger(RuleAugmentEffectKind.ThreeStarOverflow);
+        if (element == ElementType.Water && elemental != null)
+        {
+            int step = GetRuleInteger(RuleAugmentEffectKind.WetNeighborBonus);
+            percent += Mathf.Min(step * 4, CountWetNeighbors(target) * step);
+        }
+        if (element == ElementType.Electric)
+            percent += GetRuleInteger(RuleAugmentEffectKind.ElectricDamageBonus) +
+                (electrocutionCount >= 5 ? 50 : 0);
+        if (element == ElementType.Ice && iceAgeActive)
+            percent += GetRuleInteger(RuleAugmentEffectKind.IceAge);
+
+        return Mathf.Max(1, ApplyPercentage(damage + fixedBonus, percent));
+    }
+
+    private static int GetHitHistoryDamagePercent(
+        Ball ball, Block target, ElementType? element, bool isPrimaryDirectHit)
+    {
+        int percent = 0;
         int ballId = ball.GetInstanceID();
         int targetId = target.GetInstanceID();
         if (isPrimaryDirectHit &&
@@ -409,6 +422,13 @@ public static class AugmentCombatModifiers
                 GetRuleInteger(RuleAugmentEffectKind.FireTurnRamp));
         }
 
+        return percent;
+    }
+
+    private static int GetQueueSequenceDamagePercent(
+        Ball ball, BallTurnQueueController queue, bool isBasic)
+    {
+        int percent = 0;
         if (queue != null && queue.PreparedQueue.Count > 0)
         {
             int index = Mathf.Clamp(queue.NextLaunchIndex - 1,
@@ -435,21 +455,7 @@ public static class AugmentCombatModifiers
             }
         }
 
-        if (elemental != null && grade == BallStarGrade.ThreeStar &&
-            IsAtMaximumState(elemental))
-            percent += GetRuleInteger(RuleAugmentEffectKind.ThreeStarOverflow);
-        if (element == ElementType.Water && elemental != null)
-        {
-            int step = GetRuleInteger(RuleAugmentEffectKind.WetNeighborBonus);
-            percent += Mathf.Min(step * 4, CountWetNeighbors(target) * step);
-        }
-        if (element == ElementType.Electric)
-            percent += GetRuleInteger(RuleAugmentEffectKind.ElectricDamageBonus) +
-                (electrocutionCount >= 5 ? 50 : 0);
-        if (element == ElementType.Ice && iceAgeActive)
-            percent += GetRuleInteger(RuleAugmentEffectKind.IceAge);
-
-        return Mathf.Max(1, ApplyPercentage(damage + fixedBonus, percent));
+        return percent;
     }
 
     public static BallStarGrade GetEffectiveStarGrade(Ball ball)
@@ -470,105 +476,6 @@ public static class AugmentCombatModifiers
             status.StoredFrostStack >= status.GetMaximumStack(ElementType.Ice));
     }
 
-    private static int ModifyLegacyDamage(Ball ball, Block target, int damage)
-    {
-        if (ball == null || target == null) return damage;
-        int bonus = 0;
-        BallTurnQueueController queue = Object.FindFirstObjectByType<BallTurnQueueController>();
-        int launched = queue != null ? Mathf.Max(queue.NextLaunchIndex, 1) : 1;
-        int remaining = queue != null ? queue.RemainingBallCount : 0;
-        bonus += (launched / 10) * GetRuleInteger(RuleAugmentEffectKind.DamagePerLaunchedCount);
-        bonus += (remaining / 10) * GetRuleInteger(RuleAugmentEffectKind.DamageByRemainingBalls);
-        if (queue != null && queue.ActiveLaunchCount > 0 && launched * 2 > queue.ActiveLaunchCount)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.LateTurnOverdrive);
-        if (ball.StarGrade == BallStarGrade.ThreeStar)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.HighGradeDamage);
-        BallCollection collection = Object.FindFirstObjectByType<BallCollection>();
-        if (collection != null && collection.Count <= 15)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.FewBallElite);
-        BlockElementStatus elemental = target.GetComponent<BlockElementStatus>();
-        PoisonBlockStatus poison = target.GetComponent<PoisonBlockStatus>();
-        if (elemental != null && elemental.HasBurn)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.BurningTargetDamage);
-        if (poison != null && poison.StackCount >= 5)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.PoisonedTargetDamage);
-        if (poison != null && poison.StackCount >= 5 && ball.BounceCount > 0)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.PoisonBounceSynergy);
-        if (ball.BounceCount > 0 && GetElement(ball) == ElementType.Electric)
-            bonus += ball.BounceCount * GetRuleInteger(RuleAugmentEffectKind.BounceLightningSynergy);
-        if (elemental != null && elemental.IsFrozen)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.FrozenShatterDamage);
-        int id = target.GetInstanceID();
-        hitCounts.TryGetValue(id, out int hits);
-        hitCounts[id] = hits + 1;
-        if (GetElement(ball) == ElementType.Fire)
-            bonus += hits * GetRuleInteger(RuleAugmentEffectKind.RepeatedFireHit);
-        int diversity = CountOwnedElements(collection);
-        bonus += diversity * GetRuleInteger(RuleAugmentEffectKind.ElementDiversityDamage);
-        if (queue != null && queue.PreparedQueue.Count > 0)
-        {
-            int index = Mathf.Clamp(queue.NextLaunchIndex - 1, 0, queue.PreparedQueue.Count - 1);
-            Ball previous = index > 0 ? queue.PreparedQueue[index - 1] : null;
-            if (previous != null && GetElement(previous) != GetElement(ball))
-            {
-                bonus += GetRuleInteger(RuleAugmentEffectKind.AlternatingElementBonus);
-                bonus += GetRuleInteger(RuleAugmentEffectKind.PreviousElementInheritance);
-            }
-            if (index >= 2 && previous != null &&
-                previous.TraitType == ball.TraitType &&
-                queue.PreparedQueue[index - 2].TraitType == ball.TraitType)
-                bonus += GetRuleInteger(RuleAugmentEffectKind.ConsecutiveTraitBonus);
-            if (previous != null && previous.StarGrade == ball.StarGrade)
-                bonus += GetRuleInteger(RuleAugmentEffectKind.ConsecutiveGradeBonus);
-        }
-        if (elemental != null && ball.StarGrade == BallStarGrade.ThreeStar &&
-            (elemental.WetStack >= elemental.MaximumStack || elemental.ChargeStack >= elemental.MaximumStack ||
-             elemental.BurnStack >= elemental.MaximumStack || elemental.FrostStack >= elemental.MaximumStack))
-            bonus += GetRuleInteger(RuleAugmentEffectKind.ThreeStarOverflow);
-        ElementType? ballElement = GetElement(ball);
-        ResidualChargeStatus residualCharge = target.GetComponent<ResidualChargeStatus>();
-        if (ballElement == ElementType.Electric && residualCharge != null && residualCharge.IsMarked)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.ResidualCharge);
-        if (ballElement == ElementType.Fire)
-            bonus += (launched / 5) * GetRuleInteger(RuleAugmentEffectKind.FireTurnRamp);
-        if (ballElement == ElementType.Water && elemental != null)
-            bonus += CountWetNeighbors(target) * GetRuleInteger(RuleAugmentEffectKind.WetNeighborBonus);
-        if (elemental != null && elemental.HasAnyStack)
-        {
-            bonus += GetRuleInteger(RuleAugmentEffectKind.ReactionEcho);
-            bonus += GetRuleInteger(RuleAugmentEffectKind.CriticalReaction);
-        }
-        if (ballElement.HasValue && (int)ballElement.Value == (launched - 1) % 4)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.ElementCycle);
-        if (ball.StarGrade == BallStarGrade.OneStar && launched == 1)
-            bonus += 3 * GetRuleInteger(RuleAugmentEffectKind.FirstLowGradeUpgrade);
-        if (elemental != null && elemental.BurnStack >= elemental.MaximumStack)
-            bonus += elemental.BurnStack * GetRuleInteger(RuleAugmentEffectKind.FireOverheatExplosion);
-        if (ballElement == ElementType.Water && elemental != null && elemental.HasWet)
-            bonus += GetRuleInteger(RuleAugmentEffectKind.RefundConsumedWet);
-        if (ballElement == ElementType.Electric)
-        {
-            bonus += Mathf.Max(0, launched - 1) * GetRuleInteger(RuleAugmentEffectKind.ConductionDamageRamp);
-            if (elemental != null && elemental.WetStack >= 3)
-                bonus += GetRuleInteger(RuleAugmentEffectKind.ClosedCircuitStrike);
-            bonus += GetRuleInteger(RuleAugmentEffectKind.ChainLightning);
-            if (launched >= 5) bonus += GetRuleInteger(RuleAugmentEffectKind.LightningStorm);
-        }
-        if (elemental != null && elemental.IsFrozen)
-        {
-            if (ball.TraitType == BallTraitType.Basic)
-                bonus += GetRuleInteger(RuleAugmentEffectKind.BasicShatterSplash);
-            bonus += GetRuleInteger(RuleAugmentEffectKind.MassFreeze);
-            bonus += GetRuleInteger(RuleAugmentEffectKind.IceAge);
-        }
-        if (poison != null && poison.StackCount > 0)
-        {
-            bonus += GetRuleInteger(RuleAugmentEffectKind.PlagueCollapse);
-            bonus += GetRuleInteger(RuleAugmentEffectKind.PoisonCycle);
-        }
-        return Mathf.Max(1, damage + bonus);
-    }
-
     private static int CountWetNeighbors(Block source)
     {
         BlockGridManager grid = Object.FindFirstObjectByType<BlockGridManager>();
@@ -587,21 +494,6 @@ public static class AugmentCombatModifiers
     {
         return ball?.Definition?.TraitDefinition is ElementalBallTraitDefinition elemental
             ? elemental.ElementType : (ElementType?)null;
-    }
-
-    private static int CountOwnedElements(BallCollection collection)
-    {
-        if (collection == null) return 0;
-        bool[] found = new bool[4];
-        IReadOnlyList<Ball> balls = collection.Balls;
-        for (int i = 0; i < balls.Count; i++)
-        {
-            ElementType? element = GetElement(balls[i]);
-            if (element.HasValue) found[(int)element.Value] = true;
-        }
-        int count = 0;
-        for (int i = 0; i < found.Length; i++) if (found[i]) count++;
-        return count;
     }
 
     private static IReadOnlyList<AugmentRuntimeEntry> GetEntries()

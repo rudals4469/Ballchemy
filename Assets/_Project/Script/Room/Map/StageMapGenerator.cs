@@ -1440,28 +1440,6 @@ public sealed class StageMapGenerator :
         return true;
     }
 
-    private int CalculateNamedRoomCount(
-        int stageNumber,
-        int availableRoomCount)
-    {
-        int additionalNamedRooms =
-            Mathf.Max(
-                stageNumber - 1,
-                0
-            ) /
-            stagesPerAdditionalNamedRoom;
-
-        int requestedNamedRooms =
-            baseNamedRoomCount +
-            additionalNamedRooms;
-
-        return Mathf.Clamp(
-            requestedNamedRooms,
-            0,
-            availableRoomCount
-        );
-    }
-
     private static int
         CountAvailableSpecialLeaves(
             StageMap map)

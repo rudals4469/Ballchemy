@@ -100,8 +100,7 @@ public sealed class BlockElementStatus : MonoBehaviour
         frostStack > 0;
 
     public bool HasBorderStack =>
-        wetStack > 0 ||
-        false;
+        wetStack > 0;
 
     public bool HasSurfaceStack =>
         burnStack > 0 ||

@@ -137,9 +137,6 @@ public sealed class StageMapUI :
     private Sprite startRoomIcon;
 
     [SerializeField]
-    private Sprite namedRoomIcon;
-
-    [SerializeField]
     private Sprite bossRoomIcon;
 
     [SerializeField]

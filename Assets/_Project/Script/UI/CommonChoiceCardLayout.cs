@@ -14,7 +14,6 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
     [SerializeField] private Image categorySymbol;
     [SerializeField] private Image authoredIcon;
     [SerializeField] private Sprite fallbackIcon;
-    [SerializeField] private bool useTemporaryQuestionIcon;
 
     private static Sprite QuestionIcon =>
         Resources.Load<Sprite>("UI/MapIcons/Map_Event_Readable");
@@ -208,45 +207,6 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
             iconAuxiliaryDivider.SetActive(visible && showDivider);
     }
 
-    private void EnsureIconAuxiliaryPanel()
-    {
-        if (iconAuxiliaryPanel != null) return;
-
-        iconAuxiliaryPanel = new GameObject(
-            "CommonIconAuxiliaryPanel",
-            typeof(RectTransform), typeof(CanvasRenderer),
-            typeof(Image), typeof(Outline));
-        RectTransform panelRect = iconAuxiliaryPanel.GetComponent<RectTransform>();
-        panelRect.SetParent(transform, false);
-        panelRect.SetAsFirstSibling();
-        panelRect.anchorMin = new Vector2(0f, 0f);
-        panelRect.anchorMax = new Vector2(0f, 1f);
-        panelRect.pivot = new Vector2(0.5f, 0.5f);
-        panelRect.anchoredPosition = new Vector2(70f, 0f);
-        panelRect.sizeDelta = new Vector2(116f, -20f);
-
-        Image panelImage = iconAuxiliaryPanel.GetComponent<Image>();
-        panelImage.color = new Color(0.18f, 0.18f, 0.17f, 0.42f);
-        panelImage.raycastTarget = false;
-        Outline outline = iconAuxiliaryPanel.GetComponent<Outline>();
-        outline.effectColor = new Color(0f, 0f, 0f, 0.85f);
-        outline.effectDistance = new Vector2(2f, -2f);
-        outline.useGraphicAlpha = false;
-
-        iconAuxiliaryDivider = new GameObject(
-            "IconAuxiliaryDivider",
-            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        RectTransform dividerRect = iconAuxiliaryDivider.GetComponent<RectTransform>();
-        dividerRect.SetParent(panelRect, false);
-        dividerRect.anchorMin = new Vector2(0.08f, 0.24f);
-        dividerRect.anchorMax = new Vector2(0.92f, 0.24f);
-        dividerRect.pivot = new Vector2(0.5f, 0.5f);
-        dividerRect.sizeDelta = new Vector2(0f, 2f);
-        Image divider = iconAuxiliaryDivider.GetComponent<Image>();
-        divider.color = new Color(0f, 0f, 0f, 0.8f);
-        divider.raycastTarget = false;
-    }
-
     public static Color ForRewardTier(RewardTier tier, Color fallback)
     {
         switch (tier)
@@ -313,16 +273,6 @@ public sealed class CommonChoiceCardLayout : MonoBehaviour
         if (layout == null && text.transform.parent != null)
             layout = text.transform.parent.GetComponent<LayoutElement>();
         return layout;
-    }
-
-    private static void ReserveLayoutHeight(
-        LayoutElement layout,
-        float preferredHeight)
-    {
-        if (layout == null) return;
-        layout.minHeight = preferredHeight;
-        layout.preferredHeight = preferredHeight;
-        layout.flexibleHeight = 0f;
     }
 
     private static void RestoreLayout(LayoutSnapshot snapshot)

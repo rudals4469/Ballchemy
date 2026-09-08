@@ -27,21 +27,6 @@ public sealed class BallCountView :
     private string sealedTextFormat =
         "x{0}/{1}";
 
-    [SerializeField]
-    private string selectionHintText =
-        "▼";
-
-    [SerializeField]
-    private Vector2 selectionHintOffset =
-        new Vector2(-0.25f, 0.75f);
-
-    [SerializeField]
-    private Color selectionHintColor =
-        new Color(1f, 0.82f, 0.18f, 1f);
-
-    [SerializeField, Min(0.1f)]
-    private float selectionHintFontSize = 5f;
-
     [Header("Visibility")]
     [SerializeField]
     private bool hideWhenZero = true;
@@ -58,7 +43,7 @@ public sealed class BallCountView :
     private bool showDebugLog;
 
     private bool isShowingLaunchQueue;
-    private bool isSelectionHintVisible;
+    private bool isCountSuppressed;
     private Vector2 defaultLabelPosition;
     private Color defaultLabelColor;
     private float defaultLabelFontSize;
@@ -68,13 +53,13 @@ public sealed class BallCountView :
     public void SetCountSuppressed(
         bool visible)
     {
-        if (isSelectionHintVisible ==
+        if (isCountSuppressed ==
             visible)
         {
             return;
         }
 
-        isSelectionHintVisible =
+        isCountSuppressed =
             visible;
 
         if (!visible)
@@ -416,7 +401,7 @@ public sealed class BallCountView :
 
     private void RefreshCurrentDisplay()
     {
-        if (isSelectionHintVisible)
+        if (isCountSuppressed)
         {
             if (countLabel != null)
             {
@@ -575,7 +560,7 @@ public sealed class BallCountView :
 
     private bool ShouldShowCount()
     {
-        if (isSelectionHintVisible)
+        if (isCountSuppressed)
         {
             return false;
         }
@@ -591,26 +576,6 @@ public sealed class BallCountView :
         }
 
         return ballCollection.AreBallsVisible;
-    }
-
-    private void ShowSelectionHint()
-    {
-        if (countLabel == null)
-        {
-            return;
-        }
-
-        CaptureDefaultLabelPresentation();
-
-        countLabel.rectTransform.anchoredPosition =
-            defaultLabelPosition +
-            selectionHintOffset;
-        countLabel.color = selectionHintColor;
-        countLabel.fontSize = selectionHintFontSize;
-        countLabel.alignment =
-            TextAlignmentOptions.Center;
-        countLabel.enabled = true;
-        countLabel.text = selectionHintText;
     }
 
     private void CaptureDefaultLabelPresentation()

@@ -33,14 +33,6 @@ public sealed class RewardSelectionUI :
     [SerializeField]
     private RunAugmentState runAugmentState;
 
-    [Header("State")]
-
-    [Tooltip(
-        "Awake 시 보상 패널을 자동으로 숨길지 결정합니다."
-    )]
-    [SerializeField]
-    private bool hideOnAwake = true;
-
     private bool isOpen;
     private bool hasSelection;
 
@@ -58,7 +50,6 @@ public sealed class RewardSelectionUI :
 
     private void Awake()
     {
-        _ = hideOnAwake; // Legacy scene setting; panel roots now control visibility.
         FindReferences();
         ValidateReferences();
         SubscribeCards();

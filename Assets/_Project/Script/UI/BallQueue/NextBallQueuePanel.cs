@@ -86,36 +86,6 @@ public sealed class NextBallQueuePanel : MonoBehaviour
         RefreshOverflowMarker();
     }
 
-    private void ConfigureProportionalFlaskVisual()
-    {
-        ConfigureFlaskLayer("FlaskFrame", false);
-        ConfigureFlaskLayer("FlaskGlassOverlay", true);
-    }
-
-    private void ConfigureFlaskLayer(string childName, bool isGlass)
-    {
-        Transform child = transform.Find(childName);
-        if (child == null)
-        {
-            return;
-        }
-
-        Image stretchedImage = child.GetComponent<Image>();
-        if (stretchedImage != null)
-        {
-            stretchedImage.enabled = false;
-        }
-
-        QueueFlaskProportionalGraphic graphic =
-            child.GetComponent<QueueFlaskProportionalGraphic>();
-        if (graphic == null)
-        {
-            graphic = child.gameObject.AddComponent<QueueFlaskProportionalGraphic>();
-        }
-
-        graphic.Configure(isGlass);
-    }
-
     private void OnEnable()
     {
         FindReferences();

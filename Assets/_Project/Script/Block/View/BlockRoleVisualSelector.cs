@@ -19,7 +19,6 @@ public static class BlockRoleVisualSelector
     private static readonly Color AttackerBackground = new Color32(205, 75, 54, 255);
     private static readonly Color TankBackground = new Color32(55, 112, 176, 255);
     private static readonly Color NamedBackground = new Color32(210, 161, 48, 255);
-    private static readonly Color NamedSymbol = new Color32(245, 224, 172, 255);
     private static readonly Color BossSymbol = new Color32(244, 218, 164, 255);
     private static readonly Color IndestructibleBackground = new Color32(91, 104, 119, 255);
     private static readonly Color WarmSymbolTint = new Color32(244, 225, 190, 255);
